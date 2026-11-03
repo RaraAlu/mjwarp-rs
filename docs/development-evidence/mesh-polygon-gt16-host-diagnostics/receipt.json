@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "kind": "mesh-polygon-gt16-host-diagnostics-receipt",
+  "task_id": "2026-11-03-mesh-polygon-gt16-host-diagnostics",
+  "status": "implemented (host diagnostics only; no GPU window, no freeze)",
+  "head_at_implementation": "dd75bf2b",
+  "changed": [
+    "src/runtime/collision_gpu.rs",
+    "src/runtime/collision_gpu/types.rs",
+    "src/runtime/collision_gpu/error.rs",
+    "src/runtime/collision_gpu/inputs_from_snapshot.rs",
+    "docs/development-evidence/mesh-polygon-gt16-host-diagnostics/"
+  ],
+  "behaviour": {
+    "product_path": "over-cap mesh inputs (face>20 or degree>10) now return CollisionGpuError::MeshMulticontactCapacity with dimension/actual/limit/reject_path instead of silently falling back to a single contact",
+    "probe_path": "CollisionGpuProgram::run / validate_collision_inputs unchanged (still record device behaviour; not part of this card's acceptance surface)",
+    "legal_inputs": "unchanged behaviour (same kernels, same ABI, same numeric path)"
+  },
+  "gates": {
+    "authority": ".normify/runs/2026-11-03-mesh-polygon-gt16-host-diagnostics/ (normify gate receipts)",
+    "checks": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "extra": "cargo test --locked --features cuda-probe --no-run EXIT=0"
+  },
+  "tests": {
+    "module_cases": 6,
+    "targeted": "6 passed / 0 failed",
+    "module_regression": "48 passed / 0 failed / 1 ignored"
+  },
+  "invariants": {
+    "render_kernel_cuda_unchanged": true,
+    "cu_unchanged": true,
+    "abi_unchanged": true,
+    "criteria_tolerance_reference_fixture_unchanged": true,
+    "tests_dir_untouched": true,
+    "gpu_window_opened": false,
+    "freeze_performed": false
+  },
+  "not_claimed": [
+    "U7/U8 passed",
+    "mesh capacity gap closed",
+    "device equals upstream",
+    "precision acceptance",
+    "general mesh coverage",
+    "any GPU or performance result in this card"
+  ]
+}

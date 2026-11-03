@@ -6,7 +6,7 @@
 //! 单文件行数，公开路径不变（`runtime::collision_gpu::*` 仍由父模块 re-export）。
 
 /// 设备侧标量参数（与探针 `meta.txt` 的标量一一对应，字段顺序即 ABI 顺序）。
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CollisionGpuMeta {
     pub nworld: i32,
     pub ngeom: i32,
@@ -115,4 +115,73 @@ pub struct CollisionGpuOutput {
     pub worldid: Vec<i32>,
     pub contact_type: Vec<i32>,
     pub geomcollisionid: Vec<i32>,
+}
+
+/// 方案 C：mesh 多接触容量维度（宿主诊断载荷）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MeshCapacityDimension {
+    /// 单 polygon 顶点数（设备 `G5_MC_MESH_FACE_MAX`，上游 `npolygonmax` 的模型级最大值）。
+    Face,
+    /// 单顶点相邻 polygon 数（设备 `G5_MC_MESH_DEG_MAX`，上游 `nmeshdegmax` 的模型级最大值）。
+    Degree,
+}
+
+impl MeshCapacityDimension {
+    /// 诊断/日志用的维度标签。
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Face => "face",
+            Self::Degree => "degree",
+        }
+    }
+}
+
+/// 设备侧 mesh 多接触固定容量上限（`multicontact_geom.cu` 宏的宿主镜像；
+/// 模块内 `include_str!` 断言守护两者一致，A 方案改宏后必须同步）。
+pub const MESH_MULTICONTACT_FACE_MAX: i32 = 20;
+/// 单顶点相邻 polygon 数上限（同上，镜像 `G5_MC_MESH_DEG_MAX`）。
+pub const MESH_MULTICONTACT_DEGREE_MAX: i32 = 10;
+/// 方案 C 的拒绝路径标识（写进诊断载荷，便于产品日志定位）。
+pub const MESH_MULTICONTACT_REJECT_PATH: &str =
+    "runtime::collision_gpu::inputs_from_snapshot (product collision plan)";
+
+/// 方案 C：单个维度的超界记录（维度、实际值、上限值）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MeshCapacityViolation {
+    /// 超界维度。
+    pub dimension: MeshCapacityDimension,
+    /// 模型级实际最大值（`max(polyvertnum)` 或 `max(polymapnum)`）。
+    pub actual: i32,
+    /// 设备固定上限。
+    pub limit: i32,
+}
+
+/// 方案 C：用已有 mesh 数组算模型级 `npolygonmax`/`nmeshdegmax`，与设备固定容量比较。
+///
+/// `polyvertnum` = 逐 polygon 顶点数（`nmeshpoly`）；`polymapnum` = 逐 vertex 相邻 polygon 数
+/// （`nmeshvert`）。返回空 vec 表示未超界（无 mesh sidecar 也返回空 → 行为与改动前一致）。
+pub fn mesh_multicontact_capacity_violations(
+    polyvertnum: &[i32],
+    polymapnum: &[i32],
+) -> Vec<MeshCapacityViolation> {
+    let mut violations = Vec::new();
+    if let Some(actual) = polyvertnum.iter().copied().max()
+        && actual > MESH_MULTICONTACT_FACE_MAX
+    {
+        violations.push(MeshCapacityViolation {
+            dimension: MeshCapacityDimension::Face,
+            actual,
+            limit: MESH_MULTICONTACT_FACE_MAX,
+        });
+    }
+    if let Some(actual) = polymapnum.iter().copied().max()
+        && actual > MESH_MULTICONTACT_DEGREE_MAX
+    {
+        violations.push(MeshCapacityViolation {
+            dimension: MeshCapacityDimension::Degree,
+            actual,
+            limit: MESH_MULTICONTACT_DEGREE_MAX,
+        });
+    }
+    violations
 }

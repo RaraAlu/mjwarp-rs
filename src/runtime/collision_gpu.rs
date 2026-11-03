@@ -52,7 +52,11 @@ pub use inputs_from_snapshot::{
 pub use product_entry::{
     ProductCollisionOutcome, ProductCollisionRequest, ProductHostReason, run_product_collision,
 };
-pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
+pub use types::{
+    CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput, MESH_MULTICONTACT_DEGREE_MAX,
+    MESH_MULTICONTACT_FACE_MAX, MESH_MULTICONTACT_REJECT_PATH, MeshCapacityDimension,
+    MeshCapacityViolation, mesh_multicontact_capacity_violations,
+};
 
 /// 仅测试入口：对 32 项宿主输入做纯 CPU 校验（不建 CUDA context、无行为变更）。
 ///

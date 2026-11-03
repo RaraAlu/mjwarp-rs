@@ -5,7 +5,7 @@
     "zh": "mesh >16 顶点多边形宿主超界诊断（方案 C：face>20 / degree>10 显式拒绝路径）",
     "en": "Host-side over-limit diagnostics for mesh polygons above 16 vertices (plan C: explicit face>20 / degree>10 rejection)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "按 mesh-polygon-gt16-gap 评估的方案 C，把设备侧「mesh polygon 超容量静默回退单接触」改在宿主侧显式暴露：在 collision GPU 输入的校验/plan 阶段，用已有 mesh 数组计算 npolygonmax 与 nmeshdegmax，与设备固定容量（face>20、degree>10）比较，超界时返回带维度、实际值、上限值与拒绝路径的可诊断错误，不再静默回退。本片只改宿主诊断与错误面，不改任何设备代码、ABI、判据、容差与夹具，不占 GPU 窗口。",
     "en": "Implement plan C from the mesh-polygon-gt16 gap assessment: compute npolygonmax and nmeshdegmax on the host from the existing mesh arrays during collision input validation, and reject inputs that exceed the device fixed capacity (face>20, degree>10) with a diagnosable error instead of silently falling back. Host diagnostics only; no device code, ABI, criteria, tolerance or fixture change; no GPU window."
@@ -16,11 +16,12 @@
     ]
   },
   "acceptance": [
-    "**超界显式诊断**：宿主校验阶段（`src/runtime/collision_gpu.rs::validate_collision_inputs` 或其调用的新宿主函数）用已有 mesh 数组计算 `npolygonmax`/`nmeshdegmax`，与设备固定容量比较；`face>20` 或 `degree>10` 时返回显式诊断，错误内容包含维度（face/degree）、实际值、上限值与拒绝路径，不再静默回退单接触。数值计算路径与既有合法输入行为保持不变。",
-    "**覆盖 fan-cone-24 双触发**：模块内 `#[cfg(test)]` 测试覆盖 fan-cone-24（face=24 且 degree=24，两维同时报告）、face=21 单维、degree=24 单维、以及边界值 face=20/degree=10 放行；断言错误种类与关键字段，不 panic。",
-    "**不变量**：`src/render/kernel/cuda` 与全部 `*.cu` 零改动；零 ABI、零 `DEVICE_SOURCES` 变更、零判据/容差/参考/fixtures 改动；不宣称 U7/U8 通过。",
-    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`cargo test --locked --features cuda-probe --no-run` EXIT=0；零 GPU 窗口、零冻结。",
-    "**证据**：`docs/development-evidence/mesh-polygon-gt16-host-diagnostics/`（README + facts.json + receipt.json 含 `/task_id` + 不自引用 manifest，sha/bytes 自洽）；README 明确写「只显式化诊断、不改数值行为；不宣称 mesh 容量缺口已清、不宣称上游等价、不宣称 U7/U8 通过」。"
+    "**产品入口显式拒绝**：容量拒绝只放 `src/runtime/collision_gpu/inputs_from_snapshot.rs`（产品 plan 必经入口）；`validate_collision_inputs` 与 `run` 保持纯 ABI 语义、零改动。宿主用已有 mesh 数组计算 `npolygonmax`/`nmeshdegmax`，`face>20` 或 `degree>10` 时返回结构化诊断，载荷含维度（face/degree）、实际值、上限值、拒绝路径，`Display` 打全字段；`CollisionGpuError::InvalidArgument` 现有调用面不动。证据 README 必须画出 product wiring → `inputs_from_snapshot` 的调用链（文件+函数），并用一条模块内测试证明 fan-cone-24 在该入口被显式拒绝。",
+    "**覆盖与边界**：模块内 `#[cfg(test)]` 覆盖 fan-cone-24 双触发（face=24 且 degree=24，两维同时报告）、face=21 单维、degree=24 单维、以及边界值 face=20/degree=10 放行；断言错误种类与关键字段（actual/limit/reject path），不 panic；不碰 `tests/` 目录。",
+    "**常量一致性断言**：新增 `include_str!` 解析断言，宿主上限常量必须等于 `.cu` 中 `G5_MC_MESH_*_MAX` 的值，防止 A 方案改宏后宿主失配。",
+    "**不变量**：`src/render/kernel/cuda` 与全部 `*.cu` 零改动；零 ABI、零 `DEVICE_SOURCES` 变更、零判据/容差/参考/fixtures 改动；不改 `tests/`；不宣称 U7/U8 通过。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 基线 1252/0，新增用例只加不减）；`cargo test --locked --features cuda-probe --no-run` EXIT=0；零 GPU 窗口、零冻结。",
+    "**证据与边界**：`docs/development-evidence/mesh-polygon-gt16-host-diagnostics/`（README + facts.json + receipt.json 含 `/task_id` + 不自引用 manifest，sha/bytes 自洽）；README 明确写「只显式化产品路径诊断、不改数值行为；不宣称 mesh 容量缺口已清、不宣称上游等价、不宣称 U7/U8 通过」。README 的「未覆盖/边界」节必须写明：直连 `run` 的探针路径仍报设备 record，不计入 C 的验收面；实现中若发现产品路径还有绕过 `inputs_from_snapshot` 的入口，立即停手报 Chief，不自行扩大范围。"
   ],
   "schedule": {
     "depends_on": [
@@ -31,6 +32,8 @@
     "files": [
       "src/runtime/collision_gpu.rs",
       "src/runtime/collision_gpu/types.rs",
+      "src/runtime/collision_gpu/error.rs",
+      "src/runtime/collision_gpu/inputs_from_snapshot.rs",
       "docs/development-evidence/mesh-polygon-gt16-host-diagnostics/"
     ],
     "resources": [],
@@ -38,11 +41,12 @@
   },
   "note": "Arch 2026-11-03 登记（Chief 令：方案 C 立即开工，零 GPU、零内核身份变更）。来源：2026-10-27-mesh-polygon-gt16-device-gap 评估（`docs/development-evidence/mesh-polygon-gt16-gap/README.md` §5 方案 C）。测试按 Chief 限定 scope 放模块内 `#[cfg(test)]`，不占 `tests/` 目录；设备面与 A/B 方案不在本卡。策略取「拒绝（Unsupported/InvalidArgument）」而非仅告警，避免产品继续静默近似。\n\n**A deferred（本轮不立项，Chief 2026-11-03 定）**：A=设备侧 face/degree 动态容量 32/32，成本 1–1.5 人日 + 1 个 GPU 窗口；会改 collision 内核身份（`9b7435ab…`→`12d50d68…`），必须新冻结并重放 M2/M3/S4 证据、历史证据不得混用。触发条件=用户要求完整 mesh 多接触 parity 且有窗口余量。B2b/B2a 待 A 结果再评，不主动建议。",
   "revision": {
-    "before": null,
+    "before": "78d212e0d1d38f9d95fc57684043958822c04011",
     "after": null
   },
   "created_at": "2026-11-03T15:35:00.000Z",
-  "updated_at": "2026-11-03T15:35:00.000Z",
+  "updated_at": "2026-11-03T15:31:45.226Z",
+  "closed_at": "2026-11-03T15:31:45.226Z",
   "checks": [
     {
       "kind": "gate",

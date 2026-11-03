@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "kind": "mesh-polygon-gt16-host-diagnostics-facts",
+  "task_id": "2026-11-03-mesh-polygon-gt16-host-diagnostics",
+  "plan": "C (host-side explicit rejection; device unchanged)",
+  "head_at_implementation": "dd75bf2b",
+  "device_limits": {
+    "face_max": 20,
+    "face_max_source": "src/physics/collision/cuda/multicontact_geom.cu:385 (G5_MC_MESH_FACE_MAX)",
+    "degree_max": 10,
+    "degree_max_source": "src/physics/collision/cuda/multicontact_geom.cu:384 (G5_MC_MESH_DEG_MAX)",
+    "device_fallback": "g5_mc_mesh_face (multicontact_mesh.cu:180) / g5_mc_mesh_normals (:120) / g5_mc_mesh_edge_normals (:148) return 0 -> g5_multicontact returns single contact (multicontact.cu:194-198; adopted by contact.cu:233)",
+    "device_paths_unchanged": true
+  },
+  "host_gate": {
+    "entry": "src/runtime/collision_gpu/inputs_from_snapshot.rs (inputs_from_snapshot)",
+    "scan": "src/runtime/collision_gpu/types.rs (mesh_multicontact_capacity_violations): npolygonmax = max(mesh_polyvertnum), nmeshdegmax = max(mesh_polymapnum)",
+    "error": "src/runtime/collision_gpu/error.rs (CollisionGpuError::MeshMulticontactCapacity)",
+    "error_payload": ["dimension (face|degree)", "actual", "limit", "reject_path"],
+    "display": "prints all fields; Chinese message",
+    "constant_mirror": {
+      "host": {"MESH_MULTICONTACT_FACE_MAX": 20, "MESH_MULTICONTACT_DEGREE_MAX": 10},
+      "guard": "include_str! of multicontact_geom.cu in module tests (host_limits_match_device_macros)"
+    },
+    "reject_path": "runtime::collision_gpu::inputs_from_snapshot (product collision plan)",
+    "empty_sidecar": "9 mesh_poly slices all empty -> no scan violations -> Ok (behaviour unchanged)"
+  },
+  "product_wiring": [
+    {"layer": "product adapter (outside repo)", "target": "run_product_collision"},
+    {"layer": "src/runtime/collision_gpu/product_entry.rs", "function": "run_product_collision"},
+    {"layer": "src/runtime/collision_gpu/product_entry.rs", "function": "prepare_inputs (calls inputs_from_snapshot; rejects before device selection)"},
+    {"layer": "src/runtime/collision_gpu/inputs_from_snapshot.rs", "function": "inputs_from_snapshot"},
+    {"layer": "src/runtime/collision_gpu/abi.rs", "function": "validate_inputs (existing shape/range checks; unchanged)"},
+    {"layer": "src/runtime/collision_gpu/types.rs", "function": "mesh_multicontact_capacity_violations (new capacity gate)"},
+    {"layer": "src/runtime/collision_gpu/error.rs", "function": "CollisionGpuError::MeshMulticontactCapacity (explicit rejection)"}
+  ],
+  "bypass_audit": {
+    "collision_gpu_inputs_construction_non_test": ["src/runtime/collision_gpu/inputs_from_snapshot.rs (single product assembly entry)"],
+    "inputs_from_snapshot_callers_src": ["src/runtime/collision_gpu/product_entry.rs (prepare_inputs)"],
+    "probe_path_unchanged": ["CollisionGpuProgram::run (direct probe/test path; still records device behaviour; not part of this card's acceptance surface)"],
+    "result": "no product-path bypass found"
+  },
+  "tests": {
+    "module": "src/runtime/collision_gpu/inputs_from_snapshot.rs #[cfg(test)]",
+    "count": 6,
+    "cases": [
+      "product_entry_rejects_fan_cone_24_on_both_dimensions",
+      "product_entry_rejects_face_only",
+      "product_entry_rejects_degree_only",
+      "product_entry_accepts_face_20_degree_10_boundary",
+      "product_entry_accepts_without_mesh_sidecar",
+      "host_limits_match_device_macros"
+    ],
+    "targeted": "cargo test --locked --lib collision_gpu::inputs_from_snapshot -> 6 passed / 0 failed",
+    "module_regression": "cargo test --locked --lib runtime::collision_gpu -> 48 passed / 0 failed / 1 ignored"
+  },
+  "line_counts": {
+    "src/runtime/collision_gpu.rs": 470,
+    "src/runtime/collision_gpu/inputs_from_snapshot.rs": 498,
+    "src/runtime/collision_gpu/types.rs": 187,
+    "src/runtime/collision_gpu/error.rs": 72
+  },
+  "invariants": {
+    "render_kernel_cuda_diff": "none",
+    "cu_diff": "none",
+    "abi_change": "none",
+    "criteria_tolerance_reference_fixture_change": "none",
+    "tests_dir_touched": false,
+    "gpu_window": false,
+    "freeze": false
+  },
+  "not_claimed": [
+    "U7/U8 passed",
+    "mesh capacity gap closed",
+    "device equals upstream",
+    "precision acceptance",
+    "general mesh coverage",
+    "any GPU or performance result in this card"
+  ]
+}

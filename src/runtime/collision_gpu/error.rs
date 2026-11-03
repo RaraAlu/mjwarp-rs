@@ -7,6 +7,8 @@
 use std::error::Error;
 use std::fmt;
 
+use super::types::MeshCapacityViolation;
+
 /// 产品 GPU 入口错误。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CollisionGpuError {
@@ -20,6 +22,17 @@ pub enum CollisionGpuError {
     Launch(String),
     /// 纯 CPU 可判的输入参数错误（尺寸、容量、slice 长度）。
     InvalidArgument(&'static str),
+    /// 方案 C（mesh 多接触容量）：产品 plan 入口对超界 mesh 输入的显式拒绝。
+    ///
+    /// 宿主用已有 mesh 数组算出模型级 `npolygonmax`/`nmeshdegmax`，超过设备固定容量
+    /// （`multicontact_geom.cu` 的 `G5_MC_MESH_FACE_MAX`/`G5_MC_MESH_DEG_MAX`）时返回本错误，
+    /// 不再让产品继续静默回退到单接触。`violations` 至少一条，按 face → degree 顺序。
+    MeshMulticontactCapacity {
+        /// 超界维度记录（维度、实际值、上限值）。
+        violations: Vec<MeshCapacityViolation>,
+        /// 拒绝路径（产品调用链入口，便于日志定位）。
+        reject_path: &'static str,
+    },
 }
 
 impl fmt::Display for CollisionGpuError {
@@ -30,6 +43,28 @@ impl fmt::Display for CollisionGpuError {
             Self::Load(detail) => write!(formatter, "设备模块加载失败：{detail}"),
             Self::Launch(detail) => write!(formatter, "内核执行失败：{detail}"),
             Self::InvalidArgument(detail) => write!(formatter, "输入参数无效：{detail}"),
+            Self::MeshMulticontactCapacity {
+                violations,
+                reject_path,
+            } => {
+                write!(
+                    formatter,
+                    "mesh多接触容量超界（宿主显式拒绝，不静默回退）："
+                )?;
+                for (index, violation) in violations.iter().enumerate() {
+                    if index > 0 {
+                        write!(formatter, "；")?;
+                    }
+                    write!(
+                        formatter,
+                        "{} actual={} limit={}",
+                        violation.dimension.label(),
+                        violation.actual,
+                        violation.limit
+                    )?;
+                }
+                write!(formatter, "；拒绝路径：{reject_path}")
+            }
         }
     }
 }
