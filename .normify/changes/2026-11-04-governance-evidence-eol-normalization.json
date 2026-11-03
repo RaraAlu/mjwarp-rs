@@ -5,7 +5,7 @@
     "zh": "证据/fixture 行尾（EOL）口径统一——A 方案：pre-gate 工作树规范化（零字节变化，不改 blob）",
     "en": "Evidence/fixture EOL normalization - plan A: pre-gate worktree normalization with zero blob changes"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "`normify` 0.7 的 `checks.unchanged` 按**工作树原始字节**与 HEAD blob 比对；本机工作树存在约 428 个历史 CRLF/mixed 行尾的 `docs/evidence/`、`docs/development-evidence/`、`fixtures/` 文件（`git status` 干净），导致任何带这些路径 `unchanged` 的卡随机报「受保护路径已改动」——S3a 收口时就靠一次临时行尾规范化才通过，属每片都会复发的坑。**A 方案（Chief 2026-11-04 批准，无需用户签）**：新增 `scripts/validate/normalize-evidence-eol.ps1`，在跑门禁前对受保护路径做一次**工作树**行尾规范化——只把「与 HEAD blob 仅行尾不同」的文件按 HEAD 字节重写，**不改变任何 git blob、不产生提交内容变化**；提供 `-DryRun` 与计数报告；幂等；PS 5.1 解析 0 错。B 方案（`git add --renormalize` 改 blob）会改变以 sha256+bytes 冻结的证据，需用户签，本卡不做。",
     "en": "Add a pre-gate worktree EOL normalization script that rewrites only files differing from HEAD solely by line endings, leaving all blobs unchanged; plan B (blob renormalize) is out of scope and needs user sign."
@@ -33,14 +33,36 @@
     "priority": 70
   },
   "note": "Arch 2026-11-04 登记（Chief 批准 A 方案，不需用户签；B 方案改 blob 会动 sha256+bytes 冻结证据，须用户签，故不采用）。触发实例：S3a 收口时 `checks.unchanged = docs/evidence/ + fixtures/` 因 428 个历史 CRLF/mixed 文件随机报「受保护路径已改动」，Backend 临时规范化才通过；S3c 已按此把 `unchanged` 收窄到只 `fixtures/`，但根治仍需本卡。",
-  "revision": { "before": "d4e820e9bc28f69adba14ef4046f2b3f626aded3", "after": null },
+  "revision": {
+    "before": "000301121b630d93b5743c31516f8b572ae52461",
+    "after": null
+  },
   "created_at": "2026-11-04T00:10:00.000Z",
-  "updated_at": "2026-11-04T00:10:00.000Z",
+  "updated_at": "2026-11-03T22:49:58.107Z",
+  "closed_at": "2026-11-03T22:49:58.107Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    }
   ]
 }
