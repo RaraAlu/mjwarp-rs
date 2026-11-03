@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-scene-parity-flex-fields",
+  "title": {
+    "zh": "R06 采集前置：scene parity 工具扩展 flex 字段（model_parity/compile_scene_312/model_parity_judge）",
+    "en": "R06 capture prerequisite: extend scene parity tooling with flex fields"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "Backend 在备 S3b① 时实测：`scripts/authoring/render-bvh/{model_parity.py,compile_scene_312.cpp,model_parity_judge.py}` 对 `flex` **0 命中**——它们是 scene-a 的 `model-{312,315}.json` + `provenance.json` 生成器，但只覆盖 render 字段。若不扩展，S3b① 只能产出「render 字段 parity」，`flex_dim/flex_radius/flex_vert*/flex_edge*/flex_elem*/flexvert_xpos` 在 MuJoCo 3.12 vs 3.15 的等价性没有证据，S3b② 窗口 replay 的前提就不成立。本卡只做**工具扩展 + 零回归自证**，不生成 fixture、不动 `fixtures/`。",
+    "en": "Extend the parity tooling so model-312/315 JSON capture flex arrays (equivalence evidence for the replay prerequisite); no fixture writes in this card."
+  },
+  "modules": {},
+  "acceptance": [
+    "**字段清单**：先盘清三个工具当前输出字段，additive 扩展 flex 相关字段（至少 `flex_dim`、`flex_radius`、`flex_vertadr/vertnum/vert`、`flex_edgeadr/edgenum/edge`、`flex_elemadr/elemnum/elemdataadr/elem`、`flex_shellnum/shelldataadr/shell`、`flexvert_xpos`；以工具实际可取的 MuJoCo 字段为准，缺项要写明为什么不取）。",
+    "**零回归**：以 scene-a（`fixtures/render-bvh/scene-a/`）为基线重跑 parity，**既有 render 字段逐字节不变**（给 diff 证明 0 变化）；新增 flex 字段单独列出，不与旧字段混在一起。",
+    "**边界**：不改 `fixtures/`、不改 `src/`、不改判据/容差；不在本卡生成 `scene-flex`。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-scene-parity-flex/` 收 README（字段清单 + 为什么取/不取）、scene-a 零回归前后输出、工具运行命令与版本。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU（纯 Python/C++ 工具，不启动 MuJoCo 渲染）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3a-flex-device"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/render-bvh/model_parity.py",
+      "scripts/authoring/render-bvh/compile_scene_312.cpp",
+      "scripts/authoring/render-bvh/model_parity_judge.py",
+      "docs/development-evidence/render-bvh/r06-scene-parity-flex/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（Backend 报：三工具 `Select-String flex` = 0 命中，不扩则 S3b① 的 model-312/315 只有 render 字段、S3b② replay 前提不成立）。为何单开卡而不塞进 S3b①：在途卡 `in_progress` 的声明字段冻结（scope 不能追加，S2b 已有先例），故拆成前置卡 + 顺序（本卡 → S3b① r2）。",
+  "revision": { "before": "d71e3e427ebb2e61bf1be00e71566d67c4cf79fd", "after": null },
+  "created_at": "2026-11-04T07:25:00.000Z",
+  "updated_at": "2026-11-04T07:25:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/", "src/render/kernel/cuda/"] }
+  ]
+}
