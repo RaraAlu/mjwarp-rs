@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-04-precision-np01-field-tables-b1-b2a-check",
+  "kind": "np01-field-tables-batch-independent-check",
+  "owner": "QA",
+  "status": "PASS",
+  "reviewed_cards": [
+    "2026-11-03-precision-np01-field-tables",
+    "2026-11-03-precision-np01-field-tables-b2a"
+  ],
+  "reviewed_commits": {
+    "b1": "0d8ee05a",
+    "b2a": "e6154d82"
+  },
+  "head_at_review": "b00ba5f8",
+  "note_head_drift": "later batches (B2b/B2c) landed before this review; B1/B2a assertions were verified against their own commits",
+  "scope": {
+    "b1_files": ["field-tables/com_position.json", "field-tables/com_velocity.json", "field-tables/gravity_compensation.json", "field-tables/rne_acc.json", "field-tables/rne_bias.json", "field-tables/README.md", "tests/precision_type_gate.rs"],
+    "b2a_files": ["field-tables/fixed_tendon.json", "field-tables/spatial_tendon.json", "field-tables/tendon.json", "field-tables/tendon_velocity.json", "field-tables/README.md", "tests/precision_type_gate.rs"],
+    "src_diff": "empty",
+    "fixtures_diff": "empty",
+    "include_diff": "empty",
+    "tables_modified_since_their_commit": 0,
+    "gpu_used": false,
+    "window_opened": false
+  },
+  "tables": {
+    "count": 9,
+    "b1": ["com_position", "com_velocity", "gravity_compensation", "rne_acc", "rne_bias"],
+    "b2a": ["fixed_tendon", "spatial_tendon", "tendon", "tendon_velocity"],
+    "schema": 1,
+    "required_sections_non_empty": true,
+    "kernels_have_params_outputs_intermediates_accumulations": true,
+    "evidence_path_entries": {
+      "com_position": 3,
+      "com_velocity": 2,
+      "gravity_compensation": 3,
+      "rne_acc": 2,
+      "rne_bias": 2,
+      "fixed_tendon": 2,
+      "spatial_tendon": 2,
+      "tendon": 2,
+      "tendon_velocity": 2,
+      "missing": 0
+    }
+  },
+  "pending_rows": {
+    "0d8ee05a": {"declared_len": 25, "ids": 25, "inventory_rows": 30, "tables": 5, "identity_30_eq_5_plus_25": true, "new_tables_not_pending": true},
+    "e6154d82": {"declared_len": 17, "ids": 17, "inventory_rows": 30, "tables": 13, "identity_30_eq_13_plus_17": true, "new_tables_not_pending": true}
+  },
+  "fma_atomicadd": {
+    "com_position": {"file": "src/physics/mod.rs", "table_claim": "no explicit fma (fma 7 belongs to rigid_kinematics matrix_inertial definition)", "matches": true},
+    "com_velocity": {"file": "src/physics/com_velocity/cuda.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "gravity_compensation": {"file": "src/physics/gravity_compensation/cuda.rs", "fma": 0, "atomicAdd": 1, "matches": true},
+    "rne_acc": {"file": "src/physics/rne.cu", "fma": 1, "atomicAdd": 1, "matches": true},
+    "rne_bias": {"file": "src/physics/rne_bias.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "fixed_tendon": {"file": "src/physics/fixed_tendon.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "spatial_tendon": {"file": "src/physics/spatial_tendon.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "tendon": {"file": "src/physics/tendon.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "tendon_velocity": {"file": "src/physics/tendon_velocity.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "upstream_level_preserved": "no batch promoted its upstream confidence level"
+  },
+  "gate": {
+    "tool": "normify gate <check> fmt clippy clippy-cuda unit",
+    "result": "all pass",
+    "unit_based_on": "cargo test --locked",
+    "assertion_types": [
+      "inventory rows must have a table or be listed in PENDING_ROWS",
+      "seven top-level keys and per-kernel params/outputs non-empty, intermediates/accumulations arrays",
+      "PENDING_ROWS entries must not already have a table",
+      "no row may be both without a table and absent from PENDING_ROWS"
+    ]
+  },
+  "observations": [
+    "inventory per-row drift: B1/B2a rows still carry old status/evidence.missing and no field_table pointer (only B1b rows were synced); defer to B-final refresh together with inventory.summary (updatedAt 2026-10-23)",
+    "field-tables/README.md header still says 'B1 / B1b' and '9/30' although B2a (and later batches) sections exist; documentation sync only, defer to B-final",
+    "gate evidence check only asserts non-emptiness, not path existence; QA independently verified 0 missing among path-type entries"
+  ],
+  "verdict": "PASS; no blocker, no wrong field fact, no gate relaxation",
+  "not_claimed": [
+    "NP01 accepted",
+    "type mapping rate 100%",
+    "upstream equivalence"
+  ],
+  "boundaries": "read-only batch review; no product code, criteria, tolerance, reference, fixtures or lists changed; zero GPU"
+}
