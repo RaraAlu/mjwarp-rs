@@ -5,7 +5,7 @@
     "zh": "阴影射线对 SDF（geom_type=8）遮挡仍做背面剔除：与上游 any-hit 语义的潜在缺口（当前 host 拒绝不可达）",
     "en": "Shadow rays still backface-cull SDF (geom_type=8) occluders: potential gap vs upstream any-hit semantics (unreachable today because the host rejects it)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "R09-S3b-fix 把阴影射线的 mesh 遮挡 cull 关掉（对齐上游 any-hit 只返回 bool、不填 normal 的语义），但 `gtype==8`（SDF）在 `shadow_ray` 下仍走背面剔除；上游 any-hit 分支对 MESH 与 SDF 同属 `d = 0.0 if hit else -1.0`、不填 normal。当前 **megakernel** host 只对 `geom_type==8`（SDF）直接拒绝（不可达；`gtype==1` hfield 已在 R05-S2 解锁并已纳入 cull 排除表），所以本缺口今天不影响任何可执行路径；一旦解除该 host 限制，阴影对 SDF 遮挡会与上游不一致。本卡为记录 + 前置约束，不在 R09 内修。",
     "en": "Record the SDF backface-culling gap for shadow rays and the precondition that the host currently rejects geom_type 1|8, so the gap is unreachable today."
@@ -24,12 +24,21 @@
     "resources": [],
     "priority": 55
   },
-  "note": "Arch 2026-10-28 登记，来源：QA 复核 R09-S3b secondary-ray 修复的观察 O3。**backlog 不 start**。\n\n2026-10-29 P4 排期（本卡=#2）：折进未来「SDF 解锁」片一起改（shadow 分支 latent fix + 注释指本卡 + 用例），不需独立窗口；0.5–1 人日；未解锁 gtype 8 前不可达，无法端到端验证，必须与解锁片绑定，避免腐化。\n\n2026-10-30 只读预核结论（Arch）：① 文案更正——今天 megakernel host **只拒绝 `gtype==8`**（`megakernel.rs:109`），`gtype==1` 自 R05-S2 已解锁且已在 `render_common.cu:393` 的 cull 排除表内；上游 pinned `render.py` L738-760 显示 any-hit 分支 **MESH 与 SDF 同路**（`ray_mesh_with_bvh_anyhit`、`d=0 if hit else -1`、不填 normal），L802-805 的 cull 判据因 n 为零向量而不生效 ⇒ 上游 SDF 遮挡不剔背。② **新发现（本卡补充记录）**：DepthSeg 路径（`render.cu` + `renderer.rs`）**没有** `gtype==8` 的 host 拒绝，且 render 场景 BVH 把 `7|8` 都当 `Mesh` 接受（`render/bvh/aabb.rs:47`）⇒ 含 SDF 的模型走 depth/seg 不会被拒绝，而是**静默全 miss**（该 kernel 不做阴影，故不影响本卡的阴影 cull 缺口，但 SDF 解锁时两条内核都要处理：要么一起解锁求交、要么 depth/seg 侧先补 host 拒绝）。③ **排期变更**：原「折进 SDF 解锁片」改为「**先独立 fix 片** `2026-10-30-render-sdf-anyhit-cull-latent-fix`（1 行 cull 排除 gtype==8 + 解锁契约注释 + host 拒绝回归测试；depends_on R08-S3 验证窗卡，**不得早于 R08 收口**），解锁片在其上实现 SDF 求交」。④ **顺序硬约束**：fix 改 `render_common.cu` 会改 `MEGAKERNEL_SOURCE`（6 .cu 拼接）与 PTX sha（现行 `e68e3412…`/`0b947492…`/268,275 B），而 R08 窗口材料/证据绑定该三值且窗口前提是零 .cu 改动 ⇒ 必须排在 R08 窗口之后；内核身份活体断言 0、历史引用 50 行/18 文件全在 `docs/development-evidence/**`，按 Chief 口径**不回改历史**。",
+  "note": "Arch 2026-10-28 登记，来源：QA 复核 R09-S3b secondary-ray 修复的观察 O3。**backlog 不 start**。\n\n2026-10-29 P4 排期（本卡=#2）：折进未来「SDF 解锁」片一起改（shadow 分支 latent fix + 注释指本卡 + 用例），不需独立窗口；0.5–1 人日；未解锁 gtype 8 前不可达，无法端到端验证，必须与解锁片绑定，避免腐化。\n\n2026-11-03 关闭记录（Arch）：本卡缺口已由 verified `2026-10-30-render-sdf-anyhit-cull-latent-fix`（+其 QA 复核卡）覆盖——阴影射线对 gtype 8 的背面剔除已按上游 any-hit 语义排除，`render_common.cu` 的 `cull_this` 条件与注释同批落地；当时补充记录的 depth/seg 路 SDF 静默 miss 残缘由 `2026-10-31-render-sdf-host-unlock-redo`（verified，`013d8d4a`；host 解锁后 `render.cu:357` 按 `gtype 7|8` 同路）与 sdf-validate attempt5（criterion v2.2，DepthSeg 跨路径位级）覆盖，无未决残余。本次只关单，不改代码（unchanged 检查固定两 .cu）。\n\n2026-10-30 只读预核结论（Arch）：① 文案更正——今天 megakernel host **只拒绝 `gtype==8`**（`megakernel.rs:109`），`gtype==1` 自 R05-S2 已解锁且已在 `render_common.cu:393` 的 cull 排除表内；上游 pinned `render.py` L738-760 显示 any-hit 分支 **MESH 与 SDF 同路**（`ray_mesh_with_bvh_anyhit`、`d=0 if hit else -1`、不填 normal），L802-805 的 cull 判据因 n 为零向量而不生效 ⇒ 上游 SDF 遮挡不剔背。② **新发现（本卡补充记录）**：DepthSeg 路径（`render.cu` + `renderer.rs`）**没有** `gtype==8` 的 host 拒绝，且 render 场景 BVH 把 `7|8` 都当 `Mesh` 接受（`render/bvh/aabb.rs:47`）⇒ 含 SDF 的模型走 depth/seg 不会被拒绝，而是**静默全 miss**（该 kernel 不做阴影，故不影响本卡的阴影 cull 缺口，但 SDF 解锁时两条内核都要处理：要么一起解锁求交、要么 depth/seg 侧先补 host 拒绝）。③ **排期变更**：原「折进 SDF 解锁片」改为「**先独立 fix 片** `2026-10-30-render-sdf-anyhit-cull-latent-fix`（1 行 cull 排除 gtype==8 + 解锁契约注释 + host 拒绝回归测试；depends_on R08-S3 验证窗卡，**不得早于 R08 收口**），解锁片在其上实现 SDF 求交」。④ **顺序硬约束**：fix 改 `render_common.cu` 会改 `MEGAKERNEL_SOURCE`（6 .cu 拼接）与 PTX sha（现行 `e68e3412…`/`0b947492…`/268,275 B），而 R08 窗口材料/证据绑定该三值且窗口前提是零 .cu 改动 ⇒ 必须排在 R08 窗口之后；内核身份活体断言 0、历史引用 50 行/18 文件全在 `docs/development-evidence/**`，按 Chief 口径**不回改历史**。",
   "revision": {
-    "before": null,
+    "before": "cc5fb846c75242471ccdf99383b949bdc980a8a8",
     "after": null
   },
   "created_at": "2026-10-28T12:33:00.000Z",
-  "updated_at": "2026-11-03T04:07:50.106Z",
-  "checks": []
+  "updated_at": "2026-11-03T04:08:34.179Z",
+  "closed_at": "2026-11-03T04:08:34.179Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/render_common.cu",
+        "src/render/kernel/cuda/render.cu"
+      ]
+    }
+  ]
 }
