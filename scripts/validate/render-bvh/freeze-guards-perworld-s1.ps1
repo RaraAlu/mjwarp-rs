@@ -1,8 +1,9 @@
 # Per-world S1 validation-window guard freezer (ASCII-only on purpose: PS 5.1 reads .ps1 as ANSI).
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 1
-# It rebuilds nothing by itself except running `cargo test --no-run` to resolve the 9 entity
-# executables, then freezes: 9 exe + 83 read-only inputs = 92 entries (same read-only input set
-# as the SDF suite minus the 2 criterion-v2.2 outline lists; includes the 5 perworld fixtures).
+# It rebuilds nothing by itself except running `cargo test --no-run` to resolve the 11 entity
+# executables, then freezes: 11 exe + 83 read-only inputs = 94 entries (same read-only input set
+# as the SDF suite minus the 2 criterion-v2.2 outline lists; includes the 5 perworld fixtures and
+# the hfield / shadow capture inputs).
 # Run this only AFTER the pre-window monitor passes and BEFORE the window body; never inside the body.
 # The R05 guards.json, R02 guards-r02-skybox.json, R08 guards-r08-rgb-hetero.json and the SDF
 # guards-sdf-validate.json are history and must not be touched or reused.
@@ -21,7 +22,7 @@ $artifactsPath = Join-Path $work 'cargo-artifacts.jsonl'
 $suite = 'render-perworld-s1'
 $taskId = '2026-10-30-render-perworld-impl-s1'
 
-# Entity order: the per-world target first, then the 8 regressions (entity-table order).
+# Entity order: the per-world target first, then the 10 regressions (entity-table order).
 $entities = @(
     @{ entity = 'render_per_world'; source = 'new' },
     @{ entity = 'render_e2e'; source = 'regression' },
@@ -31,7 +32,9 @@ $entities = @(
     @{ entity = 'render_r10_multi_world'; source = 'regression' },
     @{ entity = 'render_skybox_reference'; source = 'regression' },
     @{ entity = 'render_context_lifecycle'; source = 'regression' },
-    @{ entity = 'render_mesh_bvh'; source = 'regression' }
+    @{ entity = 'render_mesh_bvh'; source = 'regression' },
+    @{ entity = 'render_hfield_reference'; source = 'regression' },
+    @{ entity = 'render_shadow_reference'; source = 'regression' }
 )
 
 Write-Output 'freeze-guards-perworld-s1: resolving entity executables via cargo test --no-run --message-format=json'
@@ -125,10 +128,10 @@ $shadow = @(Get-ChildItem (Join-Path $RepoRoot 'fixtures/render-bvh/scene-shadow
 foreach ($file in $shadow) { $inputs += File-Entry $file.FullName.Substring($RepoRoot.Length + 1) }
 
 $total = $frozenExes.Count + $inputs.Count
-# 9 exe + 83 inputs = 92: scene-sdf 10 + scene-hfield 10 + legacy 47 + shadow capture 16.
-if ($frozenExes.Count -ne 9) { throw "expected 9 frozen exes, got $($frozenExes.Count)" }
+# 11 exe + 83 inputs = 94: scene-sdf 10 + scene-hfield 10 + legacy 47 + shadow capture 16.
+if ($frozenExes.Count -ne 11) { throw "expected 11 frozen exes, got $($frozenExes.Count)" }
 if ($inputs.Count -ne 83) { throw "expected 83 read-only inputs, got $($inputs.Count)" }
-if ($total -ne 92) { throw "expected 92 frozen entries, got $total" }
+if ($total -ne 94) { throw "expected 94 frozen entries, got $total" }
 $all = @()
 foreach ($entry in $frozenExes) { $all += [pscustomobject]@{ path = $entry.path; sha256 = $entry.sha256 } }
 foreach ($entry in $inputs) { $all += [pscustomobject]@{ path = $entry.path; sha256 = $entry.sha256 } }
@@ -150,7 +153,7 @@ $guards = [pscustomobject]@{
         guard_inputs = $inputs.Count
         total = $total
     }
-    aggregate_algorithm = 'sha256 over the sha256 hex strings of all 92 entries in repo-relative path-sorted order, concatenated with no separator'
+    aggregate_algorithm = 'sha256 over the sha256 hex strings of all 94 entries in repo-relative path-sorted order, concatenated with no separator'
     aggregate_sha256 = $aggregate
     frozen_exe_stash_dir = $stashDirRel
     entity_order = @($entities | ForEach-Object { $_.entity })
