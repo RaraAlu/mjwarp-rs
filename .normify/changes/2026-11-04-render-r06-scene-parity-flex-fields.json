@@ -5,7 +5,7 @@
     "zh": "R06 采集前置：scene parity 工具扩展 flex 字段（model_parity/compile_scene_312/model_parity_judge）",
     "en": "R06 capture prerequisite: extend scene parity tooling with flex fields"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "Backend 在备 S3b① 时实测：`scripts/authoring/render-bvh/{model_parity.py,compile_scene_312.cpp,model_parity_judge.py}` 对 `flex` **0 命中**——它们是 scene-a 的 `model-{312,315}.json` + `provenance.json` 生成器，但只覆盖 render 字段。若不扩展，S3b① 只能产出「render 字段 parity」，`flex_dim/flex_radius/flex_vert*/flex_edge*/flex_elem*/flexvert_xpos` 在 MuJoCo 3.12 vs 3.15 的等价性没有证据，S3b② 窗口 replay 的前提就不成立。本卡只做**工具扩展 + 零回归自证**，不生成 fixture、不动 `fixtures/`。",
     "en": "Extend the parity tooling so model-312/315 JSON capture flex arrays (equivalence evidence for the replay prerequisite); no fixture writes in this card."
@@ -34,14 +34,36 @@
     "priority": 74
   },
   "note": "Arch 2026-11-04 登记（Backend 报：三工具 `Select-String flex` = 0 命中，不扩则 S3b① 的 model-312/315 只有 render 字段、S3b② replay 前提不成立）。为何单开卡而不塞进 S3b①：在途卡 `in_progress` 的声明字段冻结（scope 不能追加，S2b 已有先例），故拆成前置卡 + 顺序（本卡 → S3b① r2）。",
-  "revision": { "before": "d71e3e427ebb2e61bf1be00e71566d67c4cf79fd", "after": null },
+  "revision": {
+    "before": "c7f04646e8f3ee41bd74060c4e71f45692ba9111",
+    "after": null
+  },
   "created_at": "2026-11-04T07:25:00.000Z",
-  "updated_at": "2026-11-04T07:25:00.000Z",
+  "updated_at": "2026-11-03T22:55:09.796Z",
+  "closed_at": "2026-11-03T22:55:09.796Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["fixtures/", "src/render/kernel/cuda/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/render/kernel/cuda/"
+      ]
+    }
   ]
 }

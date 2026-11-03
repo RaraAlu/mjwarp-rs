@@ -40,7 +40,7 @@ light_range light_attenuation light_cutoff light_softness light_exponent light_a
 light_diffuse light_specular mat_texrepeat mat_emission mat_specular mat_shininess
 mat_reflectance mat_metallic mat_roughness mat_rgba mesh_vert mesh_normal mesh_texcoord
 vis.headlight.ambient vis.headlight.diffuse vis.headlight.specular vis.map.znear
-vis.map.zfar""".split()
+vis.map.zfar flex_rgba""".split()
 INT64_FIELDS = ["tex_adr"]
 BYTE_FIELDS = """geom_sameframe light_castshadow light_active mat_texuniform tex_data
 names""".split()
@@ -48,7 +48,7 @@ DOUBLE_FIELDS = """geom_solmix geom_solref geom_solimp geom_size geom_aabb geom_
 geom_pos geom_quat geom_friction geom_margin geom_gap geom_surfacevel geom_adhesion geom_fluid
 cam_pos cam_quat cam_poscom0 cam_pos0 cam_mat0 cam_fovy cam_ipd light_pos light_dir light_poscom0
 light_pos0 light_dir0 mesh_scale mesh_pos mesh_quat mesh_polynormal stat.extent
-stat.center""".split()
+stat.center flex_radius flex_vert flex_vert0""".split()
 INT32_FIELDS = """geom_type geom_contype geom_conaffinity geom_condim geom_bodyid geom_dataid
 geom_matid geom_group geom_priority geom_plugin cam_mode cam_bodyid cam_targetbodyid
 cam_projection cam_resolution cam_output light_mode light_bodyid light_targetbodyid light_type
@@ -58,10 +58,13 @@ mesh_octnum mesh_normaladr mesh_normalnum mesh_texcoordadr mesh_texcoordnum mesh
 mesh_extrema mesh_face mesh_facenormal mesh_facetexcoord mesh_graph mesh_pathadr mesh_polynum
 mesh_polyadr mesh_polyvertadr mesh_polyvertnum mesh_polyvert mesh_polymapadr mesh_polymapnum
 mesh_polymap vis.headlight.active name_bodyadr name_jntadr name_geomadr name_siteadr
-name_camadr name_lightadr name_meshadr name_texadr name_matadr""".split()
+name_camadr name_lightadr name_meshadr name_texadr name_matadr
+flex_dim flex_vertadr flex_vertnum flex_edgeadr flex_edgenum flex_elemadr flex_elemnum
+flex_elemdataadr flex_shellnum flex_shelldataadr flex_vertbodyid flex_elem flex_shell""".split()
 COUNT_FIELDS = """nbody njnt ngeom nsite ncam nlight nmesh nmeshvert nmeshnormal
 nmeshtexcoord nmeshface nmeshgraph nmeshpoly nmeshpolyvert nmeshpolymap nmat ntex ntexdata
-nnames nbvh nbvhstatic nbvhdynamic nq nv nbuffer nkey""".split()
+nnames nbvh nbvhstatic nbvhdynamic nq nv nbuffer nkey
+nflex nflexvert nflexedge nflexelem nflexelemdata nflexshelldata""".split()
 FIELDS = (
     [(name, "float32") for name in FLOAT32_FIELDS]
     + [(name, "float64") for name in DOUBLE_FIELDS]

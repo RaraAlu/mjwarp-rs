@@ -122,7 +122,9 @@ void dump_counts(const mjModel* m) {
       "\"nmeshgraph\": %lld, \"nmeshpoly\": %lld, \"nmeshpolyvert\": %lld, "
       "\"nmeshpolymap\": %lld, \"nmat\": %lld, \"ntex\": %lld, \"ntexdata\": %lld, "
       "\"nnames\": %lld, \"nbvh\": %lld, \"nbvhstatic\": %lld, \"nbvhdynamic\": %lld, "
-      "\"nq\": %lld, \"nv\": %lld, \"nbuffer\": %lld, \"nkey\": %lld},\n",
+      "\"nq\": %lld, \"nv\": %lld, \"nbuffer\": %lld, \"nkey\": %lld, "
+      "\"nflex\": %lld, \"nflexvert\": %lld, \"nflexedge\": %lld, "
+      "\"nflexelem\": %lld, \"nflexelemdata\": %lld, \"nflexshelldata\": %lld},\n",
       static_cast<long long>(m->nbody), static_cast<long long>(m->njnt),
       static_cast<long long>(m->ngeom), static_cast<long long>(m->nsite),
       static_cast<long long>(m->ncam), static_cast<long long>(m->nlight),
@@ -135,7 +137,10 @@ void dump_counts(const mjModel* m) {
       static_cast<long long>(m->nnames), static_cast<long long>(m->nbvh),
       static_cast<long long>(m->nbvhstatic), static_cast<long long>(m->nbvhdynamic),
       static_cast<long long>(m->nq), static_cast<long long>(m->nv),
-      static_cast<long long>(m->nbuffer), static_cast<long long>(m->nkey));
+      static_cast<long long>(m->nbuffer), static_cast<long long>(m->nkey),
+      static_cast<long long>(m->nflex), static_cast<long long>(m->nflexvert),
+      static_cast<long long>(m->nflexedge), static_cast<long long>(m->nflexelem),
+      static_cast<long long>(m->nflexelemdata), static_cast<long long>(m->nflexshelldata));
 }
 
 void dump_arrays(const mjModel* m) {
@@ -157,6 +162,10 @@ void dump_arrays(const mjModel* m) {
   const long long nmeshpolyvert = static_cast<long long>(m->nmeshpolyvert);
   const long long nmeshpolymap = static_cast<long long>(m->nmeshpolymap);
   const long long ntexdata = static_cast<long long>(m->ntexdata);
+  const long long nflex = static_cast<long long>(m->nflex);
+  const long long nflexvert = static_cast<long long>(m->nflexvert);
+  const long long nflexelemdata = static_cast<long long>(m->nflexelemdata);
+  const long long nflexshelldata = static_cast<long long>(m->nflexshelldata);
 
   std::fprintf(g_out, "  \"arrays\": {\n");
   // geom_*
@@ -300,6 +309,24 @@ void dump_arrays(const mjModel* m) {
   dump_int_array("name_texadr", m->name_texadr, ntex);
   dump_int_array("name_matadr", m->name_matadr, nmat);
   dump_byte_array("names", reinterpret_cast<const unsigned char*>(m->names), static_cast<long long>(m->nnames));
+  // R06-S3b additive: render-relevant flex model arrays (scene-flex reference fixture).
+  dump_int_array("flex_dim", m->flex_dim, nflex);
+  dump_int_array("flex_vertadr", m->flex_vertadr, nflex);
+  dump_int_array("flex_vertnum", m->flex_vertnum, nflex);
+  dump_int_array("flex_edgeadr", m->flex_edgeadr, nflex);
+  dump_int_array("flex_edgenum", m->flex_edgenum, nflex);
+  dump_int_array("flex_elemadr", m->flex_elemadr, nflex);
+  dump_int_array("flex_elemnum", m->flex_elemnum, nflex);
+  dump_int_array("flex_elemdataadr", m->flex_elemdataadr, nflex);
+  dump_int_array("flex_shellnum", m->flex_shellnum, nflex);
+  dump_int_array("flex_shelldataadr", m->flex_shelldataadr, nflex);
+  dump_int_array("flex_vertbodyid", m->flex_vertbodyid, nflexvert);
+  dump_int_array("flex_elem", m->flex_elem, nflexelemdata);
+  dump_int_array("flex_shell", m->flex_shell, nflexshelldata);
+  dump_double_array("flex_radius", m->flex_radius, nflex);
+  dump_double_array("flex_vert", m->flex_vert, nflexvert * 3);
+  dump_double_array("flex_vert0", m->flex_vert0, nflexvert * 3);
+  dump_float_array("flex_rgba", m->flex_rgba, nflex * 4);
   std::fprintf(g_out, "  \"_end\": 0}\n}");
 }
 
