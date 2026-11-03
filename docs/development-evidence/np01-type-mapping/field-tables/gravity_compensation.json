@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "row_id": "gravity_compensation",
+  "layer": "G02 重力补偿",
+  "paths": ["gravity_compensation"],
+  "batch": "B1",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐表达式位级证据沿用实现片探针",
+  "source": {
+    "file": "src/physics/gravity_compensation/cuda.rs",
+    "const": "CUDA",
+    "kernels": ["gravity_compensation_clear", "gravity_compensation_validate", "gravity_compensation_compute", "gravity_compensation_sum"]
+  },
+  "kernels": [
+    {
+      "name": "gravity_compensation_clear",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 未使用（保持统一签名）"},
+        {"name": "p", "ctype": "const float*", "role": "in: 字段批参数"},
+        {"name": "state", "ctype": "const float*", "role": "in: 未使用"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 输出块"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度与总工作量"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "out[4+tid]", "type": "f32", "conversion": "写 0.0f"}]
+    },
+    {
+      "name": "gravity_compensation_validate",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: 结构常量块（root/ancestor/dof_jnt/act）"},
+        {"name": "p", "ctype": "const float*", "role": "in: 字段批参数（gravity/mass/gravcomp）"},
+        {"name": "rigid", "ctype": "const float*", "role": "in: 每 world rigid 块（xipos）"},
+        {"name": "com", "ctype": "const float*", "role": "in: 每 world com 块（subtree/cdof）"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "ok", "type": "bool（f32 比较结果）"},
+        {"name": "gc_field(p,field,w,width)", "type": "const float* 视图，纯指针运算无转换"}
+      ],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "ok ? 1.0f : 0.0f"}],
+      "quantization": [
+        "sentinel：raw/p/rigid/com 头 4 个元素与字段首元素必须精确等于 `-131072`（int）或 `-131072.0f`（f32），其余为硬失败",
+        "isfinite 逐项检查 gravity/mass/gravcomp/xipos/subtree/cdof"
+      ]
+    },
+    {
+      "name": "gravity_compensation_compute",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: root/ancestor"},
+        {"name": "p", "ctype": "const float*", "role": "in: gravity/mass/gravcomp 字段批"},
+        {"name": "rigid", "ctype": "const float*", "role": "in: xipos"},
+        {"name": "com", "ctype": "const float*", "role": "in: subtree/cdof"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 偏置力（6/dof 段）"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "fx/fy/fz", "type": "f32：`(-gravity[a]*mass[b])*gc`"},
+        {"name": "jx/jy/jz", "type": "f32：`cdof[3] + (cdof[1]*oz - cdof[2]*oy)` 形态的力矩"},
+        {"name": "ox/oy/oz", "type": "f32 质心相对位移"}
+      ],
+      "accumulations": [
+        {"what": "atomicAdd(out + 4 + w*nv + d, jx*fx+jy*fy+jz*fz)", "type": "f32 原子累加（多 body 竞争同一 dof）"}
+      ],
+      "outputs": [{"field": "out[...] (dof 偏置力)", "type": "f32", "conversion": "atomicAdd f32，无提升到 f64"}]
+    },
+    {
+      "name": "gravity_compensation_sum",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: dof_jnt/act"},
+        {"name": "parts", "ctype": "const float*", "role": "in: parts 中间块"},
+        {"name": "gravity", "ctype": "const float*", "role": "in: 重力字段"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用"},
+        {"name": "out", "ctype": "float*", "role": "out: 最终 dof 输出"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [{"name": "value", "type": "f32"}],
+      "accumulations": [
+        {"what": "value = __fadd_rn(parts[..], parts[..])", "type": "f32 显式单次舍入加法"},
+        {"what": "value = __fadd_rn(value, gravity[4+tid])", "type": "f32 显式单次舍入加法（激活标志时）"}
+      ],
+      "outputs": [{"field": "out[4+tid]", "type": "f32", "conversion": "直接写入"}]
+    }
+  ],
+  "quantization": [
+    "所有参数/状态块由宿主从原生 f64 转 f32 后进入；内核内无 f64（第一片 CUDA token 门禁覆盖）",
+    "sentinel -131072 是契约约定的精确比较值，用于拒绝未初始化/错长度输入"
+  ],
+  "upstream": {"files": ["passive.py", "smooth.py"], "functions": ["_gravity_force"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（gravity_compensation 全链 fixture）",
+    "docs/development-evidence/faithful-fma-fix/README.md（host 站点口径）",
+    "cargo test --locked --features cuda-probe --test g10_p5_gravity_compensation（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); multi-body atomic reduction has no bit-level replay record yet (kept in the row's missing list)"
+}

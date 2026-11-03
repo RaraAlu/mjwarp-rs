@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "row_id": "com_position",
+  "layer": "G01 前向/质心",
+  "paths": ["com_pos"],
+  "batch": "B1",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐表达式位级证据沿用实现片探针，不在本表重复",
+  "source": {
+    "file": "src/physics/mod.rs",
+    "const": "COM_POSITION_CUDA",
+    "kernel": "rigid_com_position"
+  },
+  "kernels": [
+    {
+      "name": "rigid_com_position",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 父索引/关节类型/body-of-joint/关节 dof 地址"},
+        {"name": "p", "ctype": "const float*", "role": "in: body 质量与惯量（`MJWARP_FIELD_BATCHES` 下经 field_parameter 取字段批）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world 状态块（xmat/ipos/imat/anchor/axis，全 f32）"},
+        {"name": "output", "ctype": "float*", "role": "out: 每 world 输出块（sm/com/ci/cd，全 f32）"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nj", "ctype": "unsigned", "role": "scalar: 关节数"},
+        {"name": "nv", "ctype": "unsigned", "role": "scalar: dof 数"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "mass[] / inertia[]", "type": "f32（field_parameter 视图，无副本转换）"},
+        {"name": "sm[b]", "type": "f32 子树质量，写回输出块首段"},
+        {"name": "com[3b+a]", "type": "f32 质量加权位置"},
+        {"name": "x/y/z/mb", "type": "f32 标量（质心相对位移与 body 质量）"},
+        {"name": "t[9]", "type": "f32 旋转后惯量张量"},
+        {"name": "off[3] / ax[3]", "type": "f32 关节轴与质心偏移"}
+      ],
+      "accumulations": [
+        {"what": "sm[up] += sm[b]", "type": "f32 顺序累加（树序 b=nb-1..1，非原子）"},
+        {"what": "com[3up+a] += com[3b+a]", "type": "f32 顺序累加（同一树序遍历）"},
+        {"what": "v += r[3row+a]*d[a]*r[3col+a]", "type": "f32 顺序乘加（无 f64、无显式 fma 指令）"}
+      ],
+      "outputs": [
+        {"field": "sm (子树质量)", "type": "f32 [4 + w*(14nb+6nv) + 0..]", "conversion": "直接 f32，无舍入转换"},
+        {"field": "com (质心位置)", "type": "f32", "conversion": "sm[b]!=0 时 `com/=sm[b]`，f32 除法一次舍入"},
+        {"field": "ci (质心惯量 10 分量)", "type": "f32", "conversion": "f32 表达式直接写入"},
+        {"field": "cd (复合 dof 6 分量)", "type": "f32", "conversion": "f32 表达式直接写入"}
+      ],
+      "quantization": [
+        "宿主把原生 mjtNum(f64) 状态与参数按 ABI 契约转换为 f32 后进入本内核，内核内不出现 f64",
+        "sentinel：非本内核职责（com_pos 不参与 -131072 校验）"
+      ],
+      "rounding_notes": [
+        "无显式 __fadd_rn/__fmaf_rn；f32 乘加按编译器契约，与上游同配方参考位级一致由探针承担"
+      ]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["com_pos"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（com_pos 逐位 fixture）",
+    "docs/development-evidence/g01-fast-loop/README.md（双模式 340/0）",
+    "cargo test --locked --features cuda-probe --test g10_p5_com_position（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); per-expression bit-level evidence carried by the implementation-slice probes"
+}

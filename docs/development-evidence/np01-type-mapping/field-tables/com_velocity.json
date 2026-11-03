@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "row_id": "com_velocity",
+  "layer": "G01 前向/质心速度",
+  "paths": ["com_vel", "cdof_dot"],
+  "batch": "B1",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐表达式位级证据沿用实现片探针",
+  "source": {
+    "file": "src/physics/com_velocity/cuda.rs",
+    "const": "COM_VELOCITY_CUDA",
+    "kernel": "com_velocity"
+  },
+  "kernels": [
+    {
+      "name": "com_velocity",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 父索引/每 body 关节数/关节 adr/关节类型/dof 地址"},
+        {"name": "velocities", "ctype": "const float*", "role": "in: 每 world qvel（f32）"},
+        {"name": "com", "ctype": "const float*", "role": "in: 每 world 复合量块（含 cdof 段，f32）"},
+        {"name": "output", "ctype": "float*", "role": "out: cvel（6/body）+ cdof_dot（6/dof），f32"},
+        {"name": "nb/nj/nv/nw", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "v[6]", "type": "f32 每 body 空间速度（父 body 值复制后按关节累加）"},
+        {"name": "motion_cross(a,b,out)", "type": "f32 6 维空间叉积，写法为 `(a1*b2 - a2*b1)` 分组显式括号，上下两组各自再相加"},
+        {"name": "qvel[d]", "type": "f32 dof 速度"}
+      ],
+      "accumulations": [
+        {"what": "v[k] += cdof[6(d+i)+k]*qvel[d+i]", "type": "f32 顺序累加（dof 按 adr 顺序，每项一次乘加）"},
+        {"what": "v[k] += cdof[6d+k]*qvel[d]（else 分支）", "type": "f32 顺序累加"}
+      ],
+      "outputs": [
+        {"field": "cvel[6b+k]", "type": "f32", "conversion": "f32 直接写入（body 0 预置 0）"},
+        {"field": "cdof_dot[6d+k]", "type": "f32", "conversion": "motion_cross 直接写入；关节类型 0 的前 3 个 dof 置 0"}
+      ],
+      "quantization": [
+        "qvel 由宿主按 ABI 从原生 f64 转 f32 后进入；内核内不出现 f64",
+        "关节类型 0/1/2 的分支只改变累加顺序，不改变精度"
+      ],
+      "rounding_notes": [
+        "motion_cross 用分组括号固定加法顺序（与上游 `math.motion_cross` 对齐），无显式 fma 指令"
+      ]
+    }
+  ],
+  "upstream": {"files": ["smooth.py", "math.py"], "functions": ["com_vel", "motion_cross"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（com_vel/cdof_dot 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_com_velocity（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); per-expression bit-level evidence carried by the implementation-slice probes"
+}

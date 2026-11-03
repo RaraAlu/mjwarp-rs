@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "row_id": "rne_bias",
+  "layer": "G02 偏置力",
+  "paths": ["rne_bias"],
+  "batch": "B1",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐表达式位级证据沿用实现片探针",
+  "source": {
+    "file": "src/physics/rne_bias.rs",
+    "const": "RNE_BIAS_CUDA",
+    "kernel": "rne_bias"
+  },
+  "kernels": [
+    {
+      "name": "rne_bias",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 维度头 + 父索引/num/adr/body-of-dof + 重力种子 `-__int_as_float(m[k-1])`"},
+        {"name": "velocities", "ctype": "const float*", "role": "in: 每 world qvel（f32）"},
+        {"name": "com", "ctype": "const float*", "role": "in: 每 world 复合量块（ci 10/body、cdof 6/dof，f32）"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: 每 world cvel 与 cdof_dot 块（f32）"},
+        {"name": "output", "ctype": "float*", "role": "out: 每 world 输出块（acc 6/body、frc 6/body、bias 1/dof，f32）"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "a[6]", "type": "f32 空间加速度（父 body 值复制 + `dot*qvel`）"},
+        {"name": "iv[6]", "type": "f32 `inertia_vector(ci, v)` 结果"},
+        {"name": "cross[6]", "type": "f32 `cross_force(v, iv)` 结果"},
+        {"name": "f", "type": "f32 最终 dof 偏置"}
+      ],
+      "accumulations": [
+        {"what": "a[k] += dot[6d+k]*qvel[d]", "type": "f32 顺序累加（dof 按 adr 顺序）"},
+        {"what": "frc[6parent+k] += frc[6b+k]", "type": "f32 顺序累加（body 逆序 b=nb-1..1，非原子）"},
+        {"what": "frc[6b+k] += cross[k]", "type": "f32 顺序累加"},
+        {"what": "f += cdof[6d+k]*frc[6body+k]", "type": "f32 顺序累加（k=0..5）"}
+      ],
+      "outputs": [
+        {"field": "acc[6b+k]", "type": "f32", "conversion": "f32 直接写入；body0 初值 `k<3 ? 0.0f : -__int_as_float(m[k-1])`"},
+        {"field": "frc[6b+k]", "type": "f32", "conversion": "f32 直接写入；body0 置 0"},
+        {"field": "bias[d]", "type": "f32", "conversion": "f32 点积直接写入"}
+      ],
+      "quantization": [
+        "qvel/cvel/cdof 由宿主按 ABI 从原生 f64 转 f32；内核内无 f64",
+        "重力种子用 `__int_as_float(m[k-1])` 位型搬运（bit-exact，不做数值转换）"
+      ],
+      "rounding_notes": [
+        "惯量/叉积表达式与上游 smooth.py 同形（f32 乘加顺序固定），无显式 fma 指令"
+      ]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["rne"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（rne_bias 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_rne_bias（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); Linux dual-platform replay still missing (already in the row's missing list)"
+}

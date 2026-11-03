@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "row_id": "rne_acc",
+  "layer": "G02 RNE 加速度",
+  "paths": ["rne_cacc", "rne_cfrc", "rne_backward", "rne_qfrc"],
+  "batch": "B1",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐表达式位级证据沿用实现片探针",
+  "source": {
+    "file": "src/physics/rne.cu",
+    "const": null,
+    "kernels": ["rne_cacc", "rne_cfrc", "rne_backward", "rne_qfrc"]
+  },
+  "kernels": [
+    {
+      "name": "rne_cacc",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 维度头 + parent/num/adr"},
+        {"name": "v", "ctype": "const float*", "role": "in: 每 world qvel"},
+        {"name": "qa", "ctype": "const float*", "role": "in: 每 world qacc"},
+        {"name": "com", "ctype": "const float*", "role": "in: cdof 段"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: cdof_dot 段"},
+        {"name": "out", "ctype": "float*", "role": "out: acc 6/body + 尾部 nv 段"},
+        {"name": "flag", "ctype": "unsigned", "role": "scalar: 是否累加 qacc 项"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "a[6]", "type": "f32 空间加速度"},
+        {"name": "acc 初值", "type": "f32：`k<3 ? 0.0f : -__int_as_float(m[k-1])`（重力位型搬运）"}
+      ],
+      "accumulations": [
+        {"what": "a[k] += dot[6d+k]*qvel[d]", "type": "f32 顺序累加（dof 按 adr 顺序）"},
+        {"what": "a[k] += cdof[6d+k]*qacc[d]（flag 为真时）", "type": "f32 顺序累加"}
+      ],
+      "outputs": [{"field": "acc[6b+k]", "type": "f32", "conversion": "f32 直接写入"}]
+    },
+    {
+      "name": "rne_cfrc",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 维度头"},
+        {"name": "com", "ctype": "const float*", "role": "in: ci 段"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: cvel 段"},
+        {"name": "out", "ctype": "float*", "role": "out: frc 段（acc 后 6/body）"},
+        {"name": "x/y/z", "ctype": "unsigned", "role": "scalar: 未使用（统一签名占位）"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "iv[6]", "type": "f32 `rne_inert_vec(ci, cv)`"},
+        {"name": "cross[6]", "type": "f32 `rne_cross_force(cv, iv)`"},
+        {"name": "i[10] / a[6] / f[6]", "type": "f32 惯量向量与分布力"}
+      ],
+      "accumulations": [
+        {"what": "frc[6b+k] += cross[k]", "type": "f32 顺序累加"},
+        {"what": "rne_inert_acc(ci, acc, frc)", "type": "f32 写入（内部 f 逐分量表达式，无跨 world 归约）"}
+      ],
+      "outputs": [{"field": "frc[6b+k]", "type": "f32", "conversion": "f32 直接写入"}],
+      "rounding_notes": [
+        "源码注释冻结上游舍入：`_cfrc` 先舍入 `i3*a0` 再融合 `i1*a1`，实现为 `fmaf(i[1],a[1],__fmul_rn(i[3],a[0]))`（单次正确舍入的 fma + 显式单次舍入乘法）"
+      ]
+    },
+    {
+      "name": "rne_backward",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 维度头 + parent + depth"},
+        {"name": "unused1/unused2", "ctype": "const float*", "role": "in: 未使用（统一签名占位）"},
+        {"name": "out", "ctype": "float*", "role": "in/out: frc 段（读子写父）"},
+        {"name": "nb_arg/level/z/count", "ctype": "unsigned", "role": "scalar: 层级遍历控制"}
+      ],
+      "intermediates": [{"name": "b/w", "type": "unsigned 索引推导"}],
+      "accumulations": [
+        {"what": "atomicAdd(frc[6parent+k], frc[6b+k])", "type": "f32 原子累加（多名子 body 汇入同一父）"}
+      ],
+      "outputs": [{"field": "frc[6parent+k]", "type": "f32", "conversion": "f32 原子加"}]
+    },
+    {
+      "name": "rne_qfrc",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 维度头 + body-of-dof"},
+        {"name": "com", "ctype": "const float*", "role": "in: cdof 段"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用"},
+        {"name": "out", "ctype": "float*", "role": "in/out: 读 frc 段、写 bias 段"},
+        {"name": "x/y/z", "ctype": "unsigned", "role": "scalar: 未使用"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [{"name": "value", "type": "f32 点积"}],
+      "accumulations": [
+        {"what": "value += cdof[6d+k]*frc[6body+k]", "type": "f32 顺序累加（k=0..5）"}
+      ],
+      "outputs": [{"field": "bias[d]", "type": "f32", "conversion": "f32 直接写入"}]
+    }
+  ],
+  "quantization": [
+    "qvel/qacc/cvel/cdof 由宿主按 ABI 从原生 f64 转 f32；本 .cu 由第一片 token 门禁覆盖（注释里讨论上游 double 分支允许，代码无 double）",
+    "重力种子 `-__int_as_float(m[k-1])` 为位型搬运（bit-exact）"
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["rne", "_rne_cacc_world"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（rne 全链 fixture，84/240 条 ULP 级差异已登记）",
+    "cargo test --locked --features cuda-probe --test g10_p5_rne（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 84/240 ULP-level差异的可选逐位对齐仍属该行 missing 项"
+}

@@ -202,3 +202,13 @@ device 侧口径：pinned GPU `ccd` PTX 的 `fma.rn` 融合（T4 采集 PTX `fma
 **本片未覆盖**：`f64` 语义审计（哪些 f64 会反馈产品物理）、逐字段类型表、数值容差；不宣称 NP01 通过。
 
 复现：`cargo test --locked --test precision_host_source_gate`。
+## B1 逐字段表已交付（5/30 条产品路径，2026-11-04）
+
+任务：`2026-11-03-precision-np01-field-tables`（B1 批）。在 `field-tables/` 下新增 5 条产品路径的逐字段类型表
+（参数/中间量/累加/输出转换点/上游/证据）：`com_position`、`com_velocity`、`gravity_compensation`、
+`rne_bias`、`rne_acc`。表结构、粒度边界、待补 25 条产品路径与 3 条 host 站点的分批计划见
+[`field-tables/README.md`](field-tables/README.md)；`tests/precision_type_gate.rs` 新增覆盖门禁：
+清单每行必须在 `field-tables/` 有表，或在测试的待批清单里显式登记，缺表即失败。
+
+**NP01 仍未验收**：B1 只覆盖 5/30 条产品路径；逐表达式位级对照、`kinematics`（12 输出）与 mass_solve 多路径、
+host 三条站点表仍未做。
