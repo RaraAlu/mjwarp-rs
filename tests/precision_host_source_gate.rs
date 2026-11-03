@@ -190,8 +190,8 @@ fn cuda_gate_snapshot_still_covers_the_primary_surface() {
     .expect("cuda-surface.json 必须存在且是合法 JSON（NP01 第一片）");
     assert_eq!(
         snapshot["totals"]["files"].as_u64(),
-        Some(41),
-        "CUDA 源面快照文件数应为 41（第一片口径）"
+        Some(42),
+        "CUDA 源面快照文件数应为 42（源面含 render_flex.cu）"
     );
     assert_eq!(
         snapshot["totals"]["globals"].as_u64(),
