@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-04-precision-np01-field-tables-b1b-check",
+  "kind": "np01-field-tables-independent-check",
+  "owner": "QA",
+  "status": "PASS",
+  "reviewed_card": "2026-11-04-precision-np01-field-tables-b1b",
+  "reviewed_commit": "abbe89ba",
+  "head_at_review": "7402d076",
+  "note_head_drift": "review ran after later batches (B2a/B2b/B2c) landed; B1b assertions were verified against commit abbe89ba",
+  "scope": {
+    "files_in_commit": 12,
+    "src_diff": "empty",
+    "fixtures_diff": "empty",
+    "include_diff": "empty",
+    "gpu_used": false,
+    "window_opened": false
+  },
+  "tables": {
+    "count": 4,
+    "row_ids": ["kinematics", "crb", "mass_multiply", "mass_solve"],
+    "schema": 1,
+    "batch": "B1b",
+    "required_sections_non_empty": true,
+    "kernels_have_params_outputs_intermediates_accumulations": true,
+    "evidence_path_entries": {"kinematics": 3, "crb": 4, "mass_multiply": 4, "mass_solve": 9, "missing": 0}
+  },
+  "kinematics_outputs": {
+    "outputs_12_count": 12,
+    "own_table": 7,
+    "to_com_position_table": 3,
+    "to_crb_table": 2,
+    "matrix_inertial": "defined only, not called by rigid_kinematics; fma 7 = ufma definition 1 + matrix_inertial calls 6"
+  },
+  "fma_atomicadd": {
+    "raw_kernels": "fma text scan fmaf|__fmaf|fma(, atomicAdd text only",
+    "kinematics": {"file": "src/physics/mod.rs", "fma": 7, "atomicAdd": 0, "matches": true},
+    "crb": {"file": "src/physics/mass_matrix.rs", "fma": 19, "atomicAdd": 0, "resident_atomicAdd": 2, "matches": true},
+    "mass_multiply": {"file": "src/physics/mass_matrix/multiply/cuda.rs", "fma": 0, "atomicAdd": 0, "matches": true},
+    "mass_solve": {"file": "src/physics/mass_solve/cuda.rs", "fma": 4, "atomicAdd_text": 0, "inline_atom_global_add_f32": "documented separately in table", "matches": true},
+    "mass_multiply_upstream_level": "file-level (not promoted)"
+  },
+  "pending_rows": {
+    "at_abbe89ba": 21,
+    "declared_len": 21,
+    "ids": 21,
+    "removed_this_batch": ["kinematics", "crb", "mass_multiply", "mass_solve"],
+    "inventory_rows": 30,
+    "table_json_count_at_that_commit": 9,
+    "identity_30_eq_9_plus_21": true
+  },
+  "inventory": {
+    "four_rows_status_updated": true,
+    "four_rows_field_table_pointers": true,
+    "remaining_batches_field_table_pointers": "B1/B2a rows were not given field_table pointers by their own batches; recorded as known drift (B-final), not part of this check"
+  },
+  "readme": {
+    "b1b_section_present": true,
+    "b1_b1b_pending_sections_consistent": true,
+    "known_drift_documented": ["root np01-type-mapping/README.md per-row status not synced", "inventory.summary updatedAt=2026-10-23 not synced"]
+  },
+  "gate": {
+    "tool": "normify gate <check> fmt clippy clippy-cuda unit",
+    "result": "all pass",
+    "unit_based_on": "cargo test --locked",
+    "unit_tests_passed": 1268,
+    "unit_tests_failed": 0,
+    "assertion_types": {
+      "missing_table": "inventory rows must have a table or be in PENDING_ROWS (no silent gap)",
+      "empty_section": "7 top-level keys + per-kernel params/outputs non-empty; intermediates/accumulations arrays",
+      "evidence_non_empty": "evidence section non-empty (file-existence is NOT asserted by the gate; QA verified existence independently)",
+      "table_present_but_still_pending": "PENDING_ROWS entries must not have a table"
+    }
+  },
+  "observations": [
+    "gate evidence check only asserts non-emptiness, not path existence (QA independently verified 0 missing among path-type entries); suggest hardening or aligning acceptance wording",
+    "known historical drift: inventory.summary and root np01-type-mapping/README.md per-row status are stale; deferred to B-final",
+    "review HEAD had advanced to B2c; PENDING_ROWS moved 21->17->12->7 by later batches, expected"
+  ],
+  "verdict": "PASS; no blocker, no wrong field fact, no gate relaxation",
+  "not_claimed": [
+    "NP01 accepted",
+    "type mapping rate 100%",
+    "upstream equivalence"
+  ],
+  "boundaries": "read-only review; no product code, criteria, tolerance, reference, fixtures or lists changed; zero GPU (no nvidia-smi, no window)"
+}
