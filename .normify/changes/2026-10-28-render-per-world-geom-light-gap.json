@@ -5,7 +5,7 @@
     "zh": "渲染产品缺口：多 world 逐 world 几何/灯位姿（R10 发现，backlog 不 start）",
     "en": "Render product gap: per-world geometry and light poses for nworld>1 (found by R10, backlog)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "记录 R10-S2 发现的产品缺口：渲染内核只把**相机位姿**按 world 索引（`cam_slot = worldid*dims[1]+camid`），而 `geom_xpos`/`geom_xmat`/`light_xpos`/`light_xdir` 等仍是**单 world 索引**（`data + geom_id` / `data[light]`）。因此 `nworld>1` 只有在各 world 几何/灯位姿相同时才成立；R10-S2 的 A 方案验收仅覆盖「两 world 几何相同」的情形，**不宣称上游 nworld>1 等价**。真支持逐 world 几何/灯需要：host 侧按 world 展平上传几何/灯数组（内存 ×nworld）、内核索引改 per-world（kernel 文件贴线，先按 S7b3 拆）、重跑受影响 M1/M2/M3 与渲染证据 + 1–2 个验证窗。**本任务保持 backlog，不 start**，等 Arch/Chief 排期。",
     "en": "Record the R10 gap: only camera poses are world-indexed; geom/light poses stay single-world, so nworld>1 is only valid when worlds share geometry. Keep as backlog."
@@ -24,14 +24,21 @@
     "resources": [],
     "priority": 59
   },
-  "note": "Arch 2026-10-28 登记：R10-S2 attempt1 诊断时确认（RGB Capacity 56 vs 28 与内核单 world 索引）。backlog 不 start。\n\n2026-10-29 P4 排期（本卡=#3）：最小切片=host 按 world 展平 geom/light 数组（内存×nworld）+ 内核 per-world 索引（先拆 kernel 子文件）；需先只读预核 pinned 多 world 渲染参考采集可行性，再排 1–2 个窗口；量级 3–5 人日；风险=内存放大、采集可行性与 R10 证据重做。\n\n2026-10-30 排期定案：方案 L 被批为 per-world S1（`2026-10-30-render-perworld-impl-s1`）。**L v1 范围 = 逐 world geom 位姿**（`geom_xpos/geom_xmat` 经 `WorldScenePoses` → `update_poses` → `refit_bvh`，host 逐 world 循环 + 单 world 发射 + adr 值位移；不改 `.cu`、不动 81 槽 ABI）。**灯位姿 defer 到 L v2/K**：灯数组仍模型级单份，L v1 不注入 per-world 灯；参考中逐 world 灯相同故比对不受影响。**defer 的棘轮原因**：`context/lifecycle.rs` 498 LF、`args.rs` 494 LF 已顶 500 棘轮，指针偏移 helper 放不下 ⇒ 只做 adr 值位移。AA+per-world 同样留 L v2/K（per-world 入口对 `nsamples>1` 显式 `Unsupported`）。本卡保持 backlog 不 start。",
+  "note": "Arch 2026-10-28 登记：R10-S2 attempt1 诊断时确认（RGB Capacity 56 vs 28 与内核单 world 索引）。backlog 不 start。\n\n2026-10-29 P4 排期（本卡=#3）：最小切片=host 按 world 展平 geom/light 数组（内存×nworld）+ 内核 per-world 索引（先拆 kernel 子文件）；需先只读预核 pinned 多 world 渲染参考采集可行性，再排 1–2 个窗口；量级 3–5 人日；风险=内存放大、采集可行性与 R10 证据重做。\n\n2026-10-30 排期定案：方案 L 被批为 per-world S1（`2026-10-30-render-perworld-impl-s1`）。**L v1 范围 = 逐 world geom 位姿**（`geom_xpos/geom_xmat` 经 `WorldScenePoses` → `update_poses` → `refit_bvh`，host 逐 world 循环 + 单 world 发射 + adr 值位移；不改 `.cu`、不动 81 槽 ABI）。**灯位姿 defer 到 L v2/K**：灯数组仍模型级单份，L v1 不注入 per-world 灯；参考中逐 world 灯相同故比对不受影响。**defer 的棘轮原因**：`context/lifecycle.rs` 498 LF、`args.rs` 494 LF 已顶 500 棘轮，指针偏移 helper 放不下 ⇒ 只做 adr 值位移。AA+per-world 同样留 L v2/K（per-world 入口对 `nsamples>1` 显式 `Unsupported`）。本卡保持 backlog 不 start。\n\n2026-11-03 关闭记录：几何位姿部分由 `2026-10-30-render-perworld-impl-s1`（2026-11-03 已 start，方案 L v1）承担；灯位姿/AA+perworld/上游式单发射的残债已转记 `2026-11-03-render-perworld-l-v2-k-backlog`（backlog）。本卡关单、不再跟踪缺口；不改代码、不宣称覆盖。",
   "revision": {
-    "before": null,
+    "before": "474498235c2544d7986d430fd2e352c3617dde5f",
     "after": null
   },
   "created_at": "2026-10-27T20:48:00.000Z",
-  "updated_at": "2026-11-03T04:07:50.245Z",
+  "updated_at": "2026-11-03T04:09:09.894Z",
+  "closed_at": "2026-11-03T04:09:09.894Z",
   "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda"
+      ]
+    },
     {
       "kind": "forbid_claim",
       "terms": [
