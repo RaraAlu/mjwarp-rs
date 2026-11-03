@@ -180,11 +180,9 @@ fn check_sources(
     data: &FlexHostData<'_>,
 ) -> Result<(), FlexWiringError> {
     expect("flex_vertadr", model.nflex, positions.flex_vertadr.len())?;
-    expect(
-        "flex_vertbodyid",
-        model.nflexvert,
-        positions.flex_vertbodyid.len(),
-    )?;
+    expect("flex_vertnum", model.nflex, positions.flex_vertnum.len())?;
+    let vertbodyid = positions.flex_vertbodyid.len();
+    expect("flex_vertbodyid", model.nflexvert, vertbodyid)?;
     let edge_entries = checked("flex_edge", model.nflexedge.checked_mul(2))?;
     expect("flex_edge", edge_entries, edges.flex_edge.len())?;
     if edges.nflexedge() != model.nflexedge {
@@ -441,6 +439,20 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(error, FlexWiringError::Count { .. }));
+    }
+
+    /// `flex_vertnum` 短于 nflex → 显式 `Length`（原来是可直接触发的索引越界 panic 路径）。
+    #[test]
+    fn short_flex_vertnum_returns_length_error() {
+        let mut positions = positions_single();
+        positions.flex_vertnum.clear();
+        let data = data_single(&XPOS, &BVH, &ROOT);
+        let error = FlexHostAssembly::build(1, &positions, &edges_single(), &model_single(), data)
+            .unwrap_err();
+        let FlexWiringError::Length { field, .. } = error else {
+            panic!("必须返回 Length 错误，实际不是");
+        };
+        assert_eq!(field, "flex_vertnum");
     }
 
     /// 有 flex 两次组装逐位一致（同输入确定性）。

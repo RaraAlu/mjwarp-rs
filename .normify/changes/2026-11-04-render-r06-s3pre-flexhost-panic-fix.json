@@ -5,7 +5,7 @@
     "zh": "R06-S3pre 修正：补 flex_vertnum 长度校验（消 panic 路径）+ 短数组单测",
     "en": "R06-S3pre fix: add flex_vertnum length guard (removes a panic path) plus a short-array unit test"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "QA 复核卡 `2026-11-04-render-r06-s3pre-flexhost-wiring-check`（`423f67c9`）报出一条真缺陷：`FlexHostAssembly::check_sources` 校验了 `flex_vertadr`/`flex_vertbodyid` 长度，但**没有校验 `positions.flex_vertnum.len() == nflex`**，而 `for flex in 0..nflex` 直接索引 `flex_vertnum[flex]`（`src/render/context/flex_host.rs:200-203`）。`FlexPositionFields` 字段 pub 且无自身 validate → 短向量会索引越界 **panic**，违反本片 A1「不 panic、不静默回退」。本片：循环前补长度校验（不一致返回显式 `FlexWiringError`）+ 一条短数组单测。**排在 S3a 之前做**；只改宿主组装层，不碰设备面/判据/容差/fixtures，零 GPU。",
     "en": "Fix the missing flex_vertnum length guard in the S3pre host assembly layer so a short vector returns an explicit error instead of panicking; add a dedicated unit test; do it before S3a."
@@ -31,14 +31,36 @@
     "priority": 76
   },
   "note": "Arch 2026-11-04 登记（Chief 指令：QA 需修 1 是真 bug，排在 S3a 之前）。S3a 卡 `depends_on` 建议追加本卡（实现时若已 start 由 Backend 先做本片再继续）。修完 QA 抽验一条即可，不重开 S3pre 卡（已 verified）。",
-  "revision": { "before": "0e8f133a6271a3e8ebf466fc7f75c6975fefac26", "after": null },
+  "revision": {
+    "before": "fb3a9f8d884d25ca586fa3b8f3bc2da3744794b9",
+    "after": null
+  },
   "created_at": "2026-11-03T22:56:00.000Z",
-  "updated_at": "2026-11-03T22:56:00.000Z",
+  "updated_at": "2026-11-03T21:24:04.507Z",
+  "closed_at": "2026-11-03T21:24:04.507Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/",
+        "fixtures/"
+      ]
+    }
   ]
 }
