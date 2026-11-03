@@ -1,5 +1,4 @@
 //! R06-S3pre：渲染 context 侧的 `FlexHostInputs` 组装层（宿主侧，零设备改动）。
-//!
 //! 语义边界：
 //! - 无 flex（`FlexRenderFields::nflex == 0`）→ [`FlexHostAssembly::build`] 返回 `Ok(None)`，调用方走
 //!   既有 `MegakernelRenderer::render`；有 flex → `Ok(Some)`，调用方走
@@ -15,6 +14,8 @@ use crate::diagnostics::InputError;
 use crate::model::flex::{FlexEdgeFields, FlexGeomMapping, FlexPositionFields, FlexRenderFields};
 use crate::render::kernel::megakernel::FlexHostInputs;
 use crate::runtime::launcher::LauncherError;
+
+mod render;
 
 /// 调用方提供的 data 面切片（来自 S2b physics 只读视图 / S3 前置占位）。
 #[derive(Clone, Copy, Debug)]

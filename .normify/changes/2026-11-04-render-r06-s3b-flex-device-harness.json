@@ -5,7 +5,7 @@
     "zh": "R06-S3b③：flex 设备侧接线与 GPU 验证用例（render_with_flex 生产调用点 + tests/render_flex_validate.rs）",
     "en": "R06-S3b(3): flex device-side wiring and GPU validation case"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "S3b② 窗口材料已收口（`87b8fbb9`），但材料里暴露两个**开窗前硬缺口**：① `render_with_flex` 已存在（`src/render/kernel/megakernel.rs:130`）却**无生产调用点**；② 仓内没有 flex GPU 用例（`tests/render_flex_validate.rs` 不存在）。本片做这两件：把 flex 通道接进真实渲染路径，并新增 `#[ignore]` 的 GPU 用例——读 `fixtures/render-bvh/scene-flex/reference/base/` 与 `state.npz`（含 `flexvert_xpos`）复现设备渲染，按 S3b② 实体表判据比对（rgb bit-first ≤1 LSB、depth ≤4 ULP 且 0 beyond、seg 精确含 `(flexid,9)`、两跑 sha 相同）。**本片不开窗口、不跑验收**；用例编译（`--no-run`）即可，执行归开窗卡。",
     "en": "Wire the flex channel into the production render path and add an ignored GPU test that compares against the scene-flex reference; authoring only, no window."
@@ -35,14 +35,35 @@
     "priority": 75
   },
   "note": "Arch 2026-11-04 登记（来源：S3b② 窗口材料 P2 缺口——`render_with_flex` 无生产调用点 + 无 flex GPU 用例）。窗口材料卡 `2026-11-04-render-r06-s3b-flex-window-material-r2`（`87b8fbb9`）的 P2 条由本片关闭。不开窗、不宣称 flex 数值可用；执行归开窗卡。",
-  "revision": { "before": "230d7586013a9510154fa91a5a22cc24321467dc", "after": null },
+  "revision": {
+    "before": "d5dc94af7ae305425fc86893d2b7b1a05844c062",
+    "after": null
+  },
   "created_at": "2026-11-04T07:20:00.000Z",
-  "updated_at": "2026-11-04T07:20:00.000Z",
+  "updated_at": "2026-11-03T23:17:52.122Z",
+  "closed_at": "2026-11-03T23:17:52.122Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    }
   ]
 }
