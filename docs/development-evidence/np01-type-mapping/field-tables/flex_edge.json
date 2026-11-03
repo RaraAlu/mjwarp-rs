@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "row_id": "flex_edge",
+  "layer": "G10 柔性体边",
+  "paths": ["flex_edges"],
+  "batch": "B2c",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/flex_edge.rs", "const": "CUDA", "kernels": ["flex_edges"]},
+  "kernels": [
+    {
+      "name": "flex_edges",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: nb/nv/ne/nnz/nvert + com stride + flex stride + 每边 4 元行 + vb/parent/root/db"},
+        {"name": "qvel", "ctype": "const float*", "role": "in: 每 world qvel"},
+        {"name": "com", "ctype": "const float*", "role": "in: 每 world com 块（含 subtree COM 与 cdof）"},
+        {"name": "flex", "ctype": "const float*", "role": "in: 每 world flex 顶点世界位姿（取尾部 3*nvert）"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 4 + (2ne + nnz)：len[ne] / vel[ne] / jac[nnz]"},
+        {"name": "worlds", "ctype": "unsigned", "role": "scalar world 数"}
+      ],
+      "intermediates": [
+        {"name": "dir[3]", "type": "f32 边向量（差 + `sqrtf((dx*dx+dy*dy)+dz*dz)` 分组括号）"},
+        {"name": "off[2][3]", "type": "f32 两端相对子树 COM 的偏移"},
+        {"name": "p[3] / dot / j", "type": "f32 单列雅可比"}
+      ],
+      "accumulations": [
+        {"what": "`vel[e] += j * qv[d]`", "type": "f32 顺序累加（每边按 CSR 列顺序）"},
+        {"what": "`jac[adr+i] = j`（两 body 贡献相加后写）", "type": "f32 直写（j 内部由 s 循环累加：`j += s?dot:-dot`）"}
+      ],
+      "outputs": [
+        {"field": "len[e]", "type": "f32", "conversion": "norm 直接写（0 长度时保持 0，后续不归一）"},
+        {"field": "vel[e]", "type": "f32", "conversion": "累加后直写"},
+        {"field": "jac[nnz]", "type": "f32", "conversion": "先整段写 0.0f 再逐列写"}
+      ],
+      "quantization": [
+        "qvel/com/flex 均为宿主已转 f32；内核内无 f64",
+        "零长度边：`norm==0` 时不归一（dir 保持原差向量，值为 0），vel 置 0 并跳过"
+      ],
+      "rounding_notes": ["`edge_ancestor` 只做整型祖先判定；雅可比幅值先按 `cdof` 与 `off` 叉乘/点乘再与 `dir` 点乘"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["_flex_edges"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（flex_edges 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_flex_edges（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}

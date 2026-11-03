@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "row_id": "flex_hessian",
+  "layer": "G10 柔性体 Hessian",
+  "paths": ["flex_hessian"],
+  "batch": "B2c",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐元素矩阵累积顺序已核",
+  "source": {"file": "src/physics/flex_hessian.rs", "const": "CUDA", "kernels": ["flex_hessian", "flex_hessian_validate"]},
+  "kernels": [
+    {
+      "name": "flex_hessian",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: nf/nv/ne + stride + 每 flex 11 元行 + 元素/边元数据"},
+        {"name": "p", "ctype": "const float*", "role": "in: rest 边长与 stiffness（连续数组）"},
+        {"name": "pos", "ctype": "const float*", "role": "in: 每 world 顶点世界位姿"},
+        {"name": "edges", "ctype": "const float*", "role": "in: 每 world 边长"},
+        {"name": "valid", "ctype": "const int*", "role": "in: 每 world 私有 i32 有效标志（1 = 跳过）"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 4 + (6nv + 9ne)：diag[6nv] + blocks[9ne]"},
+        {"name": "worlds", "ctype": "unsigned", "role": "scalar world 数"}
+      ],
+      "intermediates": [
+        {"name": "x[18]", "type": "f32 边差向量（每元素 n 组）"},
+        {"name": "elong[6]", "type": "f32 `length² - rest²`"},
+        {"name": "metric[36]", "type": "f32 对称刚度矩阵（`metric[6a+b]=metric[6b+a]=s[idx]`）"},
+        {"name": "tension[6]", "type": "f32 张力量（`fmaxf(.,0)` 截断）"},
+        {"name": "block[9] / weight / geo / sa/sb", "type": "f32 单元块与权重"}
+      ],
+      "accumulations": [
+        {"what": "`tension[a] += metric[6a+b]*elong[b]`", "type": "f32 顺序累加（b=0..n-1）"},
+        {"what": "`block[3r+c] += weight*x[3a+r]*x[3b+c]`", "type": "f32 顺序累加（a,b 双循环）"},
+        {"what": "`geo += tension[a]*sa*sb`", "type": "f32 顺序累加"},
+        {"what": "`blocks[9*edge+k] += block[k]`", "type": "f32 顺序累加（同边多元素叠加）"},
+        {"what": "`d0[k] -= b[upper[k]]` / `d1[k] -= b[lower[k]]`", "type": "f32 顺序减（每顶点 6 分量对角累积）"}
+      ],
+      "outputs": [
+        {"field": "diag[6nv]", "type": "f32", "conversion": "先清零，再减各边块；直写"},
+        {"field": "blocks[9ne]", "type": "f32", "conversion": "先清零，再按边累加；直写"}
+      ],
+      "quantization": [
+        "p/pos/edges 均为宿主已转 f32；内核内无 f64",
+        "`valid[f]==1` 的 flex 整组跳过（保留零块，等价于禁用该 flex）"
+      ],
+      "rounding_notes": [
+        "所有累加为 f32 顺序加，无 fma/atomic；端点顺序交换（`if endpoints[0]!=v[i]`）保证块符号一致，属语义要求不是容差"
+      ]
+    },
+    {
+      "name": "flex_hessian_validate",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 头部与元数据"},
+        {"name": "p", "ctype": "const float*", "role": "in: 参数"},
+        {"name": "h", "ctype": "const float*", "role": "in: 待校验 Hessian 输出"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "scalar 维度", "ctype": "unsigned", "role": "worlds 等"}
+      ],
+      "intermediates": [{"name": "ok", "type": "bool：sentinel + isfinite"}],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "ok ? 1.0f : 0.0f"}],
+      "quantization": ["sentinel：输入头 4 元素与首元素必须精确等于 `-131072`"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py", "math.py"], "functions": ["flex hessian 路径（块装配）"], "confidence": "文件级（上游函数定位沿用行登记）"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（flex_hessian 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_flex_hessian（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 上游函数级定位与逐字段 PTX 对照仍属该行 missing 项"
+}

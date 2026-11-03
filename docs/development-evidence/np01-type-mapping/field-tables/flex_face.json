@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "row_id": "flex_face",
+  "layer": "G10 柔性体面",
+  "paths": ["flex_faces"],
+  "batch": "B2c",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/flex_face.rs", "const": "CUDA", "kernels": ["flex_faces"]},
+  "kernels": [
+    {
+      "name": "flex_faces",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: nf/nv 等头部 + 每面元数据"},
+        {"name": "params", "ctype": "const float*", "role": "in: 面顶点局部位姿（rot 等）"},
+        {"name": "nodes", "ctype": "const float*", "role": "in: 每 world 节点世界位姿"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 面顶点位置与解析法向相关量"},
+        {"name": "worlds", "ctype": "unsigned", "role": "scalar world 数"}
+      ],
+      "intermediates": [
+        {"name": "next[3]", "type": "f32 四元数旋转作用后的坐标，显式 `fmaf` 链 + `__fmul_rn` 种子"},
+        {"name": "t1[3] / t2[3]", "type": "f32 面内两切向量累加"},
+        {"name": "g0/g1", "type": "f32 权重"}
+      ],
+      "accumulations": [
+        {"what": "`t1[k] += out[k] * g0` / `t2[k] += out[k] * g1`", "type": "f32 顺序累加（按面顶点顺序）"},
+        {"what": "`next[0..2]` 的三层 `fmaf` 链（种子 `__fmul_rn`）", "type": "f32 单次正确舍入 fma"}
+      ],
+      "outputs": [
+        {"field": "面顶点位置 out[3*?] / 法向量", "type": "f32", "conversion": "退化面（n<0）时写 0.0f"},
+        {"field": "t1/t2 派生量", "type": "f32", "conversion": "由累加器派生后直写"}
+      ],
+      "quantization": [
+        "params/nodes 均为宿主已转 f32；内核内无 f64",
+        "退化面：法向长度为负/零时整面输出 0，不做归一（避免 NaN）"
+      ],
+      "rounding_notes": ["四元数旋转展开用 `fmaf(-q1,r2, fmaf(q2,r1, fmaf(q3,r0, __fmul_rn(q0,r3))))` 的嵌套顺序（与上游 freeze 一致）"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["_flex_face_kinematics"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（flex_faces 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_flex_faces（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}

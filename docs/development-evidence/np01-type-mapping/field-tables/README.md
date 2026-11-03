@@ -68,18 +68,30 @@ PTX vs 显式 `.rn`）。逐表达式的位级对照仍由实现片的探针证�
 | `smooth_force` | validate + 合成 | 2 内核 | 四段合成全程显式 `__fadd_rn/__fsub_rn`，顺序 f0−f1+f2+f3 | 合成力（f32） |
 | `passive_force` | clear/sum/gravity/fluid | 4 内核 | f32 聚合与 `__fadd_rn` 单次舍入；无 sentinel（来源内核各自校验） | 两段缓冲 + 汇总力（f32） |
 
-## 六、待补（12 条产品路径 + 3 条 host 站点）
+## 六、B2c 已完成（5 条，柔性体族）
 
-- **B2c–B2e（12 条，G10/G-limbs 面）**：`flex_position`、`flex_edge`、`flex_face`、`flex_hessian`、`flex_edge_passive`、`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`（按依赖分小批交付）。
+| row_id | 路径 | 内核 | 累加/舍入口径 | 输出 |
+| --- | --- | --- | --- | --- |
+| `flex_position` | `flex_positions`、`flex_invalidate` | 2 内核 | 三线性 8 邻域 f32 顺序累加；`flex_transform` 分组括号固定加法序；私有 i32 标志槽（非 Warp bool） | node/vertex xpos（f32）+ 有效标志（i32） |
+| `flex_edge` | `flex_edges` | 1 内核 | 边长 `sqrtf((dx²+dy²)+dz²)` 分组；雅可比 f32 顺序累加；零长度边不归一 | len/vel/jac（f32） |
+| `flex_face` | `flex_faces` | 1 内核 | 四元数旋转嵌套 `fmaf` 链（种子 `__fmul_rn`）+ 两面内切向累加；退化面写 0 | 面顶点位置/法向相关量（f32） |
+| `flex_hessian` | `flex_hessian` + validate | 2 内核 | metric 对称写、tension `fmaxf` 截断、块装配 f32 顺序累加、端点交换保证符号 | diag[6nv] + blocks[9ne]（f32） |
+| `flex_edge_passive` | validate/clear/compute | 3 内核 | rigid 边跳过；刚度/阻尼两段 f32 `atomicAdd`；`FP_S/FP_D` 裁剪 | spring/damper 两段力（f32） |
+
+## 七、待补（7 条产品路径 + 3 条 host 站点）
+
+- **B2d/B2e（7 条）**：`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`。
 - **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
 
-## 七、门禁联动
+- **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
+
+## 八、门禁联动
 
 `tests/precision_type_gate.rs` 增加一条断言：`inventory.json` 的每一行必须在 `field-tables/` 下有表、
 或在该测试内显式登记的「待批清单」里；表内 `kernels/params/intermediates/accumulations/outputs/upstream/evidence`
-缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12）——**不允许静默缺表**。
+缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12 → B2c 后 7）——**不允许静默缺表**。
 
-## 八、边界
+## 九、边界
 
 - 不改 `src/`、`include/warp-headers/`、fixtures、判据/容差；零 GPU；不宣称 NP01 通过。
 - 表中的「上游置信级别」沿用 `inventory.json` 原值，不升级（如 `mass_multiply` 保持文件级）。

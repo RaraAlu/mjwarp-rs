@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "row_id": "flex_position",
+  "layer": "G10 柔性体顶点位置",
+  "paths": ["flex_positions", "flex_invalidate"],
+  "batch": "B2c",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；表达式级位级证据沿用实现片探针",
+  "source": {"file": "src/physics/flex.rs", "const": "FLEX_POSITION_CUDA", "kernels": ["flex_invalidate", "flex_positions"]},
+  "kernels": [
+    {
+      "name": "flex_invalidate",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: `m[0]=nf`"},
+        {"name": "params/rigid", "ctype": "const float* ×2", "role": "in: 占位（统一签名）"},
+        {"name": "result", "ctype": "int*", "role": "out: 每 world nf 个私有 i32 槽（false=0/true=1，非 Warp bool ABI）"},
+        {"name": "a/b/c/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "flags[f]", "type": "i32", "conversion": "每 world 全写 0（冻结上游先清全部 (world,flex)）"}]
+    },
+    {
+      "name": "flex_positions",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: nf/nn/nv/nb + rigid stride + 每 flex 9 元行 + nodebody/vertbody"},
+        {"name": "params", "ctype": "const float*", "role": "in: rest 顶点、格坐标、节点局部位姿"},
+        {"name": "rigid", "ctype": "const float*", "role": "in: 每 world rigid 块（xp/xm）"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 4 + (3nn + 3nv)：node xpos / vertex xpos"},
+        {"name": "a/b/c/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "flex_transform(...)", "type": "f32：`((r[3k]*l0 + r[3k+1]*l1) + r[3k+2]*l2) + p[k]`（分组括号固定加法序）"},
+        {"name": "local[3] / coord / cell[3]", "type": "f32 格内插值权重（`fminf/fmaxf` 夹紧 + `max/min` 换 int）"},
+        {"name": "weight", "type": "f32 三线性权重（三项连乘）"},
+        {"name": "p[3]", "type": "f32 顶点插值累加器"}
+      ],
+      "accumulations": [
+        {"what": "8 邻域三线性插值 `p[d] += weight * nx[...]`", "type": "f32 顺序累加（固定 2×2×2 顺序，i/j/k 三层循环）"}
+      ],
+      "outputs": [
+        {"field": "node xpos[3nn]", "type": "f32", "conversion": "flex_transform 直接写"},
+        {"field": "vertex xpos[3nv]", "type": "f32", "conversion": "direct（row[0]==0 时单节点变换）或三线性插值结果直写"}
+      ],
+      "quantization": [
+        "rest 顶点/格坐标/rigid 位姿均为宿主已转 f32；内核内无 f64",
+        "centered 分支（`row[8]!=0` 或 local 为零）跳过旋转，只写平移分量"
+      ],
+      "rounding_notes": ["坐标→格索引用 `(float)row[1+k]` 缩放后 `max(0,min((int)coord, dim-1))`，权重用 `coord-(float)cell` 求小数部分"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["_flex_vertices"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（flex_positions 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_flex_positions（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}

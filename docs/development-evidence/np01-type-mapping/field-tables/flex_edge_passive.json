@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "row_id": "flex_edge_passive",
+  "layer": "G10 柔性体边被动力",
+  "paths": ["flex_edge_passive_validate", "flex_edge_passive_clear", "flex_edge_passive_compute"],
+  "batch": "B2c",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/flex_edge_passive/cuda.rs", "const": "CUDA", "kernels": ["flex_edge_passive_validate", "flex_edge_passive_clear", "flex_edge_passive_compute"]},
+  "kernels": [
+    {
+      "name": "flex_edge_passive_validate",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 维度与 CSR 元数据"},
+        {"name": "p", "ctype": "const float*", "role": "in: 参数（length0/stiffness/damping）"},
+        {"name": "source", "ctype": "const float*", "role": "in: 每 world 边长与速度"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "scalar 维度", "ctype": "unsigned", "role": "ne/nv/worlds/work"}
+      ],
+      "intermediates": [{"name": "ok", "type": "bool：sentinel + 索引边界 + isfinite"}],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "ok ? 1.0f : 0.0f"}],
+      "quantization": ["sentinel：meta/p/source 头 4 元素与首元素必须精确等于 `-131072` / `-131072.0f`"]
+    },
+    {
+      "name": "flex_edge_passive_clear",
+      "params": [
+        {"name": "m/p/source", "ctype": "const int* / const float* ×2", "role": "in: 占位（统一签名）"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 两段力缓冲"},
+        {"name": "a/b/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "out[4+i]", "type": "f32", "conversion": "写 0.0f"}]
+    },
+    {
+      "name": "flex_edge_passive_compute",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: rowadr/rownnz/colind/flexid/rigid 标记"},
+        {"name": "p", "ctype": "const float*", "role": "in: `length0[FP_NE]` + `stiffness[FP_NF]` + `damping[FP_NF]`"},
+        {"name": "source", "ctype": "const float*", "role": "in: 每 world 边长与边速度"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 两段（spring 段 + damper 段）"},
+        {"name": "ne/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "s/d", "type": "f32 刚度/阻尼（`FP_S`/`FP_D` 编译期裁剪时置 0）"},
+        {"name": "fs/fd", "type": "f32 弹簧/阻尼标量力"},
+        {"name": "j", "type": "f32 单列雅可比"}
+      ],
+      "accumulations": [
+        {"what": "`atomicAdd(&out[spring 段 + col], j*fs)`", "type": "f32 原子累加"},
+        {"what": "`atomicAdd(&out[damper 段 + col], j*fd)`", "type": "f32 原子累加"}
+      ],
+      "outputs": [
+        {"field": "out[spring 段]", "type": "f32", "conversion": "atomicAdd"},
+        {"field": "out[damper 段]", "type": "f32", "conversion": "atomicAdd"}
+      ],
+      "quantization": [
+        "rigid[e] 非零表示该边绑定刚性体 → 直接跳过（不参与柔顺边力）",
+        "`FP_S`/`FP_D` 关闭时对应力分量置 0 并跳过原子写"
+      ],
+      "rounding_notes": ["`fs = s*(length0[e]-edge[e])`、`fd = -d*edge[FP_NE+e]` 各一次乘；力与雅可比相乘后再原子加"]
+    }
+  ],
+  "upstream": {"files": ["passive.py"], "functions": ["_flex_gather_kernel"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（flex_edge_passive 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_flex_edge_passive（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 原子归约的逐位重放记录仍属该行 missing 项"
+}
