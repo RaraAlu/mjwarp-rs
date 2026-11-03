@@ -5,7 +5,7 @@
     "zh": "NP01 门禁第二片：宿主 Rust 源精度 token 断言 + 允许清单活性",
     "en": "NP01 gate slice 2: host Rust precision-token assertions plus a live allowlist"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "第一片只覆盖产品 `.cu` 源面；本片补宿主 Rust 侧，把「C 风格/设备宽度精度 token 混进宿主代码」这一类泄漏也变成机器门禁。新增 `tests/precision_host_source_gate.rs`（零 GPU、只读文件）：①`src/**/*.rs` 代码区（剥掉行/块注释）不得出现 `double`/`__half`/`half2`/`bfloat16`/`tf32`（Rust `f64` 不在范围，契约允许参考/诊断与原生 ABI 转换用 f64）；②允许清单（两个精度门禁自身的 token 表 + 两处负对照测试）必须仍有登记数量的命中，腐坏即失败；③跨片一致性断言第一片 `cuda-surface.json` 仍是 41 文件 / 22 入口。更新 NP01 README 记录本片。不宣称 NP01 通过：f64 语义审计与逐字段表仍未做。",
     "en": "Cover the host Rust side of the precision-token surface: no C-style/device-width tokens in `src/**/*.rs` code regions, a live allowlist (the two precision gates' own token tables and the two negative-control tests), and a cross-slice check that the `.cu` snapshot from slice 1 is still present. No GPU, no numeric claim; NP01 stays open."
@@ -33,11 +33,12 @@
   },
   "note": "Arch 2026-11-03/04 登记（NP01 门禁夜间第二批，Chief 定的 NP01/NP02 优先项）。依赖第一片的 `cuda-surface.json` 仍在位；本片不碰 `src/`，不宣称 NP01 通过。",
   "revision": {
-    "before": "7e1323820fbd84a143eb5b51cb6c0841c00168b6",
+    "before": "9d87e2337057446091d872b8ee1cd90652a550e8",
     "after": null
   },
   "created_at": "2026-11-04T01:15:00.000Z",
-  "updated_at": "2026-11-04T01:15:00.000Z",
+  "updated_at": "2026-11-03T15:44:29.593Z",
+  "closed_at": "2026-11-03T15:44:29.593Z",
   "checks": [
     {
       "kind": "gate",

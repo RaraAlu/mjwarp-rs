@@ -181,3 +181,24 @@ device 侧口径：pinned GPU `ccd` PTX 的 `fma.rn` 融合（T4 采集 PTX `fma
 - 任何数值容差/GPU 行为（本片零 GPU）。
 
 复现：`cargo test --locked --test precision_type_gate`。
+## NP01 门禁第二片：宿主 Rust 源精度 token + 允许清单活性（2026-11-04）
+
+任务：`2026-11-03-precision-np01-host-source-gate`（CPU-only、零窗口）。第一片只覆盖产品 `.cu` 源面，
+本片补宿主 Rust 侧，两片合起来覆盖「代码里出现 C 风格/设备宽度精度 token」这一类泄漏。
+
+实现：`tests/precision_host_source_gate.rs`（3 个用例，随 `cargo test --locked` 执行）。
+
+1. **宿主 token 断言**：`src/**/*.rs` 的代码区（剥掉 `//` 与 `/* */`）不得出现
+   `double` / `__half` / `half2` / `bfloat16` / `tf32`。Rust 的 `f64` **不在**本门禁范围——
+   契约允许参考/诊断与原生 ABI（`mjtNum`）转换使用 f64。当前全仓代码区命中 **5 处**，
+   全部落在允许清单内。
+2. **允许清单活性**：唯一放行的是精度门禁自身的 token 表（`src/render/kernel/mod.rs` 1 处、
+   `src/runtime/transfer/kernel/ptx.rs` 1 处）与刻意注入禁用 token 的负对照测试
+   （`tests/adapter.rs` 1 处、`tests/precision.rs` 2 处）。每个条目必须在当前源里仍有 ≥登记数命中，
+   否则清单腐坏即失败。
+3. **跨片一致性**：断言第一片的 `cuda-surface.json` 仍在且仍是 41 文件 / 22 入口，
+   防止只删一片就以为覆盖完整。
+
+**本片未覆盖**：`f64` 语义审计（哪些 f64 会反馈产品物理）、逐字段类型表、数值容差；不宣称 NP01 通过。
+
+复现：`cargo test --locked --test precision_host_source_gate`。
