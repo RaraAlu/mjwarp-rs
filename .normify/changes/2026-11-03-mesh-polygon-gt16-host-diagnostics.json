@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-mesh-polygon-gt16-host-diagnostics",
+  "title": {
+    "zh": "mesh >16 顶点多边形宿主超界诊断（方案 C：face>20 / degree>10 显式拒绝路径）",
+    "en": "Host-side over-limit diagnostics for mesh polygons above 16 vertices (plan C: explicit face>20 / degree>10 rejection)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 mesh-polygon-gt16-gap 评估的方案 C，把设备侧「mesh polygon 超容量静默回退单接触」改在宿主侧显式暴露：在 collision GPU 输入的校验/plan 阶段，用已有 mesh 数组计算 npolygonmax 与 nmeshdegmax，与设备固定容量（face>20、degree>10）比较，超界时返回带维度、实际值、上限值与拒绝路径的可诊断错误，不再静默回退。本片只改宿主诊断与错误面，不改任何设备代码、ABI、判据、容差与夹具，不占 GPU 窗口。",
+    "en": "Implement plan C from the mesh-polygon-gt16 gap assessment: compute npolygonmax and nmeshdegmax on the host from the existing mesh arrays during collision input validation, and reject inputs that exceed the device fixed capacity (face>20, degree>10) with a diagnosable error instead of silently falling back. Host diagnostics only; no device code, ABI, criteria, tolerance or fixture change; no GPU window."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "**超界显式诊断**：宿主校验阶段（`src/runtime/collision_gpu.rs::validate_collision_inputs` 或其调用的新宿主函数）用已有 mesh 数组计算 `npolygonmax`/`nmeshdegmax`，与设备固定容量比较；`face>20` 或 `degree>10` 时返回显式诊断，错误内容包含维度（face/degree）、实际值、上限值与拒绝路径，不再静默回退单接触。数值计算路径与既有合法输入行为保持不变。",
+    "**覆盖 fan-cone-24 双触发**：模块内 `#[cfg(test)]` 测试覆盖 fan-cone-24（face=24 且 degree=24，两维同时报告）、face=21 单维、degree=24 单维、以及边界值 face=20/degree=10 放行；断言错误种类与关键字段，不 panic。",
+    "**不变量**：`src/render/kernel/cuda` 与全部 `*.cu` 零改动；零 ABI、零 `DEVICE_SOURCES` 变更、零判据/容差/参考/fixtures 改动；不宣称 U7/U8 通过。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`cargo test --locked --features cuda-probe --no-run` EXIT=0；零 GPU 窗口、零冻结。",
+    "**证据**：`docs/development-evidence/mesh-polygon-gt16-host-diagnostics/`（README + facts.json + receipt.json 含 `/task_id` + 不自引用 manifest，sha/bytes 自洽）；README 明确写「只显式化诊断、不改数值行为；不宣称 mesh 容量缺口已清、不宣称上游等价、不宣称 U7/U8 通过」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-mesh-polygon-gt16-device-gap"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/collision_gpu.rs",
+      "src/runtime/collision_gpu/types.rs",
+      "docs/development-evidence/mesh-polygon-gt16-host-diagnostics/"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-11-03 登记（Chief 令：方案 C 立即开工，零 GPU、零内核身份变更）。来源：2026-10-27-mesh-polygon-gt16-device-gap 评估（`docs/development-evidence/mesh-polygon-gt16-gap/README.md` §5 方案 C）。测试按 Chief 限定 scope 放模块内 `#[cfg(test)]`，不占 `tests/` 目录；设备面与 A/B 方案不在本卡。策略取「拒绝（Unsupported/InvalidArgument）」而非仅告警，避免产品继续静默近似。\n\n**A deferred（本轮不立项，Chief 2026-11-03 定）**：A=设备侧 face/degree 动态容量 32/32，成本 1–1.5 人日 + 1 个 GPU 窗口；会改 collision 内核身份（`9b7435ab…`→`12d50d68…`），必须新冻结并重放 M2/M3/S4 证据、历史证据不得混用。触发条件=用户要求完整 mesh 多接触 parity 且有窗口余量。B2b/B2a 待 A 结果再评，不主动建议。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-03T15:35:00.000Z",
+  "updated_at": "2026-11-03T15:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda",
+        "fixtures",
+        "include"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-polygon-gt16-host-diagnostics/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-03-mesh-polygon-gt16-host-diagnostics"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "U8 已通过",
+        "mesh 容量缺口已清",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
