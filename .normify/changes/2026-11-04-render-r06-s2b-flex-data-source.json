@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s2b-flex-data-source",
+  "title": {
+    "zh": "R06-S2b：flex 渲染数据源——原生 flex render 字段 + io/model 接线 + physics 数据面（只读视图，零设备改动）",
+    "en": "R06-S2b: flex render data source - native flex render fields, io/model wiring, physics data plane (read-only view, no device change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R06-S2 建的是**渲染宿主通道**（`FlexHostInputs` 结构 + `render_with_flex` + 校验 + 单测），不带数据源。Backend 核实：当前 model/context 里没有渲染所需的 flex 数据（`src/render/.../render.rs` 零 flex 命中，`flex_radius` 无探针导出，flex 顶点/边/面/rgba/geom 映射都没有面向渲染的只读接口）。本片负责把原生 flex 数据引出来：①在 io/model 侧登记并暴露 render 需要的 flex 字段（`flex_vert`/`flex_face`/`flex_edge`/`flex_radius`/`flex_rgba`/`flex_body`/geom→flex/edge 映射、nflex/nflexvert 计数）；②按 ABI 契约在宿主边界完成 f64(mjtNum)→f32 转换并记录量化位置；③在 physics 数据面提供只读视图（节点世界位姿等 S2 通道需要的输入）；④单测覆盖空 flex、单 flex、多 flex、尺寸不一致拒绝。**不建渲染通道**（S2 已建）、不改设备代码/判据/容差。",
+    "en": "Expose the native flex data the render channel needs (vertices, faces, edges, radius, rgba, geom mapping, counts) from io/model with an ABI-boundary f64->f32 conversion and a read-only physics data-plane view, plus validation tests. No render channel (S2 owns it), no device/criteria change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**字段清单**：证据 README 列出 render 侧需要的原生 flex 字段逐项（名称/来源文件/类型/ABI 目标类型/量化位置），与上游 `_render_megakernel` 的 9 个 flex 形参一一对应；缺项必须写明「上游无此字段」而不是留空。",
+    "**接线与只读视图**：io/model 侧登记上述字段（含 nflex/nflexvert/nedge 与 geom→flex/edge 映射），physics 数据面提供只读视图（节点世界位姿、边长/半径、rgba）；宿主边界统一 f64→f32 转换并集中一处（不在多处各转一遍），转换点写进 README。",
+    "**校验与单测**：模块内 `#[cfg(test)]` 覆盖空 flex、单 flex、多 flex、尺寸/映射不一致拒绝；不 panic、不静默回退。",
+    "**不变量**：`src/render/kernel/` 与 `src/render/kernel/cuda/` 零改动（通道归 S2）；全部 `.cu` 零改动；零判据/容差/参考/fixtures 改动；不宣称 flex 渲染可用。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 只增不减）；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-render-r06-s2-flex-host-channel"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/io/flex.rs",
+      "src/model/flex.rs",
+      "src/physics/flex.rs",
+      "docs/development-evidence/render-bvh/r06-flex-datasource/"
+    ],
+    "resources": [],
+    "priority": 73
+  },
+  "note": "Arch 2026-11-04 登记（Chief 裁决：S2 只建显式宿主通道，数据源另立本卡）。来源：Backend 核实 model/context 无 render 所需 flex 数据（render.rs 零 flex 命中、flex_radius 无探针导出、无 geom→flex 映射的渲染视图）。依赖 S2 的 `FlexHostInputs` 定型后再接；本卡不动设备面与判据。",
+  "revision": { "before": "845c16cf42d8d58ad581deb6a0fb4bcf72b9ad7a", "after": null },
+  "created_at": "2026-11-04T04:50:00.000Z",
+  "updated_at": "2026-11-04T04:50:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+  ]
+}
