@@ -149,6 +149,7 @@ foreach ($unit in $sourceUnits) {
             }
         }
         $state = if ($evidence.Count -eq 0) { 'missing' } elseif ($renamedFrom.Count -gt 0) { 'renamed-evidence' } elseif ($srcMatch) { 'verified' } else { 'source-drift' }
+        $precisionGate = $(if ($null -ne $spec.product_recipe.gate_overrides -and $null -ne $spec.product_recipe.gate_overrides.PSObject.Properties[$k]) { [string]$spec.product_recipe.gate_overrides.PSObject.Properties[$k].Value } else { $spec.product_recipe.precision_gate })  # 渲染配方内核（aa_resolve/s7a_abi_probe 经 W15 头树）门禁为 f32-render，覆盖值见 spec.product_recipe.gate_overrides
         $kernelRows += [pscustomobject]@{
             id = "kernel:$k"
             name = $k
@@ -162,7 +163,7 @@ foreach ($unit in $sourceUnits) {
                 std = $spec.product_recipe.std
                 arch_option = $spec.product_recipe.arch_option
                 nvrtc = @($spec.product_recipe.nvrtc)
-                precision_gate = $spec.product_recipe.precision_gate
+                precision_gate = $precisionGate
                 receipt_options = @(($evidence | Select-Object -First 1).options)
             }
             artifact = [ordered]@{

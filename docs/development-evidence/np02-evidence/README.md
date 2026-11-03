@@ -1,18 +1,18 @@
 # NP02 证据清单与缺口登记（Windows 单平台）
 
-任务：`2026-10-24-np02-evidence-windows`（清单）+ `2026-10-24-np02-missing-capture`（缺失补采）+ `2026-11-03-precision-np02-receipt-rehash`（回执/实体重算与棘轮修正，2026-11-04）。执行人：QA。
+任务：`2026-10-24-np02-evidence-windows`（清单）+ `2026-10-24-np02-missing-capture`（缺失补采）+ `2026-11-03-precision-np02-receipt-rehash`（回执/实体重算与棘轮修正，2026-11-04）+ `2026-11-04-precision-np02-new-kernel-evidence`（12 个新内核 CPU-only 回执补采，2026-11-04）。执行人：QA。
 工具：`scripts/np02-evidence/np02-evidence.ps1`（主流程，只读扫描，**不启动 Python**）+ `scripts/np02-evidence/np02-lib.ps1`（路径/哈希、回执实体复核、源扫描、编译点收集）+ 规格 `scripts/np02-evidence/np02-spec.json`。
 输入：产品源码根 + 已提交证据（含 `frozen-inventory/receipts.json` 主索引与 `np02-evidence/receipt.json` 补采索引）；输出：`inventory.json`（逐项清单）与 `gap.json`（缺口分类）。
 
-**历史版本**：2026-10-24 首次清单（88 路径 / 100% 覆盖 / 32 缺口）的原样副本存于 `history/`（`inventory-2026-10-24.json`、`gap-2026-10-24.json`、`README-2026-10-24.md`），**只作历史时点、不得覆盖**。当前 `inventory.json` / `gap.json` 为 2026-11-04 重算结果（100 路径 / 88% 覆盖 / 12 缺失 / 44 缺口）。
+**历史版本**：2026-10-24 首次清单（88 路径 / 100% 覆盖 / 32 缺口）的原样副本存于 `history/`（`inventory-2026-10-24.json`、`gap-2026-10-24.json`、`README-2026-10-24.md`），**只作历史时点、不得覆盖**。当前 `inventory.json` / `gap.json` 为 2026-11-04 两轮更新的结果（回执重算 + 12 个新内核补采）：100 路径 / **100% 覆盖 / 0 缺失 / 32 缺口**。
 
-## 结论（只写 Windows 单平台已实现路径；2026-11-04 重算口径）
+## 结论（只写 Windows 单平台已实现路径；2026-11-04 两轮更新后口径）
 
 - Windows 单平台**已实现路径 100 条**：手写 CUDA 内核 **96**（含 2 条派生内核）+ 冻结 PTX 链 **3** + MathDx Solver LTO 路线 **1**。
-- **有证据 88/100（88%），缺失 12**：其中源身份一致 77 条、按用户 2026-10-24 裁决 B 归档的**已知漂移 9 条**（历史版本证据，不重采不重基线）、派生（证据由基核承担）2 条；缺失的 12 条是 2026-10-24 清单之后新增的产品内核（见下节），**尚未采集 NP02 回执**。
-- 回执 **701/701** 文件哈希通过（688 份历史索引 + 13 份本批补采）；PTX 实体在仓并通过哈希 **697** 份；**4 份**回执的 PTX 实体在仓内按文件名不存在（历史捕获产物，见「51 份缺失实体处置」），其中同 sha 实体另有等价副本可恢复但按 owner 指令未复制。
-- 缺口分类 **44 条**：已知漂移 9、缺失证据 12、未实现子系统 7、部分覆盖 3、Linux deferred 4、未判定 2、不适用 3、派生 2、部分缺失 2（不重复计数见 `gap.json`）。
-- **本清单不构成 NP02 验收完成结论，也不代表双平台**；缺口未清零（9 条已知漂移、7 个未实现子系统、12 条新内核无证据、4 份历史实体、20 个 NP01 内部字段），不宣称双平台结论。
+- **有证据 100/100（100%），缺失 0**：其中源身份一致 **89** 条、按用户 2026-10-24 裁决 B 归档的**已知漂移 9 条**（历史版本证据，不重采不重基线）、派生（证据由基核承担）2 条。2026-11-04 曾为 88/12 的 12 个新内核已由 `2026-11-04-precision-np02-new-kernel-evidence` 全部补齐回执（详见 `new-kernels-2026-11/README.md`）。
+- 回执 **713/713** 文件哈希通过（688 份历史索引 + 13 份 2026-10-24 补采 + 12 份 2026-11-04 新内核补采）；PTX 实体在仓并通过哈希 **709** 份；**4 份**回执的 PTX 实体在仓内按文件名不存在（历史捕获产物，见「51 份缺失实体处置」），其中同 sha 实体另有等价副本可恢复但按 owner 指令未复制。
+- 缺口分类 **32 条**：已知漂移 9、未实现子系统 7、部分覆盖 3、Linux deferred 4、未判定 2、不适用 3、派生 2、部分缺失 2（不重复计数见 `gap.json`）；原先占 12 条的「缺失证据」缺口随回执补齐消失。
+- **本清单不构成 NP02 验收完成结论，也不代表双平台**：仍剩 9 条已知漂移、7 个未实现子系统、4 份历史实体、20 个 NP01 内部字段，不宣称双平台结论。
 
 ## 2026-11-04 回执重算（`2026-11-03-precision-np02-receipt-rehash`）
 
@@ -32,9 +32,32 @@
 | 回执 PTX 实体（在仓且哈希通过） | 650 | **697** |
 | 缺口条目 | 32 | **44** |
 
-- **新增 12 个内核行（全部 `evidence=missing`）**：`build_rays`、`mesh_bvh_ray`、`scene_bvh_ray`、`s7a_abi_probe`、`aa_resolve`、`sample_texture2d`、`mjwarp_collision_{boxbox,contact,contact_multi,hfield,primitive,sdf}`（源见 `src/render/{camera,bvh,kernel,texture}` 与 `src/physics/collision/cuda/product.cu`）。它们是 2026-10-24 清单生成之后新增的产品内核，尚未采集回执，属新缺口（`缺失证据`，`gap.json` 逐条登记）；后续证据卡单独登记，不在本片补采。
+> 说明：上表只是「回执重算」这一步的对比。同日随后的 12 内核补采（下一节）把有证据 88→**100**、缺失 12→**0**、覆盖 88%→**100%**、回执 701→**713**、实体 697→**709**、缺口 44→**32**。
+
+- **新增 12 个内核行（当时全部 `evidence=missing`）**：`build_rays`、`mesh_bvh_ray`、`scene_bvh_ray`、`s7a_abi_probe`、`aa_resolve`、`sample_texture2d`、`mjwarp_collision_{boxbox,contact,contact_multi,hfield,primitive,sdf}`（源见 `src/render/{camera,bvh,kernel,texture}` 与 `src/physics/collision/cuda/product.cu`）。它们是 2026-10-24 清单生成之后新增的产品内核，当时尚未采集回执；**已由后续卡 `2026-11-04-precision-np02-new-kernel-evidence` 于同日全部补齐**（见下节，覆盖回到 100%）。
 - **已有 88 行逐字段与旧清单一致**（逐行 diff 0 变化）：本轮只新增行、不改旧行判据；唯一例外是 `artifact.ptx_verified` 在实体回补后按回执复核结果更新（见下）。
 - 逐条差异与 51 份实体处置明细：`rehash-2026-11-04/README.md`、`comparison.txt`、`missing-51-classification.json`、`missing-capture-restore.json`。
+
+## 2026-11-04 新内核回执补采（`2026-11-04-precision-np02-new-kernel-evidence`）
+
+对上节 12 个「无回执」内核逐个补齐 NP02 回执。**全程 CPU-only**：只调用 NVRTC 12.8.93、不创建 CUDA 设备上下文（零 GPU、零窗口、零参考采集），工具为 `scripts/np02-evidence/np02-capture-new-kernels.py`，证据与逐条数字见 `new-kernels-2026-11/README.md` 与同目录 `receipts/`。
+
+- **采集口径**：12 条回执、门禁 **12/12 pass**（10 条 `f32-physics` + 2 条 `f32-render`），采集耗时 89.8 s。回执按 `<entry>-<ptxSha256>.{json,cu,ptx}` 落盘，字段与 `record_physics_ptx` 同构。
+- **自校验**：`build_rays` / `mesh_bvh_ray` / `scene_bvh_ray` / `sample_texture2d` 这 4 个单元先前已有独立切片记录（s5/s3/s2b/s4 independent-check），本次复算的 `ptxSha256` 与旧记录**逐字节相等**，说明采集器与产品编译路径等价。
+- **两处配方差异（重要）**：
+  1. `aa_resolve`、`s7a_abi_probe` 源码 `#include "builtin.h"`，真实编译入口是渲染配方（`WARP_1_15_RENDER`，带 `include/warp-headers` 与 `--device-as-default-execution-space`），门禁为 **`f32-render`**；其 PTX 各恰有 2 个 `.f64` token，是 W15 `svd.h` 的两条 `_svd_config<double>` 死数据常量（PTX 中仅声明、各出现 1 次，产品代码 0 引用，字面量 = `1e-12`），放行依据与 token 定位见 `new-kernels-2026-11/README.md` §5。清单这两行的 `compile.precision_gate` 记为 `f32-render`，由 `np02-spec.json` 的 `product_recipe.gate_overrides` 显式声明、重跑可复现。
+  2. 6 个 `mjwarp_collision_*` 的编译单元是 `runtime/collision_gpu/source.rs` 的**装配源**（28 片段 + `product.cu`，254,263 B / `12d50d68…`），不是清单里作 `source.path` 的片段 `product.cu`（`cad08d3e…`）；审计按既有回退 `captured-cu-contains-current-const（参数化/拼接编译单元）` 判定 verified。6 个 entry 的 PTX 完全相同（`54ab59e3…` / 3,883,769 B），故目录内是 6 份同内容实体（工作树 +23.3 MB，git 按内容去重只存 1 个 blob）。
+- **棘轮同步**：`evidence_present 88→100`、`evidence_verified 77→89`、`evidence_missing 12→0`、`coverage_pct_evidence 88→100`、`coverage_pct_source_identity 77→89`、`receipts 701→713`、`receipt_ptx_entities_verified 697→709`、`gap_items 44→32`；`tests/precision_evidence_gate.rs` 快照同步并新增「这 12 行必须保持 verified」断言。
+- **补采索引**：`receipt.json` 追加 12 条（当前 13+12=25 条；幂等），并新增 `capture_waves` 元数据；主索引 `frozen-inventory/receipts.json`（688 条）未改动。
+
+复现（CPU-only，约 90 s）：
+
+```powershell
+target\mjwarp-parallel\venv\Scripts\python.exe scripts\np02-evidence\np02-capture-new-kernels.py capture
+target\mjwarp-parallel\venv\Scripts\python.exe scripts\np02-evidence\np02-capture-new-kernels.py index
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\np02-evidence\np02-evidence.ps1 -ProductRoot D:\Rust\mjwarp-rs -OutDir target\np02-p63-out
+cargo test --locked --test precision_evidence_gate
+```
 
 ### 工具可移植性缺陷（已在工具内修正，2026-11-04）
 
@@ -79,18 +102,18 @@
 6. **冻结链实体核对**：`src/runtime/warp_*.rs` 的 `PTX_SHA256`/`CU_SHA256` 常量与实体文件哈希逐一比对；模块内 `SMOOTH/PASSIVE/SUPPORT/TYPES_SHA256` 常量与 pinned checkout 对应 `.py` 文件哈希比对。
 7. **MathDx 路线**：路线键与四摘要、调用 LTOIR 摘要须同时出现在普通环境与 G01 环境探针日志中。
 
-## 计数表（2026-11-04 重算）
+## 计数表（2026-11-04 两轮更新后）
 
 | 项 | 值 |
 | --- | --- |
 | Windows 已实现路径 | **100**（内核 96 + 冻结链 3 + MathDx 路线 1） |
-| 有证据 | **88**（88%，缺失 12） |
-| ├ 源身份一致 | 77 |
+| 有证据 | **100**（100%，缺失 0） |
+| ├ 源身份一致 | 89 |
 | ├ 已知漂移（裁决 B 归档，不重采不重基线） | 9 |
 | └ 派生（与基核同源，证据由基核承担） | 2 |
-| 缺失证据（新增内核，未采集回执） | 12 |
-| 回执索引（主 + 补采） | 701 份，文件哈希 701/701 通过 |
-| 回执 PTX 实体 | 697 份在仓且哈希通过；4 份按文件名不存在（历史、可 sha 等价恢复但未复制） |
+| 缺失证据 | **0**（2026-11-04 补采后清零） |
+| 回执索引（主 + 补采） | **713 份，文件哈希 713/713 通过** |
+| 回执 PTX 实体 | **709 份在仓且哈希通过**；4 份按文件名不存在（历史、可 sha 等价恢复但未复制） |
 | 冻结 PTX 链 | 3 条 / entry 12 个，实体哈希与模块常量一致 |
 | MathDx 路线 | 1 条，12/12 摘要命中两环境探针日志 |
 | 未实现子系统 | 7 |
@@ -148,7 +171,7 @@
 - `rne_acc`：产品由 `rne.cu` 的 `rne_cacc`/`rne_qfrc`/`rne_backward` 组合实现，无同名 `__global__` → 不适用（无可独立计数内核）。
 - `field_batch`：FIELD_BATCH 是传输/计划包装，不产生独立 CUDA 内核与 PTX 产物 → 不适用（非内核路径）。
 - **未判定 2 项**：① 上游 Warp 生成内核（codegen/builtin 头文件级）逐符号覆盖未展开；② Warp 编译器库内部精度边界无逐项证据。均写明原因，不计入 Windows 缺失。
-- **部分缺失**：4/701 份回执的 PTX 实体按文件名不在仓（历史捕获依赖 `target/` 产物），在仓 697 份逐份校验通过，47 份已按约定路径补回；与 `docs/three-layer-acceptance.md` §5.2 的 11 项 all-probes 排除同源，本批不重采集。
+- **部分缺失**：4/713 份回执的 PTX 实体按文件名不在仓（历史捕获依赖 `target/` 产物），在仓 709 份逐份校验通过，47 份已按约定路径补回；与 `docs/three-layer-acceptance.md` §5.2 的 11 项 all-probes 排除同源，本批不重采集。
 
 ## 编码硬化（2026-11-04，`2026-11-04-prepare-scripts-bom-hardening-np02`）
 
@@ -211,13 +234,14 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib p
 
 任务：`2026-11-03-precision-np02-evidence-gate`（CPU-only、零窗口）。本片把**已提交清单**钉成机器门禁，防止证据与缺口在无人注意时退化。
 
-实现：`tests/precision_evidence_gate.rs`（3 个用例，随 `cargo test --locked` 执行）。
+实现：`tests/precision_evidence_gate.rs`（4 个用例，随 `cargo test --locked` 执行）。
 
-1. **计数棘轮**：`inventory.json` 的 `counts` 必须与测试内快照完全一致——已实现路径 100、内核 96、冻结链 3、MathDx 路线 1、有证据 88、缺失 12、证据覆盖 88%、已知漂移 9、回执 701（文件哈希通过 701）、PTX 实体通过 697、缺口 44、未实现 7、未判定 5；`rows` 100 条、`gaps` 44 条。数字滑动必须显式改测试。
-   - 2026-11-04 重算后快照同步为上述值（旧快照 88/84/…/32 存于 `history/`，不可覆盖）。
+1. **计数棘轮**：`inventory.json` 的 `counts` 必须与测试内快照完全一致——已实现路径 100、内核 96、冻结链 3、MathDx 路线 1、有证据 100、源身份一致 89、缺失 0、证据覆盖 100%、源身份覆盖 89%、已知漂移 9、回执 713（文件哈希通过 713）、PTX 实体通过 709、缺口 32、未实现 7、未判定 5；`rows` 100 条、`gaps` 32 条。数字滑动必须显式改测试。
+   - 2026-11-04 回执重算后快照同步为「88 有证据 / 12 缺失 / 88% / 701 / 697 / 44」（旧快照 88/84/…/32 存于 `history/`，不可覆盖）；同日 12 内核补采后再次同步为上述值。
 2. **指针可解析**：每行的 `source.path`（派生源行写说明文字，按非路径跳过）与 `artifact.evidence_paths` 每一项都必须在仓内存在；当前可解析指针 **255 条**，少于该数即失败。
-3. **词表与 pin**：`evidence_state` ∈ {verified, source-drift, derived, missing}；`HandWrittenCuda` 行的 `compile.precision_gate` 必须为 `f32-physics`；MJWarp pin `71da24d…`、Warp pin `ffa038b1…` 不得漂移；`platform.os` 必须仍是 Windows（本清单只覆盖单平台，不得被写成双平台）。
+3. **词表与 pin**：`evidence_state` ∈ {verified, source-drift, derived, missing}；`HandWrittenCuda` 行的 `compile.precision_gate` ∈ {`f32-physics`, `f32-render`}，且 `aa_resolve` / `s7a_abi_probe` 必须是 `f32-render`（经 W15 头树编译）；MJWarp pin `71da24d…`、Warp pin `ffa038b1…` 不得漂移；`platform.os` 必须仍是 Windows（本清单只覆盖单平台，不得被写成双平台）。
+4. **12 个新内核不回退**：`np02_new_kernel_rows_stay_verified` 断言 2026-11-04 补采的 12 行必须保持 `verified`、至少 1 份回执且带 ptx 摘要。
 
-**本片未覆盖**：回执/实体哈希的机器重算（2026-11-04 已人工+工具复算一次，见 `rehash-2026-11-04/`，未纳入门禁）、T4 冻结验收、双平台；12 条新内核证据、9 条已知漂移、7 个未实现子系统、4 份历史实体、20 个 NP01 内部字段仍是未验收项，本片不宣称 NP02 通过。
+**本片未覆盖**：回执/实体哈希的机器重算（2026-11-04 已人工+工具复算一次，见 `rehash-2026-11-04/`，未纳入门禁）、T4 冻结验收、双平台；9 条已知漂移、7 个未实现子系统、4 份历史实体、20 个 NP01 内部字段仍是未验收项，本片不宣称 NP02 通过。
 
 复现：`cargo test --locked --test precision_evidence_gate`。
