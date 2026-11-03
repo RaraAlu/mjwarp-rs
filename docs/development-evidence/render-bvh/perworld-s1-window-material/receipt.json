@@ -35,8 +35,8 @@
       "language": "en-ascii"
     },
     "materials/window-plan.txt": {
-      "sha256": "104ca1e5e6492256a7b21d915b1ae554be5691699a9d6d87673e39d709e09af1",
-      "bytes": 11464,
+      "sha256": "1fb883a471fb2aa25f7906bb84f581839a6daa2eb3a8ad6f8fd6b014fbb63789",
+      "bytes": 11581,
       "lines_lf": 157,
       "language": "en-ascii",
       "non_ascii_bytes": 0
@@ -188,13 +188,36 @@
     "retry": "none attempted; no tolerance/threshold/reference change",
     "evidence_archive": "docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt1-invalid/ (24 files: 21 fact files + README + 2 abort markers; plus a non-self-referencing manifest)"
   },
-  "signature": {
-    "status": "pending",
-    "signed_at": null,
-    "baseline_sampled_at": null,
-    "approved_by": null,
+  "attempt2_invalid": {
+    "at": "2026-11-03T22:47:18+08:00",
+    "result": "INVALID_ROUND (runner exit 10)",
+    "environment": "signed floor 11,755 MiB and runner floor 10,240 MiB both not breached (facts.txt: baseline 14,839 x3, util 4; QA recomputed free_min 14,569); zero Rust compile; post exe recheck 11/11; residual 0; sha_guards 96/96; outline lists pre/post 2/2",
+    "body": "10/11 entities exit 0; render_shadow_reference exit 101 with 2 case-level failures (shadow_on_matches_captured_reference, shadow_off_bitwise_regression_to_pre_unlock_reference)",
+    "causes": [
+      "shadow_scene.rs:126 pushed depth stats through raw diff_depth().expect(), i.e. strict bitwise comparison without the criterion-v2.2 outline exemption, so the signed 183-pixel scene-a sphere-outline difference failed the entity; the failing assertion was only reporting that value",
+      "a second bypass existed at render_shadow_reference.rs:203 (shadow_off pre-unlock regression) and was found during the post-attempt2 audit, not by the window itself"
+    ],
+    "fix": "294d6040 routes shadow_scene.rs:126 through diff_depth_with_outline(..., Some(Arm::Recipe)) and keeps the env-disabled branch raw; 1691b442 applies the same routing to the shadow_off pre-unlock comparison; criteria unchanged (BOUND_ULP=128 is the signed v2.2 bound, exact_max_ulp 73/91 are the in-list maxima, not a widened tolerance)",
+    "retry": "none attempted; no tolerance/threshold/reference change",
+    "evidence_archive": "docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt2-invalid/ (25 archived artifacts + a non-self-referencing manifest; 26 files on disk)",
+    "observation": "render_per_world exited 0 in this round, but the round is invalid; recorded as observation only and not as acceptance evidence"
+  },
+  "attempt2_invalid": {
+    "at": "2026-11-03T22:47:20+08:00",
+    "result": "INVALID_ROUND (runner exit 10)",
+    "environment": "signed floor 11,755 MiB not breached (free_min 14,569); monitor 60/60; GuardsOnly 96/96 with OUTLINE_LISTS_OK=2/2; zero Rust compile; post exe recheck 11/11; residual 0",
+    "body": "10/11 entities passed, including render_per_world (observation only, not an acceptance basis); render_shadow_reference failed with two case-level failures (shadow_on_matches_captured_reference, shadow_off_bitwise_regression_to_pre_unlock_reference): cam1 depth 183 pixels / max 73 ULP / first pixel 28969",
+    "causes": ["tests/support/render_bvh/shadow_scene.rs compare_group did not route the cam1 depth comparison through the signed outline-list exemption (raw diff_depth)", "tests/render_shadow_reference.rs still had a second raw diff_depth in the shadow-off pre-unlock regression"],
+    "fix": "test support only: 294d6040 (compare_group -> outline::diff_depth_with_outline with Arm::Recipe) + 1691b442 (shadow-off pre-unlock call site -> outline::recipe_depth_diff); env not enabled keeps raw behaviour; criteria/tolerances unchanged",
+    "retry": "none attempted; no re-freeze; attempt3 needs a fresh baseline and a fresh double-sign",
+    "evidence_archive": "docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt2-invalid/ (25 files + a non-self-referencing manifest; includes the attempt2 guards body, 96 entries)"
+  },  "signature": {
+    "status": "signed",
+    "signed_at": "2026-11-03T22:55+08:00",
+    "baseline_sampled_at": "2026-11-03T22:53:17/20/23+08:00",
+    "approved_by": "user via Chief",
     "coverage": "window plan v2 (materials/window-plan.txt, signed text sha d1ba33d3..) + 3-point baseline 14,839/14,839/14,827 MiB sampled 2026-11-03T22:38:13/16/19+08:00", "signed_floor_derivation": "max(baseline_free 14,827 - 3,072 = 11,755, attempt1 floor 11,673) = 11,755", "qa_verdict": null,
-    "signed_plan_text_sha256": "d1ba33d3613258d5cdf05148b2e15104e24d1e16aa86b199425134ff3071ecf1",
+    "signed_plan_text_sha256": "104ca1e5e6492256a7b21d915b1ae554be5691699a9d6d87673e39d709e09af1", "signed_floor_mib": 11755, "signed_floor_derivation": "max(this baseline 14,801 - 3,072 = 11,729, attempt2 floor 11,755) = 11,755", "qa_verdict": "pending (focused v3 re-audit)",
     "note": "the sign block in materials/window-plan.txt section 8 is filled at sign time"
   },
   "not_claimed": [
