@@ -90,6 +90,11 @@ S3c 是首个把 flex mesh 段并入既有 `MeshDevice` 的路径。S3a 只走 1
   输出 `base + id`（`u64::MAX` 哨兵保留）；④单测 `packs_mesh_bvh_into_mesh_device_layout` 覆盖
   2D/3D 条目数、条目偏移与顶点值。
 
+- **R06 nvrtc-eol 修（2026-11-04）**：两处 `tools/nvrtc_precheck.py` 的 `.ptx` 改为二进制写
+  （`.txt`/`.nvrtc-log.txt` 显式 `newline="\n"`）。修后实跑复现：磁盘 `.ptx` **343993 B / CR=0 /
+  sha256 `9118d1ea…`**，与本目录 `nvrtc-precheck.txt` 记录值逐字节一致（此前文本写产生 CRLF 354740 B）。
+  记录值不变；治理卡：`2026-11-04-governance-nvrtc-precheck-ptx-eol`。
+
 ## 4. 验证
 
 1. **四门禁**（`.normify/runs/2026-11-04-render-r06-s3c-flex-mesh-device/`）：fmt / clippy /

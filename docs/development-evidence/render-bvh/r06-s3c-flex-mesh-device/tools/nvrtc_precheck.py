@@ -175,7 +175,7 @@ def main():
         cuda_dir, source, ENTRY, [str(repo / "include" / "warp-headers")])
     checks = check_ptx(ptx, ENTRY)
     ptx_sha = hashlib.sha256(ptx.encode("utf-8")).hexdigest()
-    (out.with_suffix(".ptx")).write_text(ptx, encoding="utf-8")
+    (out.with_suffix(".ptx")).write_bytes(ptx.encode("utf-8"))
     report = [
         "R06-S3a offline NVRTC precheck (compile only; no CUDA context / no kernel launch)",
         f"nvrtc={major}.{minor}",
@@ -189,10 +189,10 @@ def main():
         f"gate_checks={checks}",
         f"compile_log_bytes={len(log_text.encode('utf-8'))}",
     ]
-    (out.with_suffix(".txt")).write_text("\n".join(report) + "\n", encoding="utf-8")
+    (out.with_suffix(".txt")).write_text("\n".join(report) + "\n", encoding="utf-8", newline="\n")
     print("\n".join(report))
     if log_text.strip():
-        (out.with_suffix(".nvrtc-log.txt")).write_text(log_text, encoding="utf-8")
+        (out.with_suffix(".nvrtc-log.txt")).write_text(log_text, encoding="utf-8", newline="\n")
     return 0
 
 
