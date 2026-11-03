@@ -6,9 +6,10 @@
 `2026-11-03-precision-np01-field-tables-b2b`（B2b，5 条）、
 `2026-11-03-precision-np01-field-tables-b2c`（B2c，5 条）、
 `2026-11-04-precision-np01-field-tables-b2d`（B2d，3 条）、
-`2026-11-04-precision-np01-field-tables-b2e`（B2e，4 条）。口径：`docs/numerical-precision-contract.md` 的
+`2026-11-04-precision-np01-field-tables-b2e`（B2e，4 条）、
+`2026-11-04-precision-np01-host-tables-b3`（B3，host 站点 3 条，表在 `../host-tables/`）。口径：`docs/numerical-precision-contract.md` 的
 NP01（类型映射率 100%、实际精度偏离 0）。本目录只做**类型审计与登记**：不改产品代码/判据/容差，零 GPU。
-**NP01 仍未验收**——30/30 条产品路径已有逐字段表，但 host 站点 0/3 条仍缺（B3），2026-10-27 用户裁定的 g10-p5 E 指标也仍未定稿。
+**NP01 仍未验收**——30/30 条产品路径 + 3/3 条 host 站点均有逐字段表（证据面齐全），但 2026-10-27 用户裁定的 g10-p5 E 指标仍未定稿、host/device 逐表达式位级对照未补；不宣称通过。
 
 ## 一、表的粒度与判读
 
@@ -100,15 +101,22 @@ PTX vs 显式 `.rn`）。逐表达式的位级对照仍由实现片的探针证�
 | `sleep_wake` | `sleep_copy`、`tendon_wake` | 2 内核 | 无浮点累加：`sleep_copy` 是 i32 位型搬运；`tendon_wake` 沿 asleep 链写 wakeval（初值 -11），两个长度边界各一次 f32 减+比较 | 全 i32：asleep/awake 段 + 三个计数（`awake[n+1]/[n+2]` 固定写 0） |
 | `field_batch` | `field_parameter`（设备库）+ `pack_model`/`pack_fixed_tendon`/`pack_spatial_tendon`（宿主） | 无 `__global__`，作前缀拼进 resident 内核 | 无浮点累加：整型 `(world%batches)*width` 宽乘取数；宿主描述符 `[offset,batches]` 经 `checked_add` 限 i32 | f32 参数批（原样搬运，不改位型）；唯一双精度接触点 `1.0/wrap_prm` 已登记待核 |
 
-## 九、待补（3 条 host 站点）
+## 九、B3 已完成（3 条 host 站点，表在 `../host-tables/`）
 
-- **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
+| row_id | host 路径 | 入口函数 | 累加/舍入口径 | 输出 |
+| --- | --- | --- | --- | --- |
+| `gjk_host` | gjk / simplex / support / contact frame / dist·pos·frame | `gjk`、`gjk_support`、`subdistance(s1d/s2d/s3d)`、`linear_combine`、`support`、`ccd_pair` | **非融合**：`dot3=a0*b0+a1*b1+a2*b2` 左结合、`linear_combine` 按 i 升序（n=1..4）；host CPU recipe 每乘加两次舍入 | dist/x1/x2（f32）+ 结构化索引（i32）；FLOAT_MAX 表分离 |
+| `ccd_host` | ccd / ccl / contact frame | `gjk_phase`（shrink+inflate）、`ccd_internal`、`epa_phase`、`ccd_pair` | `dist -= margin1+margin2`（先求和外减）；`cutoff += full_margin1+full_margin2` 重跑前减回；multicontact 关闭条件三选一 → 只写单接触 | dist/pos/frame（f32）+ ncontact/overflow（i32/u32） |
+| `epa_host` | epa / face_norm2 / contact frame | `epa`、`attach_face`、`epa_witness`、`polytope2/3/4`、`add_edge`（整型） | **`face_norm2` 显式两次舍入**：head=r0*r0 → tail=r1*r1+head → norm2=r2*r2+tail（刻意不用 FMA helper）；上下界用归一化前 `dot3(face_pr,w)/lower` | dist（重叠为负）、x1/x2（f32）+ 面边编码（u32 位域） |
+
+- host 站点口径：`judgment_premise` = **参考-前提型（B 类）**——host 两次舍入与 device `fma.rn`（pinned ccd PTX 1480 处）是两套 recipe，位级对照必须先声明「同 recipe + 同编译形态 + 同 GPU」。
 
 ## 十、门禁联动
 
-`tests/precision_type_gate.rs` 增加一条断言：`inventory.json` 的每一行必须在 `field-tables/` 下有表、
-或在该测试内显式登记的「待批清单」里；表内 `kernels/params/intermediates/accumulations/outputs/upstream/evidence`
-缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12 → B2c 后 7 → B2d 后 4 → **B2e 后 0，清单清空**）——**不允许静默缺表**。
+`tests/precision_type_gate.rs` 增加两条覆盖断言：
+①`inventory.json` 的每一行必须在 `field-tables/` 下有表、或在该测试内显式登记的「待批清单」里；
+②`inventory.json` 的 `hostSiteRegistration.hostCoverage` 每条必须在 `host-tables/` 下有同名 `row_id` 表（无待批名单，缺表即失败）。
+表内 `kernels/params/intermediates/accumulations/outputs/upstream/evidence` 缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12 → B2c 后 7 → B2d 后 4 → **B2e 后 0，清单清空**）——**不允许静默缺表**。
 
 ## 十一、边界
 

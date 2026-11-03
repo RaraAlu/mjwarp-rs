@@ -1,0 +1,149 @@
+{
+  "schema": 1,
+  "row_id": "epa_host",
+  "layer": "G2 host EPA 穿透深度/接触 frame",
+  "paths": ["epa", "face_norm2", "contact frame"],
+  "batch": "B3",
+  "audit_level": "参数/缓冲/累加/输出层（per-field，host 数值链）",
+  "source": {
+    "kind": "host 数值链（CPU recipe：乘加为独立语句、每乘加两次舍入）",
+    "files": [
+      "src/physics/collision/gjk/epa.rs",
+      "src/physics/collision/gjk/polytope.rs",
+      "src/physics/collision/gjk/polytope_build.rs"
+    ],
+    "kernels": ["epa（迭代与 horizon 扩展）", "attach_face（face_norm2）", "epa_witness（witness 恢复）", "polytope2/polytope3/polytope4（初始 polytope 构造）", "add_edge/delete_face（整型面/边管理）"]
+  },
+  "kernels": [
+    {
+      "name": "epa（epa.rs）",
+      "params": [
+        {"name": "pt", "ctype": "Polytope（face/face_pr/face_norm2/horizon/vert/vert_index + center）", "role": "in/out"},
+        {"name": "tolerance / epa_iterations", "ctype": "f32 / usize", "role": "in: 迭代上限再钳到 1000"},
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in"},
+        {"name": "is_discrete", "ctype": "bool", "role": "in: epsilon 取 MIN_EPATOL 而非 tolerance"}
+      ],
+      "intermediates": [
+        {"name": "upper / upper2 / lower / lower2", "type": "f32", "note": "穿透深度上/下界：lower2 为最近面 face_norm2，lower = sqrt(lower2)"},
+        {"name": "dir", "type": "f32[3]", "note": "face_pr/lower，逐分量除法"},
+        {"name": "w", "type": "f32[3]", "note": "sub3(vert[2wi], vert[2wi+1])，Minkowski 差"},
+        {"name": "upper_k", "type": "f32", "note": "dot3(face_pr, w) / lower，归一化前点积（上游注释：精度更好）"},
+        {"name": "nvalid / nhorizon / idx / pidx", "type": "i32", "note": "有效面计数与最近面选择（严格 < 比较，面序固定）"}
+      ],
+      "accumulations": [
+        {"what": "upper = min(upper, upper_k)；upper2 = upper*upper", "type": "f32 单次比较 + 乘法"},
+        {"what": "horizon 判定 dot3(face_pr[i], w) - face_norm2[i] > 1e-10", "type": "f32 先点积后减，与常量精确比较"},
+        {"what": "attach_face 返回 dist2 与 [lower2, upper2] 区间比较决定 nvalid", "type": "f32 区间比较"}
+      ],
+      "outputs": [
+        {"field": "EpaResult.dist", "type": "f32", "conversion": "epa_witness 返回（-sqrt(face_norm2) 或 HField 分支 -length3(diff)）"},
+        {"field": "EpaResult.x1/x2", "type": "f32[3] ×2", "conversion": "epa_witness：重心坐标对 geom1/geom2 两侧顶点加权"},
+        {"field": "EpaResult.face_idx", "type": "i32", "conversion": "-1 表示失败（无接触）"},
+        {"field": "EpaResult.overflow", "type": "u32", "conversion": "horizon 缓冲用尽时置 EPA_HORIZON"}
+      ]
+    },
+    {
+      "name": "attach_face（polytope.rs）",
+      "params": [
+        {"name": "pt / idx / v1 / v2 / v3", "ctype": "&mut Polytope / usize ×4", "role": "in/out: 面索引与三顶点"}
+      ],
+      "intermediates": [
+        {"name": "p1/p2/p3", "type": "f32[3] ×3", "note": "sub3(vert[2vi], vert[2vi+1]) 的 Minkowski 差顶点"},
+        {"name": "r", "type": "f32[3]", "note": "project_origin_plane(p3,p2,p1)；退化返回 0；否则按 dot3(r, p1-center) < 0 取反朝外"},
+        {"name": "head / tail / face_norm2", "type": "f32", "note": "**显式两次舍入**：head=r0*r0；tail=r1*r1+head；norm2=r2*r2+tail"}
+      ],
+      "accumulations": [
+        {"what": "face_norm2 = r2*r2 + (r1*r1 + r0*r0)——按 head→tail→norm2 三步固定顺序", "type": "f32 每步一次舍入（刻意不写 mul_add）"},
+        {"what": "dot3(r, sub3(p1, center)) < 0 决定取反", "type": "f32 两次舍入 + 符号比较"}
+      ],
+      "outputs": [
+        {"field": "pt.face[idx]", "type": "u32", "conversion": "v1 + (v2<<10) + (v3<<20)（每顶点 10 bit 编码）"},
+        {"field": "pt.face_pr[idx]", "type": "f32[3]", "conversion": "朝外的原点投影点 r"},
+        {"field": "pt.face_norm2[idx]", "type": "f32", "conversion": "r·r 的显式两次舍入值（0 表示失败/退化）"}
+      ]
+    },
+    {
+      "name": "epa_witness（polytope.rs）",
+      "params": [
+        {"name": "pt / face_idx", "ctype": "&Polytope / usize", "role": "in: 选中面"},
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in: HField 修正分支需要 geom 顶点"}
+      ],
+      "intermediates": [
+        {"name": "coordinates", "type": "f32[3]", "note": "tri_affine_coord(v1,v2,v3,face_pr[face_idx])"},
+        {"name": "x2 / x1", "type": "f32[3] ×2", "conversion": "两侧顶点按重心坐标加权求和（三次乘加）"},
+        {"name": "HField 修正", "type": "f32 / f32[3]", "note": "offset=0.5*margin+radius、坐标外时投影到面；dist=-length3(sub3(x1,x2))"}
+      ],
+      "accumulations": [
+        {"what": "x2 = Σ l_i * v_i（i=1..3，固定顺序）", "type": "f32 逐分量三次乘加"},
+        {"what": "x1 = Σ l_i * v_i；HField 分支 coordinates2 同式", "type": "f32 同上"},
+        {"what": "dist = -sqrt(face_norm2[face_idx])（非 HField 分支）", "type": "f32 sqrt + 取负"}
+      ],
+      "outputs": [
+        {"field": "witness x1/x2", "type": "f32[3] ×2", "conversion": "两侧面重心插值点"},
+        {"field": "dist", "type": "f32", "conversion": "重叠为负：-length3(x1-x2) 或 -sqrt(face_norm2)"}
+      ]
+    },
+    {
+      "name": "polytope2 / polytope3 / polytope4（polytope_build.rs）",
+      "params": [
+        {"name": "pt", "ctype": "Polytope", "role": "in/out: 初始面/顶点缓冲"},
+        {"name": "result", "ctype": "GjkResult（simplex/simplex1/simplex2 与索引）", "role": "in"},
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in"}
+      ],
+      "intermediates": [
+        {"name": "face/face_pr/face_norm2", "type": "u32 / f32[3] / f32", "note": "由 attach_face 逐面填充"},
+        {"name": "center", "type": "f32[3]", "note": "用于面朝外判定的参考中心"},
+        {"name": "status", "type": "i32", "note": "-1 表示回退到 3-单纯形（epa_phase 据此重设 result.dim）"}
+      ],
+      "accumulations": [
+        {"what": "多面加权/重心重建沿用 simplex.rs 的 s2d/s1d 顺序", "type": "f32 两次舍入"},
+        {"what": "det3 体积/朝向判定：dot(v1, cross(v2,v3))", "type": "f32 逐项乘减"}
+      ],
+      "outputs": [
+        {"field": "pt（初始 polytope）", "type": "Polytope", "conversion": "面表 + 顶点对 + 索引"},
+        {"field": "GjkResult（回退时）", "type": "struct", "conversion": "simplex/simplex1/simplex2 与索引，dim 置 3"}
+      ]
+    },
+    {
+      "name": "add_edge / get_edge / delete_face / invalidate_face（整型管理）",
+      "params": [
+        {"name": "e1/e2", "ctype": "i32", "role": "in: 边两端顶点（10 bit 编码）"},
+        {"name": "pt.horizon / pt.face", "ctype": "i32[] / u32[]", "role": "in/out"}
+      ],
+      "intermediates": [
+        {"name": "edge", "type": "i32", "note": "(min<<10) | max，规范化后的边键"},
+        {"name": "FACE_DELETED_BIT / FACE_INVALID_BIT", "type": "u32", "note": "面状态位，不参与浮点"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "nhorizon", "type": "i32", "conversion": "新计数；-1 表示缓冲用尽（置 EPA_HORIZON）"},
+        {"field": "face[i] 状态位", "type": "u32", "conversion": "置 deleted/invalid 位"}
+      ]
+    }
+  ],
+  "quantization": [
+    "全部 f32（simplex/face 顶点为 f32）；产品 doubleInProduct = 0，host 侧无 f64",
+    "哨符/常量：FLOAT_MAX（初始上下界与失败 dist）、MIN_EPATOL（is_discrete 的 epsilon）、horizon 判定阈值 1e-10f",
+    "面/边/顶点编码为 u32/i32 位域（每顶点 10 bit、状态位 deleted/invalid），与浮点字段分开登记",
+    "E 指标未定稿：本表只登记类型/顺序，不改判据、不出数值结论"
+  ],
+  "rounding_notes": [
+    "**host 站点核心口径**：`face_norm2` 刻意显式两次舍入（head=r0*r0 → tail=r1*r1+head → norm2=r2*r2+tail），polytope.rs:67-69 注释明确「不用 FMA helper、不引 f64、不写 mul_add」，因为 G2/G6 判据参考是 warp 1.15.0 CPU 后端",
+    "EPA 收敛判据用归一化前的上界 `dot3(face_pr,w)/lower`，与 `sqrt(face_norm2)` 比较；epsilon 在离散几何下取 MIN_EPATOL",
+    "horizon 扩展的候选面判定 `dot3(face_pr[i], w) - face_norm2[i] > 1e-10` 为一次点积 + 一次减 + 精确比较",
+    "device 侧 pinned ccd PTX 为 fma.rn 融合语义（1480 处），与 host 两次舍入是两套 recipe；位级对照必须声明前提"
+  ],
+  "upstream": {
+    "files": ["_src/collision_convex.py（pinned 71da24d…）"],
+    "functions": ["_epa()", "_attach_face()", "_epa_witness()", "_polytope2/3/4", "_add_edge()"],
+    "confidence": "站点级；逐函数映射待补"
+  },
+  "evidence": [
+    "docs/development-evidence/faithful-fma-fix/README.md（ellipsoid-box frame 位级 0 差异）",
+    "docs/development-evidence/g10-p5-gjk-epa/README.md（EPA 模块清单）",
+    "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json（CPU recipe 参考）",
+    "src/physics/collision/gjk/polytope.rs:67-72（两次舍入口径的源码内注释）"
+  ],
+  "status": "audited (host 逐字段类型/顺序/舍入口径)；缺项：EPA 逐轮 host/device 对照表、E 指标定稿后的数值结论（当前不宣称通过）",
+  "judgment_premise": "参考-前提型（B 类）：face_norm2 的两次舍入口径只在 CPU recipe 下成立；换 device fused recipe 需另登记，不可混用位级结论。"
+}

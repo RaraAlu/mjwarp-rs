@@ -297,6 +297,59 @@ fn type_inventory_keeps_its_registered_shape() {
 
 // ---- 逐字段表覆盖门禁（NP01 B1 起） ----------------------------------------
 
+/// 逐字段表公共形状断言：必备段非空、kernels 逐项含 params/outputs 与 intermediates/accumulations 段。
+fn assert_table_shape(
+    name: &str,
+    table: &serde_json::Value,
+    allowed: &[String],
+    kind: &str,
+) -> String {
+    let row_id = table["row_id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{name} 缺 row_id"))
+        .to_string();
+    assert!(
+        allowed.iter().any(|id| id == &row_id),
+        "{name} 的 row_id={row_id} 不在 {kind} 里"
+    );
+    for key in [
+        "batch",
+        "layer",
+        "audit_level",
+        "status",
+        "source",
+        "upstream",
+        "evidence",
+    ] {
+        let empty = match &table[key] {
+            serde_json::Value::String(text) => text.trim().is_empty(),
+            serde_json::Value::Array(items) => items.is_empty(),
+            serde_json::Value::Object(map) => map.is_empty(),
+            serde_json::Value::Null => true,
+            _ => false,
+        };
+        assert!(!empty, "{name} 的 {key} 为空");
+    }
+    let kernels = table["kernels"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{name} 缺 kernels"));
+    assert!(!kernels.is_empty(), "{name} 的 kernels 为空");
+    for kernel in kernels {
+        let kernel_name = kernel["name"].as_str().unwrap_or("<unnamed>");
+        for key in ["params", "outputs"] {
+            let items = kernel[key]
+                .as_array()
+                .unwrap_or_else(|| panic!("{name}/{kernel_name} 缺 {key}"));
+            assert!(!items.is_empty(), "{name}/{kernel_name} 的 {key} 为空");
+        }
+        assert!(
+            kernel["intermediates"].is_array() && kernel["accumulations"].is_array(),
+            "{name}/{kernel_name} 缺 intermediates/accumulations 段"
+        );
+    }
+    row_id
+}
+
 const FIELD_TABLES: &str = "docs/development-evidence/np01-type-mapping/field-tables";
 
 /// 尚未产出逐字段表的清单行（按批登记）。每批交付后必须从这里删掉对应行；宁可测试失败，也不许静默缺表。
@@ -343,50 +396,12 @@ fn field_tables_cover_registered_rows_without_silent_gaps() {
             &fs::read_to_string(path).unwrap_or_else(|error| panic!("read {name}: {error}")),
         )
         .unwrap_or_else(|error| panic!("{name} 不是合法 JSON: {error}"));
-        let row_id = table["row_id"]
-            .as_str()
-            .unwrap_or_else(|| panic!("{name} 缺 row_id"))
-            .to_string();
-        assert!(
-            row_ids.iter().any(|id| id == &row_id),
-            "{name} 的 row_id={row_id} 不在 inventory.json 行清单里"
-        );
-        for key in [
-            "batch",
-            "layer",
-            "audit_level",
-            "status",
-            "source",
-            "upstream",
-            "evidence",
-        ] {
-            let empty = match &table[key] {
-                serde_json::Value::String(text) => text.trim().is_empty(),
-                serde_json::Value::Array(items) => items.is_empty(),
-                serde_json::Value::Object(map) => map.is_empty(),
-                serde_json::Value::Null => true,
-                _ => false,
-            };
-            assert!(!empty, "{name} 的 {key} 为空");
-        }
-        let kernels = table["kernels"]
-            .as_array()
-            .unwrap_or_else(|| panic!("{name} 缺 kernels"));
-        assert!(!kernels.is_empty(), "{name} 的 kernels 为空");
-        for kernel in kernels {
-            let kernel_name = kernel["name"].as_str().unwrap_or("<unnamed>");
-            for key in ["params", "outputs"] {
-                let items = kernel[key]
-                    .as_array()
-                    .unwrap_or_else(|| panic!("{name}/{kernel_name} 缺 {key}"));
-                assert!(!items.is_empty(), "{name}/{kernel_name} 的 {key} 为空");
-            }
-            assert!(
-                kernel["intermediates"].is_array() && kernel["accumulations"].is_array(),
-                "{name}/{kernel_name} 缺 intermediates/accumulations 段"
-            );
-        }
-        covered.push(row_id);
+        covered.push(assert_table_shape(
+            &name,
+            &table,
+            &row_ids,
+            "inventory.json 行清单",
+        ));
     }
 
     let mut pending: Vec<String> = PENDING_ROWS.iter().map(|(id, _)| id.to_string()).collect();
@@ -413,5 +428,68 @@ fn field_tables_cover_registered_rows_without_silent_gaps() {
     assert!(
         missing.is_empty(),
         "以下清单行既没有逐字段表、也不在待批清单里（不允许静默缺表）：{missing:?}"
+    );
+}
+
+// ---- host 站点逐字段表覆盖门禁（NP01 B3） -----------------------------------
+
+const HOST_TABLES: &str = "docs/development-evidence/np01-type-mapping/host-tables";
+
+#[test]
+fn host_tables_cover_registered_host_sites_without_silent_gaps() {
+    let root = manifest_dir();
+    let inventory: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(root.join(INVENTORY)).expect("read inventory.json"),
+    )
+    .expect("inventory.json must be valid JSON");
+    let host_sites: Vec<String> = inventory["hostSiteRegistration"]["hostCoverage"]
+        .as_array()
+        .expect("hostSiteRegistration.hostCoverage")
+        .iter()
+        .map(|row| row["id"].as_str().expect("hostCoverage.id").to_string())
+        .collect();
+    assert!(!host_sites.is_empty(), "hostCoverage 为空");
+
+    let tables_dir = root.join(HOST_TABLES);
+    let mut tables = Vec::new();
+    for entry in fs::read_dir(&tables_dir)
+        .unwrap_or_else(|error| panic!("read {}: {error}", tables_dir.display()))
+    {
+        let path = entry.expect("dir entry").path();
+        if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
+            tables.push(path);
+        }
+    }
+    tables.sort();
+    assert!(!tables.is_empty(), "host-tables/ 为空：host 站点表不得缺失");
+
+    let mut covered = Vec::new();
+    for path in &tables {
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let table: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(path).unwrap_or_else(|error| panic!("read {name}: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("{name} 不是合法 JSON: {error}"));
+        covered.push(assert_table_shape(
+            &name,
+            &table,
+            &host_sites,
+            "inventory.hostSiteRegistration.hostCoverage",
+        ));
+    }
+
+    let mut missing: Vec<String> = host_sites
+        .iter()
+        .filter(|id| !covered.contains(*id))
+        .cloned()
+        .collect();
+    missing.sort();
+    assert!(
+        missing.is_empty(),
+        "以下 host 站点没有逐字段表（不允许静默缺表）：{missing:?}"
     );
 }

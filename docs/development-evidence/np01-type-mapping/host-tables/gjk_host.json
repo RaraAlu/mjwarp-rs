@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "row_id": "gjk_host",
+  "layer": "G1/G2 host GJK 窄相",
+  "paths": ["gjk", "simplex", "support", "contact frame", "dist/pos/frame"],
+  "batch": "B3",
+  "audit_level": "参数/缓冲/累加/输出层（per-field，host 数值链）",
+  "source": {
+    "kind": "host 数值链（CPU recipe：乘加为独立语句、每乘加两次舍入）",
+    "files": [
+      "src/physics/collision/gjk/core.rs",
+      "src/physics/collision/gjk/simplex.rs",
+      "src/physics/collision/gjk/support.rs",
+      "src/physics/collision/gjk/math.rs",
+      "src/physics/collision/gjk/contact.rs"
+    ],
+    "kernels": ["gjk", "gjk_support", "subdistance（s1d/s2d/s3d）", "linear_combine", "support", "ccd_pair（接触装配入口）"]
+  },
+  "kernels": [
+    {
+      "name": "gjk（core.rs）",
+      "params": [
+        {"name": "tolerance / cutoff", "ctype": "f32", "role": "in: 收敛容差与分离 cutoff"},
+        {"name": "gjk_iterations", "ctype": "usize", "role": "in: 迭代上限（默认 35）"},
+        {"name": "geom1/geom2", "ctype": "Geom（f32 位置/旋转/尺寸 + i32 索引）", "role": "in: 两侧凸几何副本"},
+        {"name": "x1_0/x2_0", "ctype": "[f32;3] ×2", "role": "in: 初始 witness"},
+        {"name": "geomtype1/geomtype2", "ctype": "i32", "role": "in: 几何类型码"},
+        {"name": "is_discrete", "ctype": "bool", "role": "in: mesh/box/hfield 且两侧 margin==0"}
+      ],
+      "intermediates": [
+        {"name": "simplex/simplex1/simplex2", "type": "[f32;3] ×4 各", "note": "Minkowski 差与两侧 witness 顶点"},
+        {"name": "simplex_index1/index2", "type": "[i32;4]", "note": "缓存顶点索引（整型，不参与浮点）"},
+        {"name": "lmbda", "type": "[f32;4]", "note": "重心坐标，由 subdistance 给出"},
+        {"name": "epsilon / min_norm", "type": "f32", "note": "is_discrete 时 0.0 / MINVAL，否则 0.5*tolerance*tolerance / tolerance"},
+        {"name": "x_k / xnorm / xnorm_prev", "type": "[f32;3] / f32 ×2", "note": "当前差向量与其范数，xnorm=(dot3(x_k,x_k)).sqrt()"}
+      ],
+      "accumulations": [
+        {"what": "dot3 = a0*b0 + a1*b1 + a2*b2（左结合）", "type": "f32 两次舍入（非融合）"},
+        {"what": "linear_combine：Σ lmbda[i]*matrix[i][j]，按 i 升序 n∈{1,2,3,4}", "type": "f32 顺序加，每项独立乘"},
+        {"what": "x_k 更新后用 dot3 重算 xnorm；终止判据 |xnorm_prev - xnorm| < MINVAL", "type": "f32 减法 + abs"}
+      ],
+      "outputs": [
+        {"field": "GjkResult.dist", "type": "f32", "conversion": "xnorm；n==4 且未分离时置 0.0；分离时 FLOAT_MAX"},
+        {"field": "GjkResult.x1/x2", "type": "f32[3] ×2", "conversion": "n==0 取初始点，否则 linear_combine(n, lmbda, simplex1/2)"},
+        {"field": "GjkResult.separated / dim / index1 / index2", "type": "bool / usize / i32", "conversion": "结构化字段，无浮点转换"}
+      ]
+    },
+    {
+      "name": "gjk_support（core.rs）",
+      "params": [
+        {"name": "x_k / x_norm / simplex[n] / n", "ctype": "[f32;3] / f32 / [f32;3]×4 / usize", "role": "in"},
+        {"name": "is_discrete", "ctype": "bool", "role": "in: 方向噪声调优开关"}
+      ],
+      "intermediates": [
+        {"name": "dir_neg", "type": "[f32;3]", "note": "x_k 归一化；is_discrete 且 x_norm<1e-4 时按 n==2 边投影 / n==3 平面法向重定向"},
+        {"name": "edge_norm2 / proj / dir_norm", "type": "f32", "note": "dot3 与除法，均两次舍入"},
+        {"name": "sign", "type": "f32", "note": "dot3(dir_neg, normal) < 0 ? -1.0 : 1.0"}
+      ],
+      "accumulations": [
+        {"what": "proj = dot3(dir_neg, edge) / edge_norm2；dir_neg = sub3(dir_neg, scale3(edge, proj))", "type": "f32 逐分量，先乘后减（两次舍入）"}
+      ],
+      "outputs": [
+        {"field": "两只 SupportPoint（point[3] + cached_index/vertex_index）", "type": "f32[3] + i32", "conversion": "由 support() 产出，方向取负一侧用 neg3(dir_neg)"}
+      ]
+    },
+    {
+      "name": "subdistance / s1d / s2d / s3d（simplex.rs）",
+      "params": [
+        {"name": "n", "ctype": "usize", "role": "in: 单纯形维数 1..=4"},
+        {"name": "simplex", "ctype": "[f32;3] ×4", "role": "in: Minkowski 差顶点"}
+      ],
+      "intermediates": [
+        {"name": "det3 / m_14 / m_24 / m_34 / c31 / c32 / c33 / m_max", "type": "f32", "note": "行列式与重心坐标分子，源码按书写顺序求值"},
+        {"name": "p_o（project_origin_line/plane）", "type": "f32[3]", "note": "退化时 project_origin_plane 返回 (zero,true) 并回退 s1d"},
+        {"name": "dmin", "type": "f32", "note": "s3d/s2d 中选子单纯形时的最小距离平方，初值 FLOAT_MAX"},
+        {"name": "same_sign", "type": "i32", "note": "同正 1 / 同负 -1 / 否则 0（与 0.0 精确比较）"}
+      ],
+      "accumulations": [
+        {"what": "s2d 的 m_14/m_24/m_34 与 c31/c32/c33 为 6 项固定顺序乘减和", "type": "f32 左结合，每项独立乘"},
+        {"what": "s3d：c41..c44 四个 det3 后 m_det = c41+c42+c43+c44", "type": "f32 顺序加（4 项）"},
+        {"what": "子单纯形候选比较：d = dot3(x,x) 逐个与 dmin 比较（严格 <）", "type": "f32 顺序比较，顺序 c1→c2→c3→c4 固定"}
+      ],
+      "outputs": [
+        {"field": "lmbda[4]", "type": "f32", "conversion": "四面体内直接 c4i/m_det；否则补 0 的子单纯形重心坐标"}
+      ]
+    },
+    {
+      "name": "support（support.rs）",
+      "params": [
+        {"name": "geom", "ctype": "Geom（pos[3]/rot[9]/size[3]/margin/polyvert 等）", "role": "in"},
+        {"name": "geomtype", "ctype": "i32", "role": "in: SPHERE/BOX/CAPSULE/ELLIPSOID/CYLINDER/MESH/HFIELD/TRIANGLE/FLEX"},
+        {"name": "dir", "ctype": "[f32;3]", "role": "in: 世界系方向"}
+      ],
+      "intermediates": [
+        {"name": "local_dir", "type": "[f32;3]", "note": "transpose(rot) @ dir，行内三次点名乘加"},
+        {"name": "res / point.point", "type": "[f32;3]", "note": "按类型：BOX 取 sign*size、CAPSULE 取 size0 缩放 + z 半长、ELLIPSOID 两次 cw_mul+normalize、CYLINDER 径向投影、MESH/HFIELD/TRIANGLE/FLEX 取极值点"},
+        {"name": "max_dist / cached_index / vertex_index", "type": "f32 / i32", "note": "MESH hillclimb / HFIELD 6 顶点穷举的极值比较"},
+        {"name": "margin 修正", "type": "f32[3]", "note": "margin>0 时 point += dir * (0.5 * margin)"}
+      ],
+      "accumulations": [
+        {"what": "HFIELD/FLEX/TRIANGLE 逐顶点 dist=dot3(vert,dir) 与 max_dist 比较（严格 >）", "type": "f32 顺序比较，顶点序固定"},
+        {"what": "MESH hillclimb：按邻接表局部顺序更新 imax 与 max_dist", "type": "f32 顺序比较，迭代到无变化"}
+      ],
+      "outputs": [
+        {"field": "SupportPoint.point", "type": "f32[3]", "conversion": "add3(mul_mat3_vec(rot, res), pos) 或直接顶点；margin>0 再叠加"},
+        {"field": "SupportPoint.vertex_index / cached_index", "type": "i32", "conversion": "索引字段（BOX 用 1/2/4 位、MESH 用图索引、HFIELD 用 -2/-3 标记）"}
+      ]
+    },
+    {
+      "name": "ccd_pair（contact.rs 接触装配）",
+      "params": [
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in"},
+        {"name": "ContactOptions", "ctype": "struct（CcdOptions + margin/gap/collision_sensor/use_multiccd）", "role": "in"}
+      ],
+      "intermediates": [
+        {"name": "origin", "type": "[f32;3]", "note": "平移不变性：原点平移到 geom1.pos，geom1.pos 置 0"},
+        {"name": "witness1/witness2/dists", "type": "[f32;3]×4 / f32×4", "note": "multicontact 裁剪结果，回退到单 EPA witness"},
+        {"name": "frame", "type": "[f32;9]", "note": "make_frame(sub3(witness1[0],witness2[0]))；dist<=margin 时取该向，否则反号"}
+      ],
+      "accumulations": [
+        {"what": "dist += options.margin；contact_dist < margin + gap 才写接触", "type": "f32 加法与比较"},
+        {"what": "pos = add3([0.5*sum[i]], origin)，sum=add3(witness1,witness2)", "type": "f32 先加后乘 0.5 再平移"}
+      ],
+      "outputs": [
+        {"field": "CcdContact.dist", "type": "f32", "conversion": "ncollision>1 时取 dists[i]，否则取修正后的 dist"},
+        {"field": "CcdContact.pos", "type": "f32[3]", "conversion": "两 witness 中点 + origin"},
+        {"field": "CcdContact.frame", "type": "f32[9]", "conversion": "make_frame：normalize + 选择轴投影 + cross，行优先"},
+        {"field": "CcdOutput.ncontact / overflow", "type": "i32 / u32", "conversion": "结构化计数与 OverflowType 位"}
+      ]
+    }
+  ],
+  "quantization": [
+    "输入/中间/输出全部 f32（上游 f32 geom_xpos/geom_xmat 位型）；产品内 doubleInProduct = 0",
+    "host 侧**不含任何 f64**；常量 MINVAL/MINVAL2/MIN_EPATOL 为 f32 字面量，FLOAT_MAX 为分离哨符（dist = FLOAT_MAX）",
+    "整型结构字段（simplex 索引、geom 类型码、overflow 位、ncontact）与浮点字段分开登记，不冒充同型",
+    "E 指标（用户 2026-10-27 裁定的 g10-p5 native 接触字段容差）未定稿，本表只做类型映射，不给数值结论"
+  ],
+  "rounding_notes": [
+    "**host 站点刻意非融合**：dot3/length3/normalize3 写成独立乘与独立加语句，每乘加两次舍入；不使用 `mul_add`、不引 f64（polytope.rs:67-69 的注释即该口径，G2/G6 判据参考是 warp 1.15.0 CPU 后端）",
+    "device 侧对照：pinned 3.15 ccd PTX 记 `fma.rn.f32` 1480 处、`mul.rn/add.rn` 0 处（NVVM 默认收缩），因此 host/device 位级判据必须声明「同编译形态 + 同 recipe + 同 GPU」前提，前提不成立即降级",
+    "math.rs 头注释已如实记：曾尝试全 fused/仅 cross 非 fused 两种近似，各 case 互有胜负 → 逐表达式收缩顺序未完全对齐，位级定序留后续片",
+    "make_frame 的归一化在 length3(a)==0.0 时把 b 置零向量（与上游 kEps=0 一致）"
+  ],
+  "upstream": {
+    "files": ["_src/collision_convex.py（pinned 71da24d…）"],
+    "functions": ["collision_gjk.gjk()", "_gjk_support()", "_subdistance/_S1D/_S2D/_S3D/_linear_combine", "support()", "eval_ccd_write_contact"],
+    "confidence": "站点级；逐函数映射待补"
+  },
+  "evidence": [
+    "docs/development-evidence/faithful-fma-fix/README.md（三构建 5 case 位级 0 差异）",
+    "docs/development-evidence/g10-p5-gjk-epa/README.md（模块→上游清单与 4 ULP 判据）",
+    "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json（CPU 后端 f32 参考，provenance=device:cpu）",
+    "tests/gjk_epa.rs（5 case 结构契约 + 位级判据）"
+  ],
+  "status": "audited (host 逐字段类型/顺序/舍入口径)；缺项：host/device 逐表达式位级对照表、E 指标定稿后的数值结论（当前不宣称通过）",
+  "judgment_premise": "参考-前提型（B 类）：host 位级对照只在「同 recipe（CPU 非融合）+ 同编译形态」下成立；device 侧 fma.rn 属另一 recipe，不可直接与 host 位级比较。"
+}

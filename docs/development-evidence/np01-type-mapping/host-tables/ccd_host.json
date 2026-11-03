@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "row_id": "ccd_host",
+  "layer": "G2/G5 host CCD 接触装配",
+  "paths": ["ccd", "ccl", "contact frame", "dist/pos/frame"],
+  "batch": "B3",
+  "audit_level": "参数/缓冲/累加/输出层（per-field，host 数值链）",
+  "source": {
+    "kind": "host 数值链（CPU recipe：乘加为独立语句、每乘加两次舍入）",
+    "files": [
+      "src/physics/collision/gjk/phase.rs",
+      "src/physics/collision/gjk/ccd.rs",
+      "src/physics/collision/gjk/contact.rs"
+    ],
+    "kernels": ["gjk_phase（两阶段驱动 + shrink/inflate）", "ccd_internal（gjk→epa 串联）", "epa_phase（polytope 初始化与 multicontact 门）", "ccd_pair（接触装配）"]
+  },
+  "kernels": [
+    {
+      "name": "gjk_phase（phase.rs）",
+      "params": [
+        {"name": "tolerance / cutoff", "ctype": "f32", "role": "in: CcdOptions 透传"},
+        {"name": "gjk_iterations", "ctype": "usize", "role": "in: 迭代上限"},
+        {"name": "geom1/geom2", "ctype": "Geom ×2", "role": "in: 原始几何，内部先浅拷贝再 shrink"},
+        {"name": "geomtype1/geomtype2", "ctype": "i32", "role": "in"},
+        {"name": "x_1/x_2", "ctype": "[f32;3] ×2", "role": "in: 初始 witness"}
+      ],
+      "intermediates": [
+        {"name": "orig_margin/orig_size", "type": "f32 / [f32;3]", "note": "shrink 前快照，深穿透时恢复"},
+        {"name": "size1/size2, full_margin1/full_margin2", "type": "f32", "note": "球/胶囊 shrink 为点/线段：size = size[0]，full_margin = size + 0.5*orig_margin"},
+        {"name": "cutoff（局部）", "type": "f32", "note": "size1+size2>0 时 += full_margin1+full_margin2；重跑前再减回"},
+        {"name": "inflate 的 n", "type": "f32[3]", "note": "normalize3(sub3(x2,x1))，然后 x1+=margin1*n、x2-=margin2*n、dist-=margin1+margin2"}
+      ],
+      "accumulations": [
+        {"what": "dist -= margin1 + margin2（先求 margin 和再一次减）", "type": "f32 两次舍入"},
+        {"what": "HFIELD 浅穿透：tri_affine_coord 重心坐标后两次各三项乘加", "type": "f32 顺序加"},
+        {"what": "dist = -length3(sub3(x1, x2))（HField 分支与后续 inflate 同式）", "type": "f32 减法→平方和→sqrt→取负"}
+      ],
+      "outputs": [
+        {"field": "GjkPhase.dist", "type": "f32", "conversion": "浅穿透走 inflate 修正值；分离/无穿透取 result.dist"},
+        {"field": "GjkPhase.x1/x2", "type": "f32[3] ×2", "conversion": "witness（膨胀回真实表面后）"},
+        {"field": "GjkPhase.needs_epa", "type": "bool", "conversion": "result.dist <= tolerance && dim>=2 && !separated"}
+      ]
+    },
+    {
+      "name": "ccd_internal（ccd.rs）",
+      "params": [
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in"},
+        {"name": "x_1/x_2", "ctype": "[f32;3] ×2", "role": "in"},
+        {"name": "options", "ctype": "CcdOptions（tolerance/cutoff/gjk_iterations/epa_iterations）", "role": "in"}
+      ],
+      "intermediates": [
+        {"name": "phase", "type": "GjkPhase", "note": "gjk_phase 结果"},
+        {"name": "epa_phase_result", "type": "EpaPhase", "note": "needs_epa 时调用 epa_phase_with_horizon（产品路径 horizon=MJ_MAX_EPAHORIZON）"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "CcdInternal.dist", "type": "f32", "conversion": "透传 phase.dist 或 epa.dist"},
+        {"field": "CcdInternal.x1/x2", "type": "f32[3] ×2", "conversion": "透传"},
+        {"field": "CcdInternal.ncontact / multiccd_idx / overflow", "type": "i32 / i32 / u32", "conversion": "结构化字段；overflow 只透传 EPA 阶段的 EPA_HORIZON 位"}
+      ]
+    },
+    {
+      "name": "epa_phase_with_horizon（ccd.rs）",
+      "params": [
+        {"name": "result", "ctype": "GjkResult", "role": "in: GJK 结果（dim 2/4/3 决定 polytope 初始化路径）"},
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in"},
+        {"name": "tolerance / epa_iterations / horizon_capacity", "ctype": "f32 / usize / usize", "role": "in"}
+      ],
+      "intermediates": [
+        {"name": "pt", "type": "Polytope", "note": "reset_for_epa 后按 dim==2→polytope2、dim==4→polytope4、dim==3→polytope3 顺序构造"},
+        {"name": "is_discrete", "type": "bool", "note": "core::is_discrete 复判（两侧 margin==0）"},
+        {"name": "multiccd_idx", "type": "i32", "note": "任一侧 margin!=0 或类型不在 {BOX,MESH,CYLINDER} 时置 -1"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "EpaPhase.dist", "type": "f32", "conversion": "EPA 失败（face_idx==-1）时置 FLOAT_MAX"},
+        {"field": "EpaPhase.x1/x2", "type": "f32[3] ×2", "conversion": "EPA witness 或 result witness（原点在边界时）"},
+        {"field": "EpaPhase.ncontact / multiccd_idx / overflow", "type": "i32 / i32 / u32", "conversion": "结构化字段"},
+        {"field": "EpaPhase.polytope", "type": "Option<Polytope>", "conversion": "供 multicontact 恢复 feature；失败时为 None"}
+      ]
+    },
+    {
+      "name": "ccd_pair（contact.rs 装配，输出 dist/pos/frame）",
+      "params": [
+        {"name": "geom1/geom2/geomtype1/geomtype2", "ctype": "Geom ×2 / i32 ×2", "role": "in"},
+        {"name": "options", "ctype": "ContactOptions（margin/gap/collision_sensor/use_multiccd + CcdOptions）", "role": "in"}
+      ],
+      "intermediates": [
+        {"name": "origin", "type": "[f32;3]", "note": "geom1.pos；geom1.pos 置 0、geom2.pos -= origin"},
+        {"name": "cutoff", "type": "f32", "note": "collision_sensor ? 1e32 : gap"},
+        {"name": "witness1/witness2/dists", "type": "[f32;3]×4 / f32×4", "note": "multicontact 裁剪结果，0 接触时回退单 EPA witness"},
+        {"name": "frame", "type": "[f32;9]", "note": "dist<=margin 时 make_frame(w1-w2)，否则 make_frame(w2-w1)"}
+      ],
+      "accumulations": [
+        {"what": "dist += options.margin（从膨胀形状修正回真实表面）", "type": "f32 一次加"},
+        {"what": "pos = 0.5*(witness1+witness2) + origin，逐分量先加后乘再平移", "type": "f32 两次舍入"},
+        {"what": "contact_dist < margin + gap 才写接触（严格 <）", "type": "f32 加法与比较"}
+      ],
+      "outputs": [
+        {"field": "CcdContact.dist", "type": "f32", "conversion": "ncollision>1 取 dists[i]，否则取修正后 dist"},
+        {"field": "CcdContact.pos", "type": "f32[3]", "conversion": "中点 + origin"},
+        {"field": "CcdContact.frame", "type": "f32[9]", "conversion": "make_frame 行优先 3×3"},
+        {"field": "CcdOutput.ncontact / dist / overflow", "type": "i32 / f32 / u32", "conversion": "候选数、原始距离、OverflowType 位"}
+      ]
+    }
+  ],
+  "quantization": [
+    "全部 f32（上游 f32 geom 位型）；产品 doubleInProduct = 0，host 侧无 f64",
+    "哨符：分离时 dist = FLOAT_MAX；tolerance 默认 1e-6、gap 默认 0；sensor 对 cutoff 用 1e32f",
+    "容量/溢出（naccdmax、OverflowType.CCD/EPA_HORIZON）为整型结构字段，与浮点dist 分开登记",
+    "E 指标未定稿：本表只登记类型与顺序，不出数值结论"
+  ],
+  "rounding_notes": [
+    "host 站点非融合：gjk_phase/inflate 的 dot/length/normalize 均为独立乘加语句（两次舍入），不用 mul_add、不引 f64",
+    "shrink 修正的算术顺序固定为 `size + 0.5*orig_margin`、`cutoff += full_margin1 + full_margin2`（先各自求和外加），重跑前再整体减回",
+    "multicontact 关闭条件：任一侧 margin != 0、类型不在 {BOX,MESH,CYLINDER}、或 mesh 缺图 → multiccd_idx = -1（则只写单接触）",
+    "device 对照：pinned ccd PTX 为 fma.rn 融合语义，与 host 两次舍入不同 recipe → host/device 位级判据必须声明前提"
+  ],
+  "upstream": {
+    "files": ["_src/collision_driver.py", "_src/collision_primitive.py", "_src/collision_convex.py（pinned 71da24d…）"],
+    "functions": ["ccd()", "gjk_phase / epa_phase", "_inflate", "eval_ccd_write_contact"],
+    "confidence": "站点级；逐函数映射待补"
+  },
+  "evidence": [
+    "docs/development-evidence/faithful-fma-fix/README.md（5 case 与 CPU 参考位级 0 差异）",
+    "tests/gjk_epa.rs（5 case 结构契约）",
+    "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json（CPU recipe 参考）",
+    "docs/development-evidence/g10-p5-g2-gpu-reference-capture/README.md（两套参考 recipe 实测）"
+  ],
+  "status": "audited (host 逐字段类型/顺序/舍入口径)；缺项：逐表达式 host/device 对照、E 指标定稿后的数值结论（当前不宣称通过）",
+  "judgment_premise": "参考-前提型（B 类）：host 与 device 位级只在「同 recipe + 同编译形态 + 同 GPU」前提内可比；跨 recipe 只能做类型/顺序审计。"
+}
