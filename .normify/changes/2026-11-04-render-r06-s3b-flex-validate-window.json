@@ -12,9 +12,9 @@
   },
   "modules": {},
   "acceptance": [
-    "**采集脚本**：`capture_render_flex.py` 进仓（离线 authoring，只读 pinned upstream 与 fixtures，不启动在制品测试），输出可复现的 flex 渲染参考，带 provenance（pinned 提交、DLL sha、命令）。",
-    "**场景（Chief 2026-11-04 口径）**：`fixtures/render-bvh/scene-flex/` 首版 = **1D flex + 刚性几何共存**的最小场景（2D/3D 只留机制，不进首窗）；fixtures 变更登记清楚，含 flex 图元与刚性几何同 world 隔离断言。",
-    "**窗口材料**：实体清单、逐条判据（位级口径与容差来源）、守卫清单、Baseline 采样步骤、失败停手条款；开窗前提四条全部写清。**判据沿用 R05/R02 家族口径**：rgb ≤1 LSB（bit-first）、depth ≤4 ULP 且 0 beyond（bit-first）、seg 精确相等、两跑 sha 相同；flex 实体另须与刚性实体共存时 world 隔离成立。",
+    "**采集脚本**：`capture_render_flex.py` 进仓（离线 authoring，只读 pinned upstream 与 fixtures，不启动在制品测试），输出可复现的 flex 渲染参考，带 provenance（pinned 提交、DLL sha、命令）。**必须用 pinned editable 安装**（`target/mjwarp-parallel/upstream`，HEAD `71da24d…`），**不得用 PyPI 轮子**（S0 已留陷阱：PyPI 3.15.0 与 pinned commit 有 5 个 `.py` 逐字节不一致）。",
+    "**场景（Chief 2026-11-04 口径）**：`fixtures/render-bvh/scene-flex/` 首版 = **1D flex + 刚性几何共存**的最小场景（2D/3D 只留机制，不进首窗）；fixtures 变更登记清楚，含 flex 图元与刚性几何同 world 隔离断言。**tie-break 前提（S3a 交付口径）**：flex 在近共面平局永不赢（上游 `hit_geom_id=-2`、设备 `candidate_id=-2`），采集场景**不得**使用与刚性面近共面/贴脸的 flex 边。",
+    "**窗口材料**：实体清单、逐条判据（位级口径与容差来源）、守卫清单、Baseline 采样步骤、失败停手条款；开窗前提四条全部写清。**判据沿用 R05/R02 家族口径**：rgb ≤1 LSB（bit-first）、depth ≤4 ULP 且 0 beyond（bit-first）、seg 精确相等（含 flex 样本 `(flexid, 9)`，`mjOBJ_FLEX=9`）、两跑 sha 相同；flex 实体另须与刚性实体共存时 world 隔离成立。",
     "**纪律**：窗口只在 Chief 发 go 后开；开窗必须重冻（当前 guards 已过期）；失败即停、不重试、不放宽。",
     "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU（窗口前）。"
   ],
