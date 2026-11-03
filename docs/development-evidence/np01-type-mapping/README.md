@@ -155,3 +155,29 @@ device 侧口径：pinned GPU `ccd` PTX 的 `fma.rn` 融合（T4 采集 PTX `fma
 补 3 条 **host 路径覆盖项**（原 30 条 CUDA 内核路径未覆盖）：`gjk_host`、`ccd_host`、`epa_host`；
 状态如实为「部分（站点口径已登记；逐字段输入→输出类型表/逐表达式位级对照待补）」——**NP01 仍未验收**。
 实现与三构建证据见 `docs/development-evidence/faithful-fma-fix/README.md`。
+
+## NP01 门禁第一片：CUDA 源面快照 + 精度 token 断言（2026-11-03）
+
+任务：`2026-11-03-precision-np01-cuda-type-gate`（CPU-only、零窗口）。本片只把 NP01 的**可判定部分**机械化，
+不宣称 NP01 通过（逐字段类型表仍未补，见上面「缺口优先级」）。
+
+门禁实现：`tests/precision_type_gate.rs`（3 个用例，随 `cargo test --locked` 执行）。
+
+1. **源面快照棘轮**：`cuda-surface.json` 记录当前 41 个产品 `.cu` 文件与每个文件的 `__global__` 入口数
+   （合计 **22**）。新增/删除 `.cu` 或入口数变化都会让测试失败，必须由人显式更新快照并同步本清单，
+   防止新内核绕过类型登记。
+2. **精度 token 断言**：产品 `.cu` 源的**代码区**（去掉行注释与块注释后）不得出现
+   `double` / `__half` / `half2` / `bfloat16` / `tf32`。当前 8 处命中全部落在注释（讨论上游 double 分支、
+   `1.0/6.0` 舍入说明）或 W15 守卫宏 `#define WP_NO_BFLOAT16`，按规则放行；代码里再出现即失败。
+3. **清单形状断言**：`inventory.json` 至少 30 行，每行的 `types.{input,intermediate,accumulation,output,doubleInProduct}`
+   非空、`productFiles` 非空；`hostSiteRegistration.hostCoverage` 至少 3 行（gjk/ccd/epa host）且同样带 5 个类型键，
+   `siteSemantics` 至少 3 条。删行/删口径会失败。
+
+**本片未覆盖（仍属 NP01 未验收项）**：
+
+- `.rs` 内联 CUDA 源字符串（`KINEMATICS_CUDA` 等 50+ 处）的精度 token 扫描——下一片做；
+- 30 条产品路径 + 3 条 host 路径的**逐字段类型表**（输入量化位置、中间量、累加类型、输出转换点）；
+- 冻结 PTX 与手写源的逐字段对照；
+- 任何数值容差/GPU 行为（本片零 GPU）。
+
+复现：`cargo test --locked --test precision_type_gate`。
