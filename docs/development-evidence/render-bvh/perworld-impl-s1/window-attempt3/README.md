@@ -93,3 +93,24 @@
 
 - This directory holds 24 manifest entries / 25 files: 22 payload files + a copy of the frozen guard body
   (`guards-perworld-s1.json`) + `manifest.txt` (sha256 + bytes per file; the manifest does not register itself).
+
+## 8. Concurrent second executor after this valid round (record only, invalid)
+
+- After this round closed (body 23:02:14-23:03:04, window_end 23:03:06), a second executor opened another
+  attempt3 window at 23:08:35 against a workspace that had uncommitted test-support edits (the shadow exemption
+  refactor landed in commits right after). The runner re-froze, passed GuardsOnly (`OUTLINE_LISTS_OK=2/2`,
+  `GUARDS_OK=96/96`) and then, before `render_shadow_reference`, detected frozen-exe SHA drift:
+  expected `ce513922...` (101,102,921 B, built 22:53:59) vs on-disk `93bb32f7...`.
+- It aborted with `ABORT_AFTER_SHA_DRIFT` and `INVALID_ROUND exit9` at 23:09:22. Nine entities had exited 0
+  (including `render_per_world`, 1643 ms); `render_skybox_reference` logged `1 passed` but its result row was
+  not recorded because of the abort race. This is a process failure (parallel execution against a changed
+  workspace), not a criteria or product failure.
+- That round's payload is archived separately in
+  `docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3-concurrent-invalid/` with its own
+  manifest. It is not a valid round and supports no numeric claim.
+- The valid-round numbers remain those of this archive and stay bound to window HEAD `f122adec`.
+- Rules adopted: exactly one window executor at a time, with a `.window-lock` marker acquired before starting
+  (`bfa9f1aa`); a group post is record-only and must not be treated as an execution signal. Executors must also
+  check for existing window fact files and for uncommitted `src`/`tests` edits before opening.
+- Note: the invalid round wrote into the same `target/` output path as the valid round. The valid-round evidence
+  is this committed archive, not the `target/` directory.
