@@ -5,7 +5,7 @@
     "zh": "QA 复核：R06-S2c flex shell/elem 数据层（additive 桶、联合宽度校验、T4 7 行重钉、原生冒烟）",
     "en": "QA audit: R06-S2c flex shell/elem data layer (additive bucket, joint width validation, 7-line T4 re-pin, native smoke)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 `2026-11-04-render-r06-s2c-flex-shell-data`（提交 `df6d74af`）做独立复核并留卡：①新 additive 桶 `mjwarp_flex_topology_*`（info 40 B / targets 96 B、7 字段 + 4 计数）结构体 static_assert 偏移/大小正确，**既有 flex_render 桶一字未改**；②`NativeFlexTopologySnapshot` / `FlexTopologyFields` / `validate_topology_against_render` 的元素宽度（elem=`dim+1`、shell=`dim`）与拒绝路径；③T4 重钉实际 **7 行 / 4 文件**（`src/physics/flex.rs` 未改无漂移；`t4-current-kernels`/`g01-state-packing`/`previous-kernels` 无本片身份行）逐行 old→new；④原生冒烟（离线、MuJoCo 3.12 DLL、无 GPU）：`flex-tree.mjb` nflex=4、nflexelem=150、nflexelemdata=588、nflexshelldata=388；⑤行数与零设备 diff。",
     "en": "Independent QA audit of the S2c data layer: additive bucket ABI, joint width validation, 7-line T4 re-pin, native smoke numbers, zero device diff."
@@ -30,11 +30,21 @@
     "resources": [],
     "priority": 74
   },
-  "note": "Arch 2026-11-04 登记（Backend 建议 + 我的排程职责）。复核对象 `df6d74af`（S2c 卡 verified、四门禁 unit 1298/0、树 0 dirty）；证据目录 `docs/development-evidence/render-bvh/r06-s2c-flex-shell/`（README + 重钉前 FAIL/后 PASS + native 两份日志 + manifest 5/5）。与 S3b/S3c 的关系：S3c（2D/3D 设备接线）依赖本片数据面，复核结论会影响 S3c 是否可开。",
-  "revision": { "before": "fc0f54cd038fd386b9453b569696a9b2a441c4f8", "after": null },
+  "note": "Arch 2026-11-04 登记（Backend 建议 + 我的排程职责）。复核对象 `df6d74af`（S2c 卡 verified、四门禁 unit 1298/0、树 0 dirty）；证据目录 `docs/development-evidence/render-bvh/r06-s2c-flex-shell/`（README + 重钉前 FAIL/后 PASS + native 两份日志 + manifest 5/5）。与 S3b/S3c 的关系：S3c（2D/3D 设备接线）依赖本片数据面，复核结论会影响 S3c 是否可开。 | QA 复核结论：PASS-with-observations（additive 桶 40/96 B static_assert 与既有桶零改动、io 联合宽度 elem=dim+1/shell=dim 与地址链校验、T4 7 行/4 文件逐行 blob 复算 + 0 处其它变化、原生冒烟 4/150/588/388 与日志一致、.cu/cuda 零 diff、unit 1298/0；观察 1 条=validate_topology_against_render 信任调用方已校验 render.flex_dim，正式接线前应先 render.validate()；证据 docs/development-evidence/render-bvh/r06-s2c-flex-shell-check/README.md）",
+  "revision": {
+    "before": "8c7337b7d557b9230b18269e51fd6ba9b294a3d2",
+    "after": null
+  },
   "created_at": "2026-11-03T23:40:00.000Z",
-  "updated_at": "2026-11-03T23:40:00.000Z",
+  "updated_at": "2026-11-03T22:09:44.915Z",
+  "closed_at": "2026-11-03T22:09:44.915Z",
   "checks": [
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/",
+        "fixtures/"
+      ]
+    }
   ]
 }
