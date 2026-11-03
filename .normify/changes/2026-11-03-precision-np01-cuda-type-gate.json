@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-precision-np01-cuda-type-gate",
+  "title": {
+    "zh": "NP01 门禁第一片：CUDA 源面快照棘轮 + 产品 CUDA 精度 token 断言",
+    "en": "NP01 gate slice 1: CUDA source-surface snapshot ratchet plus product-CUDA precision-token assertions"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "把 NP01（类型映射率 100%、实际精度偏离 0）里**机器可判定**的那部分先机械化，避免后续切片与 08:50 后的新内核在无人注意时引入新的精度层级。本片新增 `tests/precision_type_gate.rs`（零 GPU、随 `cargo test --locked` 执行）：①产品 CUDA 源面快照棘轮（41 个 `.cu` / 22 个 `__global__` 入口，新增即失败）；②产品 `.cu` 代码区不得出现 `double`/`__half`/`half2`/`bfloat16`/`tf32`（注释与 W15 `#define WP_NO_BFLOAT16` 守卫宏放行）；③类型清单形状断言（≥30 行、每行 types 五键非空、host 站点 ≥3 行）。并更新 NP01 证据 README 记录本片覆盖与未覆盖项。不宣称 NP01 通过：逐字段类型表、`.rs` 内联 CUDA 源扫描、数值容差仍属未验收项。",
+    "en": "Mechanize the machine-decidable part of NP01: a snapshot ratchet over the product CUDA source surface (41 `.cu` files, 22 `__global__` entries) plus an assertion that product `.cu` code (comments and the W15 `#define WP_NO_BFLOAT16` guard excluded) contains no `double`/`__half`/`half2`/`bfloat16`/`tf32`, plus an inventory-shape assertion. No GPU, no numeric claim; per-field type tables and `.rs` inline CUDA sources remain open NP01 work."
+  },
+  "modules": {},
+  "acceptance": [
+    "**快照棘轮**：新增 `docs/development-evidence/np01-type-mapping/cuda-surface.json`（41 个 `.cu`，`__global__` 合计 22）；`tests/precision_type_gate.rs::cuda_source_surface_matches_snapshot` 逐文件/逐入口比较当前 `src/**/*.cu` 与快照，新增、删除或入口数变化即失败并打印差异。",
+    "**精度 token 断言**：`product_cuda_sources_have_no_precision_tokens` 逐行剥离 `//` 与 `/* */` 注释后断言产品 `.cu` 代码区不含 `double`/`__half`/`half2`/`bfloat16`/`tf32`；只放行 W15 守卫宏整行 `#define WP_NO_BFLOAT16`。当前 8 处命中全部是注释或该宏。",
+    "**清单形状**：`type_inventory_keeps_its_registered_shape` 断言 `inventory.json` 行数 ≥30、每行 `types` 五键非空且 `productFiles` 非空、`hostSiteRegistration.hostCoverage` ≥3 行且同样带五键、`siteSemantics` ≥3 条。",
+    "**证据与边界**：`docs/development-evidence/np01-type-mapping/README.md` 增「NP01 门禁第一片」一节，写清本片覆盖、当前数字（41/22/8）、以及仍未验收的三类项（逐字段表、`.rs` 内联 CUDA 源、数值容差）；`src/`、`include/warp-headers/`、fixtures、判据/容差零改动，零 GPU。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 新增 3 个用例，总数只增不减）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "tests/precision_type_gate.rs",
+      "docs/development-evidence/np01-type-mapping/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "Arch 2026-11-03 登记（Chief 定的夜间优先项：先做 NP01/NP02 精度门禁，1–2 人日、零窗口）。本片只做 NP01 第一片（源面 + token + 形状）；NP01 卡保持 backlog，不因本片变为 verified。登记顺序按夜间节奏取舍：实现先落、卡片补齐后随首笔提交入库。",
+  "revision": {
+    "before": "784b60036e0eb3a76a684e617d07d37511675bc0",
+    "after": null
+  },
+  "created_at": "2026-11-04T00:25:00.000Z",
+  "updated_at": "2026-11-04T00:25:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "include/warp-headers/",
+        "fixtures"
+      ]
+    }
+  ]
+}
