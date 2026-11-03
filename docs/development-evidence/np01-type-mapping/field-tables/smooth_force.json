@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "row_id": "smooth_force",
+  "layer": "G02 平滑力合成",
+  "paths": ["smooth_force"],
+  "batch": "B2b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/smooth_force.rs", "const": "CUDA", "kernels": ["smooth_force_validate", "smooth_force"]},
+  "kernels": [
+    {
+      "name": "smooth_force_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 4 头 + tree（body→tree 映射）+ body（力→body 映射）+ awake 视图"},
+        {"name": "forces", "ctype": "const float*", "role": "in: 每 world 4 段力（f32）"},
+        {"name": "sleep", "ctype": "const int*", "role": "in: 可选 sleep 缓冲（`SMOOTH_SLEEP` 下替换 awake 视图）"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "nb/n/nt/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [{"name": "valid", "type": "bool：sentinel、tree/body 边界、isfinite"}],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "valid ? 1.0f : 0.0f"}],
+      "quantization": [
+        "sentinel：meta/forces（及可选 sleep）头 4 元素与首元素必须精确等于 `-131072` / `-131072.0f`",
+        "`SMOOTH_SLEEP` 分支只切换 awake/stride 视图，不改变精度"
+      ]
+    },
+    {
+      "name": "smooth_force",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: tree/body/awake"},
+        {"name": "forces", "ctype": "const float*", "role": "in: 每 world 4 段力"},
+        {"name": "sleep", "ctype": "const int*", "role": "in: 可选 sleep 缓冲"},
+        {"name": "output", "ctype": "float*", "role": "out: 每 world n 个合成力"},
+        {"name": "nb/n/nt/work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [
+        {"name": "f[4]", "type": "f32 四段输入（直读）"},
+        {"name": "acc", "type": "f32 合成累加器"}
+      ],
+      "accumulations": [
+        {"what": "`acc = __fsub_rn(f[0], f[work])`", "type": "f32 显式单次舍入减法"},
+        {"what": "`acc = __fadd_rn(acc, f[2*work])`", "type": "f32 显式单次舍入加法"},
+        {"what": "`output = __fadd_rn(acc, f[3*work])`", "type": "f32 显式单次舍入加法"}
+      ],
+      "outputs": [
+        {"field": "output[4+tid]", "type": "f32", "conversion": "`__fadd_rn` 结果直接写；睡眠 tree 时写 0.0f"}
+      ],
+      "rounding_notes": ["四段合成全部用显式 `__fadd_rn/__fsub_rn`（禁驱动重排），顺序固定为 f0 - f1 + f2 + f3"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["smooth force 合成路径"], "confidence": "文件级"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（smooth_force 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_smooth_force（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 显式 __fadd_rn 顺序已核对；逐字段 PTX 对照仍属该行 missing 项"
+}

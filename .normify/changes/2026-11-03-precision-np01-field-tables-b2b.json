@@ -5,7 +5,7 @@
     "zh": "NP01 逐字段类型表 B2b 批：tendon_wrap / tendon_passive / joint_passive / smooth_force / passive_force 五条",
     "en": "NP01 per-field type tables batch B2b: tendon_wrap, tendon_passive, joint_passive, smooth_force, passive_force"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "B2 第二批：`tendon_wrap`（device 函数库、无独立内核：wrap/circle/inside 的 f32 口径与 `1e10f`/`1e-15f` sentinel，位级由 spatial_tendon 承担）、`tendon_passive`（validate/clear/compute：`tp_poly` 三项顺序 + 两段 `atomicAdd` f32 + `-131072` sentinel）、`joint_passive`（validate/compute/sum：kind 0–3 位宽、`jp_poly`、速度合成 atan2f、`__fadd_rn` 合成）、`smooth_force`（四段合成全程显式 `__fadd_rn/__fsub_rn`，顺序 f0−f1+f2+f3）、`passive_force`（clear/sum/gravity/fluid 四段 f32 聚合，`__fadd_rn`）。表落 `field-tables/`，4→「17 行」待批清单收紧 17→12。只做类型审计与登记，不改产品代码/判据/容差，零 GPU。",
     "en": "Deliver the five remaining passive/smooth-force family rows (tendon_wrap device-function library, tendon_passive, joint_passive, smooth_force, passive_force) with the same per-field schema and tighten the gate pending list 17 -> 12."
@@ -19,16 +19,34 @@
     "**门禁**：`cargo test --locked --test precision_type_gate` 全绿；`cargo test --locked` unit 计数只增不减。"
   ],
   "schedule": {
-    "depends_on": ["2026-11-03-precision-np01-field-tables-b2a"],
+    "depends_on": [
+      "2026-11-03-precision-np01-field-tables-b2a"
+    ],
     "phase": "P11-发布准入",
     "owner": "Arch",
-    "files": ["docs/development-evidence/np01-type-mapping/", "tests/precision_type_gate.rs"],
+    "files": [
+      "docs/development-evidence/np01-type-mapping/",
+      "tests/precision_type_gate.rs"
+    ],
     "resources": [],
     "priority": 63
   },
   "note": "Arch 2026-11-04 登记（B2 第二批）。B1 5 + B1b 4 + B2a 4 已完成（0d8ee05a / abbe89ba / e6154d82）。",
-  "revision": { "before": "67d29014f28e03190b45c5b42cf556b0352aa5f8", "after": null },
+  "revision": {
+    "before": "b17b309548609172a7bb97fd2722dc5fd03bb03c",
+    "after": null
+  },
   "created_at": "2026-11-04T04:20:00.000Z",
-  "updated_at": "2026-11-04T04:20:00.000Z",
-  "checks": [{ "kind": "unchanged", "paths": ["src/", "include/warp-headers/", "fixtures/"] }]
+  "updated_at": "2026-11-03T20:14:37.566Z",
+  "closed_at": "2026-11-03T20:14:37.566Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "include/warp-headers/",
+        "fixtures/"
+      ]
+    }
+  ]
 }

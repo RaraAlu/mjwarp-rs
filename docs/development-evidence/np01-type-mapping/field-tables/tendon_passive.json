@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "row_id": "tendon_passive",
+  "layer": "G02 肌腱被动力",
+  "paths": ["tendon_passive_validate", "tendon_passive_clear", "tendon_passive_compute"],
+  "batch": "B2b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/tendon_passive/cuda.rs", "const": "CUDA", "kernels": ["tendon_passive_validate", "tendon_passive_clear", "tendon_passive_compute"]},
+  "kernels": [
+    {
+      "name": "tendon_passive_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 头部（nt/nnz 等）+ 每肌腱 start/count + CSR 列"},
+        {"name": "p", "ctype": "const float*", "role": "in: 字段批参数（stiffness/damping 各 (linear,a,b) 与 lower/upper）"},
+        {"name": "source", "ctype": "const float*", "role": "in: 每 world 肌腱源缓冲（含 length 与 CSR 段）"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: 每 world 肌腱速度"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "nt/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [{"name": "ok", "type": "bool：sentinel + 索引边界 + isfinite"}],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "ok ? 1.0f : 0.0f"}],
+      "quantization": [
+        "sentinel：meta/p/source/velocity 头 4 元素与首元素必须精确等于 `-131072` / `-131072.0f`",
+        "编译期开关 `TP_S`/`TP_D` 关闭对应项时跳过其有限性检查（与字段批裁剪一致）"
+      ]
+    },
+    {
+      "name": "tendon_passive_clear",
+      "params": [
+        {"name": "meta/p/source/velocity", "ctype": "const int* / const float* ×3", "role": "in: 占位（统一签名）"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 输出缓冲"},
+        {"name": "a/b/worlds/work", "ctype": "unsigned", "role": "scalar 工作量"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "out[4+i]", "type": "f32", "conversion": "写 0.0f"}]
+    },
+    {
+      "name": "tendon_passive_compute",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 每肌腱 start/count + CSR 列"},
+        {"name": "p", "ctype": "const float*", "role": "in: 字段批参数"},
+        {"name": "source", "ctype": "const float*", "role": "in: length 与 CSR 雅可比段"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: 肌腱速度"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 两段力（spring 段 + damper 段）"},
+        {"name": "nt/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "J", "type": "f32 单列雅可比"},
+        {"name": "x", "type": "f32 超界量（length 超出 [lower,upper] 的部分）"},
+        {"name": "force", "type": "f32 单点力（`-x*tp_poly(...)` 或 `-v*tp_poly(...)`）"},
+        {"name": "tp_poly(linear,a,b,x)", "type": "f32：`result=linear; result+=a*x; result+=(b*x)*x`（顺序固定）"}
+      ],
+      "accumulations": [
+        {"what": "`atomicAdd(&out[spring 段 + col], J*force)`", "type": "f32 原子累加（多条肌腱/多点竞争同一 dof）"},
+        {"what": "`atomicAdd(&out[damper 段 + col], J*force)`", "type": "f32 原子累加"}
+      ],
+      "outputs": [
+        {"field": "out[spring 段]", "type": "f32", "conversion": "atomicAdd f32"},
+        {"field": "out[damper 段]", "type": "f32", "conversion": "atomicAdd f32"}
+      ],
+      "quantization": [
+        "`TP_S`/`TP_D` 编译期裁剪：未启用项直接跳过；速度阻尼用 `fabsf(v)` 作为多项式自变量"
+      ],
+      "rounding_notes": ["`tp_poly` 三项顺序固定（linear → +a*x → +(b*x)*x），每个乘加独立"]
+    }
+  ],
+  "upstream": {"files": ["passive.py"], "functions": ["_spring_damper", "tendon passive 路径"], "confidence": "文件级"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（tendon_passive 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_tendon_passive（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 原子归约的逐位重放记录仍属该行 missing 项"
+}

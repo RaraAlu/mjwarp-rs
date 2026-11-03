@@ -58,18 +58,28 @@ PTX vs 显式 `.rn`）。逐表达式的位级对照仍由实现片的探针证�
 | `tendon` | `tendon_values/indices` | 2 内核 | 纯搬运（f32 原样搬、i32 直搬），无算术；固定行共享游标不加点 | values（f32）+ indices（i32） |
 | `tendon_velocity` | `tendon_velocity_validate/compute` | 2 内核 | f32 稀疏雅可比点积顺序累加；`-131072` sentinel + 索引越界拒绝 | status（f32）+ 肌腱速度（f32） |
 
-## 五、待补（17 条产品路径 + 3 条 host 站点）
+## 五、B2b 已完成（5 条，被动力/肌腱族）
 
-- **B2b–B2e（17 条，G10/G-limbs 面）**：`joint_passive`、`smooth_force`、`passive_force`、`tendon_wrap`、`tendon_passive`、`flex_position`、`flex_edge`、`flex_face`、`flex_hessian`、`flex_edge_passive`、`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`（按依赖分小批交付）。
+| row_id | 路径 | 内核 | 累加/舍入口径 | 输出 |
+| --- | --- | --- | --- | --- |
+| `tendon_wrap` | device 函数库（无独立内核） | `wrap/circle/inside/intersect` 设备函数，被 spatial_site 内联 | 全 f32；`1e10f` 无效接触 sentinel、`1e-15f` 退化方向保护；sqrtf/acosf/asinf 带夹紧 | 由 spatial_site 写 scratch13 |
+| `tendon_passive` | validate/clear/compute | 3 内核 | `tp_poly` 三项固定顺序；两段 f32 `atomicAdd`；`-131072` sentinel | spring/damper 两段力（f32） |
+| `joint_passive` | validate/compute/sum | 3 内核 | `jp_poly` 顺序 + `kind` 0–3 位宽；合成用显式 `__fadd_rn` | spring/damper（f32）+ 合成力（f32） |
+| `smooth_force` | validate + 合成 | 2 内核 | 四段合成全程显式 `__fadd_rn/__fsub_rn`，顺序 f0−f1+f2+f3 | 合成力（f32） |
+| `passive_force` | clear/sum/gravity/fluid | 4 内核 | f32 聚合与 `__fadd_rn` 单次舍入；无 sentinel（来源内核各自校验） | 两段缓冲 + 汇总力（f32） |
+
+## 六、待补（12 条产品路径 + 3 条 host 站点）
+
+- **B2c–B2e（12 条，G10/G-limbs 面）**：`flex_position`、`flex_edge`、`flex_face`、`flex_hessian`、`flex_edge_passive`、`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`（按依赖分小批交付）。
 - **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
 
-## 六、门禁联动
+## 七、门禁联动
 
 `tests/precision_type_gate.rs` 增加一条断言：`inventory.json` 的每一行必须在 `field-tables/` 下有表、
 或在该测试内显式登记的「待批清单」里；表内 `kernels/params/intermediates/accumulations/outputs/upstream/evidence`
-缺段即失败。待批清单随每批交付收紧（B1 后 25 条 → B1b 后 21 条 → B2a 后 17 条）——**不允许静默缺表**。
+缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12）——**不允许静默缺表**。
 
-## 七、边界
+## 八、边界
 
 - 不改 `src/`、`include/warp-headers/`、fixtures、判据/容差；零 GPU；不宣称 NP01 通过。
 - 表中的「上游置信级别」沿用 `inventory.json` 原值，不升级（如 `mass_multiply` 保持文件级）。

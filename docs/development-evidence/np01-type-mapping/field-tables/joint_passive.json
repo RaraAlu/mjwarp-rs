@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "row_id": "joint_passive",
+  "layer": "G02 关节被动力",
+  "paths": ["joint_passive"],
+  "batch": "B2b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/smooth_force/joint_passive.rs", "const": "CUDA", "kernels": ["joint_passive_validate", "joint_passive_compute", "joint_passive_sum"]},
+  "kernels": [
+    {
+      "name": "joint_passive_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 头部 + 每 dof 的 kind/q/j/local"},
+        {"name": "p", "ctype": "const float*", "role": "in: 字段批参数（ref/spring/damper 三组各 (linear,a,b)）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world qpos 与 qvel"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "nq/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [{"name": "valid", "type": "bool：sentinel + 维度宏匹配 + 索引/位宽校验 + isfinite"}],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "valid ? 1.0f : 0.0f"}],
+      "quantization": [
+        "sentinel：meta/p/state 头 4 元素与首元素必须精确等于 `-131072` / `-131072.0f`",
+        "维度宏 `JP_NQ`/`JP_NV` 必须与运行期 nq/nv 完全相等（冻结尺寸化内核）",
+        "kind∈{0,1,2,3} 决定 qpos 位宽（7/4/1）与 local 上界，越界即无效"
+      ]
+    },
+    {
+      "name": "joint_passive_compute",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 每 dof kind/q/j/local"},
+        {"name": "p", "ctype": "const float*", "role": "in: 字段批参数（ref 分量在 p 段）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world qpos/qvel"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world 两段（spring 段 nv + damper 段 nv）"},
+        {"name": "nq/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "spring/damper", "type": "f32 两个独立通道"},
+        {"name": "x/y/z/r/dif[3]", "type": "f32 关节位移与长度"},
+        {"name": "jp_poly(linear,a,b,x)", "type": "f32 多项式（顺序固定）"},
+        {"name": "jp_len3 / jp_quat_sub", "type": "f32 长度与四元数差（含 atan2f 的速度合成）"}
+      ],
+      "accumulations": [
+        {"what": "弹簧力：`spring = -k * dif`（kind 0/1/2 分支）", "type": "f32 单次乘"},
+        {"what": "阻尼力：`damper = -v * jp_poly(d,a,b,|v|)`", "type": "f32 单次乘"}
+      ],
+      "outputs": [
+        {"field": "out[4+tid]（spring）", "type": "f32", "conversion": "直接写"},
+        {"field": "out[4+worlds*nv+tid]（damper）", "type": "f32", "conversion": "直接写"}
+      ],
+      "quantization": [
+        "`JP_S`/`JP_D` 编译期裁剪：未启用项不参与",
+        "速度合成用 `atan2f(sine, d0)` 后按 π/2π 折返（float 常量）"
+      ],
+      "rounding_notes": ["`jp_poly` 与 tendon_passive 的 `tp_poly` 同构；`(d1*speed)/sine` 为 f32 先乘后除"]
+    },
+    {
+      "name": "joint_passive_sum",
+      "params": [
+        {"name": "meta/p", "ctype": "const int* / const float*", "role": "in: 占位"},
+        {"name": "parts", "ctype": "const float*", "role": "in: 两段中间力"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用"},
+        {"name": "forces", "ctype": "float*", "role": "out: 合成 dof 力"},
+        {"name": "ignored/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [
+        {"what": "`forces[4+tid] = __fadd_rn(parts[...], parts[...])`", "type": "f32 单次舍入加法（显式）"}
+      ],
+      "outputs": [{"field": "forces[4+tid]", "type": "f32", "conversion": "__fadd_rn 写出"}]
+    }
+  ],
+  "upstream": {"files": ["passive.py"], "functions": ["_spring_damper", "joint passive 路径"], "confidence": "文件级"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（joint_passive 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_joint_passive（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}

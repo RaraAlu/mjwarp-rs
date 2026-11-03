@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "row_id": "tendon_wrap",
+  "layer": "G02 肌腱绕行（device 函数库）",
+  "paths": ["tendon_wrap（内联 device 函数族，无 __global__ 入口）"],
+  "batch": "B2b",
+  "audit_level": "device 函数签名/中间量/舍入口径（per-function）；表达式级位级证据由 spatial_tendon 整体探针承担",
+  "source": {"file": "src/physics/tendon_wrap.rs", "const": "TENDON_WRAP_CUDA", "kernels": []},
+  "entry_note": "本行不含独立内核：`TENDON_WRAP_CUDA` 是设备函数库，被 `spatial_tendon.rs` 的 spatial_site 内联（wrap 求解器）。上一级调用点见 spatial_tendon 表。",
+  "kernels": [
+    {
+      "name": "wrap / circle / inside / intersect（device 函数族）",
+      "params": [
+        {"name": "SV / V2 / Wrap2 / Wrap3", "ctype": "f32 结构体（3 维/2 维向量；Wrap2 = {len,a,b}；Wrap3 = {len,a,b,dir0,dir1}）", "role": "值传递，无指针别名"},
+        {"name": "mt/mm", "ctype": "const float*（3×3 f32 矩阵）+ SV", "role": "in: 矩阵转置乘/矩阵乘"},
+        {"name": "wrap(x0,x1,pos,mat,r,type,side)", "ctype": "(SV,SV,SV,const float*,float,int,SV)", "role": "in: 两段端点、球/柱位置、旋转矩阵、半径、wrap 类型、side 点"}
+      ],
+      "intermediates": [
+        {"name": "p0/p1/sp", "type": "f32 局部坐标（`mt(mat, sub(...))`）"},
+        {"name": "ax0/ax1/normal", "type": "f32 正交基（`unit`/`cross`，type==4 用球面法向，否则固定基）"},
+        {"name": "e0/e1/s", "type": "V2 f32 平面投影与 side 投影"},
+        {"name": "w.len / w.a / w.b", "type": "f32 wrap 长度与两个切点"}
+      ],
+      "accumulations": [
+        {"what": "`dot(a,b) = a.x*b.x + a.y*b.y + a.z*b.z`（v2 版同理）", "type": "f32 顺序累加（3 或 2 项）"},
+        {"what": "wrap 三段长度合成 `l0 + w.len + l1`（spatial_site 内）", "type": "f32 顺序加"}
+      ],
+      "outputs": [
+        {"field": "Wrap3", "type": "f32", "conversion": "无独立输出缓冲；结果由 spatial_site 写入 scratch13"}
+      ],
+      "quantization": [
+        "全部 f32（SV/V2/Wrap2/Wrap3 均为 f32 成员）；无 f64",
+        "sentinel：`1e10f` 标记无解/无效接触（spatial_site 用 `norm(point) < 1e10f` 判有效）；`1e-15f` 用于退化方向与除零保护"
+      ],
+      "rounding_notes": [
+        "数学函数 `sqrtf/acosf/asinf` 带 `fminf/fmaxf` 夹紧到 [-1,1]（acos/asin 定义域保护，不改变数值语义）",
+        "`sd(x,y) = x/(y!=0 ? y : 1e-15f)` 显式除零保护；`unit` 在零长度时返回原向量"
+      ]
+    }
+  ],
+  "upstream": {"files": ["util_misc.py"], "functions": ["wrap 数学路径"], "confidence": "文件级（上游函数定位沿用行登记）"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（spatial wrap 逐位 fixture，间接覆盖本库）",
+    "cargo test --locked --features cuda-probe --test g10_p5_spatial_tendon（定向）"
+  ],
+  "status": "audited (device-function signatures/intermediates/rounding policy); 无独立内核与独立证据，位级由 spatial_tendon 整体承担"
+}

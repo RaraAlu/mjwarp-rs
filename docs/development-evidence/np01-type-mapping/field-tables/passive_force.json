@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "row_id": "passive_force",
+  "layer": "G02 被动力汇总",
+  "paths": ["passive_force_clear/sum/gravity/fluid"],
+  "batch": "B2b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {"file": "src/physics/passive_force.rs", "const": "CUDA", "kernels": ["passive_force_clear", "passive_force_sum", "passive_force_clear_gravity", "passive_force_add_fluid"]},
+  "kernels": [
+    {
+      "name": "passive_force_clear",
+      "params": [
+        {"name": "meta/p/state", "ctype": "const int* / const float* ×2", "role": "in: 占位（统一签名）"},
+        {"name": "out", "ctype": "float*", "role": "out: 两段缓冲（spring-damper 段 + 另一段）"},
+        {"name": "ignored/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [
+        {"field": "out[4+tid] 与 out[4+work+tid]", "type": "f32", "conversion": "均写 0.0f"}
+      ]
+    },
+    {
+      "name": "passive_force_sum",
+      "params": [
+        {"name": "meta/p", "ctype": "const int* / const float*", "role": "in: 占位"},
+        {"name": "parts", "ctype": "const float*", "role": "in: 两段中间力"},
+        {"name": "forces", "ctype": "float*", "role": "out: 合成 dof 力"},
+        {"name": "ignored/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [
+        {"what": "`forces[4+tid] = __fadd_rn(parts[4+tid], parts[4+worlds*nv+tid])`", "type": "f32 显式单次舍入加法"}
+      ],
+      "outputs": [{"field": "forces[4+tid]", "type": "f32", "conversion": "__fadd_rn 写出"}]
+    },
+    {
+      "name": "passive_force_clear_gravity",
+      "params": [
+        {"name": "meta/p/state", "ctype": "const int* / const float* ×2", "role": "in: 占位"},
+        {"name": "out", "ctype": "float*", "role": "out: 汇总缓冲"},
+        {"name": "ignored/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "out[4+tid]", "type": "f32", "conversion": "写 0.0f"}]
+    },
+    {
+      "name": "passive_force_add_fluid",
+      "params": [
+        {"name": "meta/p", "ctype": "const int* / const float*", "role": "in: 占位"},
+        {"name": "fluid", "ctype": "const float*", "role": "in: 流体贡献"},
+        {"name": "out", "ctype": "float*", "role": "in/out: 累加目标"},
+        {"name": "ignored/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [
+        {"what": "`out[4+tid] = __fadd_rn(out[4+tid], fluid[4+tid])`", "type": "f32 显式单次舍入加法（读改写，单线程每 dof）"}
+      ],
+      "outputs": [{"field": "out[4+tid]", "type": "f32", "conversion": "__fadd_rn 写出"}]
+    }
+  ],
+  "quantization": [
+    "四段内核都是 f32 聚合/清零；无 f64",
+    "无 sentinel 校验（本行是汇总路径，输入校验在各自来源内核）"
+  ],
+  "rounding_notes": ["合成与流体累加都用显式 `__fadd_rn`，禁止驱动重排/融合"],
+  "upstream": {"files": ["passive.py"], "functions": ["_passive"], "confidence": "文件级"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（passive_force 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_passive_force（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}
