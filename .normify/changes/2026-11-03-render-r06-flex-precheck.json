@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-r06-flex-precheck",
+  "title": {
+    "zh": "R06 S0 预检：authoring 环境恢复留档 + 81 槽 ABI 与上游 flex 形参对表（零 ABI 变更）",
+    "en": "R06 S0 precheck: authoring environment restore record and 81-slot ABI vs upstream flex parameters (no ABI change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R06 柔性体渲染开工前必须先回答两件事：①参考采集环境是否可重建（`target/` 在 2026-11-02 瘦身时被清空，pinned venv 与 upstream checkout 都没了）；②R06 是否要改 81 槽渲染 ABI（改 ABI 属签名级事项，缺必需槽要停手报 Chief+用户）。本卡在空闲段恢复 authoring 环境（只写 `target/`，离线 authoring 例外，不进产品构建/测试）并把 pin 与校验值留档；同时从 pinned upstream `_render_megakernel` 抄出完整签名与我们的 81 槽逐项对表，给出「零 ABI 变更」或「缺槽清单」的结论。不改产品代码/测试/判据/夹具，不跑 GPU 计算、不开窗口。",
+    "en": "Restore the offline authoring environment (target-only, not in the product chain) and compare the pinned upstream `_render_megakernel` signature against our frozen 81 render slots, so R06 can start with either a no-ABI-change conclusion or an explicit missing-slot list for the Chief and the user. No product/test/criteria change, no GPU compute, no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**环境恢复与留档**：`target/mjwarp-parallel/venv` 按 `s0b-reference-capture` 口径重建（Python 3.12.13、mujoco 3.15.0、warp-lang 1.15.0、numpy 2.5.4、mujoco-warp 3.15.0 editable from pinned checkout），`target/mjwarp-parallel/upstream` HEAD = `71da24d956378a87a703b6e1442b13aec0c4ac29` 且 `git status` clean；`warp.dll` sha256 与 `g03-upstream-matrix/env-audit.json` 记录一致；采集脚本 `--help` 在 pinned venv 下可用。pin、路径、校验值写进证据 README 与 receipt，并与 s0b 记录对齐。",
+    "**81 槽对表**：证据 README 给出上游 `_render_megakernel` 的 81 形参构成（1 bounds + 73 数组 + 7 标量）与 9 个 flex 形参（`flex_vertadr`/`flex_edge`/`flex_radius`/`flexvert_xpos_in`/`flex_bvh_id`/`flex_group_root`/`flex_rgba`/`flex_geom_flexid`/`flex_geom_edgeid`）逐项对照我们当前实参，结论写明是否零 ABI 变更；若缺必需槽，必须写明「停手报 Chief+用户」而不是自行改 ABI。",
+    "**形状与语义留档**：写明 `flex_group_root`/`flexvert_xpos` 上游是 2-D（占位需在 S2 改形状）、`bvh_nflexgeom` 标量在槽内、上游 seg 编码 `vec2i(flex_id, ObjType.FLEX)` 与颜色 `flex_rgba[flex_id]`、命中走 `ray_flex_with_bvh`。",
+    "**证据自洽**：`docs/development-evidence/render-bvh/r06-flex-precheck/`（README + receipt.json 含 `/task_id` + 不自引用 manifest）sha/bytes 复核 0 mismatch。",
+    "**边界**：`src/`、`tests/`、`fixtures/`、判据/容差零改动；不跑 GPU 计算、不开窗口、不生成参考；不宣称 R06 或任何数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-precheck/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-11-04（空闲段）登记并执行：Chief 批准 R06 为默认方向，要求 S0 先出 81 槽 ABI 覆盖核对；若缺必需项停手报 Chief+用户。环境恢复同时服务 NP02 回执重算卡（两者都需要 pinned checkout）。恢复只写 `target/`，属用户已批的离线 authoring 例外。",
+  "revision": {
+    "before": "00715692bce352f7cc84999623a012f2d8ca6d7d",
+    "after": null
+  },
+  "created_at": "2026-11-04T02:55:00.000Z",
+  "updated_at": "2026-11-04T02:55:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-precheck/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-03-render-r06-flex-precheck"
+    }
+  ]
+}
