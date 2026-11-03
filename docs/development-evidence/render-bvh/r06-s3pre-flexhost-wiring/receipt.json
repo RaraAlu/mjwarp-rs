@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-04-render-r06-s3pre-flexhost-wiring",
+  "kind": "r06-s3pre-flex-host-inputs-wiring-host-only",
+  "created_at": "2026-11-04T05:20:00+08:00",
+  "offline_only": true,
+  "gpu_compute": false,
+  "window_opened": false,
+  "device_change": false,
+  "abi_slot_change": false,
+  "upstream_pin": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "files": [
+    {
+      "path": "src/render/context/flex_host.rs",
+      "bytes": 17566,
+      "lines": 487,
+      "sha256": "62559b53dbc53071930513341bcf68330e7589de23f75c54f0a2a2c842b2e664"
+    },
+    {
+      "path": "src/render/context.rs",
+      "bytes": 16410,
+      "lines": 459,
+      "sha256": "1df3a3b213b67000050cec619705b736a4978d6cae9a150ca7121f109d984c46"
+    }
+  ],
+  "design": {
+    "entry": "FlexHostAssembly::build(nworld, &FlexPositionFields, &FlexEdgeFields, &FlexRenderFields, FlexHostData) -> Result<Option<Self>, FlexWiringError>",
+    "channel_view": "FlexHostAssembly::inputs(&self) -> FlexHostInputs<'_>",
+    "no_flex": "nflex == 0 -> Ok(None); caller keeps MegakernelRenderer::render",
+    "with_flex": "Ok(Some(..)); caller renders via render_with_flex(..., Some(&assembly.inputs()))",
+    "data_inputs": "FlexHostData { flexvert_xpos: &[f32], flex_bvh_ids: &[u64], flex_group_root: &[i32] }",
+    "dependency_boundary": "render -> physics forbidden by policy; assembly takes caller-provided data slices instead of physics FlexRenderView; render -> model allowed",
+    "s3pre_placeholders": "flex_bvh_ids = 0, flex_group_root = -1 supplied by caller; S3 fills real BVH"
+  },
+  "validation_layers": [
+    "FlexRenderFields::validate() (S2b: dim/radius/rgba/edgeadr topology)",
+    "check_sources: same-source lengths, flex_vertadr chain == nflexvert, edge local vertices < flex_vertnum, data lengths",
+    "FlexHostInputs::validate(nworld) (S2 channel second pass)"
+  ],
+  "no_flex_bit_identity": {
+    "caliber_1": "render_with_flex(None) equals render() (S2 implementation; kernel untouched in this slice)",
+    "caliber_2": "git diff contains no src/render/kernel/cuda/, no .cu, no fixtures/",
+    "caliber_3": "unit tests: no_flex_returns_none_deterministically + assembly_is_bit_identical_across_calls",
+    "gpu_bitwise_two_run_evidence": false
+  },
+  "tests": {
+    "command": "cargo test --locked --lib flex_host",
+    "count": 6,
+    "passed": 6,
+    "failed": 0,
+    "names": [
+      "no_flex_returns_none_deterministically",
+      "single_flex_assembles_full_channel",
+      "multi_flex_multi_world_assembles_mapping",
+      "length_mismatches_are_rejected_explicitly",
+      "topology_mismatches_are_rejected_explicitly",
+      "assembly_is_bit_identical_across_calls"
+    ],
+    "raw_log": "flex-host-unit-tests.txt"
+  },
+  "device_change_check": {
+    "git_diff_src_render_kernel_cuda": "empty",
+    "git_diff_cu": "empty",
+    "git_diff_fixtures": "empty"
+  },
+  "gates": {
+    "source": ".normify/runs/2026-11-04-render-r06-s3pre-flexhost-wiring/",
+    "registered": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unchanged": ["src/render/kernel/cuda/", "fixtures/"]
+  },
+  "limits": [
+    "本片只做宿主侧组装与接线；S3 本体（设备 flex BVH、render_flex.cu、参考采集、验证窗口）另立卡。",
+    "不新增 ABI 槽、不改 src/render/kernel/cuda/ 与任何 .cu；不宣称 flex 渲染可用。",
+    "flex_bvh_ids/flex_group_root 为 S3 前置占位（0/-1，由调用方提供）；真实 BVH 组根由 S3 填。",
+    "无 GPU 级两次运行位级证据（按 Chief 口径留 S3 窗口）；零 GPU、零窗口、不产生参考。"
+  ]
+}

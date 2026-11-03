@@ -22,6 +22,8 @@ mod model;
 mod tests;
 
 #[cfg(feature = "cuda-probe")]
+pub mod flex_host;
+#[cfg(feature = "cuda-probe")]
 pub mod lifecycle;
 pub mod output;
 #[cfg(feature = "cuda-probe")]
@@ -30,6 +32,8 @@ pub mod params;
 pub mod texture_inputs;
 pub mod world;
 
+#[cfg(feature = "cuda-probe")]
+pub use flex_host::{FlexHostAssembly, FlexHostData, FlexWiringError};
 #[cfg(feature = "cuda-probe")]
 pub use lifecycle::{LifecycleError, OutputResources, OutputValues, RenderContext, release_stats};
 pub use output::OutputLayout;

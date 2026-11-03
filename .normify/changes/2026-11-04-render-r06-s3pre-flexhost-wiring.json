@@ -5,7 +5,7 @@
     "zh": "R06-S3 前置：FlexHostInputs 组装与 render_with_flex 真实调用方接线（宿主侧，零设备改动）",
     "en": "R06-S3 prerequisite: assemble FlexHostInputs and wire the real render_with_flex caller (host side, no device change)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "S2b 只交数据层（原生 additive 字段 + io/model/physics 只读视图 + `FlexHostInputs` 供数），S2 只建宿主通道（`render_with_flex(..., Option<&FlexHostInputs>)`）。本片补**真实调用方接线**：在渲染 context 侧把 physics 只读视图组装成 `FlexHostInputs`，按场景是否有 flex 决定传 `Some`/`None`，空 flex 保持既有等价行为；不做设备侧 flex BVH/内核（属 S3 本体）。**零设备改动**：`src/render/kernel/cuda/` 与全部 `.cu` 零 diff；`src/render/kernel/` 只允许必要的公开签名复用（不实现设备分支）。**不改判据/容差/参考/fixtures**；不宣称 flex 渲染可用。",
     "en": "Wire the real host caller: assemble FlexHostInputs from the physics read-only views and pass Some/None according to scene flex content, leaving empty-flex behaviour equivalent. No device work (that is S3 proper)."
@@ -33,14 +33,36 @@
     "priority": 72
   },
   "note": "Arch 2026-11-04 登记（承接 S2b 收口后的 S3 前置，Chief 口径：`render_with_flex` 真实调用方接线并入 S3 前置、不新增 S2c）。scope = `src/render/context.rs`（模块根，445→+1 行 `pub mod flex_host;`）+ 目录 `src/render/context/` + 证据目录；**若实现时确认落点在这两处之外，先报 Arch 改 scope，不自行扩面**。S3 本体（设备 flex BVH + `render_flex.cu` + 参考采集/窗口）另立卡；本片不碰设备面、不产生参考、不做数值结论。",
-  "revision": { "before": "a05d9974d72180788fe50eae8c2cae9c6951d21c", "after": null },
+  "revision": {
+    "before": "c882b3fc11421922bfb8ce150ab1999b7a94a754",
+    "after": null
+  },
   "created_at": "2026-11-03T21:07:00.000Z",
-  "updated_at": "2026-11-03T21:07:00.000Z",
+  "updated_at": "2026-11-03T21:13:25.265Z",
+  "closed_at": "2026-11-03T21:13:25.265Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/",
+        "fixtures/"
+      ]
+    }
   ]
 }
