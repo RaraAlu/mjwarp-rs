@@ -16,8 +16,12 @@
 //! - R06-S2：`render_with_flex` 接受显式宿主 flex 通道（[`FlexHostInputs`]）；`None` 与
 //!   `render` 逐字节等价，设备侧 flex 分支与 81 槽 ABI 均不变（`.cu` 零改动）。
 use crate::model::render::RenderFields;
+use crate::render::bvh::{
+    OneDimensionalLeafInput, SceneBvhInput, build_scene_bvh, one_dimensional_scene_leaves,
+};
 use crate::render::camera::CameraModel;
 use crate::render::context::RenderContext;
+use crate::render::context::owner::{LeafPose, SceneLeaf, SceneState};
 use crate::render::kernel::cast::{CameraPose, ModelRenderArrays, SceneDevice, pack_mesh_devices};
 use crate::render::rays::RayBuffer;
 use crate::runtime::TransferSession;
@@ -242,12 +246,79 @@ impl MegakernelRenderer {
 
         // 场景/网格设备打包（与 S7b1 同源；每帧从 context 拥有的 BVH 重打包）。
         // R05-S2：hfield mesh 追加在既有 mesh 末尾（既有索引不变），打包逻辑在 `cast_mesh.rs`。
-        let scene = SceneDevice::pack(
-            context.scene_bvh(),
-            context.scene(),
-            &model_arrays,
-            context.mesh_count(),
-        )?;
+        // R06-S3a：有 flex 通道时把 1D flex 叶并入本帧场景 BVH（上游每帧 refit 语义；本实现
+        // 逐帧重建，节点布局只服务自有打包）。`None` 路径仍用 context 拥有的 BVH，逐字节不变。
+        let flex_leaves = match flex {
+            Some(inputs) => {
+                if inputs.nworld != nworld {
+                    return Err(LauncherError::InvalidArray("flex_nworld"));
+                }
+                Some(
+                    one_dimensional_scene_leaves(OneDimensionalLeafInput {
+                        worlds: nworld,
+                        nflexvert: inputs.nflexvert,
+                        flex_vertadr: inputs.flex_vertadr,
+                        flex_edge: inputs.flex_edge,
+                        flex_radius: inputs.flex_radius,
+                        flexvert_xpos: inputs.flexvert_xpos,
+                        geom_flexid: inputs.flex_geom_flexid,
+                        geom_edgeid: inputs.flex_geom_edgeid,
+                    })
+                    .map_err(|error| {
+                        LauncherError::Driver(format!("flex-scene-leaves: {error}"))
+                    })?,
+                )
+            }
+            None => None,
+        };
+        let scene = match &flex_leaves {
+            Some(node) => {
+                let state = context.scene();
+                let mut bounds = state.bounds().map_err(|error| {
+                    LauncherError::Driver(format!("flex-scene-bounds: {error}"))
+                })?;
+                let mut groups: Vec<u32> = state.leaves().iter().map(|leaf| leaf.group).collect();
+                let mut geom_ids: Vec<i32> =
+                    state.leaves().iter().map(|leaf| leaf.geom_id).collect();
+                let mut leaves = state.leaves().to_vec();
+                let mut poses = state.poses().to_vec();
+                for (local, leaf_bounds) in node.bounds.iter().enumerate() {
+                    let flex_local =
+                        i32::try_from(local).map_err(|_| LauncherError::Overflow("flex_leaf"))?;
+                    let encoded = -flex_local - 1;
+                    bounds.push(*leaf_bounds);
+                    groups.push(node.groups[local]);
+                    geom_ids.push(encoded);
+                    // flex 叶在 `SceneState` 里只承载布局（size/pose 零占位）；几何出自 flex 通道。
+                    leaves.push(SceneLeaf {
+                        geom_type: 9,
+                        size: [0.0; 3],
+                        group: node.groups[local],
+                        geom_id: encoded,
+                    });
+                    poses.push(LeafPose {
+                        xpos: [0.0; 3],
+                        xmat: [0.0; 9],
+                    });
+                }
+                let combined = SceneState::new(leaves, poses, state.worlds())
+                    .map_err(|error| LauncherError::Driver(format!("flex-scene-state: {error}")))?;
+                let bvh = build_scene_bvh(SceneBvhInput {
+                    bounds: &bounds,
+                    groups: &groups,
+                    geom_ids: &geom_ids,
+                    worlds: state.worlds(),
+                })
+                .map_err(|error| LauncherError::Driver(format!("flex-scene-bvh: {error}")))?;
+                SceneDevice::pack(&bvh, &combined, &model_arrays, context.mesh_count())?
+            }
+            None => SceneDevice::pack(
+                context.scene_bvh(),
+                context.scene(),
+                &model_arrays,
+                context.mesh_count(),
+            )?,
+        };
         let (mesh, hfield) = pack_mesh_devices(context, resolved, &model_arrays)?;
 
         // ---- 相机参数（按模型相机 id；上游 `cam_*_in[worldid, mujoco_cam_id]`） ----

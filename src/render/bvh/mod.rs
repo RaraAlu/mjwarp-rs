@@ -12,6 +12,8 @@ mod aabb;
 mod builder;
 #[cfg(feature = "cuda-probe")]
 pub mod cuda;
+mod flex;
+mod flex_mesh;
 mod hfield_mesh;
 mod mesh;
 #[cfg(feature = "cuda-probe")]
@@ -25,6 +27,10 @@ pub use aabb::{GeomKind, LeafGeometry, compute_leaf_aabb, mesh_half_extents};
 pub use builder::{BvhNode, NodeKind, SceneBvh, SceneBvhInput, build_scene_bvh};
 #[cfg(feature = "cuda-probe")]
 pub use cuda::{LeafRayGeometry, Ray, RayHit, SceneBvhQuery};
+pub use flex::{
+    FlexLeafError, FlexSceneLeaves, OneDimensionalLeafInput, one_dimensional_scene_leaves,
+};
+pub use flex_mesh::{FlexMeshBvh, FlexMeshError, FlexMeshInput};
 pub use hfield_mesh::{HfieldMesh, HfieldMeshInput, build_hfield_mesh, triangulate_hfield};
 pub use mesh::{MeshBvh, MeshBvhError, MeshBvhInput, MeshNode, MeshNodeKind};
 #[cfg(feature = "cuda-probe")]

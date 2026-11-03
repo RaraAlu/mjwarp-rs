@@ -305,11 +305,12 @@ struct CastHit {
 // mesh 命中在 any-hit 下 `n` 为零向量（上游不填 surface data）→ cull 判据不生效；
 // primitive 命中仍按 cull 剔除。primary ray 传 false，行为与 S7b1/S7b2 完全一致。
 __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const MegakernelBlob& blob,
-                                            const int* geom_type, const int* geom_dataid,
-                                            const int* geom_matid, const float* geom_rgba,
-                                            const float* mat_rgba, const wp::uint64* hfield_bvh_id,
-                                            int worldid, V3 origin, V3 direction, float max_dist,
-                                            bool cull_backfaces, bool shadow_ray) {
+                                            const FlexView& flex, const int* geom_type,
+                                            const int* geom_dataid, const int* geom_matid,
+                                            const float* geom_rgba, const float* mat_rgba,
+                                            const wp::uint64* hfield_bvh_id, int worldid, V3 origin,
+                                            V3 direction, float max_dist, bool cull_backfaces,
+                                            bool shadow_ray) {
     CastHit hit;
     hit.geom_id = -1;
     hit.dist = max_dist;
@@ -347,9 +348,14 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
             continue;
         }
         int leaf = -left - 1;
-        int geom = scene.leaf_geom[leaf];
-        int gtype = geom_type[geom];
-        if (geom_alpha(geom_matid, geom_rgba, mat_rgba, geom) == 0.0f) {
+        int leaf_geom = scene.leaf_geom[leaf];
+        int geom = leaf_geom;
+        // 负 `leaf_geom` = flex 叶；按上游 `GeomType.FLEX`（mjGEOM_FLEX = 9）走 flex 分派。
+        int gtype = (leaf_geom < 0) ? 9 : geom_type[geom];
+        // 上游 tie-break 的 `hit_geom_id`：flex 命中是 -2（render.py L764），geom 命中是 geom id。
+        int candidate_id = (leaf_geom < 0) ? -2 : geom;
+        int flexid = -1;
+        if (leaf_geom >= 0 && geom_alpha(geom_matid, geom_rgba, mat_rgba, geom) == 0.0f) {
             continue;
         }
         const float* leaf_size = scene.leaf_size + 3 * leaf;
@@ -363,7 +369,13 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
         float pass_bary_v = 0.0f;
         int pass_face = -1;
         int mesh_index = scene.leaf_mesh[leaf];
-        if (gtype == 7 || gtype == 1 || gtype == 8) {
+        if (leaf_geom < 0) {
+            // R06-S3a：flex 叶（上游 render.py L762-800）。1D 胶囊有真实法向，命中后照常参与
+            // 统一背面剔除与 tie-break；`candidate = -2` 与上游 `hit_geom_id` 一致。
+            if (!flex_leaf_hit(flex, worldid, -1 - leaf_geom, origin, direction, &d, &n, &flexid)) {
+                continue;
+            }
+        } else if (gtype == 7 || gtype == 1 || gtype == 8) {
             // R05-S2：hfield（gtype==1）与 mesh 同走 `ray_mesh_leaf`；hfield 的 mesh 索引
             // 从 `hfield_bvh_id[geom_dataid[geom]]` 取（blob 内索引，追加在既有 mesh 末尾；
             // `u64::MAX` 哨兵=未建/未用 → 跳过）。上游 `render.py` L682-693 同义。
@@ -400,15 +412,20 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
             d = -1.0f;
         }
         float tol = RAY_TOL_REL * (hit.dist > 1.0f ? hit.dist : 1.0f);
-        bool closer = (d < hit.dist - tol) || (fabsf(d - hit.dist) <= tol && (hit.geom_id < 0 || geom > hit.geom_id));
+        bool closer = (d < hit.dist - tol) ||
+                      (fabsf(d - hit.dist) <= tol && (hit.geom_id < 0 || candidate_id > hit.geom_id));
         if (d >= 0.0f && closer) {
             hit.dist = d;
-            hit.geom_id = geom;
+            hit.geom_id = candidate_id;
             hit.normal = n;
             hit.face = pass_face;
             hit.bary_u = pass_bary_u;
             hit.bary_v = pass_bary_v;
-            hit.mesh_id = (gtype == 7 || gtype == 8) ? mesh_index : -1;
+            if (leaf_geom < 0) {
+                hit.mesh_id = flexid;
+            } else {
+                hit.mesh_id = (gtype == 7 || gtype == 8) ? mesh_index : -1;
+            }
         }
     }
     return hit;

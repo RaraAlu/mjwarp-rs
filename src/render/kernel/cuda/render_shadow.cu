@@ -13,8 +13,8 @@
 // 依赖拼接顺序：`render_common.cu`（`SceneView`/`MegakernelBlob`/`CastHit`/`cast_ray`）在前。
 
 __device__ __forceinline__ float shadow_visibility(
-    const SceneView& scene, const MegakernelBlob& blob, const int* geom_type, const int* geom_dataid,
-    const int* geom_matid, const float* geom_rgba, const float* mat_rgba,
+    const SceneView& scene, const MegakernelBlob& blob, const FlexView& flex, const int* geom_type,
+    const int* geom_dataid, const int* geom_matid, const float* geom_rgba, const float* mat_rgba,
     const wp::uint64* hfield_bvh_id, int worldid, bool cull_backfaces, V3 normal, V3 hitpoint,
     V3 to_light, int lighttype, float dist_to_light, bool use_shadows, bool cast_shadow,
     float shadow_light_fraction) {
@@ -25,8 +25,8 @@ __device__ __forceinline__ float shadow_visibility(
     V3 shadow_origin = add(hitpoint, scale(normal, 1.0e-4f));
     // 上游 L924-926：非方向光距离上限为到光距离；方向光按 1e8 近似无穷。
     float max_t = (lighttype == 1) ? 1.0e8f : (dist_to_light - 1.0e-3f);
-    CastHit hit = cast_ray(scene, blob, geom_type, geom_dataid, geom_matid, geom_rgba, mat_rgba,
-                           hfield_bvh_id, worldid, shadow_origin, to_light, max_t,
+    CastHit hit = cast_ray(scene, blob, flex, geom_type, geom_dataid, geom_matid, geom_rgba,
+                           mat_rgba, hfield_bvh_id, worldid, shadow_origin, to_light, max_t,
                            cull_backfaces, true);
     return (hit.geom_id != -1) ? shadow_light_fraction : 1.0f;
 }

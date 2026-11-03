@@ -2,7 +2,7 @@
 uid = "fcd8ff58"
 id = "mjwarp.render.bvh"
 tags = ["engine", "render", "bvh", "gpu"]
-fingerprint = "7c4c0fea975b47fa8d4b3cae730c4c941a2e8d52c062f5a4684e84e39d24b2ea"
+fingerprint = "174c969bd60cbfac0b89f2e466b1ebd3c58c61e0f27445663ad68516acaebdf8"
 
 [name]
 zh = "渲染BVH与网格查询"

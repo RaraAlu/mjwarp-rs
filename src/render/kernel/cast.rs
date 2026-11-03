@@ -278,6 +278,12 @@ impl SceneDevice {
                 .leaf_geom_id(leaf as u32)
                 .ok_or(LauncherError::InvalidArray("scene_leaf_geom"))?;
             meta[leaf_geom + leaf] = geom;
+            // R06-S3a：flex 叶（`geom = -1 - flex_local`，见 `bvh::flex`）没有 geom 模型行：
+            // 只写 `leaf_mesh = -1`，`size/xpos/xmat` 沿用扩展 `SceneState` 的零占位。
+            if geom < 0 {
+                meta[leaf_geom + n_leaf + leaf] = -1;
+                continue;
+            }
             let geom_index =
                 usize::try_from(geom).map_err(|_| LauncherError::InvalidArray("scene_geom_id"))?;
             let geom_type = *model

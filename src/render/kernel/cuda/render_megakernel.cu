@@ -161,8 +161,19 @@ extern "C" __global__ void render_megakernel(
 
     MegakernelBlob blob = megakernel_blob(bvh_id);
     SceneView scene = scene_view(blob.scene_meta, blob.scene_params);
+    // R06-S3a：flex 设备视图（81 槽的 9 个 flex 形参）。无 flex 时槽是 1 元素占位，但
+    // `bvh_nflexgeom == 0` ⇒ 场景叶不会有负 `leaf_geom`，此视图不会被解引用。
+    FlexView flex;
+    flex.vertadr = flex_vertadr.data;
+    flex.edge = (const int*)flex_edge.data;
+    flex.radius = flex_radius.data;
+    flex.xpos = (const float*)flexvert_xpos_in.data;
+    flex.rgba = (const float*)flex_rgba.data;
+    flex.geom_flexid = flex_geom_flexid.data;
+    flex.geom_edgeid = flex_geom_edgeid.data;
+    flex.nflexvert = (int)flexvert_xpos_in.shape.dims[1];
     bool cull_backfaces = (flag_bits & MK_FLAG_CULL_BACKFACES) != 0u;
-    CastHit hit = cast_ray(scene, blob, geom_type.data, geom_dataid.data, geom_matid.data,
+    CastHit hit = cast_ray(scene, blob, flex, geom_type.data, geom_dataid.data, geom_matid.data,
                            (const float*)geom_rgba.data, (const float*)mat_rgba.data,
                            hfield_bvh_id.data, worldid, ray_origin_world, ray_dir_world,
                            max_cam_dist, cull_backfaces, false);
@@ -182,8 +193,15 @@ extern "C" __global__ void render_megakernel(
 
     if (do_seg && first_sample) {
         wp::vec2i value;
-        value[0] = hit.geom_id;
-        value[1] = hit.geom_id == -1 ? -1 : 5;
+        if (hit.geom_id == -2) {
+            // 上游 L1245-1249：flex 的 seg = `(flexid, ObjType.FLEX)`；`mjOBJ_FLEX = 9`
+            // （mujoco `mjtype.h` L292-301 枚举序）。
+            value[0] = hit.mesh_id;
+            value[1] = 9;
+        } else {
+            value[0] = hit.geom_id;
+            value[1] = hit.geom_id == -1 ? -1 : 5;
+        }
         seg_out.data[(long)worldid * seg_pitch + seg_adr.data[camid] + rayid_local] = value;
     }
 
@@ -231,7 +249,9 @@ extern "C" __global__ void render_megakernel(
     V3 normal = hit.normal;
     int face = hit.face;
     int mesh_id = hit.mesh_id;
-    int hit_geom_type = geom_type.data[geom_id];
+    // R06-S3a：flex 命中 `geom_id = -2`，不能索引 geom 模型数组；按上游 `GeomType.FLEX`
+    // （mjGEOM_FLEX = 9）参与后续分支（顶点法线分支因此天然跳过）。
+    int hit_geom_type = (geom_id == -2) ? 9 : geom_type.data[geom_id];
 
     // 顶点法线（上游 `enable_vertex_normals` 分支；mesh/SDF 命中且 face>=0 时；
     // R05-S2：hfield 命中不带顶点法线，与上游 render.py L1209-1211 的 gtype 判据一致）。
@@ -259,8 +279,18 @@ extern "C" __global__ void render_megakernel(
     V3 hit_point = add(ray_origin_world, scale(ray_dir_world, hit.dist));
     float rgba[4];
     int mat_id = -1;
-    render_geom_rgba(geom_matid.data, (const float*)geom_rgba.data, (const float*)mat_rgba.data, geom_id,
-              rgba, &mat_id);
+    if (geom_id == -2) {
+        // 上游 L1303-1305：flex 命中把 flex id 编码在 mesh_id，颜色取 `flex_rgba[mesh_id]`，
+        // 材质 id 保持 -1（无纹理/高光/自发光，走默认值）。
+        wp::vec4 flex_color = flex_rgba.data[mesh_id];
+        rgba[0] = flex_color[0];
+        rgba[1] = flex_color[1];
+        rgba[2] = flex_color[2];
+        rgba[3] = flex_color[3];
+    } else {
+        render_geom_rgba(geom_matid.data, (const float*)geom_rgba.data,
+                         (const float*)mat_rgba.data, geom_id, rgba, &mat_id);
+    }
     V3 base_color = v3(rgba[0], rgba[1], rgba[2]);
 
     if ((flag_bits & MK_FLAG_TEXTURES) != 0u && mat_id >= 0) {
@@ -325,7 +355,7 @@ extern "C" __global__ void render_megakernel(
         float exponent = light_exponent.data[light];
         V3 diff_rgb;
         V3 spec_rgb;
-        compute_lighting(scene, blob, geom_type.data, geom_dataid.data, geom_matid.data,
+        compute_lighting(scene, blob, flex, geom_type.data, geom_dataid.data, geom_matid.data,
                          (const float*)geom_rgba.data, (const float*)mat_rgba.data,
                          hfield_bvh_id.data, worldid,
                          cull_backfaces, active, type, lightpos, lightdir, attenuation, cutoff,
@@ -344,7 +374,7 @@ extern "C" __global__ void render_megakernel(
         V3 diff_rgb;
         V3 spec_rgb;
         // R09-S2：headlight 不投影（上游 L1457-1459 传 `lightcastshadow=False`）。
-        compute_lighting(scene, blob, geom_type.data, geom_dataid.data, geom_matid.data,
+        compute_lighting(scene, blob, flex, geom_type.data, geom_dataid.data, geom_matid.data,
                          (const float*)geom_rgba.data, (const float*)mat_rgba.data,
                          hfield_bvh_id.data, worldid,
                          cull_backfaces, true, 1, ray_origin_world, cam_fwd, v3(1.0f, 0.0f, 0.0f),

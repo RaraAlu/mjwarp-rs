@@ -381,9 +381,9 @@ __device__ __forceinline__ V3 vertex_normal(V3 n, V3 face) {
 // 阴影：仅 `use_shadows && lightcastshadow` 时经 `shadow_visibility`（R09）发射阴影射线
 // （方案 A：复用 first-hit `cast_ray`；上游 L919-961 语义，实现路径不同）。
 __device__ __forceinline__ void compute_lighting(const SceneView& scene, const MegakernelBlob& blob,
-                                                  const int* geom_type, const int* geom_dataid,
-                                                  const int* geom_matid, const float* geom_rgba,
-                                                  const float* mat_rgba,
+                                                  const FlexView& flex, const int* geom_type,
+                                                  const int* geom_dataid, const int* geom_matid,
+                                                  const float* geom_rgba, const float* mat_rgba,
                                                   const wp::uint64* hfield_bvh_id, int worldid,
                                                   bool cull_backfaces, bool lightactive,
                                                   int lighttype, V3 lightpos, V3 lightdir,
@@ -434,10 +434,11 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
     // R09-S2 阴影可见度：仅 `use_shadows && cast_shadow` 时发射阴影射线（上游 L919）；
     // 命中时 `visible = shadow_light_fraction`，否则 1.0。
     float weight = attenuation * shadow_visibility(
-                                        scene, blob, geom_type, geom_dataid, geom_matid, geom_rgba,
-                                        mat_rgba, hfield_bvh_id, worldid, cull_backfaces, normal,
-                                        hitpoint, L, lighttype, dist_to_light, use_shadows,
-                                        cast_shadow, shadow_light_fraction);
+                                        scene, blob, flex, geom_type, geom_dataid, geom_matid,
+                                        geom_rgba, mat_rgba, hfield_bvh_id, worldid,
+                                        cull_backfaces, normal, hitpoint, L, lighttype,
+                                        dist_to_light, use_shadows, cast_shadow,
+                                        shadow_light_fraction);
     *diff_rgb = v3(lightdiff.x * (ndotl * weight), lightdiff.y * (ndotl * weight),
                    lightdiff.z * (ndotl * weight));
     if (enable_specular) {

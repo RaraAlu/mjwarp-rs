@@ -32,9 +32,13 @@ pub(crate) fn geom_data_poses(
     let mut xpos = vec![0.0f32; 3 * ngeom];
     let mut xmat = vec![0.0f32; 9 * ngeom];
     for leaf in 0..n_leaf {
-        let geom = *leaf_geom
+        let encoded = *leaf_geom
             .get(leaf)
-            .ok_or(LauncherError::InvalidArray("scene_leaf_geom"))? as usize;
+            .ok_or(LauncherError::InvalidArray("scene_leaf_geom"))?;
+        // R06-S3a：flex 叶编码 `-1 - flex_local` 没有 geom 位姿（设备只读 flex 通道），跳过。
+        let Ok(geom) = usize::try_from(encoded) else {
+            continue;
+        };
         if geom >= ngeom {
             return Err(LauncherError::InvalidArray("scene_leaf_geom"));
         }
