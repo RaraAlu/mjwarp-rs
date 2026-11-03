@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-e-recompute",
+  "title": {
+    "zh": "NP01 A0：E 指标三候选重算（native f64 / 同码跨后端 / 维持现状），出证据与影响面",
+    "en": "NP01 A0: recompute the three E-metric candidates and publish evidence plus impact analysis"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "契约 L260 记「E 尚未定稿」，G6 首步要用产品输出对 native f64 重算确认。本片用**已归档证据**离线重算三候选：②native f64 作参考（可配对 case 才可算，E_candidate 因设备原始数组缺失只能给界）；①同码跨后端（warp CPU vs warp CUDA f32）基线 + 已签分档余量核对；③维持现状（E 不定稿、只留 upstream-f32 判据）。产出 `e_recompute.json`（脚本生成，无手填）+ README 结论。**不写任何生效值、不改契约/判据/容差、零 GPU**；E 是否定稿由用户签，A0 只出候选与影响面。",
+    "en": "Recompute the three E-metric candidates offline from archived evidence and publish the numbers and impact analysis. No effective values, no contract/criteria change, no GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本进仓可复跑**：`scripts/authoring/np01-e-recompute.py` 只读仓库内已归档证据（native f64 / upstream GPU f32 / QA 比对 / 设备-vs-上游聚合），输出 `e_recompute.json`；README 数字全部来自脚本，命令可复跑。",
+    "**三候选齐备**：②native 口径给出可配对 case 的 E_mjwarp、E_candidate 上下界与红线判定（不可判定处如实写「界跨红线」）；①给 6 个 (field,path) 的实测 worst 与余量（最紧 frame/SDF 1.80×），并写清 `E_mjwarp≡0` 导致红线退化、定稿须改 atol 核对；③写零改动的代价。",
+    "**不可用项如实登记**：hfield 两 case 计数不等不可配对、sdf-box 最近邻配对不可靠、设备原始接触数组未归档导致只能给界——三项都写进 caveats，不隐去。",
+    "**边界**：`src/`、判据、容差、fixtures 零改动；零 GPU；零新采样；不宣称 NP01/NP03 通过。",
+    "**门禁**：`cargo fmt --check`、`cargo test --locked` 全绿（本片只新增离线脚本与证据，unit 计数不变）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-precision-np01-host-gate-hardening"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "scripts/authoring/np01-e-recompute.py",
+      "docs/development-evidence/np01-e-recompute/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-11-04 登记（Chief 批准 A0+B1 并行排程）。输入证据：g10-p5-gpu-kernels-independent-check/{qa-native-f64,qa-upstream-gpu,qa-compare-gpu}.json、g10-p5-gpu-kernels/gpu-window/result.json、契约 L246-L254 分档表。A0 结论：native 口径在现有归档上不可定稿（2/4 case 不可配对、ellipsoid pos 红线界跨、绝对 E≫1），推荐候选①但须把判据写成「实测 worst ≤ atol」核对。用户签字前不落生效值。",
+  "revision": { "before": "25407d5d7d9d3993ddb8803f1259d5d4974e63dc", "after": null },
+  "created_at": "2026-11-03T21:10:00.000Z",
+  "updated_at": "2026-11-03T21:10:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+  ]
+}
