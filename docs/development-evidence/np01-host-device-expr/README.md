@@ -40,7 +40,7 @@
 
 ## 三、结论
 
-1. **device 默认收缩是普遍规律**：12 条里 8 条带乘加的表达式在 `fmad=true` 下全部出现 `fma.rn`，且 `mul.rn/add.rn` 归零；`fmad=false` 下 `fma.rn` 归零、指令数与 host 的「每乘加两次舍入」逐项对应。
+1. **device 默认收缩是普遍规律**：12 条里 9 条带乘加的表达式在 `fmad=true` 下全部出现 `fma.rn`（其中 8 条为 2×fma、`pos_midpoint` 为 1×fma），且 `mul.rn/add.rn` 归零；`fmad=false` 下 `fma.rn` 归零、指令数与 host 的「每乘加两次舍入」逐项对应。
 2. **`face_norm2` 的关键发现**：host 站点在 `polytope.rs:70-72` 刻意把 `face_norm2` 写成 head→tail→norm2 三步，目的是在 CPU recipe 下固定两次舍入；但同一写法在 device 默认 recipe 下**仍被收缩成 `fma.rn`（2 条）**。→ 源码写法本身不能表达「禁止融合」；只有编译选项（`--fmad=false`）或 `__fmul_rn/__fadd_rn` 内建才能固定。这与 `polytope.rs:67-69` 的注释口径一致：host 侧按 CPU recipe，device 侧属 fma.rn recipe。
 3. **因此 host/device 位级判据必须声明 recipe 前提**：本表给的是「同源码在两套 recipe 下的形态差」，不是「数值等价证明」。跨 recipe 比较只能做类型/顺序审计（B 类参考-前提型），不能直接判位级通过。
 4. **与 A0 的关系**：A0 证明「设备与上游对 native 偏差比例≈1」；B1 进一步给出机制解释——设备与上游同在 fma.rn recipe 下，故它们彼此接近，而 host CPU recipe 天然多一次舍入。两者共同支持「E 的参考选择必须写清 recipe」。
