@@ -5,7 +5,7 @@
     "zh": "per-world 实现 S1 独立复核（逐 world 位级/隔离/两跑 sha/零 .cu/行数死线/窗口事实）",
     "en": "Independent check of per-world implementation S1 (per-world bitwise, isolation, two-run sha, zero .cu, line deadlines, window facts)"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "QA 只读复核 `2026-10-30-render-perworld-impl-s1`：①逐 world 位级比对（rgb mismatched=0/max_byte_diff=0、depth bitwise 0 且 max_ulp≤4、seg 精确）与 world 隔离、两跑 sha 相等；②零 `.cu`/零 ABI 改动（`git diff --stat -- src/render/kernel/cuda` 空、81 槽不变）；③行数死线实测（megakernel.rs ≤450、megakernel_uploads.rs ≤480、per_world.rs ≤260、cast/lifecycle/args/output/megakernel_aa 零改动）；④AA/spp>1 显式拒绝与 CPU 单测；⑤证据覆盖范围与不覆盖项（灯位姿/AA/性能）、不含越界声明；⑥验证窗事实（guards/floor/zero compile/post recheck）。只读，不重跑窗口。",
     "en": "Read-only QA check of per-world implementation S1: per-world bitwise comparison and isolation, two-run sha, zero .cu/ABI change, line deadlines, AA rejection, scope/non-claims, and window facts."
@@ -31,13 +31,14 @@
     "resources": [],
     "priority": 63
   },
-  "note": "Arch 2026-11-03 注册（proposed，等实现片 verified 后 QA 复核）。只读：不重跑窗口、不跑 GPU、不改实现。复核对象为实现片证据目录 + 窗口证据 + `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`。",
+  "note": "Arch 2026-11-03 注册（proposed，等实现片 verified 后 QA 复核）。只读：不重跑窗口、不跑 GPU、不改实现。复核对象为实现片证据目录 + 窗口证据 + `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`。\n放弃：acceptance 第 1 条要求独立解码参考并独立复算（不引用实现方日志），本轮窗口未落盘逐 world rgb/depth/seg 缓冲，无窗口 token 不能重跑 GPU，故不做签字作废。覆盖替代：attempt3 verdict 绑定 f122adec + 5be57e86 终检；唯一未覆盖项=独立数值复算，转为 A 窗口前置要求（A 窗口须把逐 world rgb/depth/seg 缓冲与两跑 sha 落盘到证据目录）。补充口径修正：实测 9/11 冻结 exe 已过期、2 个未变，96 条 guards 整体不可复用，下一次窗口必须作为新 attempt 重新冻结并重签 83 输入 + 2 清单。QA 侧 2026-11-03 复核结论与理由见本记录。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-11-03T04:06:00.000Z",
-  "updated_at": "2026-11-03T04:06:00.000Z",
+  "updated_at": "2026-11-03T15:20:21.466Z",
+  "closed_at": "2026-11-03T15:20:21.466Z",
   "checks": [
     {
       "kind": "json",
