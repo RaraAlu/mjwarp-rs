@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-field-tables-b2d",
+  "title": {
+    "zh": "NP01 逐字段类型表 B2d 批：fluid_force / applied_force / kinetic_energy 三条",
+    "en": "NP01 per-field type tables batch B2d: the three force/energy rows"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "B2 第四批取力/能量族 3 条：`fluid_force`（四内核 validate/body/project/clear，椭球与盒两分支、ff_pow4/ff_mul_t/ff_semiaxes/ff_ellipsoid_moment 助手、geom 与 body 升序顺序累加且无原子、`-131072`/`-131072.0f` 双哨符）、`applied_force`（validate/delta/publish，delta 按 body 升序顺序累加，publish 用 `__fadd_rn` 显式单次舍入）、`kinetic_energy`（validate + reduce32，32 lane warp 归约固定 16/8/4/2/1 顺序、`0.5f*sum` 单次乘、padding 零初始化但不入本地归约）。表落 `field-tables/`，待批清单 7→4。不改产品代码/判据/容差，零 GPU。",
+    "en": "Deliver the three force/energy per-field type tables and tighten the gate pending list 7 -> 4."
+  },
+  "modules": {},
+  "acceptance": [
+    "**三条表**：`field-tables/{fluid_force,applied_force,kinetic_energy}.json` 与既有 schema 同构；`fluid_force` 写明四内核参数/椭球与盒分支/geom 与 body 升序累加/双哨符；`applied_force` 写明 delta 顺序累加与 publish 的 `__fadd_rn`；`kinetic_energy` 写明归约形状（32 lane、片序、shuffle 16→1）与 `0.5f*sum`。",
+    "**待批清单收紧**：`PENDING_ROWS` 删除这 3 行（7→4），门禁全绿。",
+    "**README 批次表**：新增 B2d 一节（3 条），总数写 26/30，余 4 条 B2e + 3 条 host。",
+    "**边界**：`src/`、`include/warp-headers/`、fixtures、判据/容差零改动；零 GPU；不宣称 NP01 通过。",
+    "**门禁**：`cargo test --locked --test precision_type_gate` 全绿；`cargo test --locked` unit 计数只增不减。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-precision-np01-field-tables-b2c"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/np01-type-mapping/",
+      "tests/precision_type_gate.rs"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-11-04 登记（B2 第四批）。已完成 B1 5 + B1b 4 + B2a 4 + B2b 5 + B2c 5 = 23/30（0d8ee05a / abbe89ba / e6154d82 / 0eb403d5 / 7402d076）。本批 3 条 → 26/30；余 B2e 4 条（attached/camlight/sleep_wake/field_batch）+ host 3 条。",
+  "revision": { "before": "1e559379842e2eeb197efa1a2010ba06740c75ff", "after": null },
+  "created_at": "2026-11-04T05:10:00.000Z",
+  "updated_at": "2026-11-04T05:10:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "include/warp-headers/", "fixtures/"] }
+  ]
+}
