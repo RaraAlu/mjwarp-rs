@@ -2,7 +2,7 @@
 uid = "cb74b4d5"
 id = "mjwarp.render.context"
 tags = ["engine", "render", "context"]
-fingerprint = "abca50c5b301b2715544b8aa35d6ef41ee58ac8736c4ca831cbe1c4b5286315e"
+fingerprint = "c91fc1ffe122f928e1c64fda7c32e37f231c3d7c5fe7dab9823d5ac12849a6af"
 
 [name]
 zh = "渲染上下文与输出"

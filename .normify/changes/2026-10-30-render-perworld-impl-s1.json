@@ -5,7 +5,7 @@
     "zh": "逐 world 渲染实现 S1（方案 L：host 逐 world 循环 + 单 world 发射，零 .cu / 零 ABI 改动）",
     "en": "Per-world render implementation S1 (plan L: host per-world loop with single-world launches; zero .cu and zero ABI changes)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "按 `2026-10-28-render-per-world-geom-light-gap` 与 Chief 2026-10-30 批准的**方案 L** 实现逐 world 渲染：host 侧新增 per-world 场景位姿容器（`WorldScenePoses`，nworld × n_leaf 的 xpos/xmat，仿 `WorldCameraPoses`），渲染时**逐 world 循环**——`update_poses(world_w)` + `refit_bvh()` + 以 nworld=1 发射现有 megakernel，并把该 world 的输出区段定位到大缓冲（通过按 launch 调整 `rgb_adr/depth_adr/seg_adr` 值 = `world*P + adr[cam]`，内核里 `worldid=0` 使 pitch 项归零）。即：**不改 `.cu`、不改 81 槽 ABI、不改数组形状**，用现成 seam（`RenderContext::update_poses`、`RenderContext::refit_bvh`、`bvh/refit.rs::refit_bvh`）拿到逐 world **geom 位姿**语义（每次发射喂该 world 的 geom/相机行；灯数组仍模型级单份，per-world 灯留 L v2/K）。性能不做声明（发射×nworld）；上游式单发射（方案 K）留作后续性能片。",
     "en": "Implement per-world rendering with plan L: a host-side per-world scene pose container, then per-world loop of update_poses + refit_bvh + single-world (nworld=1) megakernel launches, targeting each world's output section via per-launch adr adjustment. No .cu, ABI or array-shape changes; reuses existing seams. Per-world lights remain model-level single copy (per-world lights deferred to L v2/K). No performance claim; upstream-style single launch (plan K) is deferred."
@@ -57,7 +57,8 @@
     "after": null
   },
   "created_at": "2026-10-30T03:55:00.000Z",
-  "updated_at": "2026-11-03T04:00:31.433Z",
+  "updated_at": "2026-11-03T15:14:04.076Z",
+  "closed_at": "2026-11-03T15:14:04.076Z",
   "checks": [
     {
       "kind": "gate",
