@@ -1,0 +1,49 @@
+﻿NP02 rehash 2026-11-04 - old vs new comparison
+=================================================
+
+pins verified: mjwarp 71da24d956378a87a703b6e1442b13aec0c4ac29 ; warp ffa038b1adf3927a8e893d4536f1a7562f17d749 (v1.15.0)
+command: powershell -File <BOM copy of> scripts/np02-evidence/np02-evidence.ps1 -ProductRoot <repo> -OutDir target/np02-rehash-out
+note: repo script is UTF-8 without BOM + CJK -> PS 5.1 parse fails (same class as prepare scripts); ran via temp BOM copy, repo unchanged
+
+counts (committed inventory -> rehash):
+  windows_implemented_paths: 88 -> 100
+  kernel_rows: 84 -> 96
+  evidence_verified: 77 -> 71
+  evidence_missing: 0 -> 12
+  source_identity_drift: 9 -> 15
+  coverage_pct_evidence: 100.0 -> 88
+  coverage_pct_source_identity: 87.5 -> 71
+  gap_items: 32 -> 50
+
+rows: 88 -> 100 (12 added, 0 removed); gaps: 32 -> 50
+
+added rows (all evidence=missing):
+  kernel:build_rays  src=src/render/camera/cuda/build_rays.cu
+  kernel:mesh_bvh_ray  src=src/render/bvh/cuda/mesh.cu
+  kernel:scene_bvh_ray  src=src/render/bvh/cuda/scene.cu
+  kernel:s7a_abi_probe  src=src/render/kernel/launch.rs
+  kernel:aa_resolve  src=src/render/kernel/cuda/aa_resolve.cu
+  kernel:sample_texture2d  src=src/render/texture/sample.cu
+  kernel:mjwarp_collision_boxbox  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+  kernel:mjwarp_collision_contact  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+  kernel:mjwarp_collision_contact_multi  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+  kernel:mjwarp_collision_hfield  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+  kernel:mjwarp_collision_primitive  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+  kernel:mjwarp_collision_sdf  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+
+gap classes (new):
+  已知漂移（裁决 B：历史版本证据，不重采不重基线）: 15
+  缺失证据: 12
+  未实现（不计入 Windows 缺失）: 7
+  deferred: 4
+  部分覆盖（NP01 缺口）: 3
+  部分缺失: 2
+  未判定: 2
+  派生（证据由基核承担）: 2
+  不适用（辅助源，无独立内核）: 1
+  不适用（无可独立计数内核）: 1
+  不适用（非内核路径）: 1
+
+51 missing PTX entities: 47 have the same <entry>-<sha>.ptx file elsewhere in repo (should-commit-or-relocate vs historical duplicate), 4 not present anywhere (historical-target-artifact). Per-item list: missing-51-classification.json
+
+conclusion: the committed NP02 ratchet (inventory counts + precision_evidence_gate snapshot) is stale relative to current product sources; updating it changes coverage 100%->88% and gaps 32->50. Owner decision required before rewriting inventory/gate.
