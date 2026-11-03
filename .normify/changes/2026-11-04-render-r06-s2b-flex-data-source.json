@@ -26,14 +26,18 @@
     "owner": "Backend",
     "files": [
       "src/io/flex.rs",
+      "src/io/flex/render.rs",
+      "src/io/mod.rs",
       "src/model/flex.rs",
       "src/physics/flex.rs",
+      "include/mjwarp_native_probe.h",
+      "native/model_probe.cpp",
       "docs/development-evidence/render-bvh/r06-flex-datasource/"
     ],
     "resources": [],
     "priority": 73
   },
-  "note": "Arch 2026-11-04 登记（Chief 裁决：S2 只建显式宿主通道，数据源另立本卡）。来源：Backend 核实 model/context 无 render 所需 flex 数据（render.rs 零 flex 命中、flex_radius 无探针导出、无 geom→flex 映射的渲染视图）。依赖 S2 的 `FlexHostInputs` 定型后再接；本卡不动设备面与判据。",
+  "note": "Arch 2026-11-04 登记（Chief 裁决：S2 只建显式宿主通道，数据源另立本卡）。来源：Backend 核实 model/context 无 render 所需 flex 数据（render.rs 零 flex 命中、flex_radius 无探针导出、无 geom→flex 映射的渲染视图）。依赖 S2 的 `FlexHostInputs` 定型后再接；本卡不动设备面与判据。2026-11-04 锁内补全（Chief 两次指令合并；Backend 只读预检通过）：代码面 8 条 —— in-scope `src/io/flex.rs`（只加 `mod render;`，实测 444→445 行）、`src/model/flex.rs`、`src/physics/flex.rs`；新增 `include/mjwarp_native_probe.h`、`native/model_probe.cpp`、`src/io/flex/render.rs`、`src/io/mod.rs`（私有 `mod native` 加 `flex_render_snapshot(&self)` + `pub use flex::{NativeFlexRenderSnapshot}`，实测 419 行 → 约 430）；证据目录 `docs/development-evidence/render-bvh/r06-flex-datasource/`。`src/model/mod.rs` **不加**（公开的 `model::flex` 够用，Backend 确认不需要 re-export）。四条口径：①S2b 只交数据层（原生 additive `mjwarp_flex_render_info`/`mjwarp_flex_render_targets`、io/model/physics 只读视图），`src/render/kernel/` 零改动；②`render_with_flex` 真实调用方接线**并入 S3 前置**，不新增 S2c；③native 验证**记证据即可**（VsDevCmd + `MJWARP_MUJOCO_ROOT`/`MJWARP_MUJOCO_DLL` + `cargo test --features native-model-probe --lib io::flex`），**不加 native gate**；④`fixtures/flex-position/flex-tree.mjb` 是 MuJoCo 3.12 样本、pinned render 参考 3.15 采集——S2b 只做字段管道，证据写明基线差异、不做数值结论。原生 ABI 草案（Backend 报，写进证据 README）：info 32 B / targets 72 B，只新导 5 个字段 + 3 个计数，`flex_edge` 不重复导。",
   "revision": { "before": "845c16cf42d8d58ad581deb6a0fb4bcf72b9ad7a", "after": null },
   "created_at": "2026-11-04T04:50:00.000Z",
   "updated_at": "2026-11-04T04:50:00.000Z",
