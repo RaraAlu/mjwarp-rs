@@ -5,17 +5,20 @@
   "authored_by": "2026-11-03-render-perworld-s1-window-material",
   "status": "material only (not executed; hashes/exe paths are resolved by the in-window freeze)",
   "suite": "render-perworld-s1",
-  "attempt": 1,
+  "attempt": 2,
   "guards_file": "scripts/validate/render-bvh/guards-perworld-s1.json",
+  "criterion_version": "render-sdf-criterion-v2.2",
+  "bound_ulp": 128,
   "criteria": {
     "rgb": "mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0 (bitwise)",
-    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "depth": "new entity (camera 0 only, 0 sphere pixels): bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "depth_regressions": "criterion v2.2 signed exemption: outside the frozen scene-a sphere-outline list bitwise (1 ULP fails); inside the list |ULP| <= 128 with exact pixel-for-pixel membership; camera 0 bitwise",
     "seg": "exact (mismatched == 0)",
     "isolation": "world0 outputs unchanged by world1 data; per-world sections must not cross",
     "determinism": "two-run rgb/depth/seg sha256 equal",
     "aa": "NOT covered by S1: kernel/per_world.rs returns LauncherError::Unsupported for nsamples>1 (CPU unit test); reference is spp=1",
     "reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/ (rgb/depth/seg npz), sha256 matched to capture.json",
-    "regressions": "the 10 regression entities keep their existing bitwise baselines with zero drift; the set covers every render family touched by the shared launch surface (e2e, rgb, depth/seg, flags, multi-world, skybox, context lifecycle, mesh BVH, hfield, lighting/shadow)"
+    "regressions": "the 10 regression entities keep their signed baselines with zero drift under criterion v2.2 (the two signed outline lists are part of this guard set; the runner exports MJWARP_RENDER_OUTLINE_LIST_DIR); the set covers every render family touched by the shared launch surface (e2e, rgb, depth/seg, flags, multi-world, skybox, context lifecycle, mesh BVH, hfield, lighting/shadow)"
   },
   "entities": [
     {
@@ -23,7 +26,7 @@
       "entity": "render_per_world",
       "source": "new",
       "window_command": "cargo test --locked --features cuda-probe --test render_per_world -- --ignored --test-threads=1 --nocapture",
-      "note": "per-world loop (update_poses + refit_bvh + single-world launch per world; output located by adr value shift world*P + adr[cam]); compares rgb/depth/seg per world against the frozen per-world reference; world isolation; two-run sha"
+      "note": "per-world loop (update_poses + refit_bvh + single-world launch per world; output located by adr value shift world*P + adr[cam]); compares rgb/depth/seg per world against the frozen per-world reference; world isolation; two-run sha. Camera 0 (cam-persp) only and scene-a camera 0 has 0 sphere-outline pixels, so this entity's reference comparison stays bitwise. The RayBuffer is built from this entity's own resolved plan (76,800 rays, one camera); attempt1 instead used the two-camera default helper (240,000 rays) and the launch rejected it as InvalidArray(ray_count) (INVALID_ROUND, no device work)."
     },
     {
       "order": 2,
@@ -91,8 +94,8 @@
   "excluded_on_purpose": {
     "render_sdf_reference": "SDF has its own frozen identity (criterion v2.2, guards-sdf-validate.json); including it here would mix two acceptance surfaces"
   },
-  "guards_expected": { "frozen_exes": 11, "guard_inputs": 83, "total": 94 },
-  "guards_expected_basis": "input set identical to the SDF suite input set minus its 2 outline lists; hfield and shadow fixtures are already part of that 83-input set",
+  "guards_expected": { "frozen_exes": 11, "guard_inputs": 83, "outline_lists": 2, "total": 96 },
+  "guards_expected_basis": "11 exe + 83 read-only inputs (identical to the SDF suite input set) + 2 criterion-v2.2 outline lists (signed prototype bytes cfd1038a../183 and 14893fc6../172, archived with the attempt5 evidence) = 96; the hfield and shadow fixtures are already part of the 83-input set",
   "not_claimed": [
     "no performance statement",
     "L v1 scope = per-world geom poses only; per-world light poses deferred to L v2/K",

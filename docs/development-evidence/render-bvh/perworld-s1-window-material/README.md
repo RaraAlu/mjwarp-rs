@@ -7,8 +7,8 @@
 ## 0. 一句话
 
 为 perworld S1 的验证窗准备**用户双签材料**：实体表（11 实体）、窗口计划（suite/逐字命令/floor/失败条款）、
-ASCII 冻结器（11 exe + 83 只读输入 = 94 条）、开窗前基线 SOP 与双签栏。**这是材料，不是执行**：
-本片不开窗、不跑 GPU、不冻结 guards、不写 `fixtures/`/`src/`/`tests/`，也不产生任何数值结论。
+ASCII 冻结器（11 exe + 83 只读输入 + 2 条 criterion v2.2 清单 = 96 条）、开窗前基线 SOP 与双签栏。
+**这是材料，不是执行**：本片不开窗、不跑 GPU、不写 `fixtures/`/`src/`/`tests/`，也不产生任何数值结论。
 
 ## 1. 交付物
 
@@ -16,7 +16,7 @@ ASCII 冻结器（11 exe + 83 只读输入 = 94 条）、开窗前基线 SOP 与
 | --- | --- | --- |
 | 实体表 | `materials/entity-table.json` | 11 实体：`render_per_world`（新）+ 10 回归；判据、覆盖理由；`render_sdf_reference` 明确排除 |
 | 窗口计划 | `materials/window-plan.txt` | ASCII 一页：suite/guards/逐字命令/floor/失败条款/双签栏/NOT CLAIMED |
-| 冻结器 | `scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1` | ASCII-only、PS 5.1 可解析、LF；硬断言 11 exe + 83 输入 = 94 条 + stash 11/11 |
+| 冻结器 | `scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1` | ASCII-only、PS 5.1 可解析、LF；硬断言 11 exe + 83 输入 + 2 清单 = 96 条 + stash 11/11 |
 | 证据 | `README.md` / `receipt.json` / `manifest.txt` | 材料身份、脚本 sha/bytes/行数、签署状态（待签）与自洽清单 |
 
 ## 2. 实体与判据
@@ -27,7 +27,10 @@ ASCII 冻结器（11 exe + 83 只读输入 = 94 条）、开窗前基线 SOP 与
   seg 全等；world 隔离；两跑 rgb/depth/seg sha256 相等。
 - **10 回归**：`render_e2e`、`render_kernel_rgb`、`render_kernel_depth_seg`、`render_kernel_flags`、
   `render_r10_multi_world`、`render_skybox_reference`、`render_context_lifecycle`、`render_mesh_bvh`、
-  `render_hfield_reference`、`render_shadow_reference`，沿用各自既有位级基线、零漂移。
+  `render_hfield_reference`、`render_shadow_reference`，按 **criterion v2.2**（用户 2026-11-01 签）判定：
+  冻结清单外位级（1 ULP 也失败）、清单内 `|ULP| <= 128` 且成员逐像素匹配、camera 0 位级；
+  2 条已签清单（recipe 183 px / `cfd1038a…` / exact max 73；aa2 172 px / `14893fc6…` / exact max 91）
+  计入本套 guards，runner 自动导出 `MJWARP_RENDER_OUTLINE_LIST_DIR`。
 - **覆盖理由（QA 预核要求）**：S1 改的是 `megakernel.rs`/`megakernel_uploads.rs`/`renderer.rs` 这条**公共发射面**，
   所以除 e2e/rgb/depth-seg/flags/multi-world/context 外，**hfield 与 lighting/shadow 两个新家族各须至少 1 个实体**；
   两者输入（scene-hfield 10 + scene-shadow capture 16）已在本套 83 只读输入内，不新增参考。
@@ -41,9 +44,10 @@ ASCII 冻结器（11 exe + 83 只读输入 = 94 条）、开窗前基线 SOP 与
 1. 开窗前：树干净、build 进程 0、`cargo test --no-run` EXIT=0。
 2. 5 分钟三点复采基线：`baseline_free = min(free)`，`signed floor = baseline_free - 3072 MiB`。
 3. 常规 monitor `util<40` 60/60（`-Required 60 -MaxMinutes 30`，默认 `MaxUtil=40`，**无例外预批**）。
-4. monitor 通过后才冻结：`freeze-guards-perworld-s1.ps1 -Attempt 1`（期望 `total=94 exes=11 inputs=83`）。
-5. `-GuardsOnly` 全参数复核：`GUARDS_OK=94/94`。
-6. body：`run-window.ps1 -Attempt 1 -GuardsFile ... -OutDir ...`，期望 11/11 exit 0、sha_guards 94/94、
+4. monitor 通过后才冻结：`freeze-guards-perworld-s1.ps1 -Attempt 2 -CriterionVersion render-sdf-criterion-v2.2 -BoundUlp 128`
+   （清单默认取 attempt5 归档的已签字节；期望 `total=96 exes=11 inputs=83 lists=2`）。
+5. `-GuardsOnly` 全参数复核：`OUTLINE_LISTS_OK=2/2` + `GUARDS_OK=96/96`。
+6. body：`run-window.ps1 -Attempt 2 -GuardsFile ... -OutDir ...`，期望 11/11 exit 0、sha_guards 96/96、
    post-window exe recheck 11/11、zero Rust compile、floor 未破、residual 0。
 7. 证据归档（facts/logs/monitor/entity-results/guards 副本 + manifest）。
 
@@ -65,7 +69,7 @@ ASCII 冻结器（11 exe + 83 只读输入 = 94 条）、开窗前基线 SOP 与
 
 | 文件 | 内容 |
 | --- | --- |
-| `materials/entity-table.json` | 11 实体 + 判据 + 期望守卫数（11/83/94）+ 排除项与覆盖理由 |
+| `materials/entity-table.json` | 11 实体 + 判据 + 期望守卫数（11/83/2/96）+ 排除项与覆盖理由 |
 | `materials/window-plan.txt` | ASCII 一页窗口计划（逐字命令/floor/失败条款/双签栏） |
 | `receipt.json` | 材料 id、脚本身份（sha/bytes/LF/ASCII）、签署状态（pending）、not_claimed |
 | `manifest.txt` | 本目录除自身外全部文件 sha256/bytes（repo-relative） |
@@ -75,3 +79,8 @@ ASCII 冻结器（11 exe + 83 只读输入 = 94 条）、开窗前基线 SOP 与
 - 2026-11-03（QA 预核后，fix）：实体 9 → **11**（补 `render_hfield_reference`、`render_shadow_reference`，
   覆盖 hfield 与 lighting 家族）；guards 预计 92 → **94**；冻结器实体表与硬断言同步。判据、floor 规则、
   util<40 无例外、双签范围均不变。
+- 2026-11-03 夜间（attempt1 INVALID_ROUND 后，v2）：①guards 94 → **96**（接入 criterion v2.2 两条已签
+  scene-a 球面轮廓清单，复用 attempt5 归档字节，冻结器与 runner 的 env 导出已演练：`GUARDS_OK=96/96`、
+  `OUTLINE_LISTS_OK=2/2`）；②实体 `render_per_world` 的 RayBuffer 改为按其自身 `resolved.plan` 构造
+  （1 相机 = 76,800 射线；attempt1 用默认双相机 240,000 射线被 `InvalidArray(ray_count)` 拒）；③尝试轮次
+  attempt 2；④材料/window-plan 增加第 10 节 attempt1 INVALID_ROUND 记录。判据与容差零变化。

@@ -11,13 +11,19 @@ PREREQUISITES (must all hold before opening)
 - tree clean; build processes 0
 
 1. CRITERIA (existing per-world bitwise rules; no new tolerance)
-- new entity render_per_world:
+- new entity render_per_world (camera 0 `cam-persp` only; scene-a camera 0 has 0 sphere-outline
+  pixels, so its per-world reference comparison stays bitwise):
     rgb   mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0
     depth bitwise mismatched=0 AND max_ulp<=4 AND beyond_ulp=0
     seg   exact (mismatched=0)
     world isolation (world0 output not affected by world1 data)
     two-run rgb/depth/seg sha256 equal
-- 10 regression entities: existing bitwise baselines zero drift
+- 10 regression entities: criterion render-sdf-criterion-v2.2 (user-signed 2026-11-01) applies,
+  i.e. the signed scene-a sphere-outline exact-difference lists are in force:
+    outside the frozen list: bitwise (1 ULP also fails); inside the frozen list: |ULP| <= 128 and
+    list membership must match pixel-for-pixel; camera 0 stays bitwise.
+  The two lists (recipe 183 px / cfd1038a.. / exact max 73; aa2 172 px / 14893fc6.. / exact max 91)
+  are part of the frozen guard set below; the runner exports MJWARP_RENDER_OUTLINE_LIST_DIR.
 - AA/spp>1: NOT covered by S1 (entry returns LauncherError::Unsupported, CPU unit test; reference spp=1)
 
 2. ENTITIES (11) - see materials/entity-table.json
@@ -31,20 +37,24 @@ PREREQUISITES (must all hold before opening)
 
 3. SUITE / GUARDS
   suite   = render-perworld-s1
-  attempt = 1 (new suite; guards.json / guards-r02-skybox.json / guards-r08-rgb-hetero.json /
-              guards-sdf-validate.json are history and must not be reused)
+  attempt = 2 (attempt1 is INVALID_ROUND, see section 10; guards.json / guards-r02-skybox.json /
+              guards-r08-rgb-hetero.json / guards-sdf-validate.json are history, not reused)
   guards  = scripts/validate/render-bvh/guards-perworld-s1.json
-  freeze  = scripts/validate/render-bvh/freeze-guards-perworld.ps1 -Attempt 1
-  expect  = GUARDS_FROZEN suite=render-perworld-s1 total=94 exes=11 inputs=83 ...
-            11 exe + 83 read-only inputs = 94 entries (input set identical to the SDF suite input
-            set minus its 2 outline lists; includes the 5 perworld fixture files and the hfield /
-            shadow capture inputs); stash 11/11.
+  freeze  = scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 2 ^
+              -CriterionVersion render-sdf-criterion-v2.2 -BoundUlp 128
+            (outline lists default to the archived signed bytes under
+             docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline;
+             no authoring tool / pinned venv is needed; -OutlineDir can override the directory)
+  expect  = GUARDS_FROZEN suite=render-perworld-s1 total=96 exes=11 inputs=83 lists=2 ...
+            11 exe + 83 read-only inputs + 2 criterion-v2.2 outline lists = 96 entries
+            (input set identical to the SDF suite; the 2 lists are the signed prototype bytes);
+            stash 11/11.
   GuardsOnly (all parameters mandatory):
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
-      -GuardsOnly -Attempt 1 ^
+      -GuardsOnly -Attempt 2 ^
       -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
-      -OutDir target\render-bvh\perworld-s1-window\attempt1
-    expect GUARDS_OK=94/94 + GUARDS_ONLY_DONE.
+      -OutDir target\render-bvh\perworld-s1-window\attempt2
+    expect OUTLINE_LISTS_OK=2/2 + GUARDS_OK=96/96 + GUARDS_ONLY_DONE.
 
 4. WINDOW ORDER (single full-load GPU task; block 18:00-19:30)
   0) tree clean, build processes 0, `cargo test --no-run` EXIT=0 (before opening)
@@ -59,17 +69,18 @@ PREREQUISITES (must all hold before opening)
      clean = free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0
      default MaxUtil=40; do NOT pass -OpenUtilLimit and do NOT pass -MaxUtil 60.
   4) freeze only AFTER monitor passes (never inside the window body):
-     scripts/validate/render-bvh/freeze-guards-perworld.ps1 -Attempt 1
-  5) GuardsOnly 94/94 with ALL parameters (see section 3)
+     scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 2 ^
+       -CriterionVersion render-sdf-criterion-v2.2 -BoundUlp 128
+  5) GuardsOnly 96/96 with ALL parameters (outline lists: OUTLINE_LISTS_OK=2/2; see section 3)
   6) body:
      powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
-       -Attempt 1 ^
+       -Attempt 2 ^
        -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
-       -OutDir target\render-bvh\perworld-s1-window\attempt1
-     expects 11/11 entities exit 0, sha_guards 94/94, post-window exe recheck 11/11,
+       -OutDir target\render-bvh\perworld-s1-window\attempt2
+     expects 11/11 entities exit 0, sha_guards 96/96, post-window exe recheck 11/11,
      zero Rust compile, floor not breached, residual processes 0.
   7) archive facts/logs/monitor CSV/entity-results/guards copy + manifest into
-     docs/development-evidence/render-bvh/perworld-s1-validate/attempt1/ (or equivalent).
+     docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt2/ (or equivalent).
 
 5. BUILD RULE (fail-closed)
   After the freeze ONLY the `--features cuda-probe` test profile may build/run (the profile the
@@ -81,14 +92,16 @@ PREREQUISITES (must all hold before opening)
   1. any step exits nonzero
   2. free < signed floor
   3. external compute app appears or a build process is running
-  4. freeze counts/sha mismatch (not 94/94) or stash mismatch
+  4. freeze counts/sha mismatch (not 96/96) or stash mismatch, or outline list drift
+     (OUTLINE_LISTS_OK not 2/2)
   5. frozen exe drift before/after any entity
   6. any entity red or two-run sha differs
   => STOP, keep facts verbatim, report Chief and the user; archive an INVALID round record if any
      body step already ran.
 
-7. TIME: 30-60 min total (monitor up to 30 + freeze 3-4 min + body ~2 min + recheck); block
-   18:00-19:30 (+08:00, idle band). Window never opens during 09:00-12:00 or 14:00-18:00 weekdays.
+7. TIME: 30-60 min total (monitor up to 30 + freeze 3-4 min + body ~2 min + recheck); attempt2
+   primary block 12:00-13:30 (+08:00), fallback 18:00-19:30. Window never opens during
+   09:00-12:00 or 14:00-18:00 weekdays.
 
 8. BASELINE SIGN BLOCK (filled at sign time; baseline re-sampled within 5 min before opening)
   signed_at        : ____________________
@@ -101,3 +114,23 @@ PREREQUISITES (must all hold before opening)
   no performance statement; L v1 scope = per-world geom poses only (per-world light poses deferred
   to L v2/K); no AA+per-world coverage; no upstream nworld>1 numeric claim; the guards/manifest
   hashes are integrity evidence only and do not by themselves establish any acceptance claim.
+
+10. ATTEMPT1 RECORD (INVALID_ROUND, 2026-11-03, record-only; kept verbatim)
+  Window attempt1 opened 2026-11-03T22:24:54+08:00 after a valid double-sign (window plan +
+  baseline 14,368/14,368/14,368 MiB, signed floor 11,673 MiB). Environment was green: floor not
+  breached, zero Rust compile, post exe recheck 11/11, residual processes 0. The round is
+  INVALID_ROUND for two content defects, not for environment or product-kernel reasons:
+  1. freeze attempt1 carried 94 entries (11 exe + 83 inputs) WITHOUT the criterion-v2.2 outline
+     lists, so the runner did not export MJWARP_RENDER_OUTLINE_LIST_DIR and the 7 regression
+     entities compared strictly bitwise: they failed on exactly 183 pixels (the signed scene-a
+     sphere-outline exact-difference list), not on a product regression. Fix: this plan freezes
+     the 2 signed lists (96 entries) and the runner exports the exemption env.
+  2. the new render_per_world GPU case built its RayBuffer with the default two-camera helper
+     (240,000 rays) while the perworld params activate only camera 0 (76,800 rays) and the launch
+     rejected it with InvalidArray("ray_count") before any device work. Fix: the case now builds
+     rays from its own resolved plan; criteria are unchanged.
+  No retry was attempted and no threshold, tolerance or reference was changed. The 21 attempt1
+  fact files are archived under
+  docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt1-invalid/ with a manifest.
+  Attempt2 requires a fresh three-point baseline and a fresh user double-sign (floor kept strict:
+  no relaxation even if the new baseline yields a looser derived value).
