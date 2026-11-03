@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-window-material-check",
+  "title": {
+    "zh": "R06-S3b② 窗口材料独立复核（实体表/判据/冻结预期/Baseline/失败停手）",
+    "en": "Independent check of the S3b2 flex validation window material"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "独立复核 S3b② 窗口材料卡（`2026-11-04-render-r06-s3b-flex-window-material-r2`，提交 `87b8fbb9`，证据 `docs/development-evidence/render-bvh/r06-s3b-flex-validate/`）：材料是否与参考数据一致、判据是否零放宽且可执行、守卫预期是否可核、失败停手与开窗前提是否完整、有无越界改判据/容差/参考。**只读复核，不进窗口、不执行 GPU。**",
+    "en": "Read-only independent check of the window material: consistency with the captured reference, zero-relaxation criteria, executable plan, guard expectations, stop policy, and scope."
+  },
+  "modules": {},
+  "acceptance": [
+    "**事实一致性**：实体表/readme 记录的参考 sha256、flex 关键量（`nflex=2`、`flex_dim=[1,1]`、`flex_radius=[0.02,0.04]`、`rgba`、`bvh_nflexgeom=4`、`flex_geom_flexid/edgeid`）与 `fixtures/render-bvh/scene-flex/reference/base/capture.json` 逐项一致；`cam-flex` 654 个 `(flexid,9)` 像素可独立复算。",
+    "**判据零放宽**：rgb bit-first ≤1 LSB、depth ≤4 ULP 且 0 beyond、seg 精确含 `(flexid,9)`、两跑 sha；与 R05/R02 家族口径对照，无新增容差、无「close enough」措辞、无把 seg 放宽为近似。",
+    "**可执行性**：window-plan 的命令、floor 公式、monitor 参数、`-GuardsOnly` 断言、实体顺序可照做；**明确列出开窗前缺口（设备用例 P2、冻结器 P3、QA 复核 P4）**且未把缺口写成已完成。",
+    "**纪律面**：唯一执行会话/Chief GO/失败即停/不重试不放宽/attempt 留档齐备；EOL 与 BOM 开窗前检查已写入。",
+    "**越界检查**：材料未改 `src/`、`fixtures/`、判据/容差/参考；未宣称 flex 渲染可用或 R06 通过。",
+    "**结论三态**：PASS / PASS-with-observations / FAIL（阻断项必须点名文件与行），写入复核证据目录。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-window-material-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-validate-check/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Arch 2026-11-04 登记（S3b② 材料 P4 条：开窗前须有本材料独立复核 pass）。只读、零 GPU、不执行窗口；复核对象提交 `87b8fbb9`。",
+  "revision": { "before": "230d7586013a9510154fa91a5a22cc24321467dc", "after": null },
+  "created_at": "2026-11-04T07:21:00.000Z",
+  "updated_at": "2026-11-04T07:21:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+  ]
+}
