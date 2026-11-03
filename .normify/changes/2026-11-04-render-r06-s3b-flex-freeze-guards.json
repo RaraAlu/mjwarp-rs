@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-freeze-guards",
+  "title": {
+    "zh": "R06-S3b⑤：flex 验证窗冻结器与守卫（freeze-guards-r06-s3b-flex.ps1 + guards-r06-s3b-flex.json，只建不自跑冻结）",
+    "en": "R06-S3b(5): freeze script and guards for the flex validation window (build only, no real freeze)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3b④ 开窗卡跑窗口前必须先有本 suite 的冻结器与守卫文件（S3b② 材料 P3 缺口）。本片照 R08 先例（`freeze-guards-r08-rgb-hetero.ps1` 165 行、9 exe + 68 输入 = 77 条目）新建 `freeze-guards-r06-s3b-flex.ps1` + `guards-r06-s3b-flex.json`：判定本 suite 需要冻结的 exe（产品 + 测试二进制）与输入（`fixtures/render-bvh/scene-flex/` 8 文件 + reference 5 文件 + 脚本/参考数据 sha），生成守卫清单；**本片不执行真冻结（不跑 `-Attempt 1`）、不开窗、不跑 GPU**，只做脚本 + 静态自检 + 条目数记录；真冻结在 S3b④ 开窗时由 Chief GO 后执行。",
+    "en": "Create the freeze script and guards file for suite render-r06-s3b-flex, statically self-checked; no real freeze and no window in this card."
+  },
+  "modules": {},
+  "acceptance": [
+    "**冻结器**：`scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1`——ASCII-only、UTF-8 LF、行数 ≤200（R08 165 行先例）、PS 5.1 `-File` 解析 **0 错**、支持 `-Attempt`；suite 名 `render-r06-s3b-flex`；输出 `GUARDS_OK=<N>/<N>` 与 stash 计数。",
+    "**守卫文件**：`scripts/validate/render-bvh/guards-r06-s3b-flex.json`——条目分两类：需要冻结的 exe（产品 + `render_flex_validate` 测试二进制）与输入（`fixtures/render-bvh/scene-flex/` 的 `scene.xml`/`model-{312,315}.json`/`scene-{312,315}.mjb`/`provenance.json` + `reference/base/` 5 文件 + 相关脚本与守卫自身）。逐条带 sha256 + bytes。",
+    "**静态自检（不真冻结）**：`PSParser` 0 错、nonascii=0、CR=0、BOM=false、`$` 注释行=0、行数、条目数与分类计数写入证据；`-GuardsOnly` 仅做**结构自检**（不读真实二进制）。**不跑 `-Attempt`、不做真冻结、不占 GPU**。",
+    "**不改** `src/`、`fixtures/`、判据/容差/参考；不改既有 R02/R08/sdf 守卫文件。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-freeze/` 收 README（脚本自检三项、条目分类表、与 R08 先例差异）、`self-check.txt`、`guards-summary.txt`。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-capture-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1",
+      "scripts/validate/render-bvh/guards-r06-s3b-flex.json",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-freeze/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Arch 2026-11-04 登记（S3b② 材料 P3 缺口；Backend 主动接）。真冻结归 S3b④ 开窗卡（`2026-11-04-render-r06-s3b-flex-validate`，owner Arch，需 Chief GO）。本片只建脚本 + 静态自检，不执行 `-Attempt`、不开窗、零 GPU。",
+  "revision": { "before": "7c3f6a8f044cc678513856c1a48f833a9bf251fd", "after": null },
+  "created_at": "2026-11-04T07:34:00.000Z",
+  "updated_at": "2026-11-04T07:34:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/", "src/render/kernel/cuda/"] }
+  ]
+}
