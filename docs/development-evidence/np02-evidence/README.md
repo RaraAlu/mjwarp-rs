@@ -150,14 +150,34 @@
 - **未判定 2 项**：① 上游 Warp 生成内核（codegen/builtin 头文件级）逐符号覆盖未展开；② Warp 编译器库内部精度边界无逐项证据。均写明原因，不计入 Windows 缺失。
 - **部分缺失**：4/701 份回执的 PTX 实体按文件名不在仓（历史捕获依赖 `target/` 产物），在仓 697 份逐份校验通过，47 份已按约定路径补回；与 `docs/three-layer-acceptance.md` §5.2 的 11 项 all-probes 排除同源，本批不重采集。
 
+## 编码硬化（2026-11-04，`2026-11-04-prepare-scripts-bom-hardening-np02`）
+
+两个扫描脚本原为 **UTF-8 无 BOM + 中文**，Windows PowerShell 5.1 按 ANSI(GBK) 解码会吃掉字符串引号，导致解析失败（硬化前实测：`np02-evidence.ps1` **31 个**、`np02-lib.ps1` **15 个** `Parser::ParseFile` 错误）。本卡按 prepare 先例二选一，**选定 UTF-8 BOM 路线**：
+
+| 项 | `np02-evidence.ps1` | `np02-lib.ps1` |
+| --- | --- | --- |
+| 硬化前 字节 / sha256 | 31,426 / `5174e4a208a2beead1fb4da2564907693f57a20008b15ae4c8d51dfb275e1111` | 6,246 / `377be06b2abd5151cd67f9162fa011986c934328eee9f80d850735f73abc6f9f` |
+| 硬化后 字节 / sha256 | 31,429 / `120f8bbf2168df137c272aaecaeb58a98f0f645535d8003e6b598f190ab937e6` | 6,249 / `9f34545dc78856160e3f3a1a3f6cd26049e86ccea472f59eb00a6fc6ab1374a0` |
+| 增量 | **+3 字节**（UTF-8 BOM `EF BB BF`） | **+3 字节** |
+| 去掉 BOM 后正文 sha256 | 与硬化前**逐字节相等** | 与硬化前**逐字节相等** |
+| PS 5.1 `Parser::ParseFile` | **0 错误** | **0 错误** |
+
+为什么选 BOM 而不是 ASCII-only：脚本的中文不只出现在注释里，还作为**输出值**写进清单——`inventory.json` 有 21,021 个非 ASCII 字节、`gap.json` 有 5,733 个，均来自这两个脚本的 status/reason/conclusion 字面量（`np02-evidence.ps1` 共 61 行非注释中文）。改成 ASCII-only 会改变已提交清单的字段值并波及清单外文件；BOM 只加 3 字节前缀、正文与输出语义零变化。
+
+**硬化后实跑验证**（Windows PowerShell 5.1，临时 OutDir，未覆盖本目录清单）：`EXIT=0`、2.6 s，窗口数字与 2026-11-04 清单一致——路径 100（内核 96 + 冻结链 3 + MathDx 1）、有证据 88（一致 77 / 漂移 9 / 派生 2）、缺失 12、覆盖 88%、缺口 44（7/3/4/5）、回执 701/701、PTX 实体缺失 4。把临时输出与已提交 `inventory.json`/`gap.json` 做**深度对比**：忽略 `generated_at` 与 `command` 后**0 处差异**，`counts` 全等、rows 100/100、gaps 44/44。
+
+**格式注意**：PS 5.1 的 `ConvertTo-Json` 缩进/分隔与仓内既有清单（PS 7 生成）不同（4 空格缩进、`"key":  值` 双空格），因此 5.1 原始输出字节数更大（inventory 498,110 vs 258,028；gap 29,978 vs 20,923）。这只影响字节格式、不影响语义字段与计数；**重跑验证请输出到临时 OutDir 并只比对计数/条目，不要用 5.1 原始输出覆盖本目录已提交清单**（覆盖前需按仓库既有风格重排，先例见 `rehash-2026-11-04/README.md` §2）。
+
+边界：本卡只改 `scripts/np02-evidence/np02-evidence.ps1`、`np02-lib.ps1` 与本 README；扫描逻辑、`np02-spec.json`、输入索引、输出字段与判据零改动；零 GPU、零参考采集。
+
 ## 复现
 
 ```powershell
 cd D:\Rust\mjwarp-rs
-# 2026-11-04 重算实际使用 Windows PowerShell 5.1（仓内没有 pinned pwsh 7，仓瘦身删除了 toolchains/powershell-7.6.7）；
-# 脚本是 UTF-8 无 BOM + 中文，PS 5.1 直接解析会失败，需先复制一份加 BOM 再执行（见 rehash-2026-11-04/receipt.json 的复现命令）。
+# 2026-11-04 重算使用 Windows PowerShell 5.1（仓内没有 pinned pwsh 7，仓瘦身删除了 toolchains/powershell-7.6.7）；
+# 脚本已于 2026-11-04 硬化为 UTF-8 BOM（见上节「编码硬化」），现在可直接执行，不再需要 BOM 临时副本。
 powershell -NoProfile -ExecutionPolicy Bypass `
-  -File <BOM 副本>\np02-evidence.ps1 `
+  -File scripts\np02-evidence\np02-evidence.ps1 `
   -ProductRoot D:\Rust\mjwarp-rs -OutDir target\np02-out
 ```
 

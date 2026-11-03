@@ -1,4 +1,4 @@
-# NP02 证据清单（Windows 单平台）只读扫描器。
+﻿# NP02 证据清单（Windows 单平台）只读扫描器。
 # 输入：产品源码根 + 证据根；输出 inventory.json 与 gap.json。
 # 约束：只读、不启动 Python、不改产品/测试/fixtures；窗口输出真实数字。
 [CmdletBinding()]

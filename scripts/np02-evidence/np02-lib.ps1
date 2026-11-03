@@ -1,4 +1,4 @@
-# NP02 只读扫描库：路径/哈希工具、回执实体复核、产品源扫描、编译点收集。
+﻿# NP02 只读扫描库：路径/哈希工具、回执实体复核、产品源扫描、编译点收集。
 # 由 np02-evidence.ps1 点源加载；所有函数显式接收 $ProductRoot，无全局状态。
 
 function Get-RepoPath([string]$ProductRoot, [string]$rel) {
