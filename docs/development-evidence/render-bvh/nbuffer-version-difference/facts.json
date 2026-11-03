@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "task": "2026-11-04-precision-nbuffer-version-difference-audit",
+  "owner": "QA",
+  "kind": "criterion-classification-audit",
+  "standard": "机器判据裁定标准 v1",
+  "audit_subject": {
+    "provenance": "fixtures/render-bvh/scene-flex/provenance.json#model_parity.known_difference",
+    "parity": "docs/development-evidence/render-bvh/r06-s3b-flex-capture/parity/parity.json"
+  },
+  "ruling": {
+    "classification": "B",
+    "classification_name": "参考-前提型 (reference-premise)",
+    "usage": "downgraded: register as known_difference only; not a release basis; does not enter window criteria",
+    "authority": "Chief",
+    "date": "2026-11-04",
+    "source": "Chief 2026-11-04 ruling message in this session (QA audit proposal -> Chief decides)",
+    "quote": [
+      "nbuffer 按 B 类（参考-前提型）登记、降级使用——批准。",
+      "你的三条前提必须写进证据并与结论同时声明：①渲染路径不读 nbuffer（0 命中）；②去 <deformable> 控制实验 32368==32368；③差值稳定恰 256。任一前提失效即升级阻断并重裁。",
+      "不得据此宣称 parity pass、不作发布依据；strict_elementwise_parity=fail 保留。按 B 类走，不升用户签。"
+    ],
+    "arch_suggestion": {
+      "by": "Arch",
+      "date": "2026-11-04",
+      "suggestion": "treat as A-class retention (judge unchanged, keep in known_difference, not in window criteria)",
+      "status": "suggestion only, NOT a ruling; not used as attribution in this evidence"
+    }
+  },
+  "why_not_A": "not derivable from essential semantics; treating it as A would amount to a release-level equivalence claim, which parity.json.not_claimed forbids",
+  "why_not_C": "nbuffer is not part of frozen-inventory/hash completeness ratchets",
+  "facts": {
+    "field": "nbuffer",
+    "parity_counts_mujoco_312": 38512,
+    "parity_counts_mujoco_315": 38256,
+    "parity_delta": 256,
+    "provenance_values_312": 37552,
+    "provenance_values_315": 37296,
+    "provenance_delta": 256,
+    "control_experiment": {
+      "experiment": "same scene with <deformable> removed",
+      "values_312": 32368,
+      "values_315": 32368,
+      "equal": true
+    },
+    "attribution": "MuJoCo 3.12/3.15 flex buffer capacity sizing",
+    "render_path_reference_check": {
+      "command": "git -C target/mjwarp-parallel/upstream grep -n nbuffer -- 'mujoco_warp/_src/render*.py' 'mujoco_warp/_src/ray.py'",
+      "matches": 0,
+      "whole_src_matches": ["mujoco_warp/_src/types_test.py:57", "mujoco_warp/_src/types_test.py:58", "mujoco_warp/_src/types_test.py:59"]
+    },
+    "strict_parity": {
+      "strict_elementwise_parity": "fail",
+      "fields_compared": 150,
+      "fields_equal": 143,
+      "mismatched_fields": ["geom_size", "geom_aabb", "geom_rbound", "geom_quat", "mesh_quat", "mesh_polynormal", "geom_sameframe"],
+      "note": "6 条 f64 尾差但 f32 位级全等（f32_bit_differences=0）+ 1 条 geom_sameframe 语义差、渲染不读；均保留原始严格结论"
+    }
+  },
+  "premises": [
+    {
+      "id": "P1",
+      "statement": "render/ray path does not read nbuffer",
+      "evidence": "upstream _src render/ray grep: 0 matches; only types_test.py field-order test matches"
+    },
+    {
+      "id": "P2",
+      "statement": "difference is isolated to flex/deformable buffer capacity",
+      "evidence": "same scene without <deformable>: nbuffer 32368 == 32368"
+    },
+    {
+      "id": "P3",
+      "statement": "delta is stable and explainable",
+      "evidence": "parity ratio 38512/38256 and scene-flex 37552/37296 both delta exactly 256"
+    }
+  ],
+  "invalidation": [
+    "render/ray sources start referencing nbuffer",
+    "control experiment (no <deformable>) no longer equal",
+    "delta no longer exactly 256",
+    "upstream version or scene structure change invalidates the attribution"
+  ],
+  "non_claims": [
+    "no parity pass claimed",
+    "no claim that MuJoCo 3.12 and 3.15 models are equivalent",
+    "strict_elementwise_parity=fail preserved",
+    "no criteria/tolerance/reference change; src/ and fixtures/ unchanged",
+    "zero GPU; read-only audit"
+  ]
+}
