@@ -1,0 +1,392 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-04-precision-np01-host-device-expr",
+  "kind": "np01-host-device-per-expression-ptx",
+  "compile": {
+    "nvrtc": "target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll",
+    "arch": "compute_89",
+    "std": "c++17",
+    "recipes": [
+      "fmad=true（device 默认收缩）",
+      "fmad=false（两次舍入，近似 host CPU recipe）"
+    ],
+    "note": "只编译不跑内核；不写 buffer；不启动 GPU"
+  },
+  "expression_count": 12,
+  "host_recipe": "CPU：乘加为独立语句，每乘加两次舍入；与 compare-cpu-vs-gpu.json 的 host 侧口径一致",
+  "device_recipe": "NVRTC 默认 fmad=true（pinned ccd PTX 实测 fma.rn=1480、mul.rn/add.rn=0）",
+  "expressions": [
+    {
+      "expression": "dot3",
+      "host_source": "src/physics/collision/gjk/math.rs:15-17",
+      "host_statements_and_rounding": "a0*b0 + a1*b1 + a2*b2 左结合：2 次乘 + 2 次加，共 5 次舍入",
+      "cu_expression": "out[0] = a0*b0 + a1*b1 + a2*b2;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 3,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "829381ae7fa721e23132ca59f1f3f7cf0a22b55f4936b56605fb96d6ebbd1c36",
+      "device_fmad_false_ptx_sha256": "8126a66a051a841238c189f401a6600fec5a45bbd1371cbce2b84b50a04051be",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "length3",
+      "host_source": "src/physics/collision/gjk/math.rs:31-33",
+      "host_statements_and_rounding": "sqrt(a0*a0 + a1*a1 + a2*a2)：3 乘 + 2 加 + 1 sqrt",
+      "cu_expression": "out[0] = sqrtf(a0*a0 + a1*a1 + a2*a2);",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 1,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 3,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 1,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "6c7932fc8cdfa24507c30f9705049abaf51bdbe18573d6742f00a54980c56846",
+      "device_fmad_false_ptx_sha256": "f47efc68dc96dd8966ddf64ed43f5907287294b0aa8af83e6194e42c1f37f35a",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "normalize3_component",
+      "host_source": "src/physics/collision/gjk/math.rs:37-44",
+      "host_statements_and_rounding": "norm=length3(a)，分量 a0/norm：1 div（norm>0 分支）",
+      "cu_expression": "float n = sqrtf(a0*a0 + a1*a1 + a2*a2); out[0] = n > 0.0f ? a0/n : 0.0f;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 1,
+        "sqrt_rn": 1,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 3,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 1,
+        "sqrt_rn": 1,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "91793ad171134f0c1039207808e758fa3c9425633ef2fff5065a178ef901d0aa",
+      "device_fmad_false_ptx_sha256": "642100efd3ec9d9e8a18f04aa69eac74d3fd11ebd90b9596c335f81bd1e7005a",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "face_norm2_head_tail",
+      "host_source": "src/physics/collision/gjk/polytope.rs:70-72",
+      "host_statements_and_rounding": "head=r0*r0; tail=r1*r1+head; norm2=r2*r2+tail：显式 3 乘 + 2 加，刻意不融合",
+      "cu_expression": "float head = r0*r0; float tail = r1*r1 + head; out[0] = r2*r2 + tail;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 3,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "4c7b31514e6da4d08863656a394beb4ead0c6078e53b47af05afa049df651b06",
+      "device_fmad_false_ptx_sha256": "aad99359283ef4d349284faf6d204dbe5c46cc0dc5aeb1db9effa3dbf74c1adf",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "pos_midpoint",
+      "host_source": "src/physics/collision/gjk/contact.rs:245-246",
+      "host_statements_and_rounding": "sum=w1+w2; pos=0.5*sum + origin：2 加 + 1 乘",
+      "cu_expression": "out[0] = 0.5f*(w0 + w1) + origin;",
+      "device_fmad_true": {
+        "fma_rn": 1,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 1
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 1,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "26891f1305b9ecdc93bbcbf57e31db86d950172f03542edf98539688db836a1c",
+      "device_fmad_false_ptx_sha256": "d5e542a45bfec41592202433ae66b12d4cdec8b9073f1e0293b9810c1e6e0d1a",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "make_frame_b",
+      "host_source": "src/physics/collision/gjk/math.rs:140-141",
+      "host_statements_and_rounding": "b = selector - a*dot(a,selector); normalize：dot 2 乘 2 加 + 1 乘 + 1 减",
+      "cu_expression": "float d = a0*s0 + a1*s1 + a2*s2; out[0] = s0 - a0*d;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 2,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 4,
+        "add_rn": 2,
+        "sub_rn": 1,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "ca8a6ea181a860fa6f87515416c5b3c6685f2f009bcf41515456c66d028554ba",
+      "device_fmad_false_ptx_sha256": "d747d468fed96cedaa5504498613a49399fbbe8e792c380367d172b2f2958c15",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "linear_combine_3",
+      "host_source": "src/physics/collision/gjk/simplex.rs:310-314",
+      "host_statements_and_rounding": "Σ l_i*v_i（i=0..2）：3 乘 + 2 加",
+      "cu_expression": "out[0] = l0*v00 + l1*v10 + l2*v20;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 3,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "5a90d918cc44781599e0520f968352fde9147b8e67cfc6c7fbabe1cb75c2da4a",
+      "device_fmad_false_ptx_sha256": "094af66b8af3e45f0c66b8206a17dbb7d6f5c75dbf7ad720fd5df26f4fd4ff3b",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "project_plane_scl",
+      "host_source": "src/physics/collision/gjk/simplex.rs:71-75",
+      "host_statements_and_rounding": "scl = nv/nn; 投影点 scl*n：1 div + 3 乘",
+      "cu_expression": "float scl = nv/nn; out[0] = scl*n0;",
+      "device_fmad_true": {
+        "fma_rn": 0,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 1,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 1,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 1,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "41f4d92be1f4a9b0131c3d92d45b5b2b0e69d161ea04502347c238426988ce87",
+      "device_fmad_false_ptx_sha256": "23a23cd453542f513e059ec9fd23218581244efab96ee55b71b805e5c5800753",
+      "verdict": "两侧都无 fma.rn（该表达式无可融合乘加）"
+    },
+    {
+      "expression": "epa_upper_k",
+      "host_source": "src/physics/collision/gjk/epa.rs:108",
+      "host_statements_and_rounding": "dot(face_pr, w)/lower：2 乘 2 加 + 1 div",
+      "cu_expression": "out[0] = (p0*w0 + p1*w1 + p2*w2)/lower;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 1,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 1,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 3,
+        "add_rn": 2,
+        "sub_rn": 0,
+        "div_rn": 1,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "fd672c59b067cde7f0f7017ea44737ab4b889a1a6d7a798da492fc296ea47dce",
+      "device_fmad_false_ptx_sha256": "c5d4749760a5e9684050cb6adcc0154db08afe652a8d8054da58dc84970ce906",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    },
+    {
+      "expression": "contact_dist_margin",
+      "host_source": "src/physics/collision/gjk/contact.rs:191",
+      "host_statements_and_rounding": "dist += margin：1 加",
+      "cu_expression": "out[0] = dist + margin;",
+      "device_fmad_true": {
+        "fma_rn": 0,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 1
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 0,
+        "add_rn": 1,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "327607bf6cff4a08ad0f2c23679f3f5e65f8efbfc51d41bff9808e03a423e048",
+      "device_fmad_false_ptx_sha256": "179d163476b4f35b1e6a82c3bcd9d9270b9670800fe63831724516e7b887266c",
+      "verdict": "两侧都无 fma.rn（该表达式无可融合乘加）"
+    },
+    {
+      "expression": "frame_dir_sub",
+      "host_source": "src/physics/collision/gjk/contact.rs:234-238",
+      "host_statements_and_rounding": "make_frame(sub3(w1,w2)) 的分量差：3 减",
+      "cu_expression": "out[0] = w10 - w20;",
+      "device_fmad_true": {
+        "fma_rn": 0,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 1,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "a3ea9c6174c70d3788ad1b36ca8c800108b298ea83007595e73672626249f96b",
+      "device_fmad_false_ptx_sha256": "193a27546f97b9ad466306dc1de079eddc1d43a918306765978cc8753255a9ff",
+      "verdict": "两侧都无 fma.rn（该表达式无可融合乘加）"
+    },
+    {
+      "expression": "tri_affine_c31",
+      "host_source": "src/physics/collision/gjk/simplex.rs:369-370",
+      "host_statements_and_rounding": "c31 = p[x]*v2[y] + p[y]*v3[x] + v2[x]*v3[y] - p[x]*v3[y] - p[y]*v2[x] - v3[x]*v2[y]",
+      "cu_expression": "out[0] = px*v2y + py*v3x + v2x*v3y - px*v3y - py*v2x - v3x*v2y;",
+      "device_fmad_true": {
+        "fma_rn": 2,
+        "mul_rn": 0,
+        "add_rn": 0,
+        "sub_rn": 0,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 4,
+        "add_f32": 0
+      },
+      "device_fmad_false": {
+        "fma_rn": 0,
+        "mul_rn": 6,
+        "add_rn": 2,
+        "sub_rn": 3,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0,
+        "mul_f32": 0,
+        "add_f32": 0
+      },
+      "device_fmad_true_ptx_sha256": "7dcfb057d0ac2628f0909f5da7ef81b233940b7c5445efcc767ca1dbde5c91a9",
+      "device_fmad_false_ptx_sha256": "6fd139a4439cdfb488b37689ccd893db980841f32f04feaa7e51ff3131062eca",
+      "verdict": "device 默认收缩为 fma.rn；host 两次舍入与非融合稿同形"
+    }
+  ]
+}
