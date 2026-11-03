@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "kind": "render-r06-s3b-flex-window-material",
+  "task_id": "2026-11-04-render-r06-s3b-flex-window-material",
+  "material_only": true,
+  "window_opened": false,
+  "freeze_executed": false,
+  "reference_source": {
+    "task": "2026-11-04-render-r06-s3b-flex-capture-r2",
+    "commit": "71ec7c83",
+    "dir": "fixtures/render-bvh/scene-flex/reference/base",
+    "files_sha256": {
+      "rgb.npz": "5ed502872b869bb1f37659ec22816f9f1c04405c1666f3d366b28fd298678207",
+      "depth.npz": "c3ee4adca6cf9874f40ab87b7f72a16b17f26647e45758342895919b725d8deb",
+      "seg.npz": "f3b00fa82df1e54d4c89309d820212d9808038e00ae25f25841f2b40a6277bef",
+      "state.npz": "7f2fff501bfa98f41fb8d4b689337e9e62e1ec54d98c576dc0a6e8b880b61769",
+      "capture.json": "4713e2c7e403d47e1a23aed064e8f565336287839bfd0f96fb9242a1b1f10289"
+    }
+  },
+  "entities": [
+    {
+      "id": "render_flex_dim1_camflex",
+      "kind": "new",
+      "camera": "cam-flex",
+      "reference": "fixtures/render-bvh/scene-flex/reference/base",
+      "flex_coverage_reference": { "object_id_9_pixels": 654, "flexids": [0, 1] },
+      "criteria": {
+        "rgb": "bit-first: mismatched=0, max_byte_diff=0, beyond_1_lsb=0",
+        "depth": "bit-first: mismatched=0, max_ulp<=4, beyond_0_ulp=0",
+        "seg": "exact equality (0 differing pixels) including (flexid, 9) samples",
+        "two_run": "both runs sha256 equal",
+        "read_semantics": "geom_id=-2, mesh_id=flexid, seg=(flexid, 9) first-sample-only, depth=dist * -ray_dir_local_cam[2], color=flex_rgba[mesh_id]"
+      },
+      "criteria_source": "R05/R02 render family口径 + S3a 参考语义；零放宽"
+    },
+    {
+      "id": "render_flex_dim1_cam_persp",
+      "kind": "new",
+      "camera": "cam-persp",
+      "flex_coverage_reference": { "object_id_9_pixels": 0, "note": "expected: flex not in view; rigid path equivalence control" },
+      "criteria": { "rgb": "as above", "depth": "as above", "seg": "exact", "two_run": "sha equal" }
+    },
+    {
+      "id": "render_flex_dim1_cam_track",
+      "kind": "new",
+      "camera": "cam-track",
+      "flex_coverage_reference": { "object_id_9_pixels": 0, "note": "expected: flex not in view (targetbody camera)" },
+      "criteria": { "rgb": "as above", "depth": "as above", "seg": "exact", "two_run": "sha equal" }
+    },
+    {
+      "id": "render_regression_suite",
+      "kind": "regression",
+      "note": "既有 render 实体集零漂移（suite 名单与冻结器一起在开窗卡内定稿；本片只给占位，不新增参考）",
+      "criteria": { "name": "existing bit-level baselines, zero drift" }
+    }
+  ],
+  "scene_facts": {
+    "scene": "fixtures/render-bvh/scene-flex/scene.xml",
+    "cameras": ["cam-persp", "cam-track", "cam-flex"],
+    "lights": ["sun (castshadow)", "lamp (castshadow)"],
+    "rigid_geoms": ["floor", "box", "mesh", "capsule"],
+    "flex": {
+      "nflex": 2,
+      "flex_dim": [1, 1],
+      "flex_radius": [0.02, 0.04],
+      "flex_vertadr": [0, 4],
+      "flex_edgeadr": [0, 3],
+      "flex_edgenum": [3, 1],
+      "flex_elemadr": [0, 3],
+      "flex_shellnum": [2, 2],
+      "rgba": [[0.9, 0.5, 0.1, 1.0], [0.2, 0.4, 0.9, 1.0]],
+      "bvh_nflexgeom": 4,
+      "flex_geom_flexid": [0, 0, 0, 1],
+      "flex_geom_edgeid": [0, 1, 2, 3],
+      "tie_break": "flex 近共面平局永不赢；场景 flex 与刚性面/地板间距 ≥0.3，不依赖平局"
+    },
+    "recipe": {
+      "use_fast_math": false,
+      "use_shadows": true,
+      "samples_per_pixel": 1,
+      "flex_render_smooth": true,
+      "use_precomputed_rays": true,
+      "render_skybox": false,
+      "enable_backface_culling": true
+    }
+  },
+  "window_plan": {
+    "suite": "render-r06-s3b-flex",
+    "attempt": 1,
+    "guards_file": "scripts/validate/render-bvh/guards-r06-s3b-flex.json (未创建：开窗卡)",
+    "freeze_script": "scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1 (未创建：开窗卡)",
+    "guards_expected": "开窗卡内定稿；本片不猜条目数",
+    "floor_formula": "floor_mib = max(pre-window 3-point baseline free_min - 3072, previously signed floor)",
+    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 (MaxUtil=40 default, no -OpenUtilLimit)",
+    "estimated_duration_minutes": "30-60",
+    "single_executor": "window-execution-policy.md：仅 Chief 直接 GO 给唯一执行会话；群内帖 record-only",
+    "opened": false
+  },
+  "prerequisites": [
+    { "id": "P1", "item": "参考数据收口（采集卡 verified）", "status": "done", "evidence": "71ec7c83" },
+    { "id": "P2", "item": "设备侧 GPU 用例 + render_with_flex 生产调用点", "status": "missing", "owner": "Backend（需另立卡）" },
+    { "id": "P3", "item": "本 suite 冻结器 + guards 文件", "status": "missing", "owner": "开窗卡（S3b validate）" },
+    { "id": "P4", "item": "本材料 QA 独立复核 pass", "status": "pending" },
+    { "id": "P5", "item": "开窗前 5 分钟三点基线达标 + floor 取严 + compute apps = 0 + worktree clean", "status": "window-time" },
+    { "id": "P6", "item": "Chief GO + 群内留痕（计划/基线/floor）+ 唯一执行会话", "status": "window-time" }
+  ],
+  "pre_window_hygiene": [
+    "scripts/validate/normalize-evidence-eol.ps1 -DryRun → 实跑（unchanged 前必跑；存量 1,227 stale）",
+    "scripts/validate/check-evidence-bom.ps1（基线 128 non-.ps1 WARN + 4 manifest 违规；新增即停窗报 Chief）"
+  ],
+  "stop_on_failure": {
+    "policy": "任何一条判据不过 / monitor 不达标 / freeze 不符 / GuardsOnly 不符 → 立即停手报 Chief",
+    "forbidden": ["重试", "重冻到过", "放宽阈值", "预批例外"],
+    "archive": "attempt 原文 + 事实 + logs/guards body + manifest 逐字留档（INVALID_ROUND 或有效轮）"
+  },
+  "non_claims": [
+    "不宣称 flex 渲染数值可用、不宣称 R06/NP01/NP02 通过",
+    "不改判据/容差/参考/夹具；本片零 GPU、不写代码",
+    "nbuffer 版本差异（312=37552 vs 315=37296）未放宽、未宣称 parity pass；判据分类裁定归 Chief/QA，不进本窗口判据"
+  ]
+}

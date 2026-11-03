@@ -1,0 +1,58 @@
+# R06-S3b2 flex render validation window plan (material only; not executed)
+#
+# Task: 2026-11-04-render-r06-s3b-flex-window-material (owner Arch)
+# Reference: fixtures/render-bvh/scene-flex/reference/base (capture card 71ec7c83, verified)
+# Window execution is a SEPARATE card and needs Chief GO (single executor, window-execution-policy.md).
+#
+# 0) HARD BLOCKERS BEFORE THIS PLAN CAN RUN
+#    P2 device-side GPU test + render_with_flex production call point  -> MISSING (separate card, owner Backend)
+#    P3 freeze script + guards file for suite render-r06-s3b-flex       -> MISSING (window card)
+#    P4 independent QA pass on this material                            -> PENDING
+#    Do not open the window while any of P2/P3/P4 is open.
+#
+# 1) PRE-WINDOW HYGIENE (run right before the window, in this order)
+#    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/normalize-evidence-eol.ps1 -DryRun
+#    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/normalize-evidence-eol.ps1
+#    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/check-evidence-bom.ps1
+#      -> baseline: 128 non-.ps1 WARN + 4 manifest violations. Any NEW finding: stop and report Chief.
+#    git status --porcelain --untracked-files=no   -> must be empty
+#
+# 2) THREE-POINT GPU BASELINE (sampled within 5 minutes before opening)
+#    nvidia-smi --query-gpu=memory.free,utilization.gpu,temperature.gpu --format=csv,noheader   (x3)
+#    nvidia-smi --query-compute-apps=pid,name --format=csv,noheader   -> no CUDA compute task
+#    floor_mib = max(min(free over 3 points) - 3072, previously signed floor)   # stricter wins
+#    Post the plan + three points + floor to the dev group (record only), and state this is the
+#    only executor session.
+#
+# 3) MONITOR
+#    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 `
+#        -Required 60 -MaxMinutes 30
+#    No -OpenUtilLimit. Any point util >= 40 or free < floor -> abort, archive, report.
+#
+# 4) FREEZE (window card owns the script; attempt = 1)
+#    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1 `
+#        -Attempt 1
+#    Expect GUARDS_OK=<N>/<N> and stash <E>/<E>; entry counts are frozen by that card, not guessed here.
+#
+# 5) GUARDS-ONLY ASSERT
+#    run-window.ps1 -GuardsOnly ...   -> GUARDS_OK=<N>/<N> required; mismatch = stop.
+#
+# 6) STAGE B (entity body)
+#    Entity order: render_flex_dim1_camflex -> render_flex_dim1_cam_persp -> render_flex_dim1_cam_track
+#                  -> render_regression_suite
+#    Criteria (zero relaxation; see materials/entity-table.json):
+#      rgb    bit-first: mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0
+#      depth  bit-first: mismatched=0 / max_ulp<=4 / beyond_0_ulp=0
+#      seg    exact equality, including (flexid, 9) samples; cam-flex expects 654 flex pixels on the
+#             reference side (device side must match exactly, not "close")
+#      two-run sha256 equal
+#    Reference read semantics: geom_id=-2, mesh_id=flexid, seg=(flexid,9) first sample only,
+#    depth = dist * -ray_dir_local_cam[2], color = flex_rgba[mesh_id].
+#
+# 7) FAILURE POLICY
+#    Any red / monitor miss / freeze mismatch / guards mismatch -> STOP. No retry, no re-freeze to pass,
+#    no threshold relaxation. Archive the attempt verbatim (facts, logs, guards body, manifest) and report Chief.
+#    Only three things ever go to the user: relaxing a criterion, changing a reference, external release claim.
+#
+# 8) DURATION: monitor 5-10 min (hard cap 30) + freeze/self-check 1-2 min + entity body 60-120 s
+#            => whole window 30-60 min.

@@ -1,0 +1,69 @@
+# R06-S3b② flex 渲染验证窗材料（离线；未开窗、未冻结）
+
+任务：`2026-11-04-render-r06-s3b-flex-window-material`（p75，owner Arch；depends `2026-11-04-render-r06-s3b-flex-capture-r2`）。
+性质：**只写窗口材料**（实体表/判据/守卫预期/Baseline 公式/失败停手/开窗前提），**不开 GPU 窗口、不执行真冻结、不写代码**。
+参考数据来源：`2026-11-04-render-r06-s3b-flex-capture-r2`（提交 `71ec7c83`，卡 verified）产出的 `fixtures/render-bvh/scene-flex/reference/base/`。
+
+## 1. 本片交付物
+
+| 交付 | 路径 | 说明 |
+| --- | --- | --- |
+| 实体表 | `materials/entity-table.json` | 3 相机实体 + 1 flex 覆盖断言 + 回归集占位；判据逐条带出处 |
+| 窗口计划 | `materials/window-plan.txt` | 逐字命令形态、守卫预期、floor 公式、时长、失败回滚 |
+| 基线快照 | `materials/gpu-baseline.txt` | 只读 GPU/工具链/HEAD 快照；**签署基线必须开窗前 5 分钟内重取** |
+| 回执 | `receipt.json` | 交付清单 + 依赖缺口 + 非声明 |
+
+## 2. 参考与场景事实（取自采集片证据，不重算）
+
+- 场景 `fixtures/render-bvh/scene-flex/scene.xml`：2 条 1D flex（`flex-line` r=0.02 Z 字线 4 顶点/3 边；`flex-line-fat` r=0.04 单边 2 顶点/1 边）+ 刚性几何（floor/box/mesh/capsule）+ 3 相机（`cam-persp`/`cam-track`/`cam-flex`）+ 2 灯（sun/lamp，均 castshadow）。
+- flex 关键量：`nflex=2`、`flex_dim=[1,1]`、`flex_radius=[0.02,0.04]`、`flex_vertadr=[0,4]`、`flex_edgeadr=[0,3]`、`flex_edgenum=[3,1]`、`flex_elemadr=[0,3]`、`flex_shellnum=[2,2]`；`rgba=[[0.9,0.5,0.1,1],[0.2,0.4,0.9,1]]`；`bvh_nflexgeom=4`、`flex_geom_flexid=[0,0,0,1]`、`flex_geom_edgeid=[0,1,2,3]`。
+- 参考 recipe（与产品同 recipe）：`use_fast_math=false`、`use_shadows=true`、`samples_per_pixel=1`、`flex_render_smooth=true`、`use_precomputed_rays=true`、`render_skybox=false`、`enable_backface_culling=true`。
+- 参考文件 sha256：`rgb.npz 5ed50287…`、`depth.npz c3ee4adc…`、`seg.npz f3b00fa8…`、`state.npz 7f2fff50…`；`capture.json` `4713e2c7…`（两跑逐字节一致）。
+- flex 覆盖实测（参考侧）：`cam-flex` = **654** 个 `(object_id, 9)` 像素（flexid 0/1 均出现）；`cam-persp`/`cam-track` 各 0（预期，flex 不在其视野）。
+- 采集环境：python 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4；GPU RTX 4070 Ti SUPER、driver 596.36；pinned upstream `71da24d…` clean。
+
+## 3. 实体表（详见 `materials/entity-table.json`）
+
+| # | 实体 | 类型 | 判据来源 |
+| --- | --- | --- | --- |
+| 1 | `render_flex_dim1_camflex` | **new**（flex 主实体，flex 覆盖 654 像素） | R05/R02 家族口径 + S3a 参考语义 |
+| 2 | `render_flex_dim1_cam_persp` | new（同场景、flex 不在视野，等价刚性路径对照） | 同上 |
+| 3 | `render_flex_dim1_cam_track` | new（同上，targetbody 相机） | 同上 |
+| 4 | `render_regression_suite` | 回归（既有 render 实体集零漂移） | 既有位级基线 |
+
+判据**零放宽**：rgb `mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0`（bit-first）；depth `mismatched=0 / max_ulp≤4 / beyond_0_ulp=0`（bit-first）；seg 0 差异且 `(flexid, 9)` 样本计数与参考一致（cam-flex 654）；两跑 sha 相同；参考判读 `geom_id=-2`、`mesh_id=flexid`、depth `dist * -ray_dir_local_cam[2]`、颜色 `flex_rgba[mesh_id]`。
+
+## 4. 开窗前提（逐条核，缺一不开）
+
+| # | 前提 | 当前状态 |
+| --- | --- | --- |
+| 1 | 参考数据收口（采集卡 verified） | ✅ `71ec7c83` |
+| 2 | **设备侧 GPU 用例与 `render_with_flex` 生产调用点**（见 §5 缺口 A） | ❌ 缺 |
+| 3 | **本 suite 的冻结器 + guards 文件**（见 §5 缺口 B） | ❌ 缺 |
+| 4 | 本材料 QA 独立复核 pass | ❌ 待 |
+| 5 | 开窗前 5 分钟三点基线达标、floor 取严、compute apps filtered=0、worktree clean | 窗口期 |
+| 6 | 开窗前把「计划 + 基线 + floor」贴开发团队群留痕；Chief GO 且为唯一执行会话 | 窗口期 |
+
+## 5. 依赖缺口（本片不解决，需另行登记/派活）
+
+- **缺口 A（代码）**：`render_with_flex` 已存在（`src/render/kernel/megakernel.rs:130`）但**无生产调用点**，且仓内没有 flex GPU 用例（`tests/render_flex_validate.rs` 不存在）。窗口必须先有：① 生产调用点接线；② 一个 `#[ignore]` 的 GPU 用例，读 `reference/base/` 与 `state.npz`（`flexvert_xpos`）复现设备渲染并按 §3 判据比对。**需另立卡（owner Backend），本片不写代码。**
+- **缺口 B（窗口工具）**：新 suite 需要 `scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1` + `guards-r06-s3b-flex.json`（R08 先例：9 exe + 输入条目，`-GuardsOnly` 断言 `GUARDS_OK=N/N`）。**需在开窗卡（S3b validate）内落地。**
+- 缺口 A/B 未收口前**不得开窗**；本片交付的是「材料齐、可开窗条件清单」。
+
+## 6. 窗口计划要点（详见 `materials/window-plan.txt`）
+
+- 执行器唯一（`window-execution-policy.md`）：只有 Chief 直接 GO 给唯一执行会话才开；群内帖仅作 record-only。
+- 流程：`monitor-until-clean.ps1`（常规 `-Required 60 -MaxMinutes 30`，默认 `MaxUtil=40`，**不带** `-OpenUtilLimit`）→ 冻结 `-Attempt 1` → `-GuardsOnly` 断言 → stage B 实体体。
+- floor 公式：`floor_mib = max(开窗前三点基线 free_min − 3072, 已签 floor)`，取严者生效；采样点 free < floor、或 used 增量 >3072 MiB、或 util>40 即中止。
+- 时长预期：monitor 5–10 min（硬顶 30）+ 冻结/自检 1–2 min + 实体体 60–120 s ≈ 整窗 30–60 min。
+- **失败即停**：monitor 不达标 / freeze 不符 / GuardsOnly 不符 / 任一实体红 → 停手报 Chief，不重试、不重冻「跑到过」、不放宽阈值；attempt 原文留档。
+
+## 7. 窗口期附加检查（吸取本日两处教训）
+
+- **EOL**：跑任何带 `docs/`/`fixtures/` 的 `unchanged` 前先跑 `scripts/validate/normalize-evidence-eol.ps1 -DryRun`，再实跑（实测存量 1,227 stale，`core.autocrlf=true` 检出后会复发）。
+- **BOM**：开窗前跑 `scripts/validate/check-evidence-bom.ps1`（见 `2026-11-04-governance-evidence-bom-audit`），基线 128 non-`.ps1` WARN + 4 manifest 违规，**新增或超基线即停窗报 Chief**；`manifest.txt` 第 1 字节必须是 `#`。
+
+## 8. 非声明
+
+- 本片不宣称 flex 渲染数值可用；不宣称 NP01/NP02/R06 通过；不动判据/容差/参考/夹具；零 GPU。
+- `fixtures/render-bvh/scene-flex/provenance.json.model_parity.known_difference` 记录的 `nbuffer`（312=37552 vs 315=37296、去 flex 对照 32368==32368）**未放宽、未宣称 parity pass**，判据分类裁定归 Chief/QA，不进入本窗口判据。
