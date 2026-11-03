@@ -37,3 +37,7 @@
 
 - **PASS-with-observations**；需修-低 1 条（8→9 文字）；观察 1 条（expr 复跑依赖仓内 `target/toolchains/cuda-12.8.1/bin` 的 NVRTC DLL，README 已写前提）。
 - 未改判据/容差/参考/fixtures、零 GPU、零窗口；不宣称 NP01/NP03 通过、不宣称位级等价。
+
+## 六、需修项闭合（2026-11-04 增量复核）
+
+- 需修-低（README 8/12→9/12）已由 `8c22ffcc`（B1 expr）与 `6b906daa`（B2 fields）订正：两 README 现写「**9/12** 条带乘加（8 条 2×fma + `pos_midpoint` 1×fma）」，两张被复核卡已各补 `normify fix` addenda；数据未动。QA 增量复核通过，本复核结论闭合。
