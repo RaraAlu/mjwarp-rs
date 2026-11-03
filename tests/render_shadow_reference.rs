@@ -30,6 +30,8 @@ mod s7b1;
 mod s7b2;
 #[path = "support/render_bvh/shadow.rs"]
 mod shadow;
+#[path = "support/render_bvh/outline.rs"]
+mod outline;
 #[path = "support/render_bvh/shadow_scene.rs"]
 mod shadow_scene;
 

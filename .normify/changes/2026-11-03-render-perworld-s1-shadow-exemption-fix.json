@@ -5,7 +5,7 @@
     "zh": "render_shadow_reference 的 cam1 depth 比较接入 criterion v2.2 清单豁免（仅测试支持面）",
     "en": "Route render_shadow_reference cam1 depth comparison through the criterion-v2.2 outline exemption (test support only)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "perworld S1 attempt2 的唯一失败实体是 `render_shadow_reference`：cam1 depth `mismatch=183 / max_ulp=73`，与 criterion v2.2 已签 scene-a 球面轮廓清单逐项一致，env 也已生效；根因是 `tests/support/render_bvh/shadow_scene.rs` 的 depth 比较直接断言位级、未走清单豁免 helper（其余回归实体均走 `recipe_depth_diff`/`depth_stats`）。本卡只改测试支持面：`shadow_scene.rs` 的 cam1 depth 比较改为 `outline::diff_depth_with_outline(..., Some(Arm::Recipe))`（清单外位级、清单内 |ULP|<=128、成员逐像素；env 未启用时 helper 返回原始 diff，行为不变），并在 `render_shadow_reference.rs` 声明 `outline` 模块。判据/容差/参考/产品源码/内核/`.cu` 零改动。",
     "en": "Test-support only: shadow_scene cam1 depth comparison now goes through the signed v2.2 outline list exemption (outline::diff_depth_with_outline with Arm::Recipe); when the env is not enabled the helper returns the raw diff, so plain cargo test behaviour is unchanged. No criteria/tolerance/reference/product/kernel changes."
@@ -31,11 +31,12 @@
   },
   "note": "Arch 2026-11-03 注册（proposed）。来源：perworld S1 attempt2 INVALID_ROUND（唯一失败实体 render_shadow_reference；cam1 depth 183/73 = 已签清单签名）。纯测试支持面修复，判据零变化；修完后 material v3 标注该实体走 v2.2 豁免，attempt3 由用户重签后执行。",
   "revision": {
-    "before": null,
+    "before": "37785c63148e975125c3565d6b8a94adaa9e21c3",
     "after": null
   },
   "created_at": "2026-11-03T22:52:00.000Z",
-  "updated_at": "2026-11-03T22:52:00.000Z",
+  "updated_at": "2026-11-03T14:51:46.449Z",
+  "closed_at": "2026-11-03T14:51:46.449Z",
   "checks": [
     {
       "kind": "unchanged",
