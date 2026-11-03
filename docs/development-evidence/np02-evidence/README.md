@@ -145,3 +145,26 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib p
 - 9 条已知漂移按用户 2026-10-24 裁决 B 归档（历史版本证据，不重采不重基线）；不宣称漂移清零。
 - 本清单不替代 NP01 逐字段映射、NP03 数值等价、NP04 性能或 T4 冻结验收；不宣称 NP02 验收完成或双平台结论。
 - 未改 `src`/`tests`/`fixtures`/`Cargo.*`；门禁 `unchanged` 校验同任务提交。
+
+## NP02 门禁第一片：清单静态棘轮 + 证据指针可解析（2026-11-04）
+
+任务：`2026-11-03-precision-np02-evidence-gate`（CPU-only、零窗口）。本片不重跑扫描工具
+（它需要 `target/mjwarp-parallel` 上游 checkout，仓瘦身后不在仓），只把**已提交清单**钉成机器门禁，
+防止证据与缺口在无人注意时退化。
+
+实现：`tests/precision_evidence_gate.rs`（3 个用例，随 `cargo test --locked` 执行）。
+
+1. **计数棘轮**：`inventory.json` 的 `counts` 必须与测试内快照完全一致——已实现路径 88、内核 84、
+   冻结链 3、MathDx 路线 1、有证据 88、缺失 0、证据覆盖 100%、回执 701（文件哈希通过 701）、
+   PTX 实体通过 650、缺口 32、未实现 7、未判定 5；`rows` 88 条、`gaps` 32 条。数字滑动必须显式改测试。
+2. **指针可解析**：每行的 `source.path`（派生源行写说明文字，按非路径跳过）与 `artifact.evidence_paths`
+   每一项都必须在仓内存在；当前可解析指针 **158 条**，少于该数即失败。
+3. **词表与 pin**：`evidence_state` ∈ {verified, source-drift, derived}；`HandWrittenCuda` 行的
+   `compile.precision_gate` 必须为 `f32-physics`；MJWarp pin `71da24d…`、Warp pin `ffa038b1…` 不得漂移；
+   `platform.os` 必须仍是 Windows（本清单只覆盖单平台，不得被写成双平台）。
+
+**本片未覆盖**：重跑 np02 工具与回执文件哈希重算、PTX 实体重算、双平台；21 条已知缺口
+（9 条已知漂移、7 个未实现子系统、20 个 NP01 内部字段、51 份历史实体不在仓）仍是未验收项，
+本片不宣称 NP02 通过。
+
+复现：`cargo test --locked --test precision_evidence_gate`。
