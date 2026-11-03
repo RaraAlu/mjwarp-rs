@@ -43,6 +43,16 @@ foreach ($p in @($factsPath, $shaPath, $samplesPath, $entityPath, $guardLog, $ab
 function Add-Txt([string]$path, [string]$text) { [IO.File]::AppendAllText($path, $text + "`n", $utf8) }
 function Fact([string]$text) { Add-Txt $factsPath $text }
 function Guard([string]$text) { Add-Txt $guardLog $text; Write-Output $text }
+$lockPath = Join-Path $out '.window-lock'
+function Release-WindowLock { Remove-Item -Force $lockPath -ErrorAction SilentlyContinue }
+$lockText = if (Test-Path -LiteralPath $lockPath) { Get-Content -LiteralPath $lockPath -Raw -ErrorAction SilentlyContinue } else { '' }
+$lockPid = if ($lockText -match 'pid=([0-9]+)') { [int]$Matches[1] } else { 0 }
+if (($lockPid -gt 0) -and (Get-Process -Id $lockPid -ErrorAction SilentlyContinue)) {
+    Write-Output ("WINDOW_LOCK_HELD pid={0} lock={1}" -f $lockPid, $lockPath); Add-Txt $guardLog ("WINDOW_LOCK_HELD pid={0}" -f $lockPid); exit 17
+}
+if ($lockPid -gt 0) { Write-Output ("WINDOW_LOCK_STALE pid={0} removed" -f $lockPid) }
+Remove-Item -Force $lockPath -ErrorAction SilentlyContinue
+[IO.File]::WriteAllText($lockPath, ("pid={0} started={1} out={2}" -f $PID, (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffK'), $out), $utf8)
 function Outline-Info([string]$fullPath) {
     $data = @(Get-Content -LiteralPath $fullPath | Where-Object { $_ -and -not $_.TrimStart().StartsWith('#') })
     [pscustomobject]@{
@@ -166,6 +176,7 @@ if (-not $GuardsOnly) {
         Fact 'authoring_exception_used=false'
         Fact ('precheck_abort ' + ($violations -join ' | '))
         Guard 'INVALID_ROUND exit9'
+        Release-WindowLock
         exit 9
     }
     Guard ("PRECHECK_OK open=" + (($openSamples | ForEach-Object { "$($_.used)/$($_.free)/$($_.util)/$($_.temp)" }) -join ';'))
@@ -246,6 +257,7 @@ if ($guardBad -gt 0) {
     Fact 'guard_aborted=true'
     Fact ('window_end=' + (Iso))
     Guard 'INVALID_ROUND exit9'
+    Release-WindowLock
     exit 9
 }
 if ($GuardsOnly) {
@@ -262,6 +274,7 @@ if ($GuardsOnly) {
         }
     }
     Guard 'GUARDS_ONLY_DONE'
+    Release-WindowLock
     exit 0
 }
 # criterion v2.1: export the frozen outline lists to the entity body (env-gated test support).
@@ -272,6 +285,7 @@ if ($outlineCount -gt 0) {
         Fact 'outline_list_drift=pre-body'
         Fact ('window_end=' + (Iso))
         Guard 'OUTLINE_LIST_DRIFT exit9'
+        Release-WindowLock
         exit 9
     }
     $env:MJWARP_RENDER_OUTLINE_LIST_DIR = $outlineDirFull
@@ -286,6 +300,8 @@ $depsBefore = DepsSnapshot
 Fact "deps_before_count=$($depsBefore.count)"
 Fact "deps_before_max_write=$($depsBefore.max)"
 $sampler = Start-Sampler
+$abortWait = [Diagnostics.Stopwatch]::StartNew()
+while (-not (Test-Path -LiteralPath $abortFile) -and ($abortWait.Elapsed.TotalSeconds -lt 5)) { Start-Sleep -Milliseconds 100 }
 $entityStart = Iso
 $bodyWatch = [Diagnostics.Stopwatch]::StartNew()
 $oldPath = $env:PATH
@@ -323,7 +339,7 @@ foreach ($exe in $exeList) {
         break
     }
     if ($code -ne 0) { $failures += "entity_failed:$name" }
-    if ([bool](Get-Content $abortFile -Raw)) { $failures += "sampler_abort_after:$name"; break }
+    if ((Test-Path -LiteralPath $abortFile) -and ([bool](Get-Content $abortFile -Raw -ErrorAction SilentlyContinue))) { $failures += "sampler_abort_after:$name"; break }
 }
 $bodyWatch.Stop()
 $entityEnd = Iso
@@ -335,6 +351,7 @@ if ($driftEntity) {
     Fact "sha_drift_entity=$driftEntity"
     Fact ('window_end=' + (Iso))
     Guard 'INVALID_ROUND exit9'
+    Release-WindowLock
     exit 9
 }
 if ($outlineCount -gt 0) {
@@ -343,6 +360,7 @@ if ($outlineCount -gt 0) {
         Fact 'outline_list_drift=post-window'
         Fact ('window_end=' + (Iso))
         Guard 'OUTLINE_LIST_DRIFT exit9'
+        Release-WindowLock
         exit 9
     }
     Fact "outline_lists_post=$($postBody.ok)/$($postBody.count)"
@@ -413,7 +431,7 @@ Fact "delta_vs_guard_baseline_mib=$deltaBaseline delta_vs_first_sample_mib=$delt
 Fact "sustained_delta_mib=$sustained"
 Fact "increment_limit_mib=$BudgetMiB increment_exceeded=$([bool]($deltaBaseline -gt $BudgetMiB))"
 Fact "floor_breached=$([bool]($freeMin -lt $floor))"
-$abortMarker = Get-Content $abortFile -Raw
+$abortMarker = if (Test-Path -LiteralPath $abortFile) { Get-Content $abortFile -Raw -ErrorAction SilentlyContinue } else { '' }
 $guardAborted = [bool]$abortMarker
 Fact "guard_aborted=$guardAborted abort_marker=$abortMarker"
 $stamps = @($rows | ForEach-Object { [datetimeoffset]::Parse($_.timestamp) })
@@ -469,11 +487,14 @@ $agg = [pscustomobject]@{
 if ($failures.Count -gt 0) {
     Fact ('failures=' + ($failures -join ';'))
     Guard 'INVALID_ROUND exit10'
+    Release-WindowLock
     exit 10
 }
 if (-not $zeroCompile) {
     Guard 'COMPILE_DETECTED exit7'
+    Release-WindowLock
     exit 7
 }
 Guard 'WINDOW_RUN_DONE'
+Release-WindowLock
 exit 0
