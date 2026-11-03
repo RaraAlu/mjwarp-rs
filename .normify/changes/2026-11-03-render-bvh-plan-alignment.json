@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-bvh-plan-alignment",
+  "title": {
+    "zh": "render-bvh 切片计划回填与下一波候选（L-S1/R09-S2b/R02·R05·R08·R10 状态对齐；R06/R07/G11 成本对比入 next-wave）",
+    "en": "Rolling plan alignment for render-bvh (L-S1/R09-S2b/R02/R05/R08/R10 statuses; R06/R07/G11 cost comparison as next-wave candidates)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "`docs/development-evidence/render-bvh-precheck/plan.json` 的 rolling 表落后于板面：L-S1 仍写 in_progress（实际 impl 卡已 verified，5be57e86）、R09-S2b 仍写 proposed（实际 `2026-10-28-render-bvh-r09-s2-host-guard-unlock` 已 verified）、R02/R05/R08/R10 部分切片行仍是旧状态；同时 plan 的 next-wave 需要把刚做完的下一方向成本对比（R06 柔性体渲染 / R07 高斯泼溅 / G11 柔性碰撞 / mesh A / L v2/K）登记成候选，供用户拍板。本卡只改 plan.json 的 rolling 记录（delivery_tracking 行、slices status、decisions 追加），不改任何切片的 scope/acceptance/容差/判据，不动证据语义，不宣称任何未验收结论。",
+    "en": "Bring the rolling plan table in line with the board (L-S1 now verified, R09-S2b verified, R02/R05/R08/R10 rows refreshed) and record the freshly analysed next-direction options (R06 flex render, R07 splats, G11 soft collision, mesh plan A, L v2/K) as next-wave candidates pending the user decision. Only rolling record edits: no slice scope, acceptance, tolerance or evidence semantics change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**L-S1 行回填**：`delivery_tracking.rows` 的 L-S1 行 `normify_status` 改为 `verified`、`execution` 记为 done，note 写明实现提交 `5be57e86`、窗口 attempt3 有效轮归档 `509c768b`、QA verdict 「valid body round, criteria PASS」、作废轮单独归档 `d731bbe6`；不改该行既有 evidence 路径语义。",
+    "**R09-S2b / R02 / R05 / R08 / R10 状态对齐**：`slices[]` 中 R09-S2b 由 `proposed` 改为 `delivered`（对应卡已 verified）；delivery_tracking 中相关行与板面一致；若发现无法确证的行，保持原状并在 note 标记待核，不猜测。",
+    "**下一波候选登记**：`decisions` 追加一条记录，写入 R06 柔性体渲染 / R07 高斯泼溅 / G11 柔性碰撞 / mesh 方案 A / L v2/K 的成本区间、依赖（NP01/NP02、verified 前置）、窗口需求与主要风险，并明确「pending user decision（Chief 汇总）」；不改这些方向原有 roadmap 卡。",
+    "**不动口径**：任何切片的 scope、acceptance、tolerances、GPU 需求、reference 路径不得修改；`src/`、`tests/`、`fixtures/`、`.cu` 零改动；不新增任何验收声明。",
+    "**校验**：`plan.json` 可解析（JSON 合法）、`normify validate` 0 错误、`git diff` 只落在 `docs/development-evidence/render-bvh-precheck/plan.json`（+ 本卡 json）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json"
+    ],
+    "resources": [],
+    "priority": 45
+  },
+  "note": "Arch 2026-11-03 登记（proposed）。来源：夜间收口时发现 plan rolling 表落后于板面（L-S1 仍 in_progress、R09-S2b 仍 proposed），且 Chief 要的「下一方向对比」需要一个落库的候选记录。纯计划治理，零代码/零窗口；成本数字均为估算并注明口径，不承诺工期。",
+  "revision": {
+    "before": "61ee70c069ed8c06a05ddae47ff58d781ecf6c59",
+    "after": null
+  },
+  "created_at": "2026-11-03T15:35:00.000Z",
+  "updated_at": "2026-11-03T15:35:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "逐 world 已判定通过",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}
