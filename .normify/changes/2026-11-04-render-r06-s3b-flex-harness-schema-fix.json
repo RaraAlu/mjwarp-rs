@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-harness-schema-fix",
+  "title": {
+    "zh": "R06-S3b③b：flex GPU 用例取数缺陷修复（`flex_edge` 不在 model dump 内导致实体体首跑即 panic；补 CPU 自证）",
+    "en": "Fix the flex GPU test's model-input defect (flex_edge absent from the model dump) and add a CPU self-proof"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3b④ 窗口 attempt 1（INVALID_ROUND，证据 `7c4a8296`）暴露：`tests/render_flex_validate.rs` 只做过 `--no-run` 编译，从未真正执行；实体体首跑即在 `tests/render_flex_validate.rs:56`（经 `:294 ints(model,\"flex_edge\")`）panic——`fixtures/render-bvh/scene-flex/model-312.json` 的 17 个 flex 数组里**没有 `flex_edge`**（只有 `flex_elem`/`flex_shell`/`flex_edgeadr`/`flex_edgenum` 等），`arrays.flex_edge.values` 取不到；另有 `flexedge_j_rownnz: vec![1; len/2]` 属无依据硬编码。本片修取数、补 CPU 自证，**不改判据/容差/参考**，**不宣称 flex 通过**。",
+    "en": "Fix model-input extraction in the flex GPU test and add a CPU-side self-proof; no criteria change, no pass claim."
+  },
+  "modules": {},
+  "acceptance": [
+    "**取数修正**：`flex_edge` 按实际 schema 取——从 `flex_elem` 派生、或从 `model-315`/`provenance.json` 的已记录值取（二选一并写明依据）；`flexedge_j_rownnz` 等硬编码必须有推导依据或删除；其它 flex 字段逐项核对存在于 `arrays` 且 `kind/count/values` 与表一致。",
+    "**CPU 自证（新增硬要求）**：把「读 model dump → 构造 `FlexPositionFields`/`FlexEdgeFields`/`FlexRenderFields` → 生成 tri/BVH 输入」这段做成**不碰 CUDA 的 CPU 自证**（单测或 `--self-check` 子模式），逐数组断言取到且长度/范围合理；该自证必须在 `--no-run` 之外的普通 `cargo test` 里可跑并通过。",
+    "**边界**：不改判据/容差/参考、不动 `fixtures/`（如需 fixtures 变更须单独立卡）；不宣称 flex 渲染通过；不动 `src/`（除非确有必要，需在本卡说明）。",
+    "**编译**：`cargo test --locked --features cuda-probe --no-run --test render_flex_validate` 通过；CPU 自证用例 `cargo test --locked --test render_flex_validate_schema`（或同文件 CPU 用例）通过。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-harness-fix/` 收 README（缺陷复现、取数依据、CPU 自证输出、与 attempt 1 的对应关系）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-device-harness"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_validate.rs",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-harness-fix/"
+    ],
+    "resources": [],
+    "priority": 76
+  },
+  "note": "Arch 2026-11-04 登记（来源：S3b④ 窗口 attempt 1 INVALID，提交 `7c4a8296`）。**教训**：用例只编译不执行会在首次真实执行时才暴露 schema 缺陷；本卡把「CPU 可自证」写成硬要求，之后所有 GPU 用例卡都沿用这条。修完需重建并**重新真冻结**（exe 哈希变化）再跑 attempt 2，按 Chief 指令顺延空闲块。",
+  "revision": { "before": "77380f2eb464fb5e439abfc83dfea6007f953cdd", "after": null },
+  "created_at": "2026-11-04T07:48:00.000Z",
+  "updated_at": "2026-11-04T07:48:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" }
+  ]
+}
