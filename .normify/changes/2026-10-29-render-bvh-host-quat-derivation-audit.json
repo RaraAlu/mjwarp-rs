@@ -5,7 +5,7 @@
     "zh": "审计其它 host 侧四元数→矩阵派生的「host 不收缩 vs 上游 GPU 收缩」口径差",
     "en": "Audit other host-side quaternion->matrix derivations for host-no-contraction vs upstream-GPU-contraction divergence"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "R05-S3b 的 cam1 depth 红暴露出：上游 `mujoco_warp math.quat_to_mat` 在 GPU 上以 `fuse_fp=true` 收缩计算，而我方在 host Rust 里做代数展开、无 FMA 收缩，导致非平凡四元数差 1–2 ULP。本卡只做**评估**：把 `src/` 内所有 host 侧四元数→矩阵/位姿派生点（相机、geom、light、body、flex 等）列全，逐点判断「是否被位级断言覆盖 / 是否只在容差下被检查 / 是否有上游 GPU 收缩语义未对齐」，产出风险清单与优先级；**不在本卡改代码**，等 R05 收口后由 Arch 决定是否另立 fix 片。",
     "en": "Evaluate (not fix) all host-side quaternion-to-matrix/pose derivations for the same divergence, and produce a prioritized risk list after R05 closes."
@@ -29,11 +29,12 @@
   },
   "note": "Arch 2026-10-29 登记（Chief 要求先记 backlog、不夹进当前 fix）。等 R05 收口后评估。\n\n2026-10-29 只读审计结论（P3，Chief 接受；无 fix 卡）：产品 host 侧四元数→矩阵派生仅 render/kernel/cast.rs::warp_quat_to_matrix（fixed 相机 world pose；R05 已按 1003 条 GPU cam_xmat 反推收缩序，cam_xmat 9/9 两相机 0 差、scene-a 9/9）；math::quat_to_mat 无产品调用（非产品路径，cast.rs 注释明确禁用）；light_data_poses 无矩阵派生且与 pinned forward 6/6 位等；geom/body 位姿为 mjData 原样拷贝；flex/physics matrix_from 仅设备侧。守则（doc-only，不做 fix）：今后新增任何 host quat→matrix 派生，必须先按目标 GPU 收缩序做位级反推并配 GPU 参考覆盖，禁止直接调用未收缩的 math::quat_to_mat 作为产品路径。",
   "revision": {
-    "before": null,
+    "before": "3acb27e52fcd4944722122498cf7fb01560eee42",
     "after": null
   },
   "created_at": "2026-10-29T04:10:00.000Z",
-  "updated_at": "2026-11-03T04:50:00.000Z",
+  "updated_at": "2026-11-03T04:08:21.715Z",
+  "closed_at": "2026-11-03T04:08:21.715Z",
   "checks": [
     {
       "kind": "unchanged",
