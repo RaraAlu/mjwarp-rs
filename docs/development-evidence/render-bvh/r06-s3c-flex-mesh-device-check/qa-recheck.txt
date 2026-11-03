@@ -1,0 +1,66 @@
+R06-S3c QA independent re-check (object 181eaa7a, evidence patch e9e198cd)
+host: Windows; zero GPU / zero window / zero reference; read-only re-computation
+
+== 1. zero-diff classes ==
+changed files in object: 23
+  fixtures/                          changed files: 0 []
+  docs/evidence/                     changed files: 0 []
+  src/render/kernel/cuda/ (existing) changed files: 3 ['src/render/kernel/cuda/render_common.cu', 'src/render/kernel/cuda/render_flex.cu', 'src/render/kernel/cuda/render_megakernel.cu']
+  src/render/bvh/ changed files: 4
+    src/render/bvh/flex_scene.rs
+    src/render/bvh/flex_scene/device.rs
+    src/render/bvh/flex_scene/tests.rs
+    src/render/bvh/mod.rs
+  note: src/render/bvh/ = 3 new flex_scene files + mod.rs registration; no existing rigid-path file touched
+  .cu changed files: ['src/render/kernel/cuda/render_common.cu', 'src/render/kernel/cuda/render_flex.cu', 'src/render/kernel/cuda/render_megakernel.cu']
+  note: .cu changes are flex-path only (new flex_mesh_leaf_hit helper, flex branch inside `if (leaf_geom < 0)`, cull condition `|| flex_mesh_path` which is false for rigid leaves, flex.bvh_id assignment); no rigid-geometry semantic change
+
+== 2. line limits ==
+  src/render/kernel/megakernel.rs                449 lines  (limit 450)  OK
+  src/render/bvh/flex_scene.rs                   470 lines  (limit 500)  OK
+  src/render/bvh/flex_scene/device.rs            186 lines  (limit 500)  OK
+  src/render/bvh/flex_scene/tests.rs             259 lines  (limit 500)  OK
+
+== 3. 'S3a scene packing is a pure move' (token-level) ==
+  removed block lines: 40 ; new fn body lines: 41
+  token diff (comments stripped, braces/semicolons ignored): 2 opcode(s)
+    delete   parent=['&']  new=[]
+    delete   parent=['?']  new=[]
+  => only difference is the borrowed-parameter `&` and the trailing `?` (return position); the block was moved, not rewritten
+
+== 4. offline NVRTC pre-check (QA re-run) ==
+  tool exit=0
+  | R06-S3a offline NVRTC precheck (compile only; no CUDA context / no kernel launch)
+  | nvrtc=12.8
+  | options=--std=c++17 --gpu-architecture=compute_70 --fmad=true --use_fast_math=false -Iinclude/warp-headers
+  | entry=render_megakernel
+  | source_files=7
+  | source_concat_sha256=d48fc74e64a4a5ab92a603e27e205d0eee11a72708a32c1fd9cd2af7a882e330
+  | ptx_bytes=343993
+  | ptx_sha256=9118d1eae20efd8d9721112bd50ad2f3403c7011028d422cd1ed5b42807e4fb8
+  | gate_checks={'f64_globals': [1, 1], 'sin_cos_reductions': 5, 'f16_bf16_tf32': 0, 'entry': 'render_megakernel'}
+  | compile_log_bytes=111
+  written .ptx file: 354740 bytes (CRLF text mode), sha256(file)=4e397438b18d5b8a9596e86f543fe1286f384d3873be61eb0f60aec855b3d234
+  LF-normalized PTX text: 343993 bytes, sha256=9118d1eae20efd8d9721112bd50ad2f3403c7011028d422cd1ed5b42807e4fb8
+  W15 consts: SVD=1 QR=1 ; sin/cos reduction triplets=5 ; .f64 tokens=18
+  f16/f16x2/bf16/bf16x2/tf32 tokens: {'f16': 0, 'f16x2': 0, 'bf16': 0, 'bf16x2': 0, 'tf32': 0}
+  entry present: True
+  => matches evidence: source_concat d48fc74e..., LF text 343993 B / 9118d1ea..., f64_globals [1,1], reductions 5, f16=0
+
+== 5. evidence README section 3.1 (S3a relative -> S3c absolute entry index) ==
+  (1) mesh_device keeps bvh_ids as segment-relative count: True
+  (2) append_to adds the same (meta_base, params_base) to entries after extending both buffers: True
+  (3) append_to_mesh_device returns base+id and preserves u64::MAX sentinel: True
+  (4) unit test packs_mesh_bvh_into_mesh_device_layout covers entry count/offsets/vertex values: True
+
+== 6. call site and validation order ==
+  FlexMeshChannel has no FlexRenderFields; S3c never calls validate_topology_against_render
+  (call sites are src/io/flex/topology.rs itself + its tests only)
+  host entry FlexMeshAssembly::prepare -> build: build() calls channel.topology.validate() before any per-flex indexing
+  2D/3D without a mesh channel -> one_dimensional_scene_leaves returns UnsupportedMeshPrimitive -> `flex-scene-leaves: ...` Driver error (no panic)
+  non-test code in the new files has no unwrap()/expect()/panic!()
+
+== 7. upstream evidence consistency ==
+  manifest entries: 6, mismatches: 0
+  evidence files with UTF-8 BOM: ['docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/gates.txt', 'docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/manifest.txt', 'docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/unit-tests.txt']
+
