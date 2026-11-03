@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "kind": "capture-attempts",
+  "task_id": "2026-11-04-render-r06-s3b-flex-capture-r2",
+  "attempts": [
+    {
+      "id": "A",
+      "started_at": "2026-11-04T06:56:55+08:00",
+      "wall_s": 1.3,
+      "aborted_stage": "put_model (pre-render)",
+      "cause": "NotImplementedError: Rigid flexes are not implemented.",
+      "root_cause": "scene flex was rigid: all vertices bound to world; fixed by binding vertices to 3 static anchor bodies (flex_rigid=false)",
+      "reference_artifacts": "none",
+      "gpu_released": true
+    },
+    {
+      "id": "B",
+      "started_at": "2026-11-04T06:59:04+08:00",
+      "wall_s": 44.8,
+      "aborted_stage": "capture.json provenance (after two-run render + npz writes)",
+      "cause": "TypeError: flex_edge is a 2-D array, per-element int() failed",
+      "root_cause": "flex_model_report did not flatten 2-D flex arrays",
+      "reference_artifacts": "partial reference/base npz only; deleted; capture.json not written",
+      "gpu_released": true
+    },
+    {
+      "id": "C",
+      "started_at": "2026-11-04T06:59:47+08:00",
+      "wall_s": 1.9,
+      "aborted_stage": "capture.json provenance (after cached-kernel render)",
+      "cause": "AttributeError: rc.flex_dim_np is a numpy array (no .numpy())",
+      "root_cause": "RenderContext mixes numpy (flex_dim_np) and warp arrays (flex_geom_*); tolerant to_int_list added",
+      "reference_artifacts": "partial reference/base npz only; deleted; capture.json not written",
+      "gpu_released": true
+    },
+    {
+      "id": "D",
+      "started_at": "2026-11-04T07:03:12+08:00",
+      "wall_s": 2.4,
+      "result": "success but no flex coverage",
+      "outcome": "capture completed (two runs bitwise identical, legacy untouched) yet seg had 0 flex pixels: the two original cameras did not frame the flex cluster",
+      "root_cause": "camera framing only; fixed by adding cam-flex (targetbody at flex-target) and re-running model parity/provenance/preflight",
+      "reference_artifacts": "reference/base rewritten by attempt E",
+      "gpu_released": true
+    },
+    {
+      "id": "E",
+      "started_at": "2026-11-04T07:04:02+08:00",
+      "wall_s": 2.3,
+      "result": "success",
+      "outcome": "two runs bitwise identical; legacy 84 files untouched; cam-flex seg has 654 (flexid,9) pixels covering flexid 0 and 1",
+      "reference_artifacts": "fixtures/render-bvh/scene-flex/reference/base/{rgb,depth,seg,state}.npz + capture.json",
+      "gpu_released": true
+    }
+  ],
+  "prevention": "cpu_preflight() added to --dry-run and enforced before the GPU section: builds the same model on the warp CPU device, runs mjwarp.forward, exercises flex_model_report + state_arrays flexvert_xpos; only a passing preflight allows the GPU capture.",
+  "gpu_state_after_each_attempt": "free >= 14701 MiB / util 2% / temp 27 C (checked after every abort)",
+  "records": [
+    {
+      "log": "attempts/attempt-A.log",
+      "source": "target/s3b-capture.log",
+      "note": "rigid flex NotImplementedError (scene still rigid-flex; pre-render abort)",
+      "log_sha256": "3705d23fde5f94555145248a2e3a843be3c84dac57c5fba32659f6642a1fee02",
+      "bytes": 2558
+    },
+    {
+      "log": "attempts/attempt-B.log",
+      "source": "target/s3b-capture2.log",
+      "note": "rendered (wall 44.8 s) then AttributeError-free TypeError: flex_edge 2-D int() in flex_model_report",
+      "log_sha256": "ebc04058cf75c3e45076334d5ffd017a37333a530174131c1c1cbf84fd63efa9",
+      "bytes": 12818
+    },
+    {
+      "log": "attempts/attempt-C.log",
+      "source": "target/s3b-capture3.log",
+      "note": "1.9 s: rc.flex_dim_np is numpy, .numpy() AttributeError in flex_model_report",
+      "log_sha256": "0ee00bd38ec41ee2404309f743c24006e1e2a9d40a872207e4a80bfd54f8b81b",
+      "bytes": 12394
+    },
+    {
+      "log": "attempts/attempt-D.log",
+      "source": "target/s3b-capture-D.log",
+      "note": "success attempt (D: captured but no flex coverage; E: final reference)",
+      "log_sha256": "3711304ef44d887c9bac00663f2ec2a4a49bb74a04737beb8d1cbf2ef5ed4a1b",
+      "bytes": 21404
+    },
+    {
+      "log": "attempts/attempt-E.log",
+      "source": "target/s3b-capture-E.log",
+      "note": "success attempt (D: captured but no flex coverage; E: final reference)",
+      "log_sha256": "18e4a833aea66fdf6dd103da37be7f92f33f1e1d41986b813eee8fbd7951c975",
+      "bytes": 21404
+    }
+  ],
+  "final_reference": {
+    "dir": "fixtures/render-bvh/scene-flex/reference/base",
+    "files_sha256": {
+      "rgb.npz": "5ed502872b869bb1f37659ec22816f9f1c04405c1666f3d366b28fd298678207",
+      "depth.npz": "c3ee4adca6cf9874f40ab87b7f72a16b17f26647e45758342895919b725d8deb",
+      "seg.npz": "f3b00fa82df1e54d4c89309d820212d9808038e00ae25f25841f2b40a6277bef",
+      "state.npz": "7f2fff501bfa98f41fb8d4b689337e9e62e1ec54d98c576dc0a6e8b880b61769"
+    },
+    "capture_json_sha256": "4713e2c7e403d47e1a23aed064e8f565336287839bfd0f96fb9242a1b1f10289",
+    "two_captures_bitwise_identical": true,
+    "legacy_reference_untouched": true,
+    "legacy_reference_files": 84,
+    "wall_s": 2.3,
+    "flex_coverage": {
+      "cam0": 0,
+      "cam1": 0,
+      "cam2_cam-flex": 654,
+      "flexids": [
+        0,
+        1
+      ],
+      "seg_type": 9
+    },
+    "environment": {
+      "python": "3.12.13",
+      "warp": "1.15.0",
+      "mujoco": "3.15.0",
+      "mujoco_warp": "3.15.0",
+      "numpy": "2.5.4",
+      "driver": "596.36",
+      "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29"
+    },
+    "note": "capture.json task_id still records the original card id (script constant predates the r2 re-registration); artifacts are the r2 deliverables."
+  }
+}

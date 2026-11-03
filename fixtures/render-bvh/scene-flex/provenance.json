@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "kind": "render-flex-scene-provenance",
+  "task_id": "2026-11-04-render-r06-s3b-flex-capture-r2",
+  "scene": {
+    "path": "fixtures/render-bvh/scene-flex/scene.xml",
+    "sha256": "36516b3a9acfd31d3ab2bbcc698be9e9a3568cc95586ac4fa6c2791f3ffb5c1e",
+    "description": "1D flex x2 (radius 0.02/0.04, non-rigid: vertices bound to distinct static anchor bodies) + rigid geometry coexist; flex clearance >=0.3; cameras: cam-persp (320x240), cam-track (240x180 targetbody), cam-flex (320x240 targetbody flex-target) guaranteeing flex coverage"
+  },
+  "model": {
+    "model_312.json": {
+      "sha256": "07acb7daeba630b851d3c5dd7e851e970a5a778d335f5ba51cdf191a01b3f5e0",
+      "bytes": 67603,
+      "compiled_by": "MuJoCo 3.12.0 C API (compile_scene_312.cpp, additive flex fields)"
+    },
+    "model_315.json": {
+      "sha256": "b2b559bdb01678fa621affa470571bf34db3c368b2b644df15e43c31a664fbfe",
+      "bytes": 65814,
+      "compiled_by": "MuJoCo 3.15.0 Python (model_parity.py, additive flex fields)"
+    },
+    "mjb_312": {
+      "sha256": "eb84418587bb586ad0746e4964e5818cca7479131ada597538e228b94dcb2eb9"
+    },
+    "mjb_315": {
+      "sha256": "890ae8849f5c6e7b6e306605c148fd0ff5dbcd8eb6807cc9a48a6e41d7c4f5cd"
+    },
+    "flex_fields_included": true
+  },
+  "model_parity": {
+    "tool": "scripts/authoring/render-bvh/model_parity.py + compile_scene_312.cpp (R06 scene parity flex fields)",
+    "criterion": "approved S0a judging (user 2026-10-24 option A): int/byte exact, float32 f32_bits, float64 f32_bits first",
+    "strict_elementwise_parity": "fail",
+    "judged_failures": [],
+    "fields_compared": 150,
+    "fields_equal": 143,
+    "counts_match": false,
+    "known_difference": {
+      "field": "nbuffer",
+      "values_312": 37552,
+      "values_315": 37296,
+      "control": {
+        "experiment": "same scene with <deformable> removed",
+        "values_312": 32368,
+        "values_315": 32368,
+        "equal": true
+      },
+      "attribution": "MuJoCo 3.12/3.15 flex buffer capacity sizing",
+      "render_path_unused_proof": {
+        "command": "git -C target/mjwarp-parallel/upstream grep -n nbuffer -- 'mujoco_warp/_src/render*.py' 'mujoco_warp/_src/ray.py'",
+        "matches": "(none: render/ray sources do not reference nbuffer)",
+        "whole_src_matches": [
+          "mujoco_warp/_src/types_test.py:57:      mj_fields.insert(mj_fields.index(\"nbuffer\") + 1, \"opt\")",
+          "mujoco_warp/_src/types_test.py:58:      mj_fields.insert(mj_fields.index(\"nbuffer\") + 2, \"vis\")",
+          "mujoco_warp/_src/types_test.py:59:      mj_fields.insert(mj_fields.index(\"nbuffer\") + 3, \"stat\")"
+        ],
+        "conclusion": "render path reads model arrays, not nbuffer; the only _src matches are types_test.py field-order insertions"
+      }
+    },
+    "statement": "未放宽判据、未宣称 flex parity pass；`nbuffer` 差异归因 3.12/3.15 flex buffer 容量，渲染不消费。判据分类裁定归 Chief/QA（《机器判据裁定标准 v1》），本轮不改判据。",
+    "flex_fields": "all flex int arrays strict-equal; flex_radius/flex_vert/flex_vert0 f64 tails with identical f32 bits; flex_rgba f32 strict-equal (see parity/flex-fields.json)",
+    "evidence": "docs/development-evidence/render-bvh/r06-s3b-flex-capture/parity/parity.json"
+  },
+  "reference": {
+    "status": "captured with scripts/authoring/capture_render_flex.py (short CUDA, Chief bounded-retry go)",
+    "capture_script": "scripts/authoring/capture_render_flex.py",
+    "semantics": {
+      "flex_hit": "geom_id=-2, mesh_id=flexid, seg=(flexid,9) first sample only",
+      "depth": "dist * -ray_dir_local_cam[2]",
+      "color": "flex_rgba[mesh_id]"
+    },
+    "dir": "fixtures/render-bvh/scene-flex/reference/base",
+    "files_sha256": {
+      "rgb.npz": "5ed502872b869bb1f37659ec22816f9f1c04405c1666f3d366b28fd298678207",
+      "depth.npz": "c3ee4adca6cf9874f40ab87b7f72a16b17f26647e45758342895919b725d8deb",
+      "seg.npz": "f3b00fa82df1e54d4c89309d820212d9808038e00ae25f25841f2b40a6277bef",
+      "state.npz": "7f2fff501bfa98f41fb8d4b689337e9e62e1ec54d98c576dc0a6e8b880b61769"
+    },
+    "capture_json_sha256": "4713e2c7e403d47e1a23aed064e8f565336287839bfd0f96fb9242a1b1f10289",
+    "two_captures_bitwise_identical": true,
+    "legacy_reference_untouched": true,
+    "flex_coverage": {
+      "cam2_cam-flex": 654,
+      "flexids": [
+        0,
+        1
+      ],
+      "seg_type": 9
+    },
+    "wall_s": 2.3,
+    "attempts": "A/B/C failed, D no flex coverage, E success (see evidence attempts/)"
+  },
+  "environment": {
+    "pinned_mujoco_312": "target/toolchains/mujoco-3.12.0/package",
+    "pinned_mujoco_315_python": "3.15.0",
+    "authoring_venv": "target/mjwarp-parallel/venv"
+  },
+  "commands": [
+    "cl /nologo /O2 /EHsc /std:c++17 /I<3.12 include> compile_scene_312.cpp /link /LIBPATH:<3.12 lib> mujoco.lib",
+    "python -B scripts/authoring/render-bvh/model_parity.py --exe target/render-bvh/s0a/compile_scene_312.exe --cpp scripts/authoring/render-bvh/compile_scene_312.cpp --scene fixtures/render-bvh/scene-flex/scene.xml --out fixtures/render-bvh/scene-flex --evidence docs/development-evidence/render-bvh/r06-s3b-flex-capture/parity"
+  ],
+  "zero_gpu_for_authoring": true,
+  "reads_product_tree": false,
+  "authoring_only": true
+}
