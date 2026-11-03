@@ -1,39 +1,43 @@
-﻿NP02 rehash 2026-11-04 - old vs new comparison
-=================================================
+NP02 rehash 2026-11-04 - counts comparison (final)
+=========================================================
 
 pins verified: mjwarp 71da24d956378a87a703b6e1442b13aec0c4ac29 ; warp ffa038b1adf3927a8e893d4536f1a7562f17d749 (v1.15.0)
-command: powershell -File <BOM copy of> scripts/np02-evidence/np02-evidence.ps1 -ProductRoot <repo> -OutDir target/np02-rehash-out
-note: repo script is UTF-8 without BOM + CJK -> PS 5.1 parse fails (same class as prepare scripts); ran via temp BOM copy, repo unchanged
+command: powershell -File <BOM copy of> scripts/np02-evidence/np02-evidence.ps1 -ProductRoot <repo> -OutDir target/np02-out-final
+note: repo scripts are UTF-8 without BOM + CJK -> PS 5.1 parse fails (same class as prepare scripts); ran via temp BOM copy, repo unchanged except the two-line array-wrapping fix below
 
-counts (committed inventory -> rehash):
+counts (committed inventory 2026-10-24 -> final rehash 2026-11-04):
   windows_implemented_paths: 88 -> 100
   kernel_rows: 84 -> 96
-  evidence_verified: 77 -> 71
+  evidence_verified: 77 -> 77
+  evidence_present: 88 -> 88
   evidence_missing: 0 -> 12
-  source_identity_drift: 9 -> 15
+  source_identity_drift: 9 -> 9
   coverage_pct_evidence: 100.0 -> 88
-  coverage_pct_source_identity: 87.5 -> 71
-  gap_items: 32 -> 50
+  coverage_pct_source_identity: 87.5 -> 77
+  receipt_ptx_entities_verified: 650 -> 697
+  receipt_ptx_entities_missing: 51 -> 4
+  gap_items: 32 -> 44
 
-rows: 88 -> 100 (12 added, 0 removed); gaps: 32 -> 50
+rows: 88 -> 100 (12 added, 0 removed); gaps: 32 -> 44
+old 88 rows: per-row diff vs committed inventory = 0 except artifact.ptx_verified (updated after entity restore)
 
 added rows (all evidence=missing):
-  kernel:build_rays  src=src/render/camera/cuda/build_rays.cu
-  kernel:mesh_bvh_ray  src=src/render/bvh/cuda/mesh.cu
-  kernel:scene_bvh_ray  src=src/render/bvh/cuda/scene.cu
-  kernel:s7a_abi_probe  src=src/render/kernel/launch.rs
-  kernel:aa_resolve  src=src/render/kernel/cuda/aa_resolve.cu
-  kernel:sample_texture2d  src=src/render/texture/sample.cu
-  kernel:mjwarp_collision_boxbox  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
-  kernel:mjwarp_collision_contact  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
-  kernel:mjwarp_collision_contact_multi  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
-  kernel:mjwarp_collision_hfield  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
-  kernel:mjwarp_collision_primitive  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
-  kernel:mjwarp_collision_sdf  src=src/runtime/collision_gpu/../../physics/collision/cuda/product.cu
+  kernel:build_rays
+  kernel:mesh_bvh_ray
+  kernel:scene_bvh_ray
+  kernel:s7a_abi_probe
+  kernel:aa_resolve
+  kernel:sample_texture2d
+  kernel:mjwarp_collision_boxbox
+  kernel:mjwarp_collision_contact
+  kernel:mjwarp_collision_contact_multi
+  kernel:mjwarp_collision_hfield
+  kernel:mjwarp_collision_primitive
+  kernel:mjwarp_collision_sdf
 
-gap classes (new):
-  已知漂移（裁决 B：历史版本证据，不重采不重基线）: 15
+gap classes (final):
   缺失证据: 12
+  已知漂移（裁决 B：历史版本证据，不重采不重基线）: 9
   未实现（不计入 Windows 缺失）: 7
   deferred: 4
   部分覆盖（NP01 缺口）: 3
@@ -44,6 +48,13 @@ gap classes (new):
   不适用（无可独立计数内核）: 1
   不适用（非内核路径）: 1
 
-51 missing PTX entities: 47 have the same <entry>-<sha>.ptx file elsewhere in repo (should-commit-or-relocate vs historical duplicate), 4 not present anywhere (historical-target-artifact). Per-item list: missing-51-classification.json
+51 missing PTX entities: 47 restored to the receipt sibling path (sha256 verified before/after), 4 absent by filename repo-wide
+ (small_prefix_factor_{3,4,5,6}, sha 92561e5d...); a sha-equivalent artifact exists under small_prefix_factor_2 but was NOT
+ copied per owner instruction (no fabrication). Per-item list: missing-51-classification.json / missing-capture-restore.json
 
-conclusion: the committed NP02 ratchet (inventory counts + precision_evidence_gate snapshot) is stale relative to current product sources; updating it changes coverage 100%->88% and gaps 32->50. Owner decision required before rewriting inventory/gate.
+superseded first PS 5.1 run (WOULD HAVE BEEN WRONG):
+  evidence_verified 71 / source_identity_drift 15 / gap_items 50 were produced by a PowerShell 5.1 array-unwrapping
+  bug in the scanner (single-element arrays became scalars; 6 parametric/concat units skipped the captured-.cu containment
+  fallback and were misclassified as source-drift). Fixed with $x = @(if (...) { ... } else { @() }); final run above is authoritative.
+
+conclusion: ratchet updated to facts (100/88%/12 missing/44 gaps/697 entities/4 missing); NP02 is NOT passed.

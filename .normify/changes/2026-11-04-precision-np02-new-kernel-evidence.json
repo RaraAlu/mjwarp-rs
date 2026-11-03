@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np02-new-kernel-evidence",
+  "title": {
+    "zh": "NP02 新增 12 个无回执内核的精度证据采集（回执索引补齐）",
+    "en": "NP02 evidence capture for the 12 newly added kernels that have no receipts"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "补 NP02 缺口：2026-11-04 回执重算发现 12 个 2026-10-24 之后新增的产品内核没有任何 NP02 回执（`build_rays`、`mesh_bvh_ray`、`scene_bvh_ray`、`s7a_abi_probe`、`aa_resolve`、`sample_texture2d`、`mjwarp_collision_{boxbox,contact,contact_multi,hfield,primitive,sdf}`），使 `evidence_missing` 由 0 变 12、证据覆盖 88%。本卡为每个内核采集 NVTRC 回执（`sourceSha256` + `ptxSha256` + 实体），登记进回执索引并重算清单/棘轮；不需要新证据的内核要在本卡写清依据。零参考重采、不改判据，只补证据与计数。",
+    "en": "Close the NP02 gap found by the 2026-11-04 rehash: 12 product kernels added after 2026-10-24 have no NP02 receipts. Capture NVTRC receipts, register them in the receipt index, and re-sync the inventory ratchet. No reference re-capture, no criteria change."
+  },
+  "modules": {},
+  "acceptance": [
+    "12 个内核逐个给出处置：新采集 NVTRC 回执（`sourceSha256` 与当前源一致、`ptxSha256` 与实体哈希一致）或复用已有窗口证据（必须证明同 recipe/同源码、且是 NP02 回执格式；不能只凭相邻切片日志）。",
+    "回执索引（`docs/development-evidence/frozen-inventory/receipts.json` 或补采索引 `np02-evidence/receipt.json`）按既有格式登记新回执，`scripts/np02-evidence/np02-evidence.ps1` 重跑后 `evidence_missing` 逐条下降、12 行不再为 `missing`；`inventory.json`、`gap.json` 与 `tests/precision_evidence_gate.rs` 快照同步。",
+    "明确哪些内核可复用已有窗口证据、哪些必须新采集；GPU 采集需按团队窗口协议（基线/floor/fail-closed）留证，CPU-only 部分不得用 GPU。",
+    "边界：只动 `docs/development-evidence/np02-evidence/`、回执索引、`scripts/np02-evidence/`、`tests/precision_evidence_gate.rs`；`src/`、`fixtures/`、判据/容差/参考零改动；不宣称 NP02 通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-precision-np02-receipt-rehash"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np02-evidence/",
+      "docs/development-evidence/frozen-inventory/receipts.json",
+      "scripts/np02-evidence/",
+      "tests/precision_evidence_gate.rs"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "QA 2026-11-04 登记（按 Chief 批复：12 个新内核另立后续证据卡，本片不补）。当前事实：12 个名字在主/补采回执索引中 0 命中；render/BVH 6 个在 `docs/development-evidence/render-bvh/**`（s2b ptx-fma-summary、s7a-independent-check 变体 PTX 等）有相邻切片证据，collision 6 个在 g10-p5 等切片有产品工作证据，但都不是 NP02 回执格式，是否可复用需先核对同 recipe/同源码结论。",
+  "revision": {
+    "before": "46a88d99228937134f22b12007d07f02bd05f61d",
+    "after": null
+  },
+  "created_at": "2026-11-04T04:35:00.000Z",
+  "updated_at": "2026-11-04T04:35:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP02 通过",
+        "精度达标",
+        "上游等价"
+      ]
+    }
+  ]
+}

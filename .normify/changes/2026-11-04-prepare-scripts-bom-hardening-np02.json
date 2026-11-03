@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-prepare-scripts-bom-hardening-np02",
+  "title": {
+    "zh": "np02 扫描脚本编码硬化（ASCII-only 优先）",
+    "en": "Harden the encoding of the np02 scanner scripts (ASCII-only preferred)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "处理与 prepare 脚本同类的存量隐患：`scripts/np02-evidence/np02-evidence.ps1` 与 `scripts/np02-evidence/np02-lib.ps1` 是 UTF-8 无 BOM 且含中文，Windows PowerShell 5.1 按 ANSI 解析会崩（2026-11-04 回执重算实测 `Unexpected token`，只能用同目录 BOM 临时副本执行）。硬化方案按 prepare 先例：优先改为 ASCII-only，退而加 UTF-8 BOM；同时保持扫描逻辑/规格/输入索引/输出格式不变。",
+    "en": "Fix the same class of hazard as the prepare scripts: the two np02 scanner scripts are UTF-8 without BOM with CJK, so Windows PowerShell 5.1 fails to parse them. Prefer ASCII-only (prepare precedent) or a UTF-8 BOM; scanner logic, spec, input indexes and output format unchanged."
+  },
+  "modules": {},
+  "acceptance": [
+    "两个脚本在 Windows PowerShell 5.1 下 `Parser::ParseFile` 0 错误；ASCII-only（非 ASCII 字节 = 0）或显式 UTF-8 BOM 二选一并在 README 注明。",
+    "扫描逻辑、`np02-spec.json`、输入索引、`inventory.json`/`gap.json` 字段与输出格式不变：用同仓库同输入重跑，计数与 2026-11-04 清单一致（100/96/3/1/77/88/12/88/9/701/701/697/44/7/5，rows 100 / gaps 44）。",
+    "只改这两个脚本（必要时含其说明）；`src/`、`tests/`、判据/容差/参考/fixtures 零改动；不改上游 pin/输入路径。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "scripts/np02-evidence/np02-evidence.ps1",
+      "scripts/np02-evidence/np02-lib.ps1"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "QA 2026-11-04 登记（Chief 2026-11-04 批复：ASCII/BOM 硬化小卡批准，同 prepare 先例）。与 `2026-11-02-prepare-scripts-bom-hardening` 同类；本次回执重算已用 BOM 临时副本绕过，仓库脚本未硬化。",
+  "revision": {
+    "before": "46a88d99228937134f22b12007d07f02bd05f61d",
+    "after": null
+  },
+  "created_at": "2026-11-04T04:35:00.000Z",
+  "updated_at": "2026-11-04T04:35:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP02 通过",
+        "精度达标",
+        "上游等价"
+      ]
+    }
+  ]
+}

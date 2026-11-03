@@ -4,18 +4,22 @@
 //! 本测试不给出 NP02 通过结论；它只保证已登记的 Windows 单平台证据清单不被静默退化：
 //!
 //! 1. **计数棘轮**：`docs/development-evidence/np02-evidence/inventory.json` 的 `counts` 必须与
-//!    本测试钉住的快照完全一致（88 条已实现路径 / 84 内核 / 3 冻结链 / 1 MathDx 路线 /
-//!    88 有证据 / 0 缺失 / 701 回执 / 32 缺口项 …）。清单数字变化必须由人显式更新这里，
-//!    不允许证据或缺口在无人注意时“消失”。
+//!    本测试钉住的快照完全一致（100 条已实现路径 / 96 内核 / 3 冻结链 / 1 MathDx 路线 /
+//!    88 有证据 / 12 缺失 / 88% 覆盖 / 9 漂移 / 701 回执 / 697 实体 / 44 缺口 …）。清单数字
+//!    变化必须由人显式更新这里，不允许证据或缺口在无人注意时"消失"。
 //! 2. **指针可解析**：每一行的 `source.path`（若非空）与 `artifact.evidence_paths` 每一项
 //!    都必须指向仓内存在的文件；不允许把不存在的路径写成证据。
-//! 3. **状态词表**：`evidence_state` 只能是 `verified` / `source-drift` / `derived`（9 条已知漂移
-//!    按用户 2026-10-24 裁决 B 归档，不重采不重基线）；`compile.precision_gate` 只允许
-//!    `f32-physics`。
+//! 3. **状态词表**：`evidence_state` 只能是 `verified` / `source-drift` / `derived` / `missing`
+//!    （9 条已知漂移按用户 2026-10-24 裁决 B 归档，不重采不重基线；`missing` 是 2026-11-04 重算
+//!    新增的 12 个未采集回执内核行）；`compile.precision_gate` 只允许 `f32-physics`。
 //! 4. **上游 pin**：MJWarp `71da24d…`、Warp `ffa038b1…` 两个冻结提交必须写在清单里。
 //!
+//! 更新历史：2026-11-04 `2026-11-03-precision-np02-receipt-rehash` 重算后同步快照
+//! （旧值 88/84/88/0/100%/9/701/650/32 存 `docs/development-evidence/np02-evidence/history/`）。
+//!
 //! 本测试不覆盖：重新跑 np02 扫描工具（它需要 `target/mjwarp-parallel` 上游 checkout，
-//! 仓库瘦身后不在仓）、回执文件哈希重算、PTX 实体哈希；也不宣称 NP02 通过、不宣称双平台。
+//! 仓库瘦身后不在仓；2026-11-04 曾人工+工具重算一次，见 `np02-evidence/rehash-2026-11-04/`）、
+//! 回执文件哈希重算、PTX 实体哈希；也不宣称 NP02 通过、不宣称双平台。
 //! 零 GPU、零网络、只读文件。
 
 use std::fs;
@@ -49,18 +53,18 @@ fn np02_counts_match_the_registered_snapshot() {
     let inventory = load_inventory();
     let counts = &inventory["counts"];
     let expected: [(&str, f64); 14] = [
-        ("windows_implemented_paths", 88.0),
-        ("kernel_rows", 84.0),
+        ("windows_implemented_paths", 100.0),
+        ("kernel_rows", 96.0),
         ("frozen_chain_rows", 3.0),
         ("mathdx_route_rows", 1.0),
         ("evidence_present", 88.0),
-        ("evidence_missing", 0.0),
-        ("coverage_pct_evidence", 100.0),
+        ("evidence_missing", 12.0),
+        ("coverage_pct_evidence", 88.0),
         ("source_identity_drift", 9.0),
         ("receipts_total", 701.0),
         ("receipts_file_hash_ok", 701.0),
-        ("receipt_ptx_entities_verified", 650.0),
-        ("gap_items", 32.0),
+        ("receipt_ptx_entities_verified", 697.0),
+        ("gap_items", 44.0),
         ("unimplemented", 7.0),
         ("undetermined", 5.0),
     ];
@@ -75,13 +79,13 @@ fn np02_counts_match_the_registered_snapshot() {
     }
     assert_eq!(
         inventory["rows"].as_array().expect("rows").len(),
-        88,
-        "证据清单行数必须为 88"
+        100,
+        "证据清单行数必须为 100"
     );
     assert_eq!(
         inventory["gaps"].as_array().expect("gaps").len(),
-        32,
-        "缺口项数必须为 32"
+        44,
+        "缺口项数必须为 44"
     );
 }
 
@@ -115,8 +119,8 @@ fn np02_evidence_pointers_resolve() {
         }
     }
     assert!(
-        checked >= 158,
-        "可解析证据指针只数到 {checked}，少于已登记的 158（证据不得被静默移除）"
+        checked >= 255,
+        "可解析证据指针只数到 {checked}，少于已登记的 255（证据不得被静默移除）"
     );
 }
 
@@ -128,8 +132,8 @@ fn np02_states_and_pins_stay_on_the_registered_vocabulary() {
         let name = row["name"].as_str().unwrap_or("<unnamed>");
         let state = row["evidence_state"].as_str().expect("evidence_state");
         assert!(
-            matches!(state, "verified" | "source-drift" | "derived"),
-            "{name} 的 evidence_state={state} 不在登记词表（verified/source-drift/derived）内"
+            matches!(state, "verified" | "source-drift" | "derived" | "missing"),
+            "{name} 的 evidence_state={state} 不在登记词表（verified/source-drift/derived/missing）内"
         );
         let route = row["route"].as_str().expect("route");
         assert!(

@@ -1,0 +1,76 @@
+{
+    "task_id":  "2026-11-03-precision-np02-receipt-rehash",
+    "generated_at":  "2026-11-04T04:35:35+08:00",
+    "executed_by":  "QA",
+    "base_head":  "7c0bb8f97455aa3faeaa9822f5e87db3f6febeff",
+    "tool":  "scripts/np02-evidence/np02-evidence.ps1",
+    "command":  "powershell -NoProfile -ExecutionPolicy Bypass -File \u003cBOM copy of scripts/np02-evidence/np02-evidence.ps1\u003e -ProductRoot D:\\Rust\\mjwarp-rs -OutDir target\\np02-out-final",
+    "run":  {
+                "exit_code":  0,
+                "elapsed_s":  "2.4",
+                "scan_log":  "docs/development-evidence/np02-evidence/rehash-2026-11-04/scan.log"
+            },
+    "pins":  {
+                 "mjwarp":  "71da24d956378a87a703b6e1442b13aec0c4ac29",
+                 "warp":  "ffa038b1adf3927a8e893d4536f1a7562f17d749",
+                 "verified_by_tool":  true,
+                 "warp_checkout_recovered_by":  "git clone --depth 1 --branch v1.15.0 https://github.com/NVIDIA/warp target/research/warp"
+             },
+    "tool_patch":  {
+                       "reason":  "PowerShell 5.1 unwraps single-element arrays from `if` expressions, so $x.Count is $null; PowerShell 7 keeps the array. This mis-set artifact.receipts/t4_variants to null (20 rows) and skipped the captured-.cu containment fallback for 6 parametric/concat units.",
+                       "changes":  [
+                                       "$evidence = if ($receiptByEntry.ContainsKey($k)) { @($receiptByEntry[$k]) } else { @() }  -\u003e  $evidence = @(if ($receiptByEntry.ContainsKey($k)) { $receiptByEntry[$k] } else { @() })",
+                                       "$t4 = if ($t4ByEntry.ContainsKey($k)) { @($t4ByEntry[$k]) } else { @() }  -\u003e  $t4 = @(if ($t4ByEntry.ContainsKey($k)) { $t4ByEntry[$k] } else { @() })"
+                                   ],
+                       "scope":  "two lines only; scan logic / spec / input indexes / output fields unchanged; both PS 5.1 and PS 7 now produce the same arrays"
+                   },
+    "counts":  {
+                   "windows_implemented_paths":  100,
+                   "kernel_rows":  96,
+                   "frozen_chain_rows":  3,
+                   "mathdx_route_rows":  1,
+                   "evidence_present":  88,
+                   "evidence_missing":  12,
+                   "evidence_verified":  77,
+                   "source_identity_drift":  9,
+                   "coverage_pct_evidence":  88,
+                   "coverage_pct_source_identity":  77,
+                   "receipts_total":  701,
+                   "receipts_file_hash_ok":  701,
+                   "receipt_ptx_entities_verified":  697,
+                   "receipt_ptx_entities_missing":  4,
+                   "gap_items":  44,
+                   "unimplemented":  7,
+                   "undetermined":  5,
+                   "rows":  100,
+                   "gaps":  44,
+                   "resolvable_evidence_pointers":  255
+               },
+    "entity_restore":  {
+                           "receipts_with_sibling_ptx_before":  650,
+                           "receipts_with_sibling_ptx_after":  697,
+                           "restored_files":  47,
+                           "restored_bytes":  1073875,
+                           "unrecoverable_by_filename":  4,
+                           "method":  "copy in-repo same-name same-sha entity to the receipt sibling path \u003centry\u003e-\u003cptxSha256\u003e.ptx; receipts have no path field so pointer edit is not possible; no content fabricated (sha verified before/after)",
+                           "detail":  "docs/development-evidence/np02-evidence/rehash-2026-11-04/missing-51-classification.json"
+                       },
+    "inventory_serialization":  {
+                                    "generator":  "scripts/np02-evidence/np02-evidence.ps1 (Windows PowerShell 5.1)",
+                                    "note":  "PS 5.1 ConvertTo-Json formatting differs from the committed PS 7 style; inventory.json/gap.json were re-serialized with a validated 2-space serializer. Round-trip proof: serializing the pre-change committed inventory.json with this serializer reproduced it byte-for-byte (223792 chars, equal)."
+                                },
+    "superseded_first_run":  {
+                                 "numbers":  "evidence_verified 71 / source_identity_drift 15 / gap_items 50",
+                                 "verdict":  "VOID - artifact of the PowerShell 5.1 array-unwrapping bug above; not committed as facts"
+                             },
+    "gate":  {
+                 "targeted_test":  "cargo test --locked --test precision_evidence_gate",
+                 "result":  "PASS 2026-11-04: cargo test --locked --test precision_evidence_gate -\u003e 3 passed / 0 failed"
+             },
+    "history":  "history/inventory-2026-10-24.json, history/gap-2026-10-24.json, history/README-2026-10-24.md (not to be overwritten)",
+    "boundaries":  [
+                       "zero GPU; src/, fixtures/, criteria/tolerances/references unchanged",
+                       "no reference re-capture; NP02 is NOT claimed as passed; no dual-platform claim",
+                       "repo scripts were UTF-8 without BOM + CJK (PS 5.1 parse fails); scan executed via a temporary BOM copy in target/ (repo scripts not re-encoded in this task; hardening card registered separately)"
+                   ]
+}

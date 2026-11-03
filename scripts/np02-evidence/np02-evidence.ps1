@@ -117,7 +117,7 @@ foreach ($unit in $sourceUnits) {
     foreach ($k in ($unit.kernels | Sort-Object -Unique)) {
         if ($seenKernels.ContainsKey($k)) { throw "内核名重复：$k（$($unit.relFile) 与 $($seenKernels[$k])）" }
         $seenKernels[$k] = $unit.relFile
-        $evidence = if ($receiptByEntry.ContainsKey($k)) { @($receiptByEntry[$k]) } else { @() }
+        $evidence = @(if ($receiptByEntry.ContainsKey($k)) { $receiptByEntry[$k] } else { @() })
         $templateInstances = @()
         $renamedFrom = @()
         if ($evidence.Count -eq 0) {
@@ -132,7 +132,7 @@ foreach ($unit in $sourceUnits) {
                 if ($renamedFrom.Count -gt 0) { $evidence = $renamedFrom }
             }
         }
-        $t4 = if ($t4ByEntry.ContainsKey($k)) { @($t4ByEntry[$k]) } else { @() }
+        $t4 = @(if ($t4ByEntry.ContainsKey($k)) { $t4ByEntry[$k] } else { @() })
         $ptxVerified = @($evidence | Where-Object { $_.ptxEntityOk })
         $srcMatch = @($evidence | Where-Object { $_.sourceSha256 -eq $unit.sha256 }).Count -gt 0
         $identityBasis = if ($srcMatch) { 'source-sha256（编译源 = 当前 const 源）' } else { 'source-sha256-mismatch' }
