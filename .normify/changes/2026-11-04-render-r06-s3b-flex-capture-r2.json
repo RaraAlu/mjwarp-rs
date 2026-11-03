@@ -5,7 +5,7 @@
     "zh": "R06-S3b①：flex 渲染参考离线采集（capture_render_flex.py + scene-flex fixture + provenance；采集允许秒级短 CUDA）",
     "en": "R06-S3b(1) r2: offline flex render reference capture (script, scene-flex fixture, provenance; short CUDA allowed)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "S3a/S3c 已出 flex 设备实现，本片做**离线参考采集**：新增 `scripts/authoring/capture_render_flex.py`（形态照 `capture_render_{hfield,perworld,sdf,shadow}.py`）与 `fixtures/render-bvh/scene-flex/` 首版场景（1D flex + 刚性几何共存；2D/3D 只留机制不进首窗），产出 rgb/depth/seg 参考与 provenance。**口径更正（Arch 2026-11-04，Backend 报）**：`mjw.render` 必须 CUDA 设备、既有四个 capture 脚本都是 `want_cuda_device=True`，所以原卡面「零 GPU」是错的——本片允许**秒级短 CUDA**（同 shadow 先例），用前在开发团队群报一句即可；**验收窗口**仍归 Chief，本片不做验收、不排队占窗、不产参考比对。前置依赖：`2026-11-04-render-r06-scene-parity-flex-fields`（parity 工具先能输出 flex 字段，`model-{312,315}.json` 才有 flex 等价证据）。",
     "en": "Capture flex render references offline with one short CUDA run (no validation window); model parity tooling must land first."
@@ -14,7 +14,7 @@
   "acceptance": [
     "**前置**：`2026-11-04-render-r06-scene-parity-flex-fields` 已收口——`fixtures/render-bvh/scene-flex/model-{312,315}.json` 必须含 flex 数组（`flex_dim/flex_radius/flex_vert*/flex_edge*/flex_elem*` 等），否则 S3b② replay 前提不成立。",
     "**采集脚本**：`scripts/authoring/capture_render_flex.py` 进仓，离线 authoring：只读 pinned upstream（`target/mjwarp-parallel/upstream`，**editable 安装**，禁 PyPI 轮子——PyPI 3.15.0 与 pinned commit 有 5 个 `.py` 逐字节不一致）与 `fixtures/render-bvh/scene-flex/`，不启动在制品测试。输出形态与既有采集脚本一致：`rgb/depth/seg.npz` + `state.npz`（含 `qpos/geom_xpos/geom_xmat/light_xpos/light_xdir` **及 `flexvert_xpos`**，后者是 flex replay 必需状态）+ `capture.json`（flex provenance：`bvh_nflexgeom`/`flex_dim`/`flex_geom_flexid`/`flex_geom_edgeid`/pinned commit/DLL sha/命令）；`--repeat 2` 两次运行字节一致；采集前后 fixtures sha 对照。",
-    "**GPU 口径**：允许秒级短 CUDA（`want_cuda_device=True`，同 shadow 先例）；用前在「开发团队」群报一句「开始 flex capture（短 GPU）」；**不做验收窗口、不排队占窗、零参考比对**；跑完即释放，不与其他 GPU 任务并行。",
+    "**短 CUDA 五条规则（Chief 2026-11-04 定死，逐条执行并留证）**：① 跑前确认 GPU 空闲——`compute apps filtered=0`、util<40，记录 free/util/temp；② **单次连续 GPU ≤ 2 分钟**，同一时间不跑其他 GPU 任务；③ **前后各在开发团队群报一句**（start / done + 数字）；④ **零参考比对、不进验收链**；**超 2 分钟或需要多次跑 → 按四前提走 Chief go**（基线 + 涉及测试 exe 时重冻）；⑤ 跑完**立即释放 GPU**。",
     "**场景**：`fixtures/render-bvh/scene-flex/` 首版 = **1D flex + 刚性几何共存**最小场景（2D/3D 只留机制），含 `scene.xml`、`model-{312,315}.json`、`provenance.json`、`reference/`。**tie-break 前提**：flex 近共面平局永不赢（上游 `hit_geom_id=-2`、设备 `candidate_id=-2`），采集场景不得放置近共面/贴脸 flex 边、不得依赖平局结果；flex 与刚性几何 world 隔离断言成立。",
     "**参考判读口径（S3a 交付口径）**：flex 命中 `geom_id=-2`、`mesh_id=flexid`、seg `(flexid, 9)`（`mjOBJ_FLEX=9`，只首样本写）、depth 同式 `dist * -ray_dir_local_cam[2]`、颜色取 `flex_rgba[mesh_id]`。",
     "**边界**：本片不做验收窗口、不重冻守卫、不写判据/容差、不改 `src/`（零设备改动）。",
@@ -35,14 +35,34 @@
     "priority": 74
   },
   "note": "Arch 2026-11-04 重登记（原卡 `2026-11-04-render-r06-s3b-flex-capture` 已 abandon）：① 原卡「零 GPU」口径错误（`mjw.render` 必须 CUDA），改「允许秒级短 CUDA + 用前群内报一句 + 不做验收窗口」；② 前置 parity 工具卡。在途卡冻结 scope 无法原地改，故重登记。`unchanged` 只 `src/render/kernel/cuda/`（本片要写 fixtures）；跑门禁前先跑 `scripts/validate/normalize-evidence-eol.ps1`。",
-  "revision": { "before": "d71e3e427ebb2e61bf1be00e71566d67c4cf79fd", "after": null },
+  "revision": {
+    "before": "7a5fc76d8c0a4a9a526f725e824307300c085e9f",
+    "after": null
+  },
   "created_at": "2026-11-04T07:26:00.000Z",
-  "updated_at": "2026-11-04T07:26:00.000Z",
+  "updated_at": "2026-11-03T22:55:25.361Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/"
+      ]
+    }
   ]
 }
