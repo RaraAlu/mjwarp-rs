@@ -220,6 +220,8 @@ pub fn validate_topology_against_render(
     topology: &FlexTopologyFields,
     render: &FlexRenderFields,
 ) -> Result<(), InputError> {
+    // R06-S2c 修正（QA `3b8e0d7f`）：先校验 render 侧长度，短向量不得进入按 flex 索引的判定。
+    render.validate()?;
     topology.validate()?;
     if topology.nflex != render.nflex {
         return Err(InputError::LengthMismatch {
@@ -405,6 +407,32 @@ mod tests {
         let mut broken = fields.clone();
         broken.flex_elemadr = vec![0, 2];
         assert!(validate_topology_against_render(&broken, &render_for(&[2, 3])).is_err());
+    }
+
+    #[test]
+    fn rejects_short_render_vectors_before_indexing() {
+        let fields = snapshot().into_fields().unwrap();
+        // 短 render 向量在入口被拦（不进按 flex 索引判定），错误含具体字段/期望/实际。
+        let mut render = render_for(&[2, 3]);
+        render.flex_dim.pop();
+        assert!(matches!(
+            validate_topology_against_render(&fields, &render),
+            Err(InputError::LengthMismatch {
+                field: "flex_dim",
+                expected: 2,
+                actual: 1,
+            })
+        ));
+        let mut render = render_for(&[2, 3]);
+        render.flex_rgba.pop();
+        assert!(matches!(
+            validate_topology_against_render(&fields, &render),
+            Err(InputError::LengthMismatch {
+                field: "flex_rgba",
+                expected: 8,
+                actual: 7,
+            })
+        ));
     }
 
     #[test]

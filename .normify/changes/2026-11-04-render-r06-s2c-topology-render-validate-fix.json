@@ -5,7 +5,7 @@
     "zh": "R06-S2c 修正：validate_topology_against_render 先校验 render 侧长度（消 panic 风险）",
     "en": "R06-S2c fix: validate render-side lengths before joint width checks (removes a panic risk)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "QA 对 S2c 的复核（`3b8e0d7f`，PASS-with-observations）报出：`validate_topology_against_render` 先调 `topology.validate()`，但**没有先校验 render 侧长度**（未调 `render.validate()`），render 短向量（如 `render.flex_dim.len() != nflex`）会在后续索引 panic。当前唯一调用方是单测，但 **S3c 正式接线前必须补**，否则违反「不 panic」。修法：函数入口先 `FlexRenderFields::validate()?`（或等价显式长度检查），补一条短 render 向量单测；不改判据/容差/fixtures、零 GPU。",
     "en": "Validate render-side fields before joint width checks so short render vectors return an explicit error instead of panicking; add a unit test."
@@ -19,20 +19,25 @@
     "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 只增不减）。"
   ],
   "schedule": {
-    "depends_on": ["2026-11-04-render-r06-s2c-flex-shell-data"],
+    "depends_on": [
+      "2026-11-04-render-r06-s2c-flex-shell-data"
+    ],
     "phase": "P8-渲染与BVH",
     "owner": "Backend",
-    "files": ["src/io/flex/topology.rs"],
+    "files": [
+      "src/io/flex/topology.rs"
+    ],
     "resources": [],
     "priority": 77
   },
   "note": "Arch 2026-11-04 登记（QA 观察，来源 `3b8e0d7f`；QA 建议写进验收：S3c 调用点须先 render.validate()、不得走测试路径绕过）。为什么单独立卡：S3c 是设备面，本修正落在 io 数据层，跨 scope；且属「不 panic」硬约束。修完 QA 抽验一条即可，不重开 S2c 卡（已 verified）。",
   "revision": {
-    "before": "eb6ddf20af970ae3bbc3423871c0249ad32b58b8",
+    "before": "8584977417b6b714baf7930b470d37c4e2e02c92",
     "after": null
   },
   "created_at": "2026-11-03T23:55:00.000Z",
-  "updated_at": "2026-11-03T23:55:00.000Z",
+  "updated_at": "2026-11-03T22:35:10.265Z",
+  "closed_at": "2026-11-03T22:35:10.265Z",
   "checks": [
     {
       "kind": "gate",
