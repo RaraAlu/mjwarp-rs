@@ -5,7 +5,7 @@
     "zh": "R06-S2：flex 宿主通道——9 个数组 + bvh_nflexgeom 填真值，两处 1-D 占位改 2-D（不构成 ABI 变更）",
     "en": "R06-S2: host flex channel - fill the nine arrays and bvh_nflexgeom, change two 1-D placeholders to 2-D (not an ABI change)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "S0 对表已确认：上游 `_render_megakernel` 的 9 个 flex 形参全部已在 81 槽内（`flex_vertadr`/`flex_edge`/`flex_radius`/`flexvert_xpos_in`/`flex_bvh_id`/`flex_group_root`/`flex_rgba`/`flex_geom_flexid`/`flex_geom_edgeid`），`bvh_nflexgeom` 标量也在槽内。本片把宿主侧 flex 数据接进实参：从 model/context 取 flex 顶点数、边、半径、顶点世界位姿、rgba、geom→flex/edge 映射，替换现有 1 元素占位；`flex_group_root` 由 1-D 改 2-D `[nworld, nflex]`、`flexvert_xpos` 由 1-D 改 2-D `[nworld, nflexvert]`。**形状从 1-D 占位改成 2-D 属实参填充，81 槽的槽数/槽类型不变，不构成 ABI 变更**（S0 证据 r06-flex-precheck 已留档）。本片不改设备行为、不生成参考、不宣称 flex 渲染可用。",
     "en": "Wire the host flex data into the existing nine slots and the bvh_nflexgeom scalar, replacing 1-element placeholders; the two 1-D placeholders become 2-D. Slot count and slot types are unchanged, so this is not an ABI change (S0 evidence recorded)."
@@ -27,6 +27,7 @@
     "files": [
       "src/render/kernel/megakernel.rs",
       "src/render/kernel/flex_channel.rs",
+      "src/render/kernel/flex_channel/tests.rs",
       "src/render/kernel/megakernel_uploads.rs",
       "src/render/kernel/megakernel_args.rs",
       "docs/development-evidence/render-bvh/r06-s2-flex-host-channel/"
@@ -35,14 +36,36 @@
     "priority": 73
   },
   "note": "Arch 2026-11-04 登记（R06 第二实现片）。Chief 要求：把「1-D 占位改 2-D 属实参填充、**不构成 ABI 变更**」写进本卡 acceptance，免得后续被误判为改 ABI。依赖 S1a 先把实参装配块拆出来。2026-11-04 修订（Chief 裁决方案 A，Backend 核实 model/context 无 render 所需 flex 数据：render.rs 零 flex 命中、flex_radius 无探针导出）：本片只建显式宿主通道（`FlexHostInputs` + `render_with_flex` + 校验 + 单测），真实数据源另立 S2b；scope 按 Backend 核实补全为 megakernel.rs / 新文件 flex_channel.rs / megakernel_uploads.rs / megakernel_args.rs / 证据目录。新文件落地后需 `normify module source <kernel 所属模块> --add src/render/kernel/flex_channel.rs` 登记模块源。",
-  "revision": { "before": "bedf3c318be0865d442cd5aaad3ab2046a8ca92f", "after": null },
+  "revision": {
+    "before": "46a88d99228937134f22b12007d07f02bd05f61d",
+    "after": null
+  },
   "created_at": "2026-11-04T03:05:00.000Z",
-  "updated_at": "2026-11-04T03:05:00.000Z",
+  "updated_at": "2026-11-03T20:33:58.381Z",
+  "closed_at": "2026-11-03T20:33:58.381Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/",
+        "fixtures/"
+      ]
+    }
   ]
 }

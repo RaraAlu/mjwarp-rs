@@ -8,7 +8,9 @@
 //! - `MEGAKERNEL_SOURCE` 与 CUDA 源拼接不变（本文件不参与内核源码拼接）；
 //! - `MEGAKERNEL_SLOTS` 81 槽签名不变；
 //! - 未用槽仍用 1 元素占位（渲染 ABI 拒绝零长数组）；
-//! - 上传顺序与错误信息保持原样（`LauncherError` 路径不变）。
+//! - 上传顺序与错误信息保持原样（`LauncherError` 路径不变）；
+//! - R06-S2：flex 家族改由 `flex_channel.rs` 上传（`None`/空通道仍落原 1 元素占位，
+//!   零 flex 场景设备输出不变；实参形状在装配段按通道计数给出）。
 
 use crate::model::render::RenderFields;
 use crate::render::ImageOutput;
@@ -17,6 +19,7 @@ use crate::render::kernel::cast::{MeshDevice, ModelRenderArrays, SceneDevice};
 use crate::runtime::launcher::LauncherError;
 use crate::runtime::{TransferBuffer, TransferSession};
 
+use super::flex_channel::{FlexHostInputs, FlexUploads, upload_flex_arrays};
 use crate::render::kernel::launch::Texture2dArray;
 use crate::render::kernel::megakernel_arrays::{
     bool_words, flags, floats, ints, pack_blob, reals, span_addr, upload,
@@ -70,6 +73,8 @@ pub(super) struct UploadInputs<'a> {
     pub(super) scale_constants: &'a [f32],
     /// R05-S2：hfield_bvh_id 槽值（长度 nhfield；空切片 → 上传 1 个 u64::MAX 哨兵）。
     pub(super) hfield_bvh_ids: &'a [u64],
+    /// R06-S2：宿主 flex 通道（`None` = S7b2 等价占位；真实数据源接线归 S2b）。
+    pub(super) flex: Option<&'a FlexHostInputs<'a>>,
     /// 方案 L：`Some(world)` 时把 rgb/depth/seg 的 adr 平移到该 world 区段（`world × pitch`）。
     pub(super) adr_world: Option<usize>,
 }
@@ -102,15 +107,8 @@ pub(super) struct MegakernelUploads {
     pub(super) light_specular: TransferBuffer<f32>,
     pub(super) light_xpos: TransferBuffer<f32>,
     pub(super) light_xdir: TransferBuffer<f32>,
-    pub(super) flex_vertadr: TransferBuffer<i32>,
-    pub(super) flex_edge: TransferBuffer<i32>,
-    pub(super) flex_radius: TransferBuffer<f32>,
-    pub(super) flexvert_xpos: TransferBuffer<f32>,
-    pub(super) flex_bvh_id: TransferBuffer<u32>,
-    pub(super) flex_group_root: TransferBuffer<i32>,
-    pub(super) flex_rgba: TransferBuffer<f32>,
-    pub(super) flex_geom_flexid: TransferBuffer<i32>,
-    pub(super) flex_geom_edgeid: TransferBuffer<i32>,
+    /// R06-S2：flex 家族（9 个缓冲 + `bvh_nflexgeom` 口径计数）；占位/真值由通道决定。
+    pub(super) flex: FlexUploads,
     /// R05-S2：hfield_bvh_id 槽（slot 64，声明 Array(U64)）。TransferElement 无 u64
     /// 实现，故以 u32 字数对（低/高 32 位小端）承载 u64 值；hfield_bvh_count 为元素数。
     pub(super) hfield_bvh_id: TransferBuffer<u32>,
@@ -230,15 +228,9 @@ pub(super) fn upload_megakernel_arrays(
     let light_xpos = upload(session, inputs.light_xpos)?;
     let light_xdir = upload(session, inputs.light_xdir)?;
 
-    let flex_vertadr = upload(session, &[0i32])?;
-    let flex_edge = upload(session, &[0i32, 0])?;
-    let flex_radius = upload(session, &[0.0f32])?;
-    let flexvert_xpos = upload(session, &[0.0f32; 3])?;
-    let flex_bvh_id = upload(session, &[0u32, 0])?;
-    let flex_group_root = upload(session, &[0i32])?;
-    let flex_rgba = upload(session, &[0.0f32; 4])?;
-    let flex_geom_flexid = upload(session, &[0i32])?;
-    let flex_geom_edgeid = upload(session, &[0i32])?;
+    // R06-S2：flex 家族（9 个缓冲 + 计数）。`None`/空通道 → 与 S7b2 等价的 1 元素占位；
+    // 两处 2-D 槽（`flexvert_xpos`/`flex_group_root`）形状由实参装配段按通道计数给出。
+    let flex = upload_flex_arrays(session, resolved.nworld, inputs.flex)?;
     // R05-S2：hfield_bvh_id 槽（slot 64）。无 hfield geom → 1 个 u64::MAX 哨兵占位；
     // 有 hfield 时长度 = nhfield、值为 blob 内 mesh 索引（未用项 u64::MAX）。内核按哨兵跳过。
     // 声明是 Array(U64)，但 TransferElement 无 u64 实现（且 u64 类型不在本卡 scope），
@@ -392,15 +384,7 @@ pub(super) fn upload_megakernel_arrays(
         light_specular,
         light_xpos,
         light_xdir,
-        flex_vertadr,
-        flex_edge,
-        flex_radius,
-        flexvert_xpos,
-        flex_bvh_id,
-        flex_group_root,
-        flex_rgba,
-        flex_geom_flexid,
-        flex_geom_edgeid,
+        flex,
         hfield_bvh_id,
         hfield_bvh_count,
         mesh_bvh_id,

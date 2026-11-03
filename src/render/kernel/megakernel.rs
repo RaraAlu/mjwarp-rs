@@ -13,6 +13,8 @@
 //!   与 pinned 3.15 `mjwarp.forward` 位型逐位相等由夹具 `light_data_check` 断言。
 //! - depth/seg 语义与 S7b1 完全一致：S7b1 的 120,000/120,000 位等是 S7b2 回归门。
 //! - 编译一律走 `RenderKernel::compile`（A′ 渲染门禁 `f32-render`，无旁路）。
+//! - R06-S2：`render_with_flex` 接受显式宿主 flex 通道（[`FlexHostInputs`]）；`None` 与
+//!   `render` 逐字节等价，设备侧 flex 分支与 81 槽 ABI 均不变（`.cu` 零改动）。
 use crate::model::render::RenderFields;
 use crate::render::camera::CameraModel;
 use crate::render::context::RenderContext;
@@ -35,11 +37,27 @@ use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 #[path = "megakernel_uploads.rs"]
 mod megakernel_uploads;
 
+// R06-S2：宿主 flex 通道（`FlexHostInputs` + 校验 + 上传）以 `#[path]` 挂在本文件下
+// （同款先例；`megakernel.rs` 450 死线、`megakernel_uploads.rs` 480 行都塞不下）。
+#[path = "flex_channel.rs"]
+mod flex_channel;
+pub use flex_channel::FlexHostInputs;
+
 // R06-S1a：81 槽实参装配段以 `#[path]` 在本文件内声明为子模块（卡片 scope；uploads 同款先例）。
 #[path = "megakernel_args.rs"]
 mod megakernel_args;
 
 const BLOCK: u32 = 256;
+
+/// 一次发射的可选通道（R06-S2 抽参以守 clippy 参数上限）：方案 L 的逐 world 选择与宿主 flex 通道。
+///
+/// 两者都为 `None` 时与 S7b2/S7b3 的全 world 单次发射逐字节等价。
+struct RenderPass<'a> {
+    /// `Some(world)` = 逐 world 发射（方案 L v1）；`None` = 全 world 一次发射。
+    world: Option<usize>,
+    /// 宿主 flex 通道；`None` 与 S7b2 等价（S7b2 的 1 元素占位）。
+    flex: Option<&'a FlexHostInputs<'a>>,
+}
 
 /// S7b3 渲染执行器；持有 81 槽 megakernel 与 AA 解析内核（模块缓存）与传输会话。
 pub struct MegakernelRenderer {
@@ -82,7 +100,41 @@ impl MegakernelRenderer {
         camera_poses: &[CameraPose],
         rays: &RayBuffer,
     ) -> Result<(), LauncherError> {
-        self.render_impl(context, fields, model, camera_poses, rays, None)
+        self.render_impl(
+            context,
+            fields,
+            model,
+            camera_poses,
+            rays,
+            RenderPass {
+                world: None,
+                flex: None,
+            },
+        )
+    }
+
+    /// R06-S2：带显式宿主 flex 通道发射（`None` 与 [`Self::render`] 逐字节等价）。
+    ///
+    /// 通道只做宿主校验 + 上传 + 实参形状口径；设备侧 flex 分支留 S3（`.cu` 零改动），
+    /// model/context 的真实数据源归 R06-S2b。逐 world 入口（[`Self::render_world`]）本片
+    /// 不支持 flex 通道（留 L v2/K）。
+    pub fn render_with_flex(
+        &self,
+        context: &RenderContext,
+        fields: &RenderFields,
+        model: &CameraModel,
+        camera_poses: &[CameraPose],
+        rays: &RayBuffer,
+        flex: Option<&FlexHostInputs<'_>>,
+    ) -> Result<(), LauncherError> {
+        self.render_impl(
+            context,
+            fields,
+            model,
+            camera_poses,
+            rays,
+            RenderPass { world: None, flex },
+        )
     }
 
     /// 单 world 发射（per-world 方案 L）：发射维 `launch_worlds=1`，相机只喂该 world 行，
@@ -96,7 +148,17 @@ impl MegakernelRenderer {
         rays: &RayBuffer,
         world: usize,
     ) -> Result<(), LauncherError> {
-        self.render_impl(context, fields, model, camera_poses, rays, Some(world))
+        self.render_impl(
+            context,
+            fields,
+            model,
+            camera_poses,
+            rays,
+            RenderPass {
+                world: Some(world),
+                flex: None,
+            },
+        )
     }
 
     fn render_impl(
@@ -106,8 +168,9 @@ impl MegakernelRenderer {
         model: &CameraModel,
         camera_poses: &[CameraPose],
         rays: &RayBuffer,
-        world: Option<usize>,
+        pass: RenderPass<'_>,
     ) -> Result<(), LauncherError> {
+        let RenderPass { world, flex } = pass;
         let resolved = context.resolved();
         let layout = &resolved.output;
         let nsamples = layout.nsamples;
@@ -266,6 +329,8 @@ impl MegakernelRenderer {
             scale_constants: &scale_constants,
             // R05-S2：无 hfield geom 时为空切片（上传侧落 1 个 `u64::MAX` 哨兵占位）。
             hfield_bvh_ids: hfield.as_ref().map_or(&[], |device| device.bvh_ids()),
+            // R06-S2：宿主 flex 通道（`None` = S7b2 等价占位；数据源接线归 S2b）。
+            flex,
             // 方案 L：单 world 发射时把输出 adr 平移到该 world 的区段（`world × pitch`）。
             adr_world: world,
         })?;

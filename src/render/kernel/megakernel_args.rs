@@ -11,6 +11,10 @@ use crate::render::kernel::world_arrays::{
 };
 use crate::runtime::launcher::{LaunchBounds2, LauncherError, RenderArg, RenderElem, RenderScalar};
 
+use super::flex_channel::{
+    flex_edge_shape, flex_geom_shape, flex_group_root_shape, flex_model_shape, flex_vertadr_shape,
+    flexvert_xpos_shape,
+};
 use super::megakernel_uploads::{MegakernelUploads, mesh_slot_shape};
 
 /// 81 槽实参装配的输入视图（原 `render_impl` 中段前已算好的局部量）。
@@ -38,6 +42,8 @@ pub(super) fn push_megakernel_args(
 ) -> Result<(), LauncherError> {
     let u = inputs.uploads;
     let context = inputs.context;
+    // R06-S2：flex 家族计数（空通道全 0 → 各槽 `max(1)` 占位形状；`bvh_nflexgeom` 标量同源）。
+    let flex_counts = u.flex.counts;
     let nrender = inputs.nrender;
     let ngeom = inputs.ngeom;
     let nworld = inputs.nworld;
@@ -83,9 +89,22 @@ pub(super) fn push_megakernel_args(
     args.push(array(&u.light_ambient, RenderElem::Vec3, &shared_light)?);
     args.push(array(&u.light_diffuse, RenderElem::Vec3, &shared_light)?);
     args.push(array(&u.light_specular, RenderElem::Vec3, &shared_light)?);
-    args.push(array(&u.flex_vertadr, RenderElem::I32, &[1])?);
-    args.push(array(&u.flex_edge, RenderElem::Vec2I, &[1])?);
-    args.push(array(&u.flex_radius, RenderElem::F32, &[1])?);
+    // R06-S2：flex 家族按上游语义供数；空通道落 1 元素占位 + `max(1)` 形状口径。
+    args.push(array(
+        &u.flex.flex_vertadr,
+        RenderElem::I32,
+        &flex_vertadr_shape(flex_counts),
+    )?);
+    args.push(array(
+        &u.flex.flex_edge,
+        RenderElem::Vec2I,
+        &flex_edge_shape(flex_counts),
+    )?);
+    args.push(array(
+        &u.flex.flex_radius,
+        RenderElem::F32,
+        &flex_model_shape(flex_counts),
+    )?);
     args.push(array(
         &u.mesh_faceadr,
         RenderElem::I32,
@@ -114,12 +133,20 @@ pub(super) fn push_megakernel_args(
     args.push(array(&u.cam_xmat, RenderElem::Mat33, &camera_pose_dims)?);
     args.push(array(&u.light_xpos, RenderElem::Vec3, &shared_light)?);
     args.push(array(&u.light_xdir, RenderElem::Vec3, &shared_light)?);
-    args.push(array(&u.flexvert_xpos, RenderElem::Vec3, &[1])?);
+    // R06-S2：上游 `flexvert_xpos_in` 是 2-D `[nworld, nflexvert]`（1-D 占位改 2-D 属实参填充）。
+    args.push(array(
+        &u.flex.flexvert_xpos,
+        RenderElem::Vec3,
+        &flexvert_xpos_shape(nworld, flex_counts.nflexvert),
+    )?);
     args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(nrender)?)));
     // R09-S2b：第 40 槽（0-based `MEGAKERNEL_SLOTS[40]`）阴影总开关，值取 `use_shadows`。
     args.push(use_shadows_arg(inputs.use_shadows));
     args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(ngeom)?)));
-    args.push(RenderArg::Scalar(RenderScalar::I32(0)));
+    // R06-S2：`bvh_nflexgeom` 标量 = scene BVH flex 图元数（空通道 0，与 S7b2 一致）。
+    args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(
+        flex_counts.bvh_nflexgeom,
+    )?)));
     args.push(array(&u.cam_res, RenderElem::Vec2I, &[nrender])?);
     args.push(array(&u.cam_id_map, RenderElem::I32, &[nrender])?);
     args.push(array(&u.ray, RenderElem::Vec3, &[expected_rays])?);
@@ -133,8 +160,17 @@ pub(super) fn push_megakernel_args(
     args.push(array(&u.render_seg, RenderElem::Bool, &[nrender])?);
     args.push(RenderArg::Scalar(RenderScalar::U64(u.blob_addr)));
     args.push(array(&u.group_root, RenderElem::I32, &[1])?);
-    args.push(array(&u.flex_bvh_id, RenderElem::U64, &[1])?);
-    args.push(array(&u.flex_group_root, RenderElem::I32, &[1])?);
+    args.push(array(
+        &u.flex.flex_bvh_id,
+        RenderElem::U64,
+        &flex_model_shape(flex_counts),
+    )?);
+    // R06-S2：上游 `flex_group_root` 是 2-D `[nworld, nflex]`（1-D 占位改 2-D 属实参填充）。
+    args.push(array(
+        &u.flex.flex_group_root,
+        RenderElem::I32,
+        &flex_group_root_shape(nworld, flex_counts.nflex),
+    )?);
     args.push(array(&u.enabled_geom_ids, RenderElem::I32, &[ngeom])?);
     args.push(array(&u.mesh_bvh_id, RenderElem::U64, &[1])?);
     args.push(array(
@@ -163,9 +199,21 @@ pub(super) fn push_megakernel_args(
         RenderElem::U64,
         &[u.hfield_bvh_count],
     )?);
-    args.push(array(&u.flex_rgba, RenderElem::Vec4, &[1])?);
-    args.push(array(&u.flex_geom_flexid, RenderElem::I32, &[1])?);
-    args.push(array(&u.flex_geom_edgeid, RenderElem::I32, &[1])?);
+    args.push(array(
+        &u.flex.flex_rgba,
+        RenderElem::Vec4,
+        &flex_model_shape(flex_counts),
+    )?);
+    args.push(array(
+        &u.flex.flex_geom_flexid,
+        RenderElem::I32,
+        &flex_geom_shape(flex_counts),
+    )?);
+    args.push(array(
+        &u.flex.flex_geom_edgeid,
+        RenderElem::I32,
+        &flex_geom_shape(flex_counts),
+    )?);
     args.push(array(&u.skybox_tex_id, RenderElem::I32, &[1])?);
     args.push(array(&u.skybox_face_width, RenderElem::I32, &[1])?);
     args.push(match &u.texture_array {

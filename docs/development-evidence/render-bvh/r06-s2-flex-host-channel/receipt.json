@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-03-render-r06-s2-flex-host-channel",
+  "kind": "r06-solving-host-flex-channel",
+  "created_at": "2026-11-04T04:40:00+08:00",
+  "offline_only": true,
+  "gpu_compute": false,
+  "window_opened": false,
+  "device_change": false,
+  "abi_change": false,
+  "upstream_pin": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "changed_files": [
+    {
+      "path": "src/render/kernel/flex_channel.rs",
+      "bytes": 13440,
+      "lines": 296,
+      "sha256": "762b786c12898577af062f80f814e40f8adb039bb07734c514b42263e25850af"
+    },
+    {
+      "path": "src/render/kernel/flex_channel/tests.rs",
+      "bytes": 9632,
+      "lines": 338,
+      "sha256": "34314401c23a6a6c622f7236975b8562d33e6e3b9856fcfbb40c96670f85dfa0"
+    },
+    {
+      "path": "src/render/kernel/megakernel.rs",
+      "bytes": 16402,
+      "lines": 379,
+      "sha256": "565a6c53fb2cc75aac57617158673789aa4fc93d34f8bbfdb7573dd6a29e5e35"
+    },
+    {
+      "path": "src/render/kernel/megakernel_uploads.rs",
+      "bytes": 21116,
+      "lines": 464,
+      "sha256": "3a2312898b7d5f9c163524b6e6130f56a6d43c6e0bf7a3a1457734a101caf20c"
+    },
+    {
+      "path": "src/render/kernel/megakernel_args.rs",
+      "bytes": 10995,
+      "lines": 254,
+      "sha256": "f783c29d38f06fb8beb0f02b76a3ad78e42c916970f6dfcb5f4230f242ace299"
+    }
+  ],
+  "module_sources": {
+    "module": "mjwarp.render.kernel",
+    "added": [
+      "src/render/kernel/flex_channel.rs",
+      "src/render/kernel/flex_channel/tests.rs",
+      "src/render/kernel/megakernel_args.rs"
+    ]
+  },
+  "flex_slots": [
+    { "slot": 19, "upstream": "flex_vertadr", "elem": "I32", "shape": "[max(nflex,1)]" },
+    { "slot": 20, "upstream": "flex_edge", "elem": "Vec2I", "shape": "[max(nflexedge,1)]" },
+    { "slot": 21, "upstream": "flex_radius", "elem": "F32", "shape": "[max(nflex,1)]" },
+    { "slot": 38, "upstream": "flexvert_xpos_in", "elem": "Vec3", "shape": "2-D [nworld, max(nflexvert,1)]" },
+    { "slot": 42, "upstream": "bvh_nflexgeom", "elem": "Scalar(I32)", "shape": "len(flex_geom_flexid)" },
+    { "slot": 56, "upstream": "flex_bvh_id", "elem": "U64", "shape": "[max(nflex,1)]" },
+    { "slot": 57, "upstream": "flex_group_root", "elem": "I32", "shape": "2-D [nworld, max(nflex,1)]" },
+    { "slot": 65, "upstream": "flex_rgba", "elem": "Vec4", "shape": "[max(nflex,1)]" },
+    { "slot": 66, "upstream": "flex_geom_flexid", "elem": "I32", "shape": "[max(bvh_nflexgeom,1)]" },
+    { "slot": 67, "upstream": "flex_geom_edgeid", "elem": "I32", "shape": "[max(bvh_nflexgeom,1)]" }
+  ],
+  "abi_check": {
+    "slots_total": 81,
+    "arrays": 73,
+    "scalars": 7,
+    "slots_changed": 0,
+    "slot_types_changed": 0,
+    "descriptor_shape_changes": [
+      "flex_group_root 1-D [1] -> 2-D [nworld, max(nflex,1)]",
+      "flexvert_xpos 1-D [1] -> 2-D [nworld, max(nflexvert,1)]"
+    ],
+    "abi_change_required": false,
+    "evidence": "docs/development-evidence/render-bvh/r06-flex-precheck/README.md §2"
+  },
+  "device_change_check": {
+    "git_diff_src_render_kernel_cuda": "empty (0 files, 0 lines)",
+    "git_diff_fixtures": "empty",
+    "kernel_source_or_ptx_changed": false
+  },
+  "empty_channel_equivalence": {
+    "none_and_empty_channel": "S7b2 1-element placeholder (data unchanged; only 2 descriptor ranks 1-D -> 2-D)",
+    "zero_flex_scene_output": "unchanged (device does not read flex slots; .cu zero diff)"
+  },
+  "validation_rules": [
+    "nworld == resolved.nworld",
+    "nflex >= 1 and nflexvert >= 1 for non-empty channel",
+    "flex_vertadr: len == nflex, first == 0, non-decreasing, each in [0, nflexvert)",
+    "flex_edge: even length, endpoints in [0, nflexvert)",
+    "flex_radius: len == nflex",
+    "flex_rgba: len == 4*nflex",
+    "flex_bvh_id: len == nflex",
+    "flexvert_xpos: len == 3*nworld*nflexvert",
+    "flex_group_root: len == nworld*nflex",
+    "flex_geom_flexid/edgeid: equal length, flexid in [0, nflex), edgeid == -1 or in [0, nflexedge)"
+  ],
+  "unit_tests": {
+    "command": "cargo test --locked --lib flex_channel",
+    "count": 8,
+    "passed": 8,
+    "failed": 0,
+    "names": [
+      "empty_flex_channel_validates_as_zero_flex",
+      "single_flex_channel_validates",
+      "multi_flex_multi_world_channel_validates",
+      "world_count_mismatch_is_rejected",
+      "length_mismatches_are_rejected_explicitly",
+      "range_and_monotonic_violations_are_rejected",
+      "slot_shapes_follow_max_one_and_two_dimensional_upstream",
+      "bvh_ids_are_carried_as_little_endian_word_pairs"
+    ]
+  },
+  "gates": {
+    "fmt": { "passed": true },
+    "clippy": { "passed": true },
+    "clippy-cuda": { "passed": true },
+    "unit": { "passed": true, "tests_passed": 1276, "tests_failed": 0, "tests_ignored": 398, "baseline_s1a": 1268 }
+  },
+  "gates_source": ".normify/runs/2026-11-03-render-r06-s2-flex-host-channel/",
+  "limits": [
+    "本片只建宿主通道：model/context 的真实 flex 数据源（原生 render 字段 + io/model 接线 + flex 物理输出顶点世界位姿）归 R06-S2b（2026-11-04-render-r06-s2b-flex-data-source）。",
+    "设备 cast/BVH 与 seg 编码归 S3；本片 .cu 零改动，不宣称 flex 渲染可用。",
+    "逐 world 入口（render_world / render_per_world）不接 flex 通道（None），留 L v2/K。",
+    "flex_vertnum / flex_dim / flex_edgenum 不在 81 槽内，通道不携带，对应上游语义不校验。",
+    "无 GPU 计算、无窗口、未生成参考；不作任何数值/精度验收结论。"
+  ]
+}
