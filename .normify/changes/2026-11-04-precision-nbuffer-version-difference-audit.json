@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-nbuffer-version-difference-audit",
+  "title": {
+    "zh": "NP01/NP02 判据记录：`nbuffer` 版本差异按 B 类（参考-前提型）登记，降级使用（三条前提与结论同声明）",
+    "en": "Criteria record: nbuffer version difference registered as class B (reference-with-premises), downgraded use"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3b① 采集片的 scene-flex 模型 parity 里，唯一硬闸 `counts_match=false` 来自 `nbuffer`（MuJoCo 3.12=37552 vs 3.15=37296，同场景去 `<deformable>` 控制实验 32368==32368，差恰 256）。Chief 2026-11-04 裁定按 **B 类（参考-前提型）** 登记、**降级使用**：三条前提必须与结论同时声明（①渲染路径不读 `nbuffer`，0 命中；②去 `<deformable>` 控制实验 32368==32368；③差值稳定恰 256），任一前提失效即升级阻断并重裁；**不得据此宣称 parity pass、不作发布依据**，`strict_elementwise_parity=fail` 保留。本片把该裁定与全部事实落成可复用证据，供后续片引用（引用时必须连同三条前提与失效条件一起引用）。",
+    "en": "Record the Chief's class-B ruling and all facts for the nbuffer version difference so later slices can cite it with its premises and invalidation conditions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**裁定归属**：证据头部引用 Chief 2026-11-04 裁决**原话**（含「B 类、降级使用」「三条前提与结论同时声明」「不得宣称 parity pass、不作发布依据」「按 B 类走，不升用户签」），`ruling_source` 注明来源；不得把任何 Bot 的建议写成裁定。",
+    "**A/B/C 判定理由**：为何不是 A（不能推出等价、不得作发布依据）、不是 C（不参与完整性/哈希棘轮）、是 B（依赖外部前提、须声明前提、前提不成立即降级）。",
+    "**三条前提与结论同时声明**：① pinned 渲染路径 `nbuffer` 0 命中（给 grep 命令与结果）；② 去 `<deformable>` 控制实验 32368==32368；③ 差值稳定恰 256（两个口径 38512/38256 与 37552/37296 差均为 256）。**任一前提失效 → 升级阻断并重裁**（列失效条件）。",
+    "**非声明**：不宣称 parity pass、不宣称两版等价；`strict_elementwise_parity=fail` 保留；判据/容差/参考零修改；不改产品代码与 `fixtures/`。",
+    "**机器可读**：`facts.json` 与 README 同源（含 `ruling.quote`、`arch_suggestion.status = suggestion only, NOT a ruling`、`non_claims`），并补 `manifest.txt`（sha+bytes）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-capture-r2"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/nbuffer-version-difference/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（QA 提供 Chief 原话；本卡只落证据，不改任何判据/容差/参考）。这是跨片可引用的判据分类记录，故单独立卡而非挂 S3b② 复核卡。S3b② 材料 §8 与 `fixtures/render-bvh/scene-flex/provenance.json.model_parity.known_difference` 引用本条时须连同三条前提与失效条件一起引用。",
+  "revision": { "before": "7c3f6a8f044cc678513856c1a48f833a9bf251fd", "after": null },
+  "created_at": "2026-11-04T07:30:00.000Z",
+  "updated_at": "2026-11-04T07:30:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+  ]
+}
