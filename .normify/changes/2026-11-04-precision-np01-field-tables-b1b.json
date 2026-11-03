@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-field-tables-b1b",
+  "title": {
+    "zh": "NP01 逐字段类型表 B1b（kinematics / crb / mass_multiply / mass_solve）",
+    "en": "NP01 per-field type tables B1b (kinematics / crb / mass_multiply / mass_solve)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "承接 2026-11-03-precision-np01-field-tables 的 B1b 批次：为 inventory 中 kinematics、crb、mass_multiply、mass_solve 四行补齐逐字段类型表（参数/缓冲/累加/输出层，per-field），并把门禁 PENDING_ROWS 从 25 收紧到 21、同步 inventory 指针与 README。只做类型审计与登记，不改产品代码/判据/容差，零 GPU；不宣称 NP01 通过。",
+    "en": "Complete batch B1b of the NP01 per-field type tables for the four inventory rows kinematics, crb, mass_multiply and mass_solve; tighten the gate pending list from 25 to 21 and update inventory pointers and README. Type audit and registration only; no product code, criteria or tolerance change; no GPU; no claim that NP01 is passed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**四张表**：`field-tables/{kinematics,crb,mass_multiply,mass_solve}.json`，`schema=1`、`batch=\"B1b\"`、`row_id` 与 inventory 一致；每张含 `source{file,const,kernel}`、`kernels[]`（params 带 name/ctype/role、intermediates、accumulations、outputs）、`quantization`、`rounding_notes`、`upstream{files,functions,confidence}`、`evidence[]`、`audit_level`、`status`；五段非空，`evidence` 指向的路径真实存在。",
+    "**kinematics 覆盖**：`rigid_kinematics` 与 `rigid_com_position` 两内核、内联 device 函数链路，inventory 的 12 个输出（xpos/xquat/xmat/xipos/ximat/xanchor/xaxis/subtree_com/cinert/crb/cdof/matrix_dense_block）逐一落表；写明 f32 全链、链式 fma 口径与中间量类型。",
+    "**crb / mass_multiply / mass_solve 覆盖**：crb 覆盖 `rigid_mass_matrix` 与 resident 三条 kernel（init/accumulate/matrix）、fma 19 + atomicAdd 2 口径；mass_multiply 覆盖 validate/multiply 与 borrowed 两条路径、列序追加；mass_solve 覆盖 rigid_mass_solve 与 sparse dense/small/mixed/resident 及 substitute 分支、fma 4 与 MathDx 列扫描语义。上游确认级别如实标注，mass_multiply 仍为文件级，不得升格。",
+    "**门禁收紧**：`tests/precision_type_gate.rs` 的 `PENDING_ROWS` 由 25 改为 21（只移除这四行）；30 行 = 9 张表 + 21 条待批；缺表/空段/evidence 路径不存在/有表仍留待批 四类断言保持且真跑。`cargo test --locked --features cuda-probe --test precision_type_gate` 全过。",
+    "**清单与文档同步**：`inventory.json` 这四行 `status` 改为「已出逐字段表（B1b）；剩余…」并新增 `field_table` 指针指向对应表文件；`field-tables/README.md` 的 B1 段扩为 B1/B1b，待批段写明剩余 21 条 + 3 条 host 站点。",
+    "**边界与门禁**：只写 `docs/development-evidence/np01-type-mapping/` 与 `tests/precision_type_gate.rs`；`src/`、fixtures、判据/容差零改动；零 GPU 窗口；四门禁 fmt/clippy/clippy-cuda/unit 全过；不宣称 NP01 通过、不宣称类型映射率 100%、不宣称上游等价。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-precision-np01-field-tables"
+    ],
+    "phase": "NP01 精度映射",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np01-type-mapping/field-tables/",
+      "docs/development-evidence/np01-type-mapping/inventory.json",
+      "tests/precision_type_gate.rs"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-11-04 00:1x 登记：B1 批 5 张表已由 2026-11-03-precision-np01-field-tables 收口并经 QA PASS；本卡是 B1b（PENDING_ROWS 前四行，B1b 标签已存在于门禁）。实施需先取 repo-write-lock（scripts/validate/repo-write-lock.ps1），完成后 release；QA 独立复核另立 check 卡。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-04T16:12:00.000Z",
+  "updated_at": "2026-11-04T16:12:00.000Z",
+    "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "fixtures",
+        "include"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01 通过",
+        "类型映射率 100%",
+        "上游等价"
+      ]
+    }
+  ]
+}
