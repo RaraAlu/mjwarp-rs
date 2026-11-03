@@ -34,6 +34,18 @@
 - 不宣称 2D/3D flex 渲染可用；1D/2D/3D 像素/深度/seg 数值结论归 S3b 窗口。
 - 本复核只写本目录证据，不改 `src/`、`fixtures/`、`.cu`、判据/容差/参考。
 
+## 5. 观察收口记录（2026-11-04）
+
+| # | 本条复核的观察 | 收口状态 | 核对证据（HEAD） |
+| --- | --- | --- | --- |
+| 1 | S3c 证据 3 个文件带 UTF-8 BOM（`gates.txt`/`manifest.txt`/`unit-tests.txt`） | **closed**（修复提交 `ddd06292`「R06-S3c 证据去 BOM + `bvh_ids` 文档口径（QA 复核 2716c092 观察）」） | 三文件现均无 BOM：`gates.txt` 首 3 字节 `523036`（326 B）、`manifest.txt` `232052`（1067 B）、`unit-tests.txt` `202020`（556 B）；`manifest.txt` 6 条 sha+bytes 复核 0 条不匹配（0 = 6/6 通过）。 |
+| 2 | precheck 工具 `.ptx` 文本模式落盘 CRLF（磁盘 354,740 B/`4e397438…` vs 记录 LF 343,993 B/`9118d1ea…`） | **已转治理卡**（`2026-11-04-governance-nvrtc-precheck-ptx-eol`，`24f1e940`，owner Backend；`.ptx` 未入库，不影响本片上库证据） | 记录口径本就是 LF 文本；工具修复归该卡，不在本复核面。 |
+| 3 | `FlexMeshAssembly.bvh_ids` 字段文档写「绝对索引」但 build 期是段内相对号 | **closed**（同 `ddd06292`） | 现文档为「build 期存**段内相对条目号**（1D/无 mesh 为 `u64::MAX`）；[`Self::append_to_mesh_device`] 追加到 `MeshDevice` 后转成 blob 绝对条目号」（核对=True）。 |
+| 4 | `render_with_flex` 暂无生产调用点 | 已由 S3b① 采集/harness 卡接管（`0a3058ee`），不在本复核面 | — |
+| 5 | `dim==1` 与 S3a「逐字节一致」缺直接对比单测 | 记 S3c 后续待办（Arch 已记，不立卡） | — |
+
+结论维持 **PASS-with-observations**，其中观察 1/3 已关闭、观察 2 转治理卡、观察 4/5 已有归属；无需重开 S3c 复核卡。
+
 ## 4. 文件
 
 | 文件 | 内容 |
