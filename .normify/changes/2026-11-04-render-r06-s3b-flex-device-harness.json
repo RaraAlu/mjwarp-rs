@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-device-harness",
+  "title": {
+    "zh": "R06-S3b③：flex 设备侧接线与 GPU 验证用例（render_with_flex 生产调用点 + tests/render_flex_validate.rs）",
+    "en": "R06-S3b(3): flex device-side wiring and GPU validation case"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3b② 窗口材料已收口（`87b8fbb9`），但材料里暴露两个**开窗前硬缺口**：① `render_with_flex` 已存在（`src/render/kernel/megakernel.rs:130`）却**无生产调用点**；② 仓内没有 flex GPU 用例（`tests/render_flex_validate.rs` 不存在）。本片做这两件：把 flex 通道接进真实渲染路径，并新增 `#[ignore]` 的 GPU 用例——读 `fixtures/render-bvh/scene-flex/reference/base/` 与 `state.npz`（含 `flexvert_xpos`）复现设备渲染，按 S3b② 实体表判据比对（rgb bit-first ≤1 LSB、depth ≤4 ULP 且 0 beyond、seg 精确含 `(flexid,9)`、两跑 sha 相同）。**本片不开窗口、不跑验收**；用例编译（`--no-run`）即可，执行归开窗卡。",
+    "en": "Wire the flex channel into the production render path and add an ignored GPU test that compares against the scene-flex reference; authoring only, no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**生产调用点**：`render_with_flex` 有真实生产调用方（不是只被测试调用），入参来自 `FlexHostInputs`/`FlexRenderFields` 与 `FlexMeshChannel`；`flex_mesh=None`/`flex=None` 时行为与父版本逐字节等价（给等价性论证或用例）。",
+    "**GPU 用例**：`tests/render_flex_validate.rs`（`#[ignore]`）按 S3b② 实体表三相机（`cam-flex`/`cam-persp`/`cam-track`）读参考与 `state.npz` 复现渲染，判据零放宽：rgb bit-first `mismatched=0/max_byte_diff=0/beyond_1_lsb=0`；depth bit-first `max_ulp<=4/beyond=0`；seg 精确（含 `(flexid,9)` 样本，`cam-flex` 参考侧 654 个 flex 像素）；两跑 sha256 相同。",
+    "**参考语义**：`geom_id=-2`、`mesh_id=flexid`、seg `(flexid, 9)` 只首样本、depth `dist * -ray_dir_local_cam[2]`、颜色 `flex_rgba[mesh_id]`。",
+    "**离线自证**：用例可编译（`cargo test --locked --features cuda-probe --no-run --test render_flex_validate`）；不开 GPU 窗口、不执行 GPU 用例；零判据/容差改动、不改 `fixtures/`。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-harness/` 收接线说明、等价性论证、编译记录与（若未开窗）执行计划。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-capture-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "src/render/context/",
+      "tests/render_flex_validate.rs",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-harness/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Arch 2026-11-04 登记（来源：S3b② 窗口材料 P2 缺口——`render_with_flex` 无生产调用点 + 无 flex GPU 用例）。窗口材料卡 `2026-11-04-render-r06-s3b-flex-window-material-r2`（`87b8fbb9`）的 P2 条由本片关闭。不开窗、不宣称 flex 数值可用；执行归开窗卡。",
+  "revision": { "before": "230d7586013a9510154fa91a5a22cc24321467dc", "after": null },
+  "created_at": "2026-11-04T07:20:00.000Z",
+  "updated_at": "2026-11-04T07:20:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
