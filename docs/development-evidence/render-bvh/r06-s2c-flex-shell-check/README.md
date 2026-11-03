@@ -47,3 +47,16 @@
 ## 五、边界
 
 零 GPU、零窗口、零参考采集；未改产品源码/判据/容差/fixtures（重钉为登记的 4 个身份文件）；本文件与检查卡状态是唯一写入。不宣称 flex 2D/3D 渲染可用、不宣称 NP01/NP03 通过。
+
+## 六、闭合 addenda：S2c 修卡 `b4a7e827` 增量核（2026-11-04，QA）
+
+本卡原观察「`validate_topology_against_render` 先 `topology.validate()` 但未校验 render 侧长度，短 render 向量可 panic」已由修卡 `2026-11-04-render-r06-s2c-topology-render-validate-fix`（提交 `b4a7e827`，卡 verified）闭合。QA 增量核四点全过：
+
+1. **入口顺序**：`src/io/flex/topology.rs::validate_topology_against_render` 首部即 `render.validate()?`（在读取任何 render 字段之前），随后 `topology.validate()?`，再进入 `topology.nflex != render.nflex` 与按 flex 索引的宽度判定。
+2. **新单测断言具体变体**：`rejects_short_render_vectors_before_indexing` 断言 `Err(InputError::LengthMismatch { field: "flex_dim", expected: 2, actual: 1 })`，并覆盖 `flex_rgba → { expected: 8, actual: 7 }`；不是只断 `is_err()`。
+3. **既有 5 条拓扑单测断言未改**：该提交对 `topology.rs` 的 diff **删除行 = 0**（仅新增 2 行入口校验 + 1 条新单测）。QA 独立重跑 `cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --lib io::flex::topology`（env：`MJWARP_MUJOCO_ROOT`/`MJWARP_MUJOCO_DLL` 指向 `target/toolchains/mujoco-3.12.0/package`）→ **6 passed / 0 failed / 1 ignored**（既有 5 + 新增 1；ignored 是需受信 MuJoCo DLL 的原生冒烟，按证据命令显式跑）。
+4. **范围与行数**：源码只改 `src/io/flex/topology.rs`（+28 行），文件 **499 行** ≤ 500；`src/render/kernel/cuda/`、全部 `.cu`、`fixtures/` 零 diff；四门禁 runs 记录 fmt/clippy/clippy-cuda passed、unit **1303 passed / 0 failed / 398 ignored**。
+
+补充说明：S3c（`181eaa7a`）目前**不调用**该函数（其 host 入口用 `FlexMeshAssembly::build` → `channel.topology.validate()`，且 `FlexMeshChannel` 不含 `FlexRenderFields`）；因此「S3c 调用前必须先 `render.validate()`」这一验收条件当前按「不适用即满足」处理——将来若 S3c/S3b 正式接线复用 `validate_topology_against_render`，入口已保证先校验 render 侧。
+
+结论：原观察 **closed**；本卡结论仍为 PASS-with-observations（该条观察转为已闭合记录）。
