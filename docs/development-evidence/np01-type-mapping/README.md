@@ -163,7 +163,7 @@ device 侧口径：pinned GPU `ccd` PTX 的 `fma.rn` 融合（T4 采集 PTX `fma
 
 门禁实现：`tests/precision_type_gate.rs`（3 个用例，随 `cargo test --locked` 执行）。
 
-1. **源面快照棘轮**：`cuda-surface.json` 记录当前 41 个产品 `.cu` 文件与每个文件的 `__global__` 入口数
+1. **源面快照棘轮**：`cuda-surface.json` 记录当前 42 个产品 `.cu` 文件与每个文件的 `__global__` 入口数
    （合计 **22**）。新增/删除 `.cu` 或入口数变化都会让测试失败，必须由人显式更新快照并同步本清单，
    防止新内核绕过类型登记。
 2. **精度 token 断言**：产品 `.cu` 源的**代码区**（去掉行注释与块注释后）不得出现
@@ -196,7 +196,7 @@ device 侧口径：pinned GPU `ccd` PTX 的 `fma.rn` 融合（T4 采集 PTX `fma
    `src/runtime/transfer/kernel/ptx.rs` 1 处）与刻意注入禁用 token 的负对照测试
    （`tests/adapter.rs` 1 处、`tests/precision.rs` 2 处）。每个条目必须在当前源里仍有 ≥登记数命中，
    否则清单腐坏即失败。
-3. **跨片一致性**：断言第一片的 `cuda-surface.json` 仍在且仍是 41 文件 / 22 入口，
+3. **跨片一致性**：断言第一片的 `cuda-surface.json` 仍在且仍是 42 文件 / 22 入口，
    防止只删一片就以为覆盖完整。
 
 **本片未覆盖**：`f64` 语义审计（哪些 f64 会反馈产品物理）、逐字段类型表、数值容差；不宣称 NP01 通过。
