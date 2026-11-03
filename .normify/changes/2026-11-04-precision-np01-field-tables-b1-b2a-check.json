@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-field-tables-b1-b2a-check",
+  "title": {
+    "zh": "B1/B2a 逐字段表批次独立复核（B1 5 条 + B2a 4 条，只读）",
+    "en": "Independent batch check for B1/B2a per-field tables (5 + 4 rows, read-only)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对 B1 批（实现提交 0d8ee05a，5 张表：com_position/com_velocity/gravity_compensation/rne_acc/rne_bias）与 B2a 批（e6154d82，4 张表：fixed_tendon/spatial_tendon/tendon/tendon_velocity）做只读批次复核：表结构与逐字段事实、evidence 路径、PENDING_ROWS 25→21→17 收紧自洽（30 = 5+25 = 9+21 = 13+17）、fma/atomicAdd 与 raw-kernels 口径、README 批次段与 inventory 一致性、边界零改动与零 GPU；给出 PASS/观察结论。不改仓库、不占 GPU。",
+    "en": "Read-only batch check of B1 (commit 0d8ee05a, 5 tables) and B2a (commit e6154d82, 4 tables): table structure and per-field facts, evidence paths, PENDING_ROWS 25->21->17 consistency (30 = 5+25 = 9+21 = 13+17), fma/atomicAdd against raw-kernels, README/inventory consistency, boundary and zero-GPU compliance; produce PASS/observations."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围**：B1 `git show --stat 0d8ee05a` 与 B2a `git show --stat e6154d82` 只含 `field-tables/`、`README.md`、`tests/precision_type_gate.rs`、卡与 runs；`src/`、`fixtures/`、`include/` 零 diff；零 GPU。",
+    "**表结构与事实**：九张表 `schema=1`、`batch` 与批一致（B1/B2a）、`row_id` 与 inventory 一致；`source/kernels/upstream/evidence/status` 等段非空、kernels 的 params/outputs/intermediates/accumulations 齐；`evidence[]` 路径型条目逐条存在（命令型条目保留原样）。",
+    "**待批收紧**：0d8ee05a 的 `PENDING_ROWS` = 25 且四/五张表已从待批移除、30 = 5 + 25；e6154d82 的 `PENDING_ROWS` = 17、30 = 13 + 17；两次提交的清单 id 与实际表集合一一对应、无静默缺表。",
+    "**口径**：各表 fma/atomicAdd 与 `raw-kernels.json` 文本口径一致（如 gravity_compensation atomicAdd 1 / fma 0、rne_acc fma 1 + 原子加、tendon_velocity 原子加 0 等）；`mass_multiply` 上游保持文件级；表内事实与上游绑定不夸大。",
+    "**清单与文档**：`field-tables/README.md` 的 B1/B2a/待批段与提交一致；inventory 行状态/指针的已知漂移（B1/B2a 行未加 `field_table` 指针、`inventory.summary` 未同步）如实记录为 B-final 项并列为观察。",
+    "**门禁与输出**：独立执行 `normify gate <check> fmt clippy clippy-cuda unit` 全过；输出 PASS 或列明阻断/观察；不得宣称 NP01 已达验收、类型映射率达标或与上游一致。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-precision-np01-field-tables",
+      "2026-11-03-precision-np01-field-tables-b2a"
+    ],
+    "phase": "NP01 精度映射",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np01-field-tables-b1-b2a-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "QA 2026-11-03T20:20Z 登记（Chief 2026-11-04 排程：B1b 复核后做 B1/B2a 批次复核）。只读、零 GPU；verdict 证据写 docs/development-evidence/np01-field-tables-b1-b2a-check/（README + receipt.json 含 /task_id + 不自引用 manifest）。首次入库需 start→in_progress→done。",
+  "revision": {
+    "before": "01c6b8154a917825b08ad135afdded4941c8f39e",
+    "after": null
+  },
+  "created_at": "2026-11-03T20:20:00.000Z",
+  "updated_at": "2026-11-03T20:20:34.717Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np01-field-tables-b1-b2a-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-04-precision-np01-field-tables-b1-b2a-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01 通过",
+        "类型映射率 100%",
+        "上游等价"
+      ]
+    }
+  ]
+}
