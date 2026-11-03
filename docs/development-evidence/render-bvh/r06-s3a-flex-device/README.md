@@ -75,6 +75,12 @@ pinned 源码取自 S0 恢复的 `target/mjwarp-parallel/upstream`（`git status
 - 精度：设备侧只做 f32；`sinf`/`cosf` 的 f64 归约属渲染门禁精确放行项；`warp_length3` 用显式
   `fmaf` 固定 NVRTC 收缩顺序（与 `normalize3_rays` 同口径），不依赖推断收缩。
 
+- **R06 nvrtc-eol 修（2026-11-04）**：`tools/nvrtc_precheck.py` 的 `.ptx` 从文本写改为**二进制写**
+  （`write_bytes(ptx.encode("utf-8"))`，`.txt`/`.nvrtc-log.txt` 显式 `newline="\n"`），磁盘 `.ptx` 遂为 LF；
+  修后实跑：磁盘 `.ptx` 字节数/sha256 与 `nvrtc-precheck.txt` 的 `ptx_bytes`/`ptx_sha256` 一致。
+  本目录记录值（S3a 期 7 段源码）**保持不变**；当前源码已含 S3c 改动，实跑得到的是当前源的身份。
+  治理卡：`2026-11-04-governance-nvrtc-precheck-ptx-eol`。
+
 ## 4. 验证
 
 1. **门禁**（`.normify/runs/2026-11-04-render-r06-s3a-flex-device/`）：fmt / clippy / clippy-cuda /
