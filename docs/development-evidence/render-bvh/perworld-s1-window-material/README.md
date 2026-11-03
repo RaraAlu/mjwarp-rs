@@ -84,3 +84,4 @@ ASCII 冻结器（11 exe + 83 只读输入 + 2 条 criterion v2.2 清单 = 96 �
   `OUTLINE_LISTS_OK=2/2`）；②实体 `render_per_world` 的 RayBuffer 改为按其自身 `resolved.plan` 构造
   （1 相机 = 76,800 射线；attempt1 用默认双相机 240,000 射线被 `InvalidArray(ray_count)` 拒）；③尝试轮次
   attempt 2；④材料/window-plan 增加第 10 节 attempt1 INVALID_ROUND 记录。判据与容差零变化。
+- 2026-11-03 深夜（attempt2 INVALID_ROUND 后，v3）：①attempt2 记录入 window-plan §11（10/11 过，仅 `render_shadow_reference` 未走 v2.2 清单豁免 → 测试支持面修复 `294d6040`）；②实体表/窗口计划 attempt=3；③QA 观察：§5 构建规则改为说明「冻结 exe 由默认 features 构建（`default=[\"cuda\"]`→cuda-probe 已启用），窗口 body 复用同一 profile」；④§8 签窗框按 attempt3 置为 PENDING（floor 取法已在 §8 固定：max(本基线派生, attempt2 11,755)）；⑤guards 仍 96（11 exe + 83 输入 + 2 清单），判据/容差零变化。

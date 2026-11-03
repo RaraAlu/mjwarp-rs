@@ -37,10 +37,10 @@ PREREQUISITES (must all hold before opening)
 
 3. SUITE / GUARDS
   suite   = render-perworld-s1
-  attempt = 2 (attempt1 is INVALID_ROUND, see section 10; guards.json / guards-r02-skybox.json /
+  attempt = 3 (attempt1/attempt2 are INVALID_ROUND, see sections 10/11; guards.json / guards-r02-skybox.json /
               guards-r08-rgb-hetero.json / guards-sdf-validate.json are history, not reused)
   guards  = scripts/validate/render-bvh/guards-perworld-s1.json
-  freeze  = scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 2 ^
+  freeze  = scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 3 ^
               -CriterionVersion render-sdf-criterion-v2.2 -BoundUlp 128
             (outline lists default to the archived signed bytes under
              docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline;
@@ -51,9 +51,9 @@ PREREQUISITES (must all hold before opening)
             stash 11/11.
   GuardsOnly (all parameters mandatory):
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
-      -GuardsOnly -Attempt 2 ^
+      -GuardsOnly -Attempt 3 ^
       -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
-      -OutDir target\render-bvh\perworld-s1-window\attempt2
+      -OutDir target\render-bvh\perworld-s1-window\attempt3
     expect OUTLINE_LISTS_OK=2/2 + GUARDS_OK=96/96 + GUARDS_ONLY_DONE.
 
 4. WINDOW ORDER (single full-load GPU task; block 18:00-19:30)
@@ -69,22 +69,24 @@ PREREQUISITES (must all hold before opening)
      clean = free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0
      default MaxUtil=40; do NOT pass -OpenUtilLimit and do NOT pass -MaxUtil 60.
   4) freeze only AFTER monitor passes (never inside the window body):
-     scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 2 ^
+     scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 3 ^
        -CriterionVersion render-sdf-criterion-v2.2 -BoundUlp 128
   5) GuardsOnly 96/96 with ALL parameters (outline lists: OUTLINE_LISTS_OK=2/2; see section 3)
   6) body:
      powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
-       -Attempt 2 ^
+       -Attempt 3 ^
        -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
-       -OutDir target\render-bvh\perworld-s1-window\attempt2
+       -OutDir target\render-bvh\perworld-s1-window\attempt3
      expects 11/11 entities exit 0, sha_guards 96/96, post-window exe recheck 11/11,
      zero Rust compile, floor not breached, residual processes 0.
   7) archive facts/logs/monitor CSV/entity-results/guards copy + manifest into
-     docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt2/ (or equivalent).
+     docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/ (or equivalent).
 
 5. BUILD RULE (fail-closed)
-  After the freeze ONLY the `--features cuda-probe` test profile may build/run (the profile the
-  frozen exe were built with). Building/testing with the default feature set inside the window is
+  The frozen test exe are built by `cargo test --no-run` with DEFAULT features; the crate defines
+  `default = ["cuda"]` and `cuda = ["cuda-probe"]`, so `--features cuda-probe` is already enabled in
+  that profile and the window body command reuses the same artifacts. After the freeze ONLY this
+  profile may build/run; building/testing with a different feature set inside the window is
   forbidden: it re-links the test executables with a different fingerprint and invalidates the
   signed guards. Any deps drift is already a runner hard failure (zero_rust_compile / post recheck).
 
@@ -99,20 +101,20 @@ PREREQUISITES (must all hold before opening)
   => STOP, keep facts verbatim, report Chief and the user; archive an INVALID round record if any
      body step already ran.
 
-7. TIME: 30-60 min total (monitor up to 30 + freeze 3-4 min + body ~2 min + recheck); attempt2
+7. TIME: 30-60 min total (monitor up to 30 + freeze 3-4 min + body ~2 min + recheck); attempt3
    primary block 12:00-13:30 (+08:00), fallback 18:00-19:30. Window never opens during
    09:00-12:00 or 14:00-18:00 weekdays.
 
-8. BASELINE SIGN BLOCK (signed 2026-11-03T22:41+08:00; attempt2 window re-samples 3 points within 5 min before opening)
-  signed_at        : 2026-11-03T22:41+08:00
-  baseline_sampled_at: 2026-11-03T22:38:13 / :16 / :19 +08:00 (3 read-only nvidia-smi points)
-  approved_by      : user via Chief
-  baseline points 3: free 14,839 / 14,839 / 14,827 MiB ; util 2 / 2 / 3 %
-  signed floor     : 11,755 MiB   (= max(baseline_free 14,827 - 3,072 = 11,755, attempt1 floor 11,673); this baseline's derived value governs)
-  coverage         : this window plan v2 + the 3-point baseline above
-  qa_verdict       : pass (0 blocking / 1 fix / 2 observations), audited at HEAD 0e13795f
+8. BASELINE SIGN BLOCK (attempt3; PENDING - fill at sign time; baseline re-sampled within 5 min before opening)
+  signed_at        : ____________________
+  baseline_sampled_at: ____________________
+  approved_by      : user via Chief ____________________
+  baseline points 3: free ____ / ____ / ____ MiB ; util ____ / ____ / ____ %
+  signed floor     : ____ MiB   (= max(this baseline baseline_free - 3,072, attempt2 floor 11,755))
+  coverage         : this window plan v3 + the 3-point baseline above
+  qa_verdict       : (pending QA v3 focused re-audit)
   note             : the operator re-samples three points within 5 minutes before opening and MANUALLY
-                     stops if any sample is below 11,755 MiB (the runner only aborts below 10,240)
+                     stops if any sample is below the signed floor (the runner only aborts below 10,240)
 
 9. NOT CLAIMED
   no performance statement; L v1 scope = per-world geom poses only (per-world light poses deferred
@@ -140,3 +142,17 @@ PREREQUISITES (must all hold before opening)
   docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt1-invalid/ with a manifest.
   Attempt2 requires a fresh three-point baseline and a fresh user double-sign (floor kept strict:
   no relaxation even if the new baseline yields a looser derived value).
+11. ATTEMPT2 RECORD (INVALID_ROUND, 2026-11-03, record-only; kept verbatim)
+  Window attempt2 opened 2026-11-03T22:47:20+08:00 under the signed attempt2 plan (baseline
+  14,839/14,839/14,827 MiB, signed floor 11,755 MiB). Environment was green: monitor 60/60,
+  freeze 96 = 11 exe + 83 inputs + 2 criterion-v2.2 lists, GuardsOnly 96/96 with OUTLINE_LISTS_OK
+  2/2, zero Rust compile, post exe recheck 11/11, residual 0, floor not breached. 10 of 11 entities
+  passed, including the new render_per_world entity for the first time; the only failure was
+  render_shadow_reference (exit 101): its cam1 depth comparison asserted raw bitwise equality
+  because tests/support/render_bvh/shadow_scene.rs did not route through the signed outline-list
+  exemption, failing on exactly 183 pixels (max 73 ULP, first pixel 28969). Fix (test support only,
+  commit 294d6040): the shadow cam1 depth comparison now uses outline::diff_depth_with_outline with
+  Arm::Recipe (env not enabled => raw diff, unchanged behaviour); criteria/tolerances are unchanged.
+  No retry, no re-freeze, no threshold change. Facts and logs are archived under
+  docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt2-invalid/ (25 files + manifest).
+  Attempt3 requires a fresh three-point baseline and a fresh user double-sign (floor kept strict).
