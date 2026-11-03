@@ -1,9 +1,9 @@
 # Per-world S1 validation-window guard freezer (ASCII-only on purpose: PS 5.1 reads .ps1 as ANSI).
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1 -Attempt 1
 # It rebuilds nothing by itself except running `cargo test --no-run` to resolve the 11 entity
-# executables, then freezes: 11 exe + 83 read-only inputs = 94 entries (same read-only input set
-# as the SDF suite minus the 2 criterion-v2.2 outline lists; includes the 5 perworld fixtures and
-# the hfield / shadow capture inputs).
+# executables, then freezes: 11 exe + 83 read-only inputs + 2 criterion-v2.2 outline lists
+# = 96 entries (same read-only input set as the SDF suite; the two signed scene-a sphere-outline
+# lists come from the archived attempt5 evidence so no authoring tool / venv is needed).
 # Run this only AFTER the pre-window monitor passes and BEFORE the window body; never inside the body.
 # The R05 guards.json, R02 guards-r02-skybox.json, R08 guards-r08-rgb-hetero.json and the SDF
 # guards-sdf-validate.json are history and must not be touched or reused.
@@ -11,7 +11,10 @@ param(
     [string]$RepoRoot = 'D:\Rust\mjwarp-rs',
     [string]$OutFile = 'scripts\validate\render-bvh\guards-perworld-s1.json',
     [string]$WorkDir = 'target\render-bvh\perworld-s1-window',
-    [int]$Attempt = 1
+    [int]$Attempt = 2,
+    [string]$CriterionVersion = 'render-sdf-criterion-v2.2',
+    [int]$BoundUlp = 128,
+    [string]$OutlineDir = ''
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $RepoRoot
@@ -127,14 +130,82 @@ $shadow = @(Get-ChildItem (Join-Path $RepoRoot 'fixtures/render-bvh/scene-shadow
 } | Sort-Object { $_.FullName })
 foreach ($file in $shadow) { $inputs += File-Entry $file.FullName.Substring($RepoRoot.Length + 1) }
 
-$total = $frozenExes.Count + $inputs.Count
-# 11 exe + 83 inputs = 94: scene-sdf 10 + scene-hfield 10 + legacy 47 + shadow capture 16.
+# criterion v2.2 outline lists (2 frozen entries). The lists are the SIGNED prototype bytes
+# archived with the SDF attempt5 evidence; when -OutlineDir is empty the default points at that
+# archive, so no authoring tool / pinned venv is required.
+$outlineLists = @()
+$outlineRoot = if ($OutlineDir) { $OutlineDir } else { 'docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline' }
+$outlineJsonPath = Join-Path $outlineRoot 'outline-lists.json'
+if (-not (Test-Path -LiteralPath $outlineJsonPath)) {
+    throw "criterion v2.2 outline-lists.json missing: $outlineJsonPath"
+}
+$outlineDoc = [IO.File]::ReadAllText($outlineJsonPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+# signed proposal prototype list sha256 (criterion v2.1 section 2.2: byte-identical prototype).
+$prototypeSha = @{
+    recipe = 'cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee'
+    aa2 = '14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab'
+}
+if ($outlineDoc.criterion_version -ne $CriterionVersion) {
+    throw "outline-lists.json criterion_version $($outlineDoc.criterion_version) != $CriterionVersion"
+}
+if ([int]$outlineDoc.bound_ulp -ne $BoundUlp) {
+    throw "outline-lists.json bound_ulp $($outlineDoc.bound_ulp) != $BoundUlp"
+}
+foreach ($arm in @($outlineDoc.arms)) {
+    $armName = [string]$arm.arm
+    if ($armName -ne 'recipe' -and $armName -ne 'aa2') { throw "unexpected outline arm: $armName" }
+    if ([int]$arm.exact_max_ulp -gt $BoundUlp) {
+        throw "outline arm $armName exact_max_ulp $($arm.exact_max_ulp) > signed bound $BoundUlp"
+    }
+    $listFull = Join-Path $outlineRoot ([string]$arm.path)
+    if (-not (Test-Path -LiteralPath $listFull)) { throw "outline list missing: $listFull" }
+    $entry = File-Entry $listFull
+    if ($entry.bytes -ne [int]$arm.bytes) { throw "outline $armName bytes mismatch: $($entry.bytes) != $($arm.bytes)" }
+    if ($entry.sha256 -ne [string]$arm.sha256) { throw "outline $armName sha256 mismatch: $($entry.sha256) != $($arm.sha256)" }
+    if ($prototypeSha.ContainsKey($armName) -and $entry.sha256 -ne $prototypeSha[$armName]) {
+        throw "outline $armName sha256 $($entry.sha256) is not the signed prototype $($prototypeSha[$armName])"
+    }
+    $dataLines = @(Get-Content -LiteralPath $listFull | Where-Object { $_ -and -not $_.TrimStart().StartsWith('#') })
+    if ($dataLines.Count -ne [int]$arm.rows) { throw "outline $armName rows mismatch: $($dataLines.Count) != $($arm.rows)" }
+    $firstPixel = if ($dataLines.Count -gt 0) { [int](($dataLines[0] -split '\s+')[0]) } else { -1 }
+    if ($firstPixel -ne [int]$arm.first_pixel) { throw "outline $armName first_pixel mismatch: $firstPixel != $($arm.first_pixel)" }
+    $sidecar = $arm.bounds_sidecar
+    if (-not $sidecar) { throw "outline $armName bounds_sidecar entry missing" }
+    $sidecarFull = Join-Path $outlineRoot ([string]$sidecar.path)
+    if (-not (Test-Path -LiteralPath $sidecarFull)) { throw "outline $armName sidecar missing: $sidecarFull" }
+    $sidecarEntry = File-Entry $sidecarFull
+    if ($sidecarEntry.bytes -ne [int]$sidecar.bytes) { throw "outline $armName sidecar bytes mismatch" }
+    if ($sidecarEntry.sha256 -ne [string]$sidecar.sha256) { throw "outline $armName sidecar sha256 mismatch" }
+    $outlineLists += [pscustomobject]@{
+        arm = $armName
+        entities = @($arm.entities)
+        path = $entry.path
+        bytes = $entry.bytes
+        sha256 = $entry.sha256
+        rows = [int]$arm.rows
+        first_pixel = $firstPixel
+        exact_max_ulp = [int]$arm.exact_max_ulp
+        reference = [string]$arm.reference
+        reference_sha256 = [string]$arm.reference_sha256
+        bounds_sidecar = [pscustomobject]@{
+            path = $sidecarEntry.path
+            bytes = $sidecarEntry.bytes
+            sha256 = $sidecarEntry.sha256
+        }
+    }
+}
+if ($outlineLists.Count -ne 2) { throw "expected 2 outline lists, got $($outlineLists.Count)" }
+
+$total = $frozenExes.Count + $inputs.Count + $outlineLists.Count
+# 11 exe + 83 inputs + 2 outline lists = 96: scene-sdf 10 + scene-hfield 10 + legacy 47 +
+# shadow capture 16 (inputs) + recipe/aa2 lists (2).
 if ($frozenExes.Count -ne 11) { throw "expected 11 frozen exes, got $($frozenExes.Count)" }
 if ($inputs.Count -ne 83) { throw "expected 83 read-only inputs, got $($inputs.Count)" }
-if ($total -ne 94) { throw "expected 94 frozen entries, got $total" }
+if ($total -ne 96) { throw "expected 96 frozen entries, got $total" }
 $all = @()
 foreach ($entry in $frozenExes) { $all += [pscustomobject]@{ path = $entry.path; sha256 = $entry.sha256 } }
 foreach ($entry in $inputs) { $all += [pscustomobject]@{ path = $entry.path; sha256 = $entry.sha256 } }
+foreach ($entry in $outlineLists) { $all += [pscustomobject]@{ path = $entry.path; sha256 = $entry.sha256 } }
 $sorted = @($all | Sort-Object { $_.path })
 $hexConcat = ($sorted | ForEach-Object { $_.sha256 }) -join ''
 $aggregate = [BitConverter]::ToString(
@@ -148,21 +219,25 @@ $guards = [pscustomobject]@{
     generated_at = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffK')
     repo = $RepoRoot
     attempt = $Attempt
+    criterion_version = $CriterionVersion
+    bound_ulp = $BoundUlp
     counts = [pscustomobject]@{
         frozen_exes = $frozenExes.Count
         guard_inputs = $inputs.Count
+        outline_lists = $outlineLists.Count
         total = $total
     }
-    aggregate_algorithm = 'sha256 over the sha256 hex strings of all 94 entries in repo-relative path-sorted order, concatenated with no separator'
+    aggregate_algorithm = 'sha256 over the sha256 hex strings of all 96 entries (11 exes + 83 inputs + 2 outline lists) in repo-relative path-sorted order, concatenated with no separator'
     aggregate_sha256 = $aggregate
     frozen_exe_stash_dir = $stashDirRel
     entity_order = @($entities | ForEach-Object { $_.entity })
     frozen_exes = $frozenExes
     guard_inputs = $inputs
+    outline_lists = $outlineLists
 }
 $outPath = Join-Path $RepoRoot $OutFile
 [IO.File]::WriteAllText($outPath, (($guards | ConvertTo-Json -Depth 6) + "`n"), $utf8)
 $outSha = (Get-FileHash $outPath -Algorithm SHA256).Hash.ToLower()
-Write-Output ("GUARDS_FROZEN suite={0} total={1} exes={2} inputs={3} aggregate_sha256={4} guards_sha256={5} bytes={6} stash_dir={7}" -f `
-    $suite, $total, $frozenExes.Count, $inputs.Count, $aggregate, $outSha, (Get-Item $outPath).Length, $stashDirRel)
+Write-Output ("GUARDS_FROZEN suite={0} total={1} exes={2} inputs={3} lists={4} aggregate_sha256={5} guards_sha256={6} bytes={7} stash_dir={8}" -f `
+    $suite, $total, $frozenExes.Count, $inputs.Count, $outlineLists.Count, $aggregate, $outSha, (Get-Item $outPath).Length, $stashDirRel)
 exit 0
