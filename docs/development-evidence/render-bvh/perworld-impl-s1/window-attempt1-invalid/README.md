@@ -34,7 +34,7 @@
 
 ## 4. 修复（不进本 attempt，见材料 v2 与实现卡后续提交）
 
-- guards 94 → **96**（接入 v2.2 两条已签清单，复用 attempt5 归档字节；已演练 `GUARDS_OK=96/96` + `OUTLINE_LISTS_OK=2/2`），runner 自动导出豁免 env；
+- guards 94 → **96**（接入 v2.2 两条已签清单，复用 attempt5 归档字节；修复后曾以 attempt99 临时冻结演练 `GUARDS_OK=96/96` + `OUTLINE_LISTS_OK=2/2`——该演练的 guards 文件已删除、**没有归档日志**，此处仅记录控制台输出，不作证据；正式 attempt2 冻结已完整归档于 `window-attempt2-invalid/`），runner 自动导出豁免 env；
 - `render_per_world` 的 RayBuffer 改为按自身 `resolved.plan` 构造（76,800 射线）；
 - 判据、容差、参考、内核身份均未改。
 
