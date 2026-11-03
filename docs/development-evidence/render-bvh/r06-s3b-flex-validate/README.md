@@ -43,7 +43,7 @@
 | 4 | 本材料 QA 独立复核 pass | 只读复核 **PASS-with-observations**（证据落库中，待 commit） |
 | 5 | 开窗前 5 分钟三点基线达标、floor 取严、compute apps filtered=0、worktree clean | 窗口期 |
 | 6 | 开窗前把「计划 + 基线 + floor」贴开发团队群留痕；Chief GO 且为唯一执行会话 | 窗口期 |
-| 7 | **BOM 审计脚本已落库并通过**（`2026-11-04-governance-evidence-bom-audit`） | ❌ 缺（卡 proposed；未落库前本材料不得引用该命令） |
+| 7 | **BOM 审计脚本已落库并通过**（`2026-11-04-governance-evidence-bom-audit`） | ✅ `f8a0fa75`（`scripts/validate/check-evidence-bom.ps1`；基线 128 non-`.ps1` WARN + 4 manifest 违规。曾因 S3b③ 新文件 `compile.log` 漂移到 129，已由 `d034eb43` 剥离回 128） |
 
 ## 5. 依赖缺口（本片不解决，需另行登记/派活）
 
@@ -63,7 +63,7 @@
 ## 7. 窗口期附加检查（吸取本日两处教训）
 
 - **EOL**：跑任何带 `docs/`/`fixtures/` 的 `unchanged` 前先跑 `scripts/validate/normalize-evidence-eol.ps1 -DryRun`，再实跑（实测存量 1,227 stale，`core.autocrlf=true` 检出后会复发）。
-- **BOM**：开窗前跑 `scripts/validate/check-evidence-bom.ps1`（见 `2026-11-04-governance-evidence-bom-audit`），基线 128 non-`.ps1` WARN + 4 manifest 违规，**新增或超基线即停窗报 Chief**；`manifest.txt` 第 1 字节必须是 `#`。**该脚本当前尚未落库**（BOM 卡 proposed，见 §4 前置 P7）——脚本落库前本材料不得把它当既有命令；落库后以该卡 README 的实测基线为准。
+- **BOM**：开窗前跑 `scripts/validate/check-evidence-bom.ps1`（已落库，`2026-11-04-governance-evidence-bom-audit`）；基线 **128 non-`.ps1` WARN + 4 manifest 违规**（3 个 BOM + 非 BOM 的 `render-bvh/r05-summary/manifest.txt`），**新增或超基线即停窗报 Chief**；`manifest.txt` 第 1 字节必须是 `#`。基线漂移史：S3b③ 的 `compile.log` 曾带 BOM 使计数变 129，已由 `d034eb43` 剥离回 128。
 
 ## 8. 非声明
 
