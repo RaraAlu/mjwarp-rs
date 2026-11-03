@@ -20,23 +20,24 @@ use crate::render::kernel::cast::{CameraPose, ModelRenderArrays, SceneDevice, pa
 use crate::render::rays::RayBuffer;
 use crate::runtime::TransferSession;
 use crate::runtime::launcher::{
-    BlockRule, LaunchBounds2, LaunchDims, LauncherError, MEGAKERNEL_SLOTS, RenderArg, RenderElem,
-    RenderScalar, RenderSignature,
+    BlockRule, LaunchDims, LauncherError, MEGAKERNEL_SLOTS, RenderArg, RenderSignature,
 };
 
-use self::megakernel_uploads::{UploadInputs, mesh_slot_shape, upload_megakernel_arrays};
+use self::megakernel_uploads::{UploadInputs, upload_megakernel_arrays};
 use super::launch::RenderKernel;
 use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
-    array, channel_flags, floats, geom_data_poses, ints, light_data_poses, reals, shading_words,
-    to_i32, use_shadows_arg,
+    channel_flags, floats, geom_data_poses, ints, light_data_poses, reals, shading_words,
 };
-use super::world_arrays::{camera_pose_shape, light_type_shape, shared_matrix_shape, shared_shape};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
 // 拆分①：上传段以 `#[path]` 在本文件内声明为子模块（卡片 scope；`lighting.rs` 同款先例）。
 #[path = "megakernel_uploads.rs"]
 mod megakernel_uploads;
+
+// R06-S1a：81 槽实参装配段以 `#[path]` 在本文件内声明为子模块（卡片 scope；uploads 同款先例）。
+#[path = "megakernel_args.rs"]
+mod megakernel_args;
 
 const BLOCK: u32 = 256;
 
@@ -269,164 +270,27 @@ impl MegakernelRenderer {
             adr_world: world,
         })?;
         let u = &uploads;
-        let rgb_shape = [nworld, layout.rgb_pixels.max(1)];
-        let depth_shape = [nworld, layout.depth_pixels.max(1)];
-        let seg_shape = [nworld, layout.seg_slots.max(1)];
-
-        // ---- 81 槽实参（顺序 = S7a MEGAKERNEL_SLOTS） ----
+        // ---- 81 槽实参（顺序 = S7a MEGAKERNEL_SLOTS）：装配段拆分至 `megakernel_args.rs`（R06-S1a） ----
         let mut args: Vec<RenderArg> = Vec::with_capacity(MEGAKERNEL_SLOTS.len());
-        let camera_pose_dims = camera_pose_shape(launch_worlds, ncam);
-        let shared_cam = shared_shape(ncam);
-        let light_type_dims = light_type_shape(u.nlight);
-        let shared_geom = shared_shape(ngeom);
-        let shared_light = shared_shape(u.nlight);
-        let shared_mat = shared_shape(u.nmat);
-        let mat_texid_dims = shared_matrix_shape(u.nmat, 10);
-        args.push(RenderArg::Bounds2D(LaunchBounds2::new([
-            launch_worlds,
-            total_rays,
-        ])?));
-        args.push(array(&u.geom_type, RenderElem::I32, &shared_geom)?);
-        args.push(array(&u.geom_dataid, RenderElem::I32, &shared_geom)?);
-        args.push(array(&u.geom_matid, RenderElem::I32, &shared_geom)?);
-        args.push(array(&u.geom_size, RenderElem::Vec3, &shared_geom)?);
-        args.push(array(&u.geom_rgba, RenderElem::Vec4, &shared_geom)?);
-        args.push(array(&u.cam_projection, RenderElem::I32, &shared_cam)?);
-        args.push(array(&u.cam_fovy, RenderElem::F32, &shared_cam)?);
-        args.push(array(&u.cam_sensorsize, RenderElem::Vec2, &shared_cam)?);
-        args.push(array(&u.cam_intrinsic, RenderElem::Vec4, &shared_cam)?);
-        args.push(array(&u.light_type, RenderElem::I32, &light_type_dims)?);
-        args.push(array(&u.light_castshadow, RenderElem::Bool, &shared_light)?);
-        args.push(array(&u.light_active, RenderElem::Bool, &shared_light)?);
-        args.push(array(
-            &u.light_attenuation,
-            RenderElem::Vec3,
-            &shared_light,
-        )?);
-        args.push(array(&u.light_cutoff, RenderElem::F32, &shared_light)?);
-        args.push(array(&u.light_exponent, RenderElem::F32, &shared_light)?);
-        args.push(array(&u.light_ambient, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&u.light_diffuse, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&u.light_specular, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&u.flex_vertadr, RenderElem::I32, &[1])?);
-        args.push(array(&u.flex_edge, RenderElem::Vec2I, &[1])?);
-        args.push(array(&u.flex_radius, RenderElem::F32, &[1])?);
-        args.push(array(
-            &u.mesh_faceadr,
-            RenderElem::I32,
-            &mesh_slot_shape(u.nmesh),
-        )?);
-        args.push(array(
-            &u.mesh_normaladr,
-            RenderElem::I32,
-            &mesh_slot_shape(u.nmesh),
-        )?);
-        args.push(array(
-            &u.mesh_normal,
-            RenderElem::Vec3,
-            &mesh_slot_shape(u.mesh_normal.len() / 3),
-        )?);
-        args.push(array(&u.mat_texid, RenderElem::I32, &mat_texid_dims)?);
-        args.push(array(&u.mat_texuniform, RenderElem::Bool, &shared_mat)?);
-        args.push(array(&u.mat_texrepeat, RenderElem::Vec2, &shared_mat)?);
-        args.push(array(&u.mat_emission, RenderElem::F32, &shared_mat)?);
-        args.push(array(&u.mat_specular, RenderElem::F32, &shared_mat)?);
-        args.push(array(&u.mat_shininess, RenderElem::F32, &shared_mat)?);
-        args.push(array(&u.mat_rgba, RenderElem::Vec4, &shared_mat)?);
-        args.push(array(&u.geom_xpos, RenderElem::Vec3, &shared_geom)?);
-        args.push(array(&u.geom_xmat, RenderElem::Mat33, &shared_geom)?);
-        args.push(array(&u.cam_xpos, RenderElem::Vec3, &camera_pose_dims)?);
-        args.push(array(&u.cam_xmat, RenderElem::Mat33, &camera_pose_dims)?);
-        args.push(array(&u.light_xpos, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&u.light_xdir, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&u.flexvert_xpos, RenderElem::Vec3, &[1])?);
-        args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(nrender)?)));
-        // R09-S2b：第 40 槽（0-based `MEGAKERNEL_SLOTS[40]`）阴影总开关，值取 `resolved.use_shadows`。
-        args.push(use_shadows_arg(resolved.use_shadows));
-        args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(ngeom)?)));
-        args.push(RenderArg::Scalar(RenderScalar::I32(0)));
-        args.push(array(&u.cam_res, RenderElem::Vec2I, &[nrender])?);
-        args.push(array(&u.cam_id_map, RenderElem::I32, &[nrender])?);
-        args.push(array(&u.ray, RenderElem::Vec3, &[expected_rays])?);
-        args.push(array(&u.ray_offset, RenderElem::Vec3, &[expected_rays])?);
-        args.push(RenderArg::Scalar(RenderScalar::I32(0)));
-        args.push(array(&u.rgb_adr, RenderElem::I32, &[nrender])?);
-        args.push(array(&u.depth_adr, RenderElem::I32, &[nrender])?);
-        args.push(array(&u.seg_adr, RenderElem::I32, &[nrender])?);
-        args.push(array(&u.render_rgb, RenderElem::Bool, &[nrender])?);
-        args.push(array(&u.render_depth, RenderElem::Bool, &[nrender])?);
-        args.push(array(&u.render_seg, RenderElem::Bool, &[nrender])?);
-        args.push(RenderArg::Scalar(RenderScalar::U64(u.blob_addr)));
-        args.push(array(&u.group_root, RenderElem::I32, &[1])?);
-        args.push(array(&u.flex_bvh_id, RenderElem::U64, &[1])?);
-        args.push(array(&u.flex_group_root, RenderElem::I32, &[1])?);
-        args.push(array(&u.enabled_geom_ids, RenderElem::I32, &[ngeom])?);
-        args.push(array(&u.mesh_bvh_id, RenderElem::U64, &[1])?);
-        args.push(array(
-            &u.mesh_facetexcoord,
-            RenderElem::Vec3I,
-            &mesh_slot_shape(u.mesh_faces),
-        )?);
-        args.push(array(
-            &u.mesh_facenormal,
-            RenderElem::Vec3I,
-            &mesh_slot_shape(u.mesh_faces),
-        )?);
-        let texcoord_elems = u.mesh_texcoord.len() / 2;
-        args.push(array(
-            &u.mesh_texcoord,
-            RenderElem::Vec2,
-            &[texcoord_elems],
-        )?);
-        args.push(array(
-            &u.mesh_texcoord_offsets,
-            RenderElem::I32,
-            &mesh_slot_shape(u.nmesh),
-        )?);
-        args.push(array(
-            &u.hfield_bvh_id,
-            RenderElem::U64,
-            &[u.hfield_bvh_count],
-        )?);
-        args.push(array(&u.flex_rgba, RenderElem::Vec4, &[1])?);
-        args.push(array(&u.flex_geom_flexid, RenderElem::I32, &[1])?);
-        args.push(array(&u.flex_geom_edgeid, RenderElem::I32, &[1])?);
-        args.push(array(&u.skybox_tex_id, RenderElem::I32, &[1])?);
-        args.push(array(&u.skybox_face_width, RenderElem::I32, &[1])?);
-        args.push(match &u.texture_array {
-            Some(array) => RenderArg::Array(array.render_arg()?),
-            None => array(&u.dummy_texture, RenderElem::Texture2d, &[1])?,
-        });
-        args.push(array(&u.shading_constants, RenderElem::Vec3, &[4])?);
-        args.push(array(&u.splat_rotation, RenderElem::Quat, &[1])?);
-        args.push(array(&u.scale_constants, RenderElem::Vec3, &[1])?);
-        args.push(array(&u.splat_rgba, RenderElem::Vec4, &[1])?);
-        args.push(RenderArg::Scalar(RenderScalar::U64(flags_word)));
-        args.push(array(&u.splat_group_root, RenderElem::I32, &[1])?);
-        args.push(match &u.rgb_scratch {
-            Some(scratch) => array(scratch, RenderElem::U32, &[1, 1])?,
-            None => RenderArg::Array(context.outputs().rgb_render_arg_2d(nworld)?),
-        });
-        args.push(match &u.aa_scratch {
-            Some(scratch) => array(scratch, RenderElem::Vec3, &[1])?,
-            None => RenderArg::Array(context.outputs().aa_accum_render_arg_2d(nworld)?),
-        });
-        args.push(match &u.depth_scratch {
-            Some(scratch) => array(scratch, RenderElem::F32, &[1, 1])?,
-            None => RenderArg::Array(context.outputs().depth_render_arg_2d(nworld)?),
-        });
-        args.push(match &u.seg_scratch {
-            Some(scratch) => array(scratch, RenderElem::Vec2I, &[1, 1])?,
-            None => RenderArg::Array(context.outputs().seg_render_arg_2d(nworld)?),
-        });
-        let _ = (
-            rgb_shape,
-            depth_shape,
-            seg_shape,
-            u.light_castshadow.len(),
-            u.light_active.len(),
-            u.mat_texid.len(),
-        );
+        megakernel_args::push_megakernel_args(
+            &mut args,
+            &megakernel_args::MegakernelArgsInputs {
+                uploads: u,
+                context,
+                use_shadows: resolved.use_shadows,
+                nrender,
+                ngeom,
+                nworld,
+                launch_worlds,
+                total_rays,
+                expected_rays,
+                ncam,
+                rgb_pixels: layout.rgb_pixels,
+                depth_pixels: layout.depth_pixels,
+                seg_slots: layout.seg_slots,
+                flags_word,
+            },
+        )?;
 
         let grid = u32::try_from((launch_worlds * total_rays).div_ceil(BLOCK as usize))
             .map_err(|_| LauncherError::Overflow("render_grid"))?;
