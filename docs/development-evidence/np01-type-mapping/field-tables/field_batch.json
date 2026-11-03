@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "row_id": "field_batch",
+  "layer": "G01 字段批打包（非物理）",
+  "paths": ["字段批打包"],
+  "batch": "B2e",
+  "audit_level": "参数/缓冲/累加/输出层（per-field；本行无累加）",
+  "source": {
+    "file": "src/physics/resident/pack_batches.rs",
+    "const": "FIELD_BATCH_CUDA",
+    "kernels": ["field_parameter（device 库）", "pack_model / pack_fixed_tendon / pack_spatial_tendon（宿主打包）"],
+    "compose": "FIELD_BATCH_CUDA 作为前缀拼在其他 resident 内核源前（见 resident/plan_kernels.rs:119-130/173、plan_update_rigid.rs:14），并 #define MJWARP_FIELD_BATCHES 打开描述符取数分支"
+  },
+  "kernels": [
+    {
+      "name": "field_parameter（device 取数助手）",
+      "params": [
+        {"name": "p", "ctype": "const float*", "role": "in: 参数批基址"},
+        {"name": "desc", "ctype": "const int*", "role": "in: desc[0]=该字段参数段标量偏移，desc[1]=正数批周期（batches）"},
+        {"name": "world", "ctype": "unsigned", "role": "in: 世界号"},
+        {"name": "width", "ctype": "unsigned", "role": "in: 该字段每批元素数"}
+      ],
+      "intermediates": [
+        {"name": "desc[0]（偏移）", "type": "int", "note": "宿主打包时按字段顺序累加得出，构造期已做 i32::MAX 溢出检查"},
+        {"name": "world % desc[1]", "type": "unsigned", "note": "整型取模，把世界映射到参数批"},
+        {"name": "(world % desc[1]) * width", "type": "unsigned long long", "note": "宽乘，避免跨 CUDA block 的偏移溢出"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "返回指针 p + desc[0] + (world % desc[1]) * width", "type": "const float*", "conversion": "纯指针算术，不读写数据、不做浮点运算"}
+      ]
+    },
+    {
+      "name": "pack_model（宿主打包：拓扑 + 参数描述符）",
+      "params": [
+        {"name": "topology", "ctype": "&[&[i32]]", "role": "in: 拓扑整型切片，按声明顺序原样拷入 metadata"},
+        {"name": "fields", "ctype": "&[KinematicsParameter]", "role": "in: 字段清单，决定 [offset, batches] 两两描述符与 values 拼接顺序"},
+        {"name": "parameters", "ctype": "&KinematicsParameters", "role": "in: 各字段的 f32 值与 batches"},
+        {"name": "model", "ctype": "&AttachedModelInput", "role": "in: 取值来源"}
+      ],
+      "intermediates": [
+        {"name": "metadata_len / parameters_len", "type": "usize", "note": "packed_length 逐项 checked_add，超 i32::MAX 报 Overflow"},
+        {"name": "cursor / offset", "type": "usize", "note": "两套游标：metadata 写描述符，parameters 写 f32 值"}
+      ],
+      "accumulations": [
+        {"what": "offset += v.len()；cursor += 2", "type": "usize 整型累加（构造期一次，无浮点）"}
+      ],
+      "outputs": [
+        {"field": "metadata", "type": "i32[]", "conversion": "[拓扑切片…][每字段 offset, batches]…"},
+        {"field": "packed.parameters", "type": "f32[]", "conversion": "按 fields 顺序首尾相接的 f32 值（本行不改变任何 f32 位型）"}
+      ]
+    },
+    {
+      "name": "pack_fixed_tendon / pack_spatial_tendon（宿主打包：纯肌腱等专段）",
+      "params": [
+        {"name": "model/fields/geometry", "ctype": "&AttachedModelInput / 字段结构 / Option<几何>", "role": "in: 取值与映射来源"},
+        {"name": "PackedModel", "ctype": "struct { metadata: Vec<i32>, parameters: Vec<f32> }", "role": "out: 打包结果"}
+      ],
+      "intermediates": [
+        {"name": "binary_search 列匹配", "type": "usize", "note": "ten_J_colind 有序行内查 jnt_dofadr，找不到报 InvalidTopology"},
+        {"name": "scale（wrap_type==2）", "type": "f64 → f32", "note": "1.0 / wrap_prm[i] 在 f64 计算后写入 f32 参数槽（本行唯一的双精度接触点，见 quantization）"}
+      ],
+      "accumulations": [
+        {"what": "parameters[cursor..] 按 tendon 升序回填 scale", "type": "索引回填，无浮点求和"}
+      ],
+      "outputs": [
+        {"field": "metadata", "type": "i32[]", "conversion": "固定槽序（见 resident/pack.rs 与 pack_batches.rs 注释）"},
+        {"field": "parameters", "type": "f32[]", "conversion": "wrap 缩放系数与 geom_size 段"}
+      ]
+    }
+  ],
+  "quantization": [
+    "打包本身不改变输入 f32 位型：所有 f32 值按 copy_from_slice 原样搬运",
+    "唯一双精度接触点：pack_spatial_tendon 的 scale = 1.0 / fields.wrap_prm[i]（f64 除法后再写入 f32 槽）；是否等价于 f32 除法需逐表达式核对，本表只登记位置不判等价",
+    "描述符 [offset, batches] 全为 i32；偏移/长度在宿主用 checked_add 限制在 i32::MAX 内，避免设备端 32 位指针算术溢出",
+    "无 sentinel：本行不做数据校验，校验在各内核自己的 validate 行"
+  ],
+  "rounding_notes": [
+    "本行无浮点算术（除上述 f64→f32 除法），全部为整型游标、memcpy 与索引映射",
+    "field_parameter 的取模与宽乘为整型，保证跨 block 指针算术确定性；world 到参数批的映射周期必须为正（desc[1]>0，宿主保证）",
+    "FIELD_BATCHES 分支对内核只改『取数方式』，不改算式，因此类型映射结论对启用/未启用两形态都成立"
+  ],
+  "upstream": {
+    "files": ["io.py", "types.py"],
+    "functions": ["（文件级映射）"],
+    "confidence": "文件级"
+  },
+  "evidence": [
+    "docs/development-evidence/g01-fast-loop/README.md（常驻批路径证据）",
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types：input f32/整型字段批、accumulation 无）",
+    "src/physics/resident/{pack.rs,pack_batches.rs,field_batch.rs}（打包实现 + 精确跨度校验 + 四缓冲发射）",
+    "src/physics/resident/plan_kernels.rs:119-130,173（FIELD_BATCH_CUDA 前缀拼接点）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：上游 io.py/types.py 的字段批打包函数级定位、1.0/wrap_prm 的 f64→f32 等价性逐表达式核对"
+}

@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "row_id": "attached",
+  "layer": "G01 附着位姿",
+  "paths": ["attached_kinematics", "initialize_attached"],
+  "batch": "B2e",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {
+    "file": "src/physics/attached.rs",
+    "const": "ATTACHED_CUDA",
+    "kernels": ["attached_kinematics", "initialize_attached"],
+    "compose": "编译源 = KINEMATICS_CUDA + \"\\n\" + ATTACHED_CUDA（attached.rs:155）；initialize_attached 仅在 #ifdef MJWARP_MOCAP 下编译"
+  },
+  "kernels": [
+    {
+      "name": "attached_frames（device 库，被两个 __global__ 共用）",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: meta[0]=rigid 每世界元素数；meta[1..1+ng]=geom_bodyid；meta[1+ng..]=site_bodyid；FIELD_BATCHES 下其后为字段描述符；MOCAP 下先插 static_geom[ng]"},
+        {"name": "model", "ctype": "const float*", "role": "in: [geom_pos, geom_quat, site_pos, site_quat] 四段（或 FIELD_BATCHES 描述符取数）"},
+        {"name": "body", "ctype": "const float*", "role": "in: 刚体运动学结果（xpos/xquat），只读复用"},
+        {"name": "result", "ctype": "float*", "role": "out: 每世界 12*(ng+ns) 元素"},
+        {"name": "nb/ng/ns/worlds", "ctype": "unsigned", "role": "scalar 维度"},
+        {"name": "initialize", "ctype": "bool", "role": "in: true 时连静态 geom 一起写（MOCAP 分支）"}
+      ],
+      "intermediates": [
+        {"name": "xp/xq", "type": "const float*", "note": "body+4+w*meta[0] 与 +3*nb，宽指针算术"},
+        {"name": "q", "type": "Q（4×f32）", "note": "load_q(xq+4*b)，逐 world 只读"},
+        {"name": "rotate(q, gp+3g)", "type": "V（3×f32）", "note": "warp quat_rotate 等价实现"},
+        {"name": "multiply(q, load_q(gq+4g))", "type": "Q → matrix 9×f32", "note": "四元数乘积再转矩阵，行展开写 gm/sm"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "gx[3g..3g+3]", "type": "f32", "conversion": "add(xpos[b], rotate(q, geom_pos))"},
+        {"field": "gm[9g..9g+9]", "type": "f32", "conversion": "matrix(multiply(q, geom_quat))"},
+        {"field": "sx[3s..3s+3]", "type": "f32", "conversion": "add(xpos[b], rotate(q, site_pos))"},
+        {"field": "sm[9s..9s+9]", "type": "f32", "conversion": "matrix(multiply(q, site_quat))"},
+        {"field": "result 每世界段序", "type": "f32", "conversion": "[geom_xpos 3ng][geom_xmat 9ng][site_xpos 3ns][site_xmat 9ns]，stride 12(ng+ns)"}
+      ]
+    },
+    {
+      "name": "attached_kinematics",
+      "params": [
+        {"name": "meta/model/body/result", "ctype": "const int* / const float* ×2 / float*", "role": "同 attached_frames"},
+        {"name": "nb/ng/ns/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "result", "type": "f32", "conversion": "attached_frames(..., initialize=false)：MOCAP 下跳过 static_geom[g] 非零的静态几何"}]
+    },
+    {
+      "name": "initialize_attached",
+      "params": [
+        {"name": "meta/model/body/result", "ctype": "const int* / const float* ×2 / float*", "role": "同前（仅 MJWARP_MOCAP 编译）"},
+        {"name": "nb/ng/ns/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "result", "type": "f32", "conversion": "attached_frames(..., initialize=true)：连静态几何一起重算"}]
+    }
+  ],
+  "quantization": [
+    "全部 f32；无 f64、无 double 常量",
+    "sentinel：宿主把整段缓冲填 -131072.0f，再对 [4, len-4) 填 f32::NAN；内核不读哨兵（只写输出），哨兵由设备值回读后的 check_device_values 校验",
+    "场景规模 ngeom/nsite 为 0 时仍计算刚体结果，输出段长 0"
+  ],
+  "rounding_notes": [
+    "位姿算式全部走 warp device 助手（add / scale / rotate / multiply / matrix / load_q / load_v / store_v），未写显式 .rn；四元数旋转与矩阵化的舍入顺序由这些助手固定",
+    "MOCAP 的 initialize 分支只改变『是否跳过静态 geom』，不改变任何算式顺序",
+    "FIELD_BATCHES 分支只把 model 取数换成 field_parameter(p, desc, w, width)，算式不变"
+  ],
+  "upstream": {
+    "files": ["smooth.py"],
+    "functions": ["_site_local_to_global"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/g01-fast-loop/README.md（attached 探针等价性证据）",
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types/常量/哨兵口径）",
+    "W15 头文件路径：include/warp-headers/{mat,quat,vec}.h（via upstream，见 warp-headers.json）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：site/geom 六项字段的上游逐行对照、MOCAP 静态 geom 缓存副作用的等价范围说明"
+}

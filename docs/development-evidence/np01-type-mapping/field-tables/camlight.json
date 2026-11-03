@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "row_id": "camlight",
+  "layer": "G01 相机/光源",
+  "paths": ["camlight_rigid", "camlight_com"],
+  "batch": "B2e",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {
+    "file": "src/physics/camlight.rs",
+    "const": "CAMLIGHT_CUDA",
+    "kernels": ["camlight_rigid", "camlight_com"],
+    "compose": "编译源 = FIELD_BATCH_CUDA + KINEMATICS_CUDA + CAMLIGHT_CUDA（resident/plan_kernels.rs:173-175）"
+  },
+  "kernels": [
+    {
+      "name": "camlight_rigid",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: meta[0]=body 每世界元素数；meta[1]=com 每世界元素数；meta+2 起 cam_mode/cam_bodyid/cam_targetid/light_mode/light_bodyid/light_targetid 六表 + 字段描述符起点 d"},
+        {"name": "model", "ctype": "const float*", "role": "in: cam_pos/quat/pos0/xmat 与 light_pos/dir/pos0/dir0 八段（经 field_parameter）"},
+        {"name": "body", "ctype": "const float*", "role": "in: 刚体 xpos/xquat（同一设备内 FK 结果，只读）"},
+        {"name": "result", "ctype": "float*", "role": "out: 每世界 12*nc + 6*nl 元素"},
+        {"name": "nb/nc/nl/worlds", "ctype": "unsigned", "role": "scalar 维度；一个线程一个 world"}
+      ],
+      "intermediates": [
+        {"name": "q", "type": "Q（4×f32）", "note": "load_q(xq+4*b)"},
+        {"name": "pos", "type": "V（3×f32）", "note": "mode==1 时用 cp0/lp0，否则 add(xpos[b], rotate(q, 局部偏移))"},
+        {"name": "look_at 的 x/y/z", "type": "V ×3", "note": "cam mode 3：z=normalize(pos-target)，x=normalize(cross({0,0,1}, z))，y=normalize(cross(z, x))"},
+        {"name": "invalid", "type": "bool", "note": "light mode 3/4 且 target<0 时方向不归一化，原样写出"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "cx[3c]", "type": "f32", "conversion": "cam_xpos"},
+        {"field": "mx[9c]", "type": "f32", "conversion": "cam_xmat：mode1/2 直接搬 cmat，mode3 用 look_at，其余 matrix(q*cq) 后行展开"},
+        {"field": "lx[3l]", "type": "f32", "conversion": "light_xpos"},
+        {"field": "dx[3l]", "type": "f32", "conversion": "light_xdir：invalid 时原向量，否则 light_normalize(dir)"}
+      ]
+    },
+    {
+      "name": "camlight_com",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: meta[0]/meta[1] 与前一致，六表 + d 描述符"},
+        {"name": "model", "ctype": "const float*", "role": "in: 只取 cam_pos_com / light_pos_com 两段（经 field_parameter）"},
+        {"name": "com", "ctype": "const float*", "role": "in: subtree_com（每世界 meta[1] 元素，com 段从 +nb 起）"},
+        {"name": "result", "ctype": "float*", "role": "in/out: 读上一次写入的 cx/mx/lx，再改 COM 模式项"},
+        {"name": "nb/nc/nl/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "sc", "type": "const float*", "note": "com+4+w*meta[1]+nb，subtree_com 起点"},
+        {"name": "look_at（cam mode 4 / light mode 4）", "type": "V ×3", "note": "目标换为 subtree_com[3*target]，与 rigid 段同一实现"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "cx[3c]（cam mode 2）", "type": "f32", "conversion": "add(subtree_com[3*cb], cam_pos_com)"},
+        {"field": "mx[9c]（cam mode 4 且 target>=0）", "type": "f32", "conversion": "look_at(cx, subtree_com[3*ct]) 覆盖"},
+        {"field": "lx[3l]（light mode 2）", "type": "f32", "conversion": "add(subtree_com[3*lb], light_pos_com)"},
+        {"field": "dx[3l]（light mode 4 且 target>=0）", "type": "f32", "conversion": "light_normalize(subtree_com[3*lt] - lx)"}
+      ]
+    }
+  ],
+  "quantization": [
+    "全部 f32；无 f64、无 double 常量",
+    "light_normalize：len=sqrtf(x²+y²+z²)；len>0 时逐分量 v/len，否则写 {0,0,0}（Warp 1.15.0 builtin.h 的 kEps=0 语义）",
+    "scale(target,-1.0f) 产生 pos-target，再交给 normalize；不额外引入 sentinel"
+  ],
+  "rounding_notes": [
+    "sqrtf + 普通除法（未写 .rn），保留驱动收缩权限",
+    "look_at 的矩阵列装入顺序固定为 [x.x,y.x,z.x, x.y,y.y,z.y, x.z,y.z,z.z]（mat 行展开）",
+    "camlight_com 只覆盖 COM 模式项，其余项保持 camlight_rigid 写入值（依赖同一 world 的同步 FK 发射顺序）"
+  ],
+  "upstream": {
+    "files": ["smooth.py"],
+    "functions": ["_light_local_to_global"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types/常量口径）",
+    "src/physics/resident/plan_kernels.rs:173-175（FIELD_BATCH_CUDA + KINEMATICS_CUDA + CAMLIGHT_CUDA 拼接）",
+    "W15 头文件路径：include/warp-headers/{builtin,quat,vec}.h（builtin.h#sqrt 为 product 侧来源）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：上游 camlight 包装函数定位（当前只到 smooth.py 文件级）、look_at 与上游 warp 版本的逐表达式对照"
+}

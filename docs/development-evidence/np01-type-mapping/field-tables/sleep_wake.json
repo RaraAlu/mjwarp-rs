@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "row_id": "sleep_wake",
+  "layer": "G02 睡眠/唤醒",
+  "paths": ["sleep_copy", "tendon_wake"],
+  "batch": "B2e",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {
+    "file": "src/physics/sleep.rs",
+    "const": "TENDON_WAKE_CUDA",
+    "kernels": ["sleep_copy", "tendon_wake"],
+    "compose": "宿主打包在 resident/pack.rs#pack_sleep；发射器 resident/sleep_copy.rs 与 resident/tendon_wake_launcher.rs 共用同一 TENDON_WAKE_CUDA"
+  },
+  "kernels": [
+    {
+      "name": "sleep_copy",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: m[0]=ntree"},
+        {"name": "params", "ctype": "const float*", "role": "in: 占位（统一签名，未读）"},
+        {"name": "state", "ctype": "const int*", "role": "in: 上一轮休眠状态（每世界 2*ntree+3 元素）"},
+        {"name": "result", "ctype": "int*", "role": "out: 目标缓冲同形"},
+        {"name": "a/b/c/worlds", "ctype": "unsigned", "role": "scalar 维度；一个线程一个 world"}
+      ],
+      "intermediates": [
+        {"name": "width", "type": "unsigned long long", "note": "2*m[0]+3"},
+        {"name": "offset", "type": "unsigned long long", "note": "4+w*width，含前置 4 个守卫元素"}
+      ],
+      "accumulations": [],
+      "outputs": [{"field": "result[offset..offset+width]", "type": "i32", "conversion": "逐元素原样搬运 state（无算术、无转换）"}]
+    },
+    {
+      "name": "tendon_wake",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: [0]=ntree [1]=ntendon [2]=nwrap [3]=tendon_range 批数 [4]=tendon_margin 批数 [5]=length 每世界 stride [6]=sleep_enabled 标志；m+7 起 tendon_adr/tendon_num/tendon_limited/wrap_treeid 四表"},
+        {"name": "params", "ctype": "const float*", "role": "in: tendon_range[2*nt] 接 tendon_margin[nt]（按 world 取批）"},
+        {"name": "lengths", "ctype": "const float*", "role": "in: 肌腱长度 length[t]"},
+        {"name": "result", "ctype": "int*", "role": "in/out: 读上一轮 asleop 段、写 awake 段与三个计数"},
+        {"name": "a/b/c/worlds", "ctype": "unsigned", "role": "scalar 维度；一个线程一个 world，遍历全局肌腱序"}
+      ],
+      "intermediates": [
+        {"name": "range/margin", "type": "const float*", "note": "params + (w%m[3])*2*nt 与 + 2*nt*m[3] + (w%m[4])*nt"},
+        {"name": "length", "type": "const float*", "note": "lengths+4+w*m[5]"},
+        {"name": "wakeval", "type": "int", "note": "初值 -11；扫描 num[t] 个 trees，取 awake==1 者 asleep[tree] 的最小值"},
+        {"name": "tendon_wake_tree", "type": "void(int*,int,int,int)", "note": "沿 asleep 链逐节点写 wakeval，old<0 时只收紧不扩链；循环上限 ntree 步防环"},
+        {"name": "any_awake/limited[t]", "type": "int", "note": "两者与长度边界比较共同决定是否唤醒"}
+      ],
+      "accumulations": [
+        {"what": "length[t]-range[2t] < margin[t] || range[2t+1]-length[t] < margin[t]", "type": "f32 单次减 + 比较（不做累加，不引入求和顺序问题）"}
+      ],
+      "outputs": [
+        {"field": "awake[i]", "type": "i32（0/1）", "conversion": "asleep[i]<0 ? 1 : 0，i 升序"},
+        {"field": "awake[n]", "type": "i32", "conversion": "上面 0/1 计数（int 累加）"},
+        {"field": "awake[n+1] / awake[n+2]", "type": "i32", "conversion": "固定写 0（nbody_awake / nv_awake 由后续轻量刷新补）"}
+      ]
+    }
+  ],
+  "quantization": [
+    "本行不产生 f32 输出：状态/计数全为 i32；f32 仅作为 lengths 与 tendon_range/margin 的只读输入",
+    "无 sentinel、无 f64；边界比较用普通 < 与减法，不引入容差",
+    "wakeval 初值 -11 与 asleep 的负值语义（<0 即仍在睡）是协议常量，不参与浮点"
+  ],
+  "rounding_notes": [
+    "无浮点累加，故无求和顺序判据；两条边界比较各自只有一次 f32 减法和一次 f32 比较，位级只依赖输入值与减法舍入",
+    "sleep_copy 是纯位型搬运（i32 → i32），逐元素拷贝即保持位级不变",
+    "循环上限：asleep 链按 ntree 步截断并检测回环（current==tree 即停），避免脏数据造成死循环"
+  ],
+  "upstream": {
+    "files": ["sleep.py"],
+    "functions": ["_sleep_cycle", "_wake_tree"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/layers-m3-sleep-copy/（既有休眠复制证据）",
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types 口径 + warpHeaderCoverage.note：上游无直接函数对应，不写成通过）",
+    "src/physics/resident/pack.rs:117-145（metadata/parameters 打包槽序）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：完整休眠等价调度（W15 头树无对应函数，记为缺口不写成通过）、唤醒链在环状拓扑下的上游行为对照",
+  "audit_note": "W15 头文件树对 sleep.py 只有运行时 API 命中（upstreamApisMapped=0），本表只覆盖产品侧字段/顺序/类型，不宣称上游函数级对齐。"
+}
