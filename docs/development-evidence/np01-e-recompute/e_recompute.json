@@ -1,0 +1,416 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-04-precision-np01-e-recompute",
+  "kind": "np01-e-three-candidates",
+  "formula": "E = max_i |cand_i - native_i| / (atol + rtol*|native_i|); redline = 1.05 * E_mjwarp",
+  "inputs": {
+    "native_f64": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-native-f64.json",
+    "upstream_f32_gpu": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-upstream-gpu.json",
+    "qa_compare": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json",
+    "device_vs_upstream": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/result.json",
+    "tier_table": "docs/numerical-precision-contract.md L246-L254 (user 2026-10-27)"
+  },
+  "candidates": {
+    "native_f64": {
+      "basis": "native f64 contact arrays (QA archive)",
+      "cases": {
+        "ellipsoid-box": {
+          "path": "CONVEX",
+          "worlds": 2,
+          "fields": {
+            "dist": {
+              "E_mjwarp": 0.39214617629694537,
+              "E_candidate_lower_bound": 0.3897854462086049,
+              "E_candidate_upper_bound": 0.3984516075515284,
+              "upstream_vs_native_max_abs": 3.960674395606101e-07,
+              "device_vs_upstream_bound": 2.3841679909183156e-09,
+              "atol": 1e-06,
+              "rtol": 1e-06,
+              "formula_note": "lower bound uses max denominator, upper bound uses min denominator (atol); exact per-element value needs device raw arrays"
+            },
+            "pos": {
+              "E_mjwarp": 431.0824771845235,
+              "E_candidate_lower_bound": 431.0795268441829,
+              "E_candidate_upper_bound": 454.59910295962,
+              "upstream_vs_native_max_abs": 0.0004545960834372101,
+              "device_vs_upstream_bound": 3.0195224098861217e-09,
+              "atol": 1e-06,
+              "rtol": 1e-06,
+              "formula_note": "lower bound uses max denominator, upper bound uses min denominator (atol); exact per-element value needs device raw arrays"
+            },
+            "frame": {
+              "E_mjwarp": 585.257932058866,
+              "E_candidate_lower_bound": 585.0680274761402,
+              "E_candidate_upper_bound": 585.4478366415918,
+              "upstream_vs_native_max_abs": 0.001170515864117732,
+              "device_vs_upstream_bound": 3.798091654516611e-07,
+              "atol": 2e-06,
+              "rtol": 0.0,
+              "formula_note": "lower bound uses max denominator, upper bound uses min denominator (atol); exact per-element value needs device raw arrays"
+            }
+          },
+          "pairing": [
+            {
+              "method": "1:1",
+              "native": 1,
+              "upstream": 1,
+              "pairing_reliable": true
+            },
+            {
+              "method": "1:1",
+              "native": 1,
+              "upstream": 1,
+              "pairing_reliable": true
+            }
+          ]
+        },
+        "sdf-box": {
+          "path": "SDF",
+          "worlds": 2,
+          "fields": {
+            "dist": {
+              "E_mjwarp": 42883.31977226854,
+              "E_candidate_lower_bound": 42276.24287351415,
+              "E_candidate_upper_bound": 44626.37994203301,
+              "upstream_vs_native_max_abs": 0.08925275988406602,
+              "device_vs_upstream_bound": 0.0,
+              "atol": 2e-06,
+              "rtol": 1e-06,
+              "formula_note": "lower bound uses max denominator, upper bound uses min denominator (atol); exact per-element value needs device raw arrays"
+            },
+            "pos": {
+              "E_mjwarp": 125745.45769045588,
+              "E_candidate_lower_bound": 66907.50649688278,
+              "E_candidate_upper_bound": 73427.86735125154,
+              "upstream_vs_native_max_abs": 0.07342785990067094,
+              "device_vs_upstream_bound": 7.450580596923828e-09,
+              "atol": 1e-06,
+              "rtol": 1e-06,
+              "formula_note": "lower bound uses max denominator, upper bound uses min denominator (atol); exact per-element value needs device raw arrays"
+            },
+            "frame": {
+              "E_mjwarp": 32425.740373207973,
+              "E_candidate_lower_bound": 31517.735826735294,
+              "E_candidate_upper_bound": 31517.745363478458,
+              "upstream_vs_native_max_abs": 1.5758870297553438,
+              "device_vs_upstream_bound": 2.384185791015625e-07,
+              "atol": 5e-05,
+              "rtol": 0.0,
+              "formula_note": "lower bound uses max denominator, upper bound uses min denominator (atol); exact per-element value needs device raw arrays"
+            }
+          },
+          "pairing": [
+            {
+              "method": "nearest_neighbor_greedy",
+              "native": 40,
+              "upstream": 40,
+              "pairing_distance_median": 0.051988819231600245,
+              "pairing_distance_max": 0.13707858085884603,
+              "nearest_neighbor_spacing_p50": 0.01815743600587331,
+              "pairing_reliable": false
+            },
+            {
+              "method": "nearest_neighbor_greedy",
+              "native": 40,
+              "upstream": 40,
+              "pairing_distance_median": 0.05596241827390914,
+              "pairing_distance_max": 0.12112977445185939,
+              "nearest_neighbor_spacing_p50": 0.016710203545519327,
+              "pairing_reliable": false
+            }
+          ]
+        }
+      },
+      "excluded": {
+        "hfield-sphere": {
+          "reason": "HFIELD has no signed tier; native vs warp contact counts differ so pairing impossible",
+          "native_counts": [
+            6,
+            6
+          ],
+          "warp_counts": [
+            4,
+            4
+          ],
+          "usable_as_tolerance_basis": false
+        },
+        "hfield-capsule": {
+          "reason": "HFIELD has no signed tier; native vs warp contact counts differ so pairing impossible",
+          "native_counts": [
+            6,
+            3
+          ],
+          "warp_counts": [
+            4,
+            3
+          ],
+          "usable_as_tolerance_basis": false
+        }
+      }
+    },
+    "same_code_backend": {
+      "basis": "same-code cross-backend (warp CPU vs warp CUDA f32) error distribution; native f64 rejected as different engine semantics",
+      "baseline": {
+        "basis": "同码跨后端（warp CPU vs warp CUDA f32）误差分布，而非 native f64（不同引擎）",
+        "dist": {
+          "count": 97,
+          "max": 6.877817213535309e-07,
+          "p99": 4.0908344089984894e-07,
+          "p95": 2.0116567611694336e-07,
+          "p50": 7.450580596923828e-09
+        },
+        "dist_rel": {
+          "count": 97,
+          "max": 0.00013077452073174587,
+          "p99": 0.00012063913059628756,
+          "p95": 2.9875386443656126e-06,
+          "p50": 1.995824469100712e-07
+        },
+        "pos": {
+          "count": 97,
+          "max": 4.6193599700927734e-07,
+          "p99": 2.0116567611694336e-07,
+          "p95": 1.3224780559539795e-07,
+          "p50": 7.450580596923828e-09
+        },
+        "frame": {
+          "count": 97,
+          "max": 2.7781352400779724e-05,
+          "p99": 7.68899917602539e-06,
+          "p95": 8.192876492785217e-07,
+          "p50": 1.1920928955078125e-07
+        },
+        "normal": {
+          "count": 97,
+          "max": 1.6279518604278564e-05,
+          "p99": 4.939734935760498e-06,
+          "p95": 8.192876492785217e-07,
+          "p50": 1.1920928955078125e-07
+        },
+        "suggested": {
+          "atol_pos": 4.6193599700927734e-07,
+          "atol_frame": 2.7781352400779724e-05,
+          "atol_normal": 1.6279518604278564e-05,
+          "atol_dist": 6.877817213535309e-07,
+          "rtol_dist": 0.00013077452073174587,
+          "note": "建议值取同码跨后端实测 max（可在 G6 乘以 2 余量）；设备 vs 上游 GPU 的正式判据仍按 4·ULP 口径"
+        }
+      },
+      "baseline_not_split_by_path": {
+        "dist": {
+          "aggregate_max": 6.877817213535309e-07,
+          "note": "baseline 不按路径拆分，仅作聚合交叉核对"
+        },
+        "pos": {
+          "aggregate_max": 4.6193599700927734e-07,
+          "note": "baseline 不按路径拆分，仅作聚合交叉核对"
+        },
+        "frame": {
+          "aggregate_max": 2.7781352400779724e-05,
+          "note": "baseline 不按路径拆分，仅作聚合交叉核对"
+        },
+        "normal": {
+          "aggregate_max": 1.6279518604278564e-05,
+          "note": "baseline 不按路径拆分，仅作聚合交叉核对"
+        }
+      },
+      "signed_tier_margin": {
+        "dist/CONVEX": {
+          "atol": 1e-06,
+          "measured_worst": 9.31e-09,
+          "margin_factor": 107.41138560687432,
+          "within_tier": true,
+          "worst_source": "contract L246-L254 measured-worst column"
+        },
+        "pos/CONVEX": {
+          "atol": 1e-06,
+          "measured_worst": 1.86e-08,
+          "margin_factor": 53.76344086021505,
+          "within_tier": true,
+          "worst_source": "contract L246-L254 measured-worst column"
+        },
+        "frame/CONVEX": {
+          "atol": 2e-06,
+          "measured_worst": 8.19e-07,
+          "margin_factor": 2.4420024420024418,
+          "within_tier": true,
+          "worst_source": "contract L246-L254 measured-worst column"
+        },
+        "dist/SDF": {
+          "atol": 2e-06,
+          "measured_worst": 6.88e-07,
+          "margin_factor": 2.9069767441860463,
+          "within_tier": true,
+          "worst_source": "contract L246-L254 measured-worst column"
+        },
+        "pos/SDF": {
+          "atol": 1e-06,
+          "measured_worst": 4.62e-07,
+          "margin_factor": 2.1645021645021645,
+          "within_tier": true,
+          "worst_source": "contract L246-L254 measured-worst column"
+        },
+        "frame/SDF": {
+          "atol": 5e-05,
+          "measured_worst": 2.78e-05,
+          "margin_factor": 1.7985611510791366,
+          "within_tier": true,
+          "worst_source": "contract L246-L254 measured-worst column"
+        }
+      },
+      "tightest_margin": {
+        "key": "frame/SDF",
+        "margin_factor": 1.7985611510791366
+      },
+      "redline_degenerate": "E_mjwarp is 0 by definition here, so 1.05*E_mjwarp degenerates; the check becomes measured worst <= signed atol"
+    },
+    "status_quo": {
+      "basis": "E not finalized; contact fields keep only upstream-f32 criteria (vector-scale ULP / frame absolute ULP / structural zero tolerance); tier table stays diagnostic on the native side",
+      "change_to_contract": "none",
+      "risk": "contact fields then have no numeric criterion on the native side, only the relative redline; reading the tier table as a native criterion would misjudge"
+    }
+  },
+  "caveats": [
+    "device raw contact arrays are not archived: E_candidate is bounded, not exact",
+    "hfield cases: native 6/6 and 6/3 vs warp 8/7 contacts -> unpairable; no signed HFIELD tier",
+    "sdf-box is 40:40 nearest-neighbour pairing; pos gap ~7e-2 > NN spacing p50 ~1.4e-2, so pairing reliability is doubtful and the conclusion is diagnostic only"
+  ],
+  "redline_ratio": {
+    "note": "redline E_candidate <= 1.05*E_mjwarp is a RELATIVE test: when device and upstream deviate from native almost identically (ratio ~ 1) the redline passes even though absolute E is huge; both facts must be reported separately",
+    "cases": {
+      "ellipsoid-box": {
+        "dist": {
+          "upstream_vs_native_max_abs": 3.960674395606101e-07,
+          "device_vs_upstream_bound": 2.3841679909183156e-09,
+          "ratio_lower": 0.993980398909935,
+          "ratio_upper": 1.006019601090065
+        },
+        "pos": {
+          "upstream_vs_native_max_abs": 0.0004545960834372101,
+          "device_vs_upstream_bound": 3.0195224098861217e-09,
+          "ratio_lower": 0.9999933577905312,
+          "ratio_upper": 1.0000066422094689
+        },
+        "frame": {
+          "upstream_vs_native_max_abs": 0.001170515864117732,
+          "device_vs_upstream_bound": 3.798091654516611e-07,
+          "ratio_lower": 0.9996755198480476,
+          "ratio_upper": 1.0003244801519524
+        }
+      },
+      "sdf-box": {
+        "dist": {
+          "upstream_vs_native_max_abs": 0.08925275988406602,
+          "device_vs_upstream_bound": 0.0,
+          "ratio_lower": 1.0,
+          "ratio_upper": 1.0
+        },
+        "pos": {
+          "upstream_vs_native_max_abs": 0.07342785990067094,
+          "device_vs_upstream_bound": 7.450580596923828e-09,
+          "ratio_lower": 0.9999998985319658,
+          "ratio_upper": 1.0000001014680342
+        },
+        "frame": {
+          "upstream_vs_native_max_abs": 1.5758870297553438,
+          "device_vs_upstream_bound": 2.384185791015625e-07,
+          "ratio_lower": 0.9999998487083309,
+          "ratio_upper": 1.0000001512916692
+        }
+      }
+    }
+  },
+  "verdicts": {
+    "native_f64": {
+      "decidability": "归档数据只能判定 2/4 case（hfield 接触数与 warp 不等，不可配对）；且设备原始数组未归档 → 红线界跨，不能定稿",
+      "redline_check": {
+        "ellipsoid-box": {
+          "pairable": true,
+          "pairing_reliable": true,
+          "fields": {
+            "dist": {
+              "E_mjwarp": 0.39214617629694537,
+              "redline": 0.41175348511179266,
+              "E_candidate_bounds": [
+                0.3897854462086049,
+                0.3984516075515284
+              ],
+              "verdict": "E_candidate < redline（界内）",
+              "absolute_E_gt_1": false
+            },
+            "pos": {
+              "E_mjwarp": 431.0824771845235,
+              "redline": 452.6366010437497,
+              "E_candidate_bounds": [
+                431.0795268441829,
+                454.59910295962
+              ],
+              "verdict": "界跨红线：归档数据不可判定",
+              "absolute_E_gt_1": true
+            },
+            "frame": {
+              "E_mjwarp": 585.257932058866,
+              "redline": 614.5208286618093,
+              "E_candidate_bounds": [
+                585.0680274761402,
+                585.4478366415918
+              ],
+              "verdict": "E_candidate < redline（界内）",
+              "absolute_E_gt_1": true
+            }
+          }
+        },
+        "sdf-box": {
+          "pairable": true,
+          "pairing_reliable": false,
+          "fields": {
+            "dist": {
+              "E_mjwarp": 42883.31977226854,
+              "redline": 45027.48576088197,
+              "E_candidate_bounds": [
+                42276.24287351415,
+                44626.37994203301
+              ],
+              "verdict": "E_candidate < redline（界内）",
+              "absolute_E_gt_1": true
+            },
+            "pos": {
+              "E_mjwarp": 125745.45769045588,
+              "redline": 132032.7305749787,
+              "E_candidate_bounds": [
+                66907.50649688278,
+                73427.86735125154
+              ],
+              "verdict": "E_candidate < redline（界内）",
+              "absolute_E_gt_1": true
+            },
+            "frame": {
+              "E_mjwarp": 32425.740373207973,
+              "redline": 34047.027391868374,
+              "E_candidate_bounds": [
+                31517.735826735294,
+                31517.745363478458
+              ],
+              "verdict": "E_candidate < redline（界内）",
+              "absolute_E_gt_1": true
+            }
+          }
+        }
+      },
+      "absolute_observation": "ellipsoid-box 与 sdf-box 的 E_mjwarp 均可达数百~数千，说明分档 atol 不是 native 口径容差，而是 upstream-f32 口径",
+      "needed_for_finalize": [
+        "补采 native f64 全量接触数组（离线 MuJoCo，CPU，无 GPU）",
+        "补采设备（产品）原始接触数组以去掉上下界（小窗口或复用 QA 探针落盘）",
+        "扩样到更多几何对/路径（当前 hfield 不可配对）"
+      ]
+    },
+    "same_code_backend": {
+      "decidability": "可用：6 个 (field,path) 全部实测 worst <= 已签 atol，最紧余量见 tightest_margin",
+      "caveat": "E_mjwarp 恒 0 → redline 退化；定稿需把判据写成「实测 worst <= atol」核对，而不是 E 比值"
+    },
+    "status_quo": {
+      "decidability": "可维持：零改契约，接触字段仍只有 upstream-f32 判据",
+      "caveat": "native 口径无判据，只剩相对红线；分档表若被当成 native 判据会误判"
+    }
+  }
+}
