@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s2c-flex-shell-check",
+  "title": {
+    "zh": "QA 复核：R06-S2c flex shell/elem 数据层（additive 桶、联合宽度校验、T4 7 行重钉、原生冒烟）",
+    "en": "QA audit: R06-S2c flex shell/elem data layer (additive bucket, joint width validation, 7-line T4 re-pin, native smoke)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-04-render-r06-s2c-flex-shell-data`（提交 `df6d74af`）做独立复核并留卡：①新 additive 桶 `mjwarp_flex_topology_*`（info 40 B / targets 96 B、7 字段 + 4 计数）结构体 static_assert 偏移/大小正确，**既有 flex_render 桶一字未改**；②`NativeFlexTopologySnapshot` / `FlexTopologyFields` / `validate_topology_against_render` 的元素宽度（elem=`dim+1`、shell=`dim`）与拒绝路径；③T4 重钉实际 **7 行 / 4 文件**（`src/physics/flex.rs` 未改无漂移；`t4-current-kernels`/`g01-state-packing`/`previous-kernels` 无本片身份行）逐行 old→new；④原生冒烟（离线、MuJoCo 3.12 DLL、无 GPU）：`flex-tree.mjb` nflex=4、nflexelem=150、nflexelemdata=588、nflexshelldata=388；⑤行数与零设备 diff。",
+    "en": "Independent QA audit of the S2c data layer: additive bucket ABI, joint width validation, 7-line T4 re-pin, native smoke numbers, zero device diff."
+  },
+  "modules": {},
+  "acceptance": [
+    "**ABI 独立核**：static_assert 的偏移/大小与 info 40 B / targets 96 B 一致；对 `mjwarp_flex_render_info/targets` 做字节级 diff，确认**既有桶零改动**（additive only）。",
+    "**校验路径**：独立构造错误宽度（elem≠dim+1、shell≠dim）与计数不一致，断言返回显式错误而非 panic；`validate_topology_against_render` 与 render 侧视图的联合校验有单测覆盖。",
+    "**T4 重钉独立复算**：用父/HEAD 原始 blob LF-sha 逐行复算 7 行 4 文件；确认 `src/physics/flex.rs` 无漂移、其余 3 文件无本片身份行；深度 JSON 对比 0 处其它变化。",
+    "**原生冒烟**：核 `flex-tree.mjb` 四个计数（4 / 150 / 588 / 388）与日志原件一致；确认离线、无 GPU、无窗口。",
+    "**边界与结论**：`.cu` 与 `src/render/kernel/cuda/` 零 diff；结论三态（PASS / PASS-with-observations / FAIL）写进证据；不宣称 flex 渲染可用。证据入 `docs/development-evidence/render-bvh/r06-s2c-flex-shell-check/`，按 `Normify-Task:` 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s2c-flex-shell-data"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s2c-flex-shell-check/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（Backend 建议 + 我的排程职责）。复核对象 `df6d74af`（S2c 卡 verified、四门禁 unit 1298/0、树 0 dirty）；证据目录 `docs/development-evidence/render-bvh/r06-s2c-flex-shell/`（README + 重钉前 FAIL/后 PASS + native 两份日志 + manifest 5/5）。与 S3b/S3c 的关系：S3c（2D/3D 设备接线）依赖本片数据面，复核结论会影响 S3c 是否可开。",
+  "revision": { "before": "fc0f54cd038fd386b9453b569696a9b2a441c4f8", "after": null },
+  "created_at": "2026-11-03T23:40:00.000Z",
+  "updated_at": "2026-11-03T23:40:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+  ]
+}
