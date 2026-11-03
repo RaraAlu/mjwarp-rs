@@ -1,9 +1,13 @@
-# NP01 逐字段类型表（B1 / B1b 批）
+# NP01 逐字段类型表（B1–B2d 批）
 
 任务：`2026-11-03-precision-np01-field-tables`（B1，5 条）、
-`2026-11-04-precision-np01-field-tables-b1b`（B1b，4 条）。口径：`docs/numerical-precision-contract.md` 的
+`2026-11-04-precision-np01-field-tables-b1b`（B1b，4 条）、
+`2026-11-03-precision-np01-field-tables-b2a`（B2a，4 条）、
+`2026-11-03-precision-np01-field-tables-b2b`（B2b，5 条）、
+`2026-11-03-precision-np01-field-tables-b2c`（B2c，5 条）、
+`2026-11-04-precision-np01-field-tables-b2d`（B2d，3 条）。口径：`docs/numerical-precision-contract.md` 的
 NP01（类型映射率 100%、实际精度偏离 0）。本目录只做**类型审计与登记**：不改产品代码/判据/容差，零 GPU。
-**NP01 仍未验收**——B1 + B1b 只完成 9/30 条产品路径 + 0/3 条 host 站点。
+**NP01 仍未验收**——B1–B2d 完成 26/30 条产品路径 + 0/3 条 host 站点。
 
 ## 一、表的粒度与判读
 
@@ -78,20 +82,26 @@ PTX vs 显式 `.rn`）。逐表达式的位级对照仍由实现片的探针证�
 | `flex_hessian` | `flex_hessian` + validate | 2 内核 | metric 对称写、tension `fmaxf` 截断、块装配 f32 顺序累加、端点交换保证符号 | diag[6nv] + blocks[9ne]（f32） |
 | `flex_edge_passive` | validate/clear/compute | 3 内核 | rigid 边跳过；刚度/阻尼两段 f32 `atomicAdd`；`FP_S/FP_D` 裁剪 | spring/damper 两段力（f32） |
 
-## 七、待补（7 条产品路径 + 3 条 host 站点）
+## 七、B2d 已完成（3 条，力/能量族）
 
-- **B2d/B2e（7 条）**：`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`。
+| row_id | 路径 | 内核 | 累加/舍入口径 | 输出 |
+| --- | --- | --- | --- | --- |
+| `fluid_force` | validate/body/project/clear | 4 内核 | 椭球与盒两分支；`force_global/torque_global` 按 geom 升序顺序累加、`accum` 按 body 升序；无原子；`-131072`（int）与 `-131072.0f`（float）双哨符 | body 段 6 维力/矩（f32）、dof 投影（f32）、status |
+| `applied_force` | validate/delta/publish | 3 内核 | delta 按 body 升序顺序累加（`accum += dot6 + dot3`）；publish 用显式 `__fadd_rn` 单次舍入；`-131072` 哨符 | 广义 delta（f32）+ 发布缓冲 |
+| `kinetic_energy` | validate/reduce32 | 2 内核 | 32 lane warp 归约，片序固定、shuffle 16→8→4→2→1；`0.5f*sum` 单次乘；padding 零初始化但不入本地归约 | 动能两槽（f32）：直通 current + `0.5f*sum` |
+
+## 八、待补（4 条产品路径 + 3 条 host 站点）
+
+- **B2e（4 条）**：`attached`、`camlight`、`sleep_wake`、`field_batch`。
 - **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
 
-- **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
-
-## 八、门禁联动
+## 九、门禁联动
 
 `tests/precision_type_gate.rs` 增加一条断言：`inventory.json` 的每一行必须在 `field-tables/` 下有表、
 或在该测试内显式登记的「待批清单」里；表内 `kernels/params/intermediates/accumulations/outputs/upstream/evidence`
-缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12 → B2c 后 7）——**不允许静默缺表**。
+缺段即失败。待批清单随每批交付收紧（B1 后 25 → B1b 后 21 → B2a 后 17 → B2b 后 12 → B2c 后 7 → B2d 后 4）——**不允许静默缺表**。
 
-## 九、边界
+## 十、边界
 
 - 不改 `src/`、`include/warp-headers/`、fixtures、判据/容差；零 GPU；不宣称 NP01 通过。
 - 表中的「上游置信级别」沿用 `inventory.json` 原值，不升级（如 `mass_multiply` 保持文件级）。

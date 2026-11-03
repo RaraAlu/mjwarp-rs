@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "row_id": "applied_force",
+  "layer": "G01/G02 外加载荷",
+  "paths": ["applied_force_validate/delta/publish"],
+  "batch": "B2d",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {
+    "file": "src/physics/applied_force.rs",
+    "const": "CUDA",
+    "kernels": [
+      "applied_force_validate",
+      "applied_force_delta",
+      "applied_force_publish"
+    ]
+  },
+  "kernels": [
+    {
+      "name": "applied_force_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: parent/root/dof_body + 两端 sentinel"},
+        {"name": "geometry", "ctype": "const float*", "role": "in: [xipos, subtree_com, cdof] 三批"},
+        {"name": "ft", "ctype": "const float*", "role": "in: body 段 6 维外加载荷"},
+        {"name": "status", "ctype": "float*", "role": "out: status[4+w]"},
+        {"name": "nb/n/worlds/work", "ctype": "unsigned", "role": "scalar 维度（n = nv）"}
+      ],
+      "intermediates": [
+        {"name": "ml/gl/fl", "type": "unsigned long long", "note": "2nb+n / 6*worlds*(nb+n) / 6*worlds*nb，跨块宽指针算术"},
+        {"name": "parent/root/body", "type": "i32 只读", "note": "meta 分派，无算术"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "valid ? 1.0f : 0.0f"}
+      ]
+    },
+    {
+      "name": "applied_force_delta",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: parent/root/dof_body"},
+        {"name": "geometry", "ctype": "const float*", "role": "in: xipos / subtree_com / cdof"},
+        {"name": "ft", "ctype": "const float*", "role": "in: body 段 6 维力"},
+        {"name": "output", "ctype": "float*", "role": "out: output[4+tid]"},
+        {"name": "nb/n/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "jac", "type": "f32[6]", "note": "cdof[3..6] + cdof[0..3] 交换装入"},
+        {"name": "offset", "type": "f32[3]", "note": "xipos[3b] - com[3*root[b]]"},
+        {"name": "cross", "type": "f32[3]", "note": "cdof[0..3] × offset"}
+      ],
+      "accumulations": [
+        {"what": "accum += force_dot6(jac, f) + force_dot3(cross, f)", "type": "f32 顺序加；b 从 dof_body[i] 升序，零向量 body 跳过，单线程每 dof 无原子"}
+      ],
+      "outputs": [{"field": "output[4+tid]", "type": "f32", "conversion": "accum 直接写出"}]
+    },
+    {
+      "name": "applied_force_publish",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 占位（统一签名，未读）"},
+        {"name": "current", "ctype": "const float*", "role": "in: 当前累积载荷"},
+        {"name": "delta", "ctype": "const float*", "role": "in: 本次 delta"},
+        {"name": "staged", "ctype": "float*", "role": "out: 发布结果缓冲"},
+        {"name": "n/worlds/add/work", "ctype": "unsigned", "role": "scalar 维度；add 为 0/1 分支"}
+      ],
+      "intermediates": [],
+      "accumulations": [
+        {"what": "add ? __fadd_rn(current[4+i], delta[4+i]) : delta[4+i]", "type": "f32 显式单次舍入加法（不读改写、无原子）"}
+      ],
+      "outputs": [{"field": "staged[4+i]", "type": "f32", "conversion": "显式 __fadd_rn 或直接搬运"}]
+    }
+  ],
+  "quantization": [
+    "全部 f32；无 f64、无 double 乘法",
+    "sentinel -131072：meta 侧 int（4 元素 + 尾部 4 元素）与 geometry/ft 侧 -131072.0f；validate 用 == 精确比较",
+    "delta 的零载荷快路径逐分量与 0.0f 比较（含 -0.0f 视为等于 0）"
+  ],
+  "rounding_notes": [
+    "validate/delta 用普通乘加，未写显式 .rn（允许收缩）；publish 强制 __fadd_rn 以冻结 add 路径的舍入",
+    "delta 的两项求和在累加前先各自归约：force_dot6/force_dot3 内部 #pragma unroll 顺序 0..5 / 0..2"
+  ],
+  "upstream": {
+    "files": ["passive.py", "smooth.py"],
+    "functions": ["_apply_face_forces（文件级）"],
+    "confidence": "文件级"
+  },
+  "evidence": [
+    "docs/development-evidence/layers-m3-applied-force-*（既有分层证据）",
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types/常量/sentinel 口径）",
+    "W15 头文件路径：include/warp-headers/cuda_crt.h#__fadd_rn（product 侧 → src/physics/applied_force.rs）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：上游 _apply_face_forces 的函数级定位、逐表达式 PTX 对照"
+}

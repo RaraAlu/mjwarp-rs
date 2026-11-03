@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "row_id": "kinetic_energy",
+  "layer": "G01 动能（传感器）",
+  "paths": ["kinetic_energy_validate/reduce32"],
+  "batch": "B2d",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {
+    "file": "src/physics/kinetic_energy/cuda.rs",
+    "const": "CUDA",
+    "kernels": ["kinetic_energy_validate", "kinetic_energy_reduce32"]
+  },
+  "kernels": [
+    {
+      "name": "kinetic_energy_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: meta[0] 即 ENERGY_NV 编译期常量"},
+        {"name": "pair", "ctype": "const float*", "role": "in: [qvel, mass] 两批（每 world 2*ENERGY_NV）"},
+        {"name": "current", "ctype": "const float*", "role": "in: 当前动能结果（每 world 2 元素）"},
+        {"name": "status", "ctype": "float*", "role": "out: status[4+w]"},
+        {"name": "n/worlds/unused/work", "ctype": "unsigned", "role": "scalar 维度（n 必须等于 ENERGY_NV）"}
+      ],
+      "intermediates": [
+        {"name": "pl/el", "type": "unsigned long long", "note": "2*n*worlds / 2*worlds，宽指针算术"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "valid ? 1.0f : 0.0f"}
+      ]
+    },
+    {
+      "name": "kinetic_energy_reduce32",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 未读"},
+        {"name": "pair", "ctype": "const float*", "role": "in: [qvel, mass] 两批"},
+        {"name": "current", "ctype": "const float*", "role": "in: 当前动能（两元素）"},
+        {"name": "staged", "ctype": "float*", "role": "out: staged[4+2w] / staged[5+2w]"},
+        {"name": "n/worlds/unused/work", "ctype": "unsigned", "role": "scalar 维度；一个 block 处理一个 world"}
+      ],
+      "intermediates": [
+        {"name": "products[(ENERGY_NV+31)/32]", "type": "f32[]", "note": "每 lane 负责 i=lane+32*r，越界补 a=b=0.0f"},
+        {"name": "sum", "type": "f32", "note": "先按 r 升序累加各 lane 的第 0 片，再 warp shuffle 归约"},
+        {"name": "mask", "type": "unsigned", "note": "__ballot_sync(0xffffffff, active)；尾块按 mask 位选择是否参与"},
+        {"name": "active", "type": "bool", "note": "lane < ENERGY_NV"}
+      ],
+      "accumulations": [
+        {"what": "per-lane：sum = sum + products[r]（r=1..，r*32+lane >= ENERGY_NV 即停）", "type": "f32 顺序加，片序固定"},
+        {"what": "warp 归约：offset 16→8→4→2→1，sum = sum + __shfl_down_sync(mask, sum, offset, 32)", "type": "f32 树形加，固定 5 层；尾部不满 warp 时按 mask 位跳过"},
+        {"what": "0.5f * sum", "type": "f32 单次乘（乘 2 的幂，正常范围内不改变尾数，仅次正规/溢出边界需注意）"}
+      ],
+      "outputs": [
+        {"field": "staged[4+2w]", "type": "f32", "conversion": "直接搬运 current[4+2w]（0.5 倍系数不作用于该槽）"},
+        {"field": "staged[5+2w]", "type": "f32", "conversion": "0.5f * sum，由 lane 0 写出"}
+      ]
+    }
+  ],
+  "quantization": [
+    "全部 f32；无 f64；ENERGY_NV 为编译期 #define（nv），由 kernels.rs 拼进源码前缀",
+    "sentinel：meta[0] 必须等于 ENERGY_NV，pair/current 两端 -131072.0f；validate 用 == 精确比较",
+    "padding 区零初始化但不进本地归约：越界 lane 以 a=b=0.0f 参与 products，随后由 active/mask 排除"
+  ],
+  "rounding_notes": [
+    "products 与 sum 均为普通乘加，未写显式 .rn，保留驱动收缩权限（源码注释明确要求保留 ordinary float mul/add + contraction 许可）",
+    "归约形状（32 lane × 每 lane 片数、shuffle 顺序 16/8/4/2/1）是位级判据前提：换 block 尺寸或分片数会改变加法树"
+  ],
+  "upstream": {
+    "files": ["sensor.py"],
+    "functions": ["kinetic_energy（函数级）", "warp 1.15.0 tile.h/tile_reduce.h"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types/常量/sentinel 口径）",
+    "src/physics/kinetic_energy/{cuda.rs,kernels.rs}（ENERGY_NV 拼接处 kernels.rs:114）",
+    "W15 头文件路径：include/warp-headers/vec.h#atomic_add/isfinite（via product/upstream）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：GPU 侧归约位级 fixture（当前仅审计形状与顺序）、上游 sensor.py 跳函数行号"
+}

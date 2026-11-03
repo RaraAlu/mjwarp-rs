@@ -300,10 +300,7 @@ fn type_inventory_keeps_its_registered_shape() {
 const FIELD_TABLES: &str = "docs/development-evidence/np01-type-mapping/field-tables";
 
 /// 尚未产出逐字段表的清单行（按批登记）。每批交付后必须从这里删掉对应行；宁可测试失败，也不许静默缺表。
-const PENDING_ROWS: [(&str, &str); 7] = [
-    ("fluid_force", "B2"),
-    ("applied_force", "B2"),
-    ("kinetic_energy", "B2"),
+const PENDING_ROWS: [(&str, &str); 4] = [
     ("attached", "B2"),
     ("camlight", "B2"),
     ("sleep_wake", "B2"),

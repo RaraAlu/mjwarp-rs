@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "row_id": "fluid_force",
+  "layer": "G02 流体接触力",
+  "paths": ["fluid_force_validate/body/project/clear"],
+  "batch": "B2d",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）",
+  "source": {
+    "file": "src/physics/fluid_force/cuda.rs",
+    "const": "CUDA",
+    "kernels": [
+      "fluid_force_validate",
+      "fluid_force_body",
+      "fluid_force_project",
+      "fluid_force_clear"
+    ]
+  },
+  "kernels": [
+    {
+      "name": "fluid_force_validate",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: 拓扑（parent/root/body/geom_body/geom_type/ellipsoid）+ 两端 sentinel"},
+        {"name": "p", "ctype": "const float*", "role": "in: 参数批（wind/density/viscosity/mass/inertia/size）"},
+        {"name": "rigid", "ctype": "const float*", "role": "in: xipos / ximat"},
+        {"name": "com", "ctype": "const float*", "role": "in: subtree_com / cdof"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: cvel"},
+        {"name": "attached", "ctype": "const float*", "role": "in: geom_xpos / geom_xmat（仅在 FF_HE 时校验）"},
+        {"name": "status", "ctype": "float*", "role": "out: status[4+w]"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "ok", "type": "bool", "note": "逐段短路与，保持源码顺序"},
+        {"name": "wind/density/viscosity", "type": "f32", "note": "由 ff_field 按 world 取批（w%FF_BATCH[field]）"},
+        {"name": "parent/root/body/geom_body/geom_type/ellipsoid", "type": "i32 只读", "note": "raw 分派指针，无算术"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "ok ? 1.0f : 0.0f（两侧字面量 f32）"}
+      ]
+    },
+    {
+      "name": "fluid_force_body",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: 拓扑"},
+        {"name": "p", "ctype": "const float*", "role": "in: 参数批"},
+        {"name": "rigid", "ctype": "const float*", "role": "in: xipos / ximat"},
+        {"name": "com", "ctype": "const float*", "role": "in: subtree_com / cdof"},
+        {"name": "velocity", "ctype": "const float*", "role": "in: cvel"},
+        {"name": "attached", "ctype": "const float*", "role": "in: geom 世界位姿（椭球分支使用）"},
+        {"name": "output", "ctype": "float*", "role": "out: output[4+6*tid .. +6]"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "offset", "type": "f32[3]", "note": "xipos[3b] - subtree_com[3*root[b]]，逐分量减"},
+        {"name": "cross", "type": "f32[3]", "note": "offset × v（逐分量乘减）"},
+        {"name": "lin", "type": "f32[3]", "note": "v[3..6] - cross"},
+        {"name": "lang/llin", "type": "f32[3]", "note": "ff_mul_t(rot, v) / ff_mul_t(rot, lin)；风存在时再减 ff_mul_t(rot, wind)"},
+        {"name": "semiaxes", "type": "f32[3]", "note": "ff_semiaxes(size+3g, geom_type[g])，按 type 2/3/5 改写"},
+        {"name": "volume/amax/aproj/imax/ii/mom", "type": "f32", "note": "FF_FOUR_THIRDS_PI / FF_PI / FF_EIGHT_FIFTEENTHS_PI 常量乘链，全部 f32"},
+        {"name": "force_global/torque_global", "type": "f32[3] ×2", "note": "椭球分支内按 geom 编号升序顺序累加"}
+      ],
+      "accumulations": [
+        {"what": "lforce[i] += added_force[i]；ltorque[i] += lin_cross[i] + ang_cross[i]", "type": "f32 顺序加（每 geom 一次）"},
+        {"what": "lforce[i] += magnus[i] + kutta[i] - drag_lin*llin[i]；ltorque[i] -= drag_ang*lang[i]", "type": "f32 顺序加（先 -drag 再加 magnus/kutta，保持源码行序）"},
+        {"what": "force_global[i] += world_force[i]；torque_global[i] += world_torque[i]", "type": "f32 顺序加，geom 升序，无原子"}
+      ],
+      "outputs": [
+        {"field": "output[4+6*tid + 0..3]", "type": "f32", "conversion": "force_global（世界系，已乘 coef）"},
+        {"field": "output[4+6*tid + 3..6]", "type": "f32", "conversion": "torque_global（世界系，已乘 coef）"},
+        {"field": "output[4+6*tid + 0..6]", "type": "f32", "conversion": "盒分支：rot × lforce / rot × ltorque 手写行展开（write 0.0f 起步）"}
+      ]
+    },
+    {
+      "name": "fluid_force_project",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: parent/root/dof_body"},
+        {"name": "p", "ctype": "const float*", "role": "in: 占位（统一签名，未读）"},
+        {"name": "rigid", "ctype": "const float*", "role": "in: xipos"},
+        {"name": "com", "ctype": "const float*", "role": "in: subtree_com / cdof"},
+        {"name": "body_force", "ctype": "const float*", "role": "in: body 段 6 维力"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 占位（统一签名，未读）"},
+        {"name": "output", "ctype": "float*", "role": "out: output[4+tid]"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "jac", "type": "f32[6]", "note": "cdof[3..6] 与 cdof[0..3] 交换装入"},
+        {"name": "offset", "type": "f32[3]", "note": "xipos[3b] - subtree_com[3*root[b]]"},
+        {"name": "cross", "type": "f32[3]", "note": "cdof[0..3] × offset"}
+      ],
+      "accumulations": [
+        {"what": "accum += ff_dot6(jac, f) + ff_dot3(cross, f)", "type": "f32 顺序加；b 从 dof_body[d] 升序，零向量 body 跳过，单线程每 dof 无原子"}
+      ],
+      "outputs": [{"field": "output[4+tid]", "type": "f32", "conversion": "accum 直接写出"}]
+    },
+    {
+      "name": "fluid_force_clear",
+      "params": [
+        {"name": "raw", "ctype": "const int*", "role": "in: 占位（统一签名）"},
+        {"name": "p/first/second/third/fourth", "ctype": "const float*", "role": "in: 占位（统一签名）"},
+        {"name": "output", "ctype": "float*", "role": "out: 清零目标"},
+        {"name": "nb/nv/worlds/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [],
+      "accumulations": [],
+      "outputs": [{"field": "output[4+tid]", "type": "f32", "conversion": "写 0.0f"}]
+    }
+  ],
+  "quantization": [
+    "全部输入/中间/输出 f32；无 f64 常量、无 double 乘法",
+    "sentinel：raw 侧 -131072（int）、参数/几何侧 -131072.0f；validate 用 == 精确比较，两处 sentinel 段（buf[0..4] 与 buf[4+len..] 的尾部 4 元素）",
+    "常量均为 f32 字面量：FF_MINVAL 1.0e-15f、FF_PI、FF_FOUR_THIRDS_PI 4.18879032135009765625f、FF_EIGHT_FIFTEENTHS_PI 1.6755161285400390625f、FF_TWO_THIRDS 0.666666686534881591796875f、FF_THREE_PI 9.424777984619140625f"
+  ],
+  "rounding_notes": [
+    "普通 * / + / - / sqrtf / powf / fmaxf / fminf，未写显式 .rn，允许驱动 JIT 收缩与融合（与上游 warp 默认一致）",
+    "ff_pow4 为 sq=x*x; sq*sq；ff_ellipsoid_moment 为常量*d0*pow4(fmaxf(d1,d2)) 的左序乘链",
+    "除法仅三处：1.0f/lin_speed、1.0f/dmax、1.0f/proj_num，均带 > FF_MINVAL 分支，否则 0.0f",
+    "椭球/盒两分支互斥；盒分支的 powf(diam,3.0f)/powf(box*,4.0f) 由驱动实现，位级随 nvrtc 版本，记为实现依赖项"
+  ],
+  "upstream": {
+    "files": ["passive.py", "derivative.py"],
+    "functions": ["_fluid_force"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/np01-type-mapping/inventory.json（本行 types/常量/sentinel 口径）",
+    "src/physics/fluid_force/cuda.rs（冻结源码，基线 71da24d Apache-2.0）",
+    "W15 头文件路径：include/warp-headers/{array,builtin,mat,quat,spatial,tile,vec}.h（符号与行号见 warp-headers.json）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 缺项：powf/sqrtf 的 PTX 逐位对照、上游 derivative.py 的导数路径定位"
+}
