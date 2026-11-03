@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-b2d-b2e-b3-check",
+  "title": {
+    "zh": "NP01 B2d/B2e/B3 逐字段表 QA 独立复核（10 张表 + host 覆盖门禁）",
+    "en": "QA independent audit of NP01 B2d/B2e/B3 tables (10 tables + host coverage gate)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 独立复核 NP01 最后三批：B2d（`fluid_force`/`applied_force`/`kinetic_energy`）、B2e（`attached`/`camlight`/`sleep_wake`/`field_batch`）、B3（`host-tables/` 的 `gjk_host`/`ccd_host`/`epa_host`）共 10 张表，以及 `tests/precision_type_gate.rs` 的 host 覆盖断言与 README 批次表/状态口径。重点：①表内参数/中间量/累加顺序/输出是否与源码一致（抽查源码行）；②`fluid_force` 双哨符（`-131072` int 与 `-131072.0f` float）、`kinetic_energy` 的 32 lane 归约形状、`epa_host` 的 `face_norm2` 三次两步舍入是否写对；③host 表是否被误当产品行（`row_id` 冒充）；④`PENDING_ROWS` 清零后门禁是否仍能拒绝静默缺表；⑤是否误宣称 NP01 通过。不要求 QA 改代码；发现口径错按 fix 流程回 Arch。",
+    "en": "Independent QA audit of the last three NP01 table batches, the host coverage gate, and the README status wording."
+  },
+  "modules": {},
+  "acceptance": [
+    "**逐表抽查**：10 张表至少各抽 2 条字段/顺序断言回源码核对（附文件名+行号），结论 PASS / PASS-with-observations / FAIL 三态之一，不得只写「已看」。",
+    "**门禁有效性**：说明 host 覆盖断言（`host_tables_cover_registered_host_sites_without_silent_gaps`）在缺表/多表/row_id 冒充三种情况下会失败的理由（可引用代码路径），并确认 `PENDING_ROWS` 清空后产品行缺表仍会失败。",
+    "**边界核对**：`git diff` 三片提交（4ec69165 / 638383f2 / e886fec8）不含 `src/`、`include/warp-headers/`、fixtures、判据/容差改动（`checks.unchanged` 仍成立）。",
+    "**口径核对**：README 与卡 note 均写「NP01 仍未验收（E 指标未定稿、host/device 逐表达式位级对照缺）」，不得出现通过性表述。",
+    "**输出**：复核结论写进证据目录 note 或卡 note（含阻断/需修/观察分类），按 `Normify-Task:` 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-precision-np01-host-tables-b3"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np01-type-mapping/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-04 登记。被复核提交：B2d `4ec69165`、B2e `638383f2`、B3 `e886fec8`（另 B2d/B2e 的卡注册 `3b301673`、B3 卡 `53054a82`）。复核只读为主，不改产品代码；发现表内容错由 Arch 按 fix 流程订正。",
+  "revision": { "before": "4cdc203502f12fdb93ec07e9499b81cf6354590e", "after": null },
+  "created_at": "2026-11-04T06:40:00.000Z",
+  "updated_at": "2026-11-04T06:40:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "include/warp-headers/", "fixtures/"] }
+  ]
+}
