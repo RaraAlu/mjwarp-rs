@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "kind": "mesh-polygon-capacity-gap-assessment-receipt",
+  "task_id": "2026-10-27-mesh-polygon-gt16-device-gap",
+  "status": "assessment-only",
+  "assessed_at": "2026-11-03T23:15:00+08:00",
+  "assessed_head": "5be57e86388c241749979d6dcd587a450d2b2a38",
+  "scope": {
+    "changed": ["docs/development-evidence/mesh-polygon-gt16-gap/"],
+    "device_code_changed": false,
+    "criteria_or_tolerance_changed": false,
+    "reference_changed": false,
+    "fixtures_changed": false,
+    "gpu_window_opened": false,
+    "freeze_performed": false,
+    "cargo_or_gpu_commands_run": false
+  },
+  "deliverables": {
+    "README.md": "assessment + two design options (A fixed caps, B dynamic capacity+dispatch) + minimal mitigation C + impact and decisions",
+    "facts.json": "machine-readable facts: current caps, guards, scratch, upstream dynamic rules, A1 identity, fixture geometry, S4 record, memory budgets, design costs",
+    "receipt.json": "this file",
+    "manifest.txt": "sha256/bytes for the three files above (does not register itself)"
+  },
+  "key_findings": [
+    "A1 (commit 307219fe) raised FACE_MAX 16->20 and clip buffers 32->40 offline; DEG_MAX stays 10; no GPU window has validated it, so U8 device count=4 is an expectation, not a measurement.",
+    "Residual gap after A1 has two dimensions: polygon vertices > 20 (face) and vertex degree > 10 (degree); the degree dimension is untouched by A1 and is triggered by fan/apex/pole vertices in ordinary triangulated meshes.",
+    "Upstream capacity is model-driven (max(m.npolygonmax, 16|4) and max(m.nmeshdegmax, 3)) with global per-ccd scratch arrays; device uses fixed per-thread arrays. This is a semantic difference, not an upstream limitation.",
+    "Existing M2/M3/S4 fixtures (cube: max face 3, max degree 5) do not trigger either limit; U7/U8 stay record-only. A1 changed the collision kernel identity (source 254,005/9b7435ab -> 254,263/12d50d68, PTX 3,883,769/6 entries), so any later collision window needs a fresh freeze; references need no recapture."
+  ],
+  "open_decisions": [
+    "Whether to implement C (host-side explicit diagnostic for over-cap models) and its policy (count/warn/Unsupported).",
+    "A tier choice: 24/24 vs 32/32 (recommendation: 32/32), and whether degree is raised in the same change.",
+    "Whether U8 is upgraded from record-only to pass/fail (user signature item).",
+    "Whether B is backlogged and whether B2b is the path for a general-mesh-coverage commitment.",
+    "Any device change requires user approval + a new window plan (new suite, new freeze, U8 assertion method)."
+  ],
+  "not_claimed": [
+    "U8 passed",
+    "U7 covered",
+    "mesh capacity gap closed",
+    "device equals upstream",
+    "general mesh coverage",
+    "precision acceptance",
+    "any GPU result in this assessment",
+    "any performance statement"
+  ]
+}

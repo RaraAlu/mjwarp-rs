@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "kind": "mesh-polygon-capacity-gap-assessment",
+  "task_id": "2026-10-27-mesh-polygon-gt16-device-gap",
+  "assessed_at": "2026-11-03T23:15:00+08:00",
+  "assessed_head": "5be57e86388c241749979d6dcd587a450d2b2a38",
+  "status": "assessment-only: no device code change, no criteria/tolerance/reference/fixture change, no GPU window, no freeze",
+  "device_current": {
+    "face_max": 20,
+    "face_max_source": "src/physics/collision/cuda/multicontact_geom.cu:385",
+    "degree_max": 10,
+    "degree_max_source": "src/physics/collision/cuda/multicontact_geom.cu:384",
+    "face_guard": "src/physics/collision/cuda/multicontact_mesh.cu:180-182 (nvert > face_max -> return 0 -> single-contact fallback)",
+    "degree_guards": [
+      "src/physics/collision/cuda/multicontact_mesh.cu:120-122 (feature_dim==1 mesh_normals: v1_num > degree_max -> return 0)",
+      "src/physics/collision/cuda/multicontact_mesh.cu:148-150 (feature_dim==1 mesh_edge_normals: v1_num > degree_max -> return 0)"
+    ],
+    "fallback": "multicontact.cu:37-45 initialises out.n=1 with witness1[0]/witness2[0]=EPA x1/x2; multicontact.cu:194-198 returns that on helper failure; contact.cu:233 adopts any mc.n>=1 -> exactly 1 (EPA) contact, not 0",
+    "scratch_arrays": {
+      "source": "src/physics/collision/cuda/contact.cu:218-228",
+      "kind": "per-thread local arrays (not external ABI / not product JSON / not launch signature)",
+      "polygon": 40,
+      "clipped": 40,
+      "pnormal": 20,
+      "pdist": 20,
+      "idx1": 10,
+      "idx2": 10,
+      "n1": 10,
+      "n2": 10,
+      "endvert": 10,
+      "face1": 20,
+      "face2": 20
+    },
+    "entrypoints_using_scratch_frame": [
+      "mjwarp_collision_contact (product.cu:219)",
+      "mjwarp_collision_contact_multi (product.cu:411)"
+    ]
+  },
+  "upstream_dynamic_capacity": {
+    "pinned_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "capacity_rules": "frozen docs/evidence/d04-complex-physics/authoring-runs/run-5/frozen-source/_src/collision_convex.py:1262-1289",
+    "scratch_allocation": "same file:1399-1419 (global arrays shaped (naccdmax, 2*npolygonmax) / (naccdmax, npolygonmax) / (naccdmax, nmeshdegmax))",
+    "model_fields": "frozen .../_src/types.py:1661-1662 (npolygonmax: int, nmeshdegmax: int); comments at :1126-1127",
+    "semantics": "npolygonmax=max(m.npolygonmax, 16|4 depending on pair mix); nmeshdegmax=max(m.nmeshdegmax, 3); width is model-driven, never a fixed 20/10",
+    "difference": "device fixed 20/10 vs upstream model-driven -> semantic difference, not an upstream limitation"
+  },
+  "a1_offline_fix": {
+    "task": "2026-10-31-g10-p5-mesh-cap20",
+    "commit": "307219fefc61acea1b23957552f677305e6f8ed8",
+    "face_before": 16,
+    "face_after": 20,
+    "clip_buffers_before": 32,
+    "clip_buffers_after": 40,
+    "degree_still": 10,
+    "files": 7,
+    "cpu_tests": [
+      "src/physics/collision/gjk/multicontact/mod.rs:287 polygon_clip_accepts_twenty_vertex_face1",
+      "src/physics/collision/gjk/multicontact/mod.rs:311 polygon_clip_accepts_twenty_vertex_face2"
+    ],
+    "unit": {"passed": 1113, "failed": 0, "ignored": 397},
+    "kernel_identity_lf": {
+      "source_before": {"bytes": 254005, "sha256": "9b7435abdd986f734b47d608826bac3ac5c03dc0729d27f3fff760f0a65e7977"},
+      "source_after": {"bytes": 254263, "sha256": "12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7"},
+      "ptx_before": {"bytes": 3883740, "entries": 6},
+      "ptx_after": {"bytes": 3883769, "entries": 6},
+      "evidence": "docs/development-evidence/g10-p5-mesh-cap20/logs/nvrtc-identity.txt",
+      "caveat": "old CRLF measurements (255,840/28385801 -> 254,743/f32f0af2) are VOID for freeze planning"
+    },
+    "gpu_window": "NOT RUN (pending user sign; A1 evidence section 5)",
+    "u8_device_count_4": "EXPECTATION from upstream reference, NOT measured on device",
+    "not_claimed": ["U8 passed", "U7 covered", "mesh capacity gap closed", "upstream equivalence"]
+  },
+  "fixtures_geometry": [
+    {
+      "path": "fixtures/g10-p5-mesh-multicontact/cube.obj",
+      "bytes": 570,
+      "sha256": "90a8a990ae17a9265c28ada66788d2f523e15653a1419a28b8074c6edf17603d",
+      "verts": 8,
+      "faces": 12,
+      "face_histogram": {"3": 12},
+      "max_face_vertices": 3,
+      "max_vertex_degree": 5,
+      "triggers": {"face": false, "degree": false},
+      "used_by": "M2/M3 mesh-multicontact fixtures"
+    },
+    {
+      "path": "fixtures/g10-p5-mesh-multicontact/prism-20.obj",
+      "bytes": 1819,
+      "sha256": "a4477d3b080479e7356ac14bcd67c33272b2771eadd40b14fe3f40360e92cee4",
+      "verts": 40,
+      "faces": 42,
+      "face_histogram": {"3": 40, "20": 2},
+      "max_face_vertices": 20,
+      "max_vertex_degree": 4,
+      "triggers": {"face_after_a1": false, "face_before_a1": true, "degree": false},
+      "used_by": "S4 U8 mesh-limits-prism-box"
+    },
+    {
+      "path": "fixtures/g10-p5-mesh-multicontact/fan-cone-24.obj",
+      "bytes": 1042,
+      "sha256": "4bc34a51a60d76469a68c64e6132cfd1f5713072488ea8deefd44a4ca517f73b",
+      "verts": 25,
+      "faces": 25,
+      "face_histogram": {"3": 24, "24": 1},
+      "max_face_vertices": 24,
+      "max_vertex_degree": 24,
+      "triggers": {"face": true, "degree": true},
+      "used_by": "S4 U7 mesh-limits-cone-box"
+    }
+  ],
+  "s4_device_record_before_a1": {
+    "evidence": "docs/development-evidence/g10-p5-branch-closure-validation/README.md:232,236",
+    "face_max_at_measurement": 16,
+    "u7_type": 1,
+    "u7_cone_box": {"device_count": 1, "ref_count": 1, "note": "count coincidence; record-only; dist/pos must be recorded too"},
+    "u8_prism_box": {"device_count": 1, "ref_count": 4, "note": "20-gon cap fallback at face_max=16; record-only"},
+    "upstream_reference": {
+      "path": "docs/development-evidence/g10-p5-branch-closure-capture/upstream-mesh-limits-gpu.json",
+      "bytes": 4581,
+      "sha256": "b6abb8fa5820c103f6d880936d6ae95fa60035e5b9ce49a0364b15de1def19ad"
+    }
+  },
+  "local_memory_budget": {
+    "formula_floats": "22*face_max + 11*degree_max",
+    "formula_ints": "2*degree_max",
+    "rows": [
+      {"face": 20, "degree": 10, "floats": 550, "ints": 20, "bytes": 2280, "note": "current after A1"},
+      {"face": 24, "degree": 24, "floats": 792, "ints": 48, "bytes": 3360},
+      {"face": 32, "degree": 32, "floats": 1056, "ints": 64, "bytes": 4480},
+      {"face": 64, "degree": 64, "floats": 2112, "ints": 128, "bytes": 8960}
+    ],
+    "scope": "per-thread frame inlined into mjwarp_collision_contact and mjwarp_collision_contact_multi; cost applies to all threads of those entries",
+    "must_measure_in_implementation": "ptxas -v stack frame / spill / local + occupancy; no verbal estimates allowed"
+  },
+  "global_scratch_budget_b2a": {
+    "formula_bytes_per_ccd_slot": "4*(25*face_max + 11*degree_max)",
+    "rows": [
+      {"face": 20, "degree": 10, "bytes_per_slot": 2440},
+      {"face": 32, "degree": 32, "bytes_per_slot": 4608},
+      {"face": 64, "degree": 64, "bytes_per_slot": 9216}
+    ],
+    "example_naccdmax_8192_mib": {"20/10": 19.1, "32/32": 36.0, "64/64": 72.0}
+  },
+  "designs": [
+    {
+      "id": "A",
+      "name": "raise fixed caps (recommended 32/32)",
+      "coverage": "bounded <=32",
+      "device_files": 7,
+      "kernel_args_or_external_json_change": false,
+      "new_freeze_and_window": true,
+      "window_count": 1,
+      "person_days": "1-1.5",
+      "risks": ["bounded coverage; silent fallback above cap remains", "per-thread frame ~2x affects all threads of contact entries; measure occupancy", "device change needs user approval", "kernel identity change invalidates old guards"]
+    },
+    {
+      "id": "B2a",
+      "name": "dynamic global scratch (upstream-parity)",
+      "coverage": "arbitrary model capacity",
+      "device_files": "large: args struct + 9 scratch pointers + ccd slot id retention + host packing/abi/meta/buffers",
+      "kernel_args_or_external_json_change": "kernel args yes; external JSON no",
+      "new_freeze_and_window": true,
+      "window_count": "1-2",
+      "person_days": "4-6",
+      "risks": ["VRAM grows with naccdmax (19/36/72 MiB at 8192, face/degree 20/32/64)", "largest change surface", "memory peak/floor criteria pressure in window"]
+    },
+    {
+      "id": "B2b",
+      "name": "capacity-tiered entrypoint dispatch",
+      "coverage": "tiered bound (e.g. <=64)",
+      "device_files": "medium: tiered multiccd entries + host tier selection + explicit refusal above top tier",
+      "kernel_args_or_external_json_change": false,
+      "new_freeze_and_window": true,
+      "window_count": 1,
+      "person_days": "2.5-4",
+      "risks": ["tier boundary must be explicit, no silent fallback", "entry set enters freeze/guards", "artifact/compile size grows"]
+    },
+    {
+      "id": "C",
+      "name": "host-side precheck diagnostic (minimal mitigation)",
+      "coverage": "no numeric change; turns silent fallback into explicit diagnostic",
+      "device_files": 0,
+      "kernel_args_or_external_json_change": false,
+      "new_freeze_and_window": false,
+      "window_count": 0,
+      "person_days": "0.5",
+      "risks": ["product behaviour change (silent -> explicit) needs approval"]
+    }
+  ],
+  "recommendation": [
+    "C first (0.5d, no window) if user accepts explicit diagnostics",
+    "A 32/32 as near-term line (user approval + 1 window)",
+    "B2b as the path if 'general mesh coverage' is promised; B2a only if arbitrary-capacity upstream parity is required",
+    "U8 record-only -> pass/fail upgrade is a user signature item"
+  ],
+  "impact_on_existing_evidence": {
+    "criteria_tolerance_reference_fixtures": "unchanged",
+    "M1_M2_M3": "cube fixture (face 3 / degree 5) does not trigger; historical verdicts remain bound to their own old kernel identity and must be replayed under a fresh freeze for any new window",
+    "S4": "U7/U8 remain record-only (not in pass/fail denominator); re-running on the A1 kernel would change the U8 device record (expected 4) and must be recorded only in a new frozen suite",
+    "reference_recapture_required": false,
+    "kernel_identity": "changed by A1 (collision source/PTX sha) -> any later collision window needs a new freeze"
+  },
+  "not_claimed": [
+    "U8 passed",
+    "U7 covered",
+    "mesh capacity gap closed",
+    "device equals upstream",
+    "general mesh coverage",
+    "any performance statement",
+    "any GPU result in this assessment"
+  ]
+}
