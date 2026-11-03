@@ -38,15 +38,16 @@
 | # | 前提 | 当前状态 |
 | --- | --- | --- |
 | 1 | 参考数据收口（采集卡 verified） | ✅ `71ec7c83` |
-| 2 | **设备侧 GPU 用例与 `render_with_flex` 生产调用点**（见 §5 缺口 A） | ❌ 缺 |
-| 3 | **本 suite 的冻结器 + guards 文件**（见 §5 缺口 B） | ❌ 缺 |
-| 4 | 本材料 QA 独立复核 pass | ❌ 待 |
+| 2 | **设备侧 GPU 用例与 `render_with_flex` 生产调用点**（见 §5 缺口 A） | ✅ `0a3058ee`（卡 `…-s3b-flex-device-harness` verified） |
+| 3 | **本 suite 的冻结器 + guards 文件**（见 §5 缺口 B） | ❌ 缺（开窗卡内落地） |
+| 4 | 本材料 QA 独立复核 pass | 只读复核 **PASS-with-observations**（证据落库中，待 commit） |
 | 5 | 开窗前 5 分钟三点基线达标、floor 取严、compute apps filtered=0、worktree clean | 窗口期 |
 | 6 | 开窗前把「计划 + 基线 + floor」贴开发团队群留痕；Chief GO 且为唯一执行会话 | 窗口期 |
+| 7 | **BOM 审计脚本已落库并通过**（`2026-11-04-governance-evidence-bom-audit`） | ❌ 缺（卡 proposed；未落库前本材料不得引用该命令） |
 
 ## 5. 依赖缺口（本片不解决，需另行登记/派活）
 
-- **缺口 A（代码）**：`render_with_flex` 已存在（`src/render/kernel/megakernel.rs:130`）但**无生产调用点**，且仓内没有 flex GPU 用例（`tests/render_flex_validate.rs` 不存在）。窗口必须先有：① 生产调用点接线；② 一个 `#[ignore]` 的 GPU 用例，读 `reference/base/` 与 `state.npz`（`flexvert_xpos`）复现设备渲染并按 §3 判据比对。**需另立卡（owner Backend），本片不写代码。**
+- **缺口 A（代码，已闭合）**：`render_with_flex` 曾无生产调用点、仓内无 flex GPU 用例；已由 `0a3058ee`（`…-s3b-flex-device-harness`）补齐——`src/render/context/flex_host/render.rs::render_with` 为生产调用点（`flex=None`/`flex_mesh=None` 与父版同构等价），`tests/render_flex_validate.rs`（`#[ignore]`，`--no-run` 编译通过）读 `reference/base/` + `state.npz` 按 §3 判据比对；执行命令：`cargo test --locked --features cuda-probe --test render_flex_validate -- --ignored --test-threads=1`。
 - **缺口 B（窗口工具）**：新 suite 需要 `scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1` + `guards-r06-s3b-flex.json`（R08 先例：9 exe + 输入条目，`-GuardsOnly` 断言 `GUARDS_OK=N/N`）。**需在开窗卡（S3b validate）内落地。**
 - 缺口 A/B 未收口前**不得开窗**；本片交付的是「材料齐、可开窗条件清单」。
 
@@ -55,13 +56,14 @@
 - 执行器唯一（`window-execution-policy.md`）：只有 Chief 直接 GO 给唯一执行会话才开；群内帖仅作 record-only。
 - 流程：`monitor-until-clean.ps1`（常规 `-Required 60 -MaxMinutes 30`，默认 `MaxUtil=40`，**不带** `-OpenUtilLimit`）→ 冻结 `-Attempt 1` → `-GuardsOnly` 断言 → stage B 实体体。
 - floor 公式：`floor_mib = max(开窗前三点基线 free_min − 3072, 已签 floor)`，取严者生效；采样点 free < floor、或 used 增量 >3072 MiB、或 util>40 即中止。
+- **floor 必须显式传给 runner**：`run-window.ps1` 的 `-OpenFreeMiB` 默认 **10240**、`monitor-until-clean.ps1` 的「干净」判据也硬编码 free≥10240（**脚本没有 floor 参数**）。按本材料基线 14772 算出的当次 floor 是 **11700**——若照默认参数开窗，实际门槛比签署值松 1460 MiB。所以：① 开窗时必须传 `-OpenFreeMiB <当次 floor>`（数值按开窗前 5 分钟内三点基线重算，11700 只是示例）；② monitor 阶段执行者必须**人工逐点核对 free ≥ floor**，低于即停；`monitor-until-clean.ps1` 的 `-MaxMinutes` 默认 12，plan 显式传 30（「硬顶 30」是参数，不是脚本内置上限）。
 - 时长预期：monitor 5–10 min（硬顶 30）+ 冻结/自检 1–2 min + 实体体 60–120 s ≈ 整窗 30–60 min。
 - **失败即停**：monitor 不达标 / freeze 不符 / GuardsOnly 不符 / 任一实体红 → 停手报 Chief，不重试、不重冻「跑到过」、不放宽阈值；attempt 原文留档。
 
 ## 7. 窗口期附加检查（吸取本日两处教训）
 
 - **EOL**：跑任何带 `docs/`/`fixtures/` 的 `unchanged` 前先跑 `scripts/validate/normalize-evidence-eol.ps1 -DryRun`，再实跑（实测存量 1,227 stale，`core.autocrlf=true` 检出后会复发）。
-- **BOM**：开窗前跑 `scripts/validate/check-evidence-bom.ps1`（见 `2026-11-04-governance-evidence-bom-audit`），基线 128 non-`.ps1` WARN + 4 manifest 违规，**新增或超基线即停窗报 Chief**；`manifest.txt` 第 1 字节必须是 `#`。
+- **BOM**：开窗前跑 `scripts/validate/check-evidence-bom.ps1`（见 `2026-11-04-governance-evidence-bom-audit`），基线 128 non-`.ps1` WARN + 4 manifest 违规，**新增或超基线即停窗报 Chief**；`manifest.txt` 第 1 字节必须是 `#`。**该脚本当前尚未落库**（BOM 卡 proposed，见 §4 前置 P7）——脚本落库前本材料不得把它当既有命令；落库后以该卡 README 的实测基线为准。
 
 ## 8. 非声明
 

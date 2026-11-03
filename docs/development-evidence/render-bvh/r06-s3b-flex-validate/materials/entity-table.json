@@ -23,7 +23,7 @@
       "kind": "new",
       "camera": "cam-flex",
       "reference": "fixtures/render-bvh/scene-flex/reference/base",
-      "flex_coverage_reference": { "object_id_9_pixels": 654, "flexids": [0, 1] },
+      "flex_coverage_reference": { "seg_channel2_eq_9_pixels": 654, "flexids": [0, 1], "semantics": "seg 第二通道==9、第一通道=flexid；654 = (0,9) 403 + (1,9) 251" },
       "criteria": {
         "rgb": "bit-first: mismatched=0, max_byte_diff=0, beyond_1_lsb=0",
         "depth": "bit-first: mismatched=0, max_ulp<=4, beyond_0_ulp=0",
@@ -37,14 +37,14 @@
       "id": "render_flex_dim1_cam_persp",
       "kind": "new",
       "camera": "cam-persp",
-      "flex_coverage_reference": { "object_id_9_pixels": 0, "note": "expected: flex not in view; rigid path equivalence control" },
+      "flex_coverage_reference": { "seg_channel2_eq_9_pixels": 0, "semantics": "seg 第二通道==9 的像素数", "note": "expected: flex not in view; rigid path equivalence control" },
       "criteria": { "rgb": "as above", "depth": "as above", "seg": "exact", "two_run": "sha equal" }
     },
     {
       "id": "render_flex_dim1_cam_track",
       "kind": "new",
       "camera": "cam-track",
-      "flex_coverage_reference": { "object_id_9_pixels": 0, "note": "expected: flex not in view (targetbody camera)" },
+      "flex_coverage_reference": { "seg_channel2_eq_9_pixels": 0, "semantics": "seg 第二通道==9 的像素数", "note": "expected: flex not in view (targetbody camera)" },
       "criteria": { "rgb": "as above", "depth": "as above", "seg": "exact", "two_run": "sha equal" }
     },
     {
@@ -91,18 +91,20 @@
     "freeze_script": "scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1 (未创建：开窗卡)",
     "guards_expected": "开窗卡内定稿；本片不猜条目数",
     "floor_formula": "floor_mib = max(pre-window 3-point baseline free_min - 3072, previously signed floor)",
-    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 (MaxUtil=40 default, no -OpenUtilLimit)",
+    "floor_must_be_passed_explicitly": "run-window.ps1 -OpenFreeMiB 默认 10240、monitor 干净判据硬编码 free>=10240（无 floor 参数）；必须显式传 -OpenFreeMiB <当次 floor> 并人工逐点核 free>=floor（基线 14772 => floor 11700 仅示例）",
+    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 (MaxUtil=40 default, no -OpenUtilLimit); -MaxMinutes 默认 12，plan 显式 30 覆盖，硬顶 30 是参数非内置上限",
     "estimated_duration_minutes": "30-60",
     "single_executor": "window-execution-policy.md：仅 Chief 直接 GO 给唯一执行会话；群内帖 record-only",
     "opened": false
   },
   "prerequisites": [
     { "id": "P1", "item": "参考数据收口（采集卡 verified）", "status": "done", "evidence": "71ec7c83" },
-    { "id": "P2", "item": "设备侧 GPU 用例 + render_with_flex 生产调用点", "status": "missing", "owner": "Backend（需另立卡）" },
+    { "id": "P2", "item": "设备侧 GPU 用例 + render_with_flex 生产调用点", "status": "done", "evidence": "0a3058ee（…-s3b-flex-device-harness verified）" },
     { "id": "P3", "item": "本 suite 冻结器 + guards 文件", "status": "missing", "owner": "开窗卡（S3b validate）" },
-    { "id": "P4", "item": "本材料 QA 独立复核 pass", "status": "pending" },
+    { "id": "P4", "item": "本材料 QA 独立复核 pass", "status": "read-only PASS-with-observations（证据落库中）" },
     { "id": "P5", "item": "开窗前 5 分钟三点基线达标 + floor 取严 + compute apps = 0 + worktree clean", "status": "window-time" },
-    { "id": "P6", "item": "Chief GO + 群内留痕（计划/基线/floor）+ 唯一执行会话", "status": "window-time" }
+    { "id": "P6", "item": "Chief GO + 群内留痕（计划/基线/floor）+ 唯一执行会话", "status": "window-time" },
+    { "id": "P7", "item": "BOM 审计脚本 check-evidence-bom.ps1 已落库并通过（2026-11-04-governance-evidence-bom-audit）", "status": "missing", "note": "脚本未落库前本材料不得把它当既有命令" }
   ],
   "pre_window_hygiene": [
     "scripts/validate/normalize-evidence-eol.ps1 -DryRun → 实跑（unchanged 前必跑；存量 1,227 stale）",
