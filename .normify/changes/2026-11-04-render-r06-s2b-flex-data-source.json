@@ -5,7 +5,7 @@
     "zh": "R06-S2b：flex 渲染数据源——原生 flex render 字段 + io/model 接线 + physics 数据面（只读视图，零设备改动）",
     "en": "R06-S2b: flex render data source - native flex render fields, io/model wiring, physics data plane (read-only view, no device change)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "R06-S2 建的是**渲染宿主通道**（`FlexHostInputs` 结构 + `render_with_flex` + 校验 + 单测），不带数据源。Backend 核实：当前 model/context 里没有渲染所需的 flex 数据（`src/render/.../render.rs` 零 flex 命中，`flex_radius` 无探针导出，flex 顶点/边/面/rgba/geom 映射都没有面向渲染的只读接口）。本片负责把原生 flex 数据引出来：①在 io/model 侧登记并暴露 render 需要的 flex 字段（`flex_vert`/`flex_face`/`flex_edge`/`flex_radius`/`flex_rgba`/`flex_body`/geom→flex/edge 映射、nflex/nflexvert 计数）；②按 ABI 契约在宿主边界完成 f64(mjtNum)→f32 转换并记录量化位置；③在 physics 数据面提供只读视图（节点世界位姿等 S2 通道需要的输入）；④单测覆盖空 flex、单 flex、多 flex、尺寸不一致拒绝。**不建渲染通道**（S2 已建）、不改设备代码/判据/容差。",
     "en": "Expose the native flex data the render channel needs (vertices, faces, edges, radius, rgba, geom mapping, counts) from io/model with an ABI-boundary f64->f32 conversion and a read-only physics data-plane view, plus validation tests. No render channel (S2 owns it), no device/criteria change."
@@ -32,20 +32,54 @@
       "src/physics/flex.rs",
       "include/mjwarp_native_probe.h",
       "native/model_probe.cpp",
+      "fixtures/precision/t4-current-kernels.json",
       "docs/development-evidence/render-bvh/r06-flex-datasource/"
     ],
     "resources": [],
     "priority": 73
   },
-  "note": "Arch 2026-11-04 登记（Chief 裁决：S2 只建显式宿主通道，数据源另立本卡）。来源：Backend 核实 model/context 无 render 所需 flex 数据（render.rs 零 flex 命中、flex_radius 无探针导出、无 geom→flex 映射的渲染视图）。依赖 S2 的 `FlexHostInputs` 定型后再接；本卡不动设备面与判据。2026-11-04 锁内补全（Chief 两次指令合并；Backend 只读预检通过）：代码面 8 条 —— in-scope `src/io/flex.rs`（只加 `mod render;`，实测 444→445 行）、`src/model/flex.rs`、`src/physics/flex.rs`；新增 `include/mjwarp_native_probe.h`、`native/model_probe.cpp`、`src/io/flex/render.rs`、`src/io/mod.rs`（私有 `mod native` 加 `flex_render_snapshot(&self)` + `pub use flex::{NativeFlexRenderSnapshot}`，实测 419 行 → 约 430）；证据目录 `docs/development-evidence/render-bvh/r06-flex-datasource/`。`src/model/mod.rs` **不加**（公开的 `model::flex` 够用，Backend 确认不需要 re-export）。四条口径：①S2b 只交数据层（原生 additive `mjwarp_flex_render_info`/`mjwarp_flex_render_targets`、io/model/physics 只读视图），`src/render/kernel/` 零改动；②`render_with_flex` 真实调用方接线**并入 S3 前置**，不新增 S2c；③native 验证**记证据即可**（VsDevCmd + `MJWARP_MUJOCO_ROOT`/`MJWARP_MUJOCO_DLL` + `cargo test --features native-model-probe --lib io::flex`），**不加 native gate**；④`fixtures/flex-position/flex-tree.mjb` 是 MuJoCo 3.12 样本、pinned render 参考 3.15 采集——S2b 只做字段管道，证据写明基线差异、不做数值结论。原生 ABI 草案（Backend 报，写进证据 README）：info 32 B / targets 72 B，只新导 5 个字段 + 3 个计数，`flex_edge` 不重复导。",
-  "revision": { "before": "845c16cf42d8d58ad581deb6a0fb4bcf72b9ad7a", "after": null },
+  "note": "Arch 2026-11-04 登记（Chief 裁决：S2 只建显式宿主通道，数据源另立本卡）。来源：Backend 核实 model/context 无 render 所需 flex 数据（render.rs 零 flex 命中、flex_radius 无探针导出、无 geom→flex 映射的渲染视图）。依赖 S2 的 `FlexHostInputs` 定型后再接；本卡不动设备面与判据。2026-11-04 锁内补全（Chief 两次指令合并；Backend 只读预检通过）：代码面 8 条 —— in-scope `src/io/flex.rs`（只加 `mod render;`，实测 444→445 行）、`src/model/flex.rs`、`src/physics/flex.rs`；新增 `include/mjwarp_native_probe.h`、`native/model_probe.cpp`、`src/io/flex/render.rs`、`src/io/mod.rs`（私有 `mod native` 加 `flex_render_snapshot(&self)` + `pub use flex::{NativeFlexRenderSnapshot}`，实测 419 行 → 约 430）；证据目录 `docs/development-evidence/render-bvh/r06-flex-datasource/`。`src/model/mod.rs` **不加**（公开的 `model::flex` 够用，Backend 确认不需要 re-export）。四条口径：①S2b 只交数据层（原生 additive `mjwarp_flex_render_info`/`mjwarp_flex_render_targets`、io/model/physics 只读视图），`src/render/kernel/` 零改动；②`render_with_flex` 真实调用方接线**并入 S3 前置**，不新增 S2c；③native 验证**记证据即可**（VsDevCmd + `MJWARP_MUJOCO_ROOT`/`MJWARP_MUJOCO_DLL` + `cargo test --features native-model-probe --lib io::flex`），**不加 native gate**；④`fixtures/flex-position/flex-tree.mjb` 是 MuJoCo 3.12 样本、pinned render 参考 3.15 采集——S2b 只做字段管道，证据写明基线差异、不做数值结论。原生 ABI 草案（Backend 报，写进证据 README）：info 32 B / targets 72 B，只新导 5 个字段 + 3 个计数，`flex_edge` 不重复导。2026-11-04 二次补全（Chief 指令：T4 源码身份随本片重钉）：①`schedule.files` 增加 `fixtures/precision/t4-current-kernels.json`；②`checks.unchanged` 去掉 `fixtures/`、只留 `src/render/kernel/cuda/`（本片必须改该 fixture 里的 T4 源码身份，否则 `live_product_sources_match_fixture` 会红）；③T4 源码身份重钉：`src/physics/flex.rs` 新 LF-sha256 **`0299be86…`**（旧 `cb2977a3…`），理由 = 产品源码改动必然触发 identity 漂移（precedent `61fb6baf` / `097c54b9`），**不改上游 pin / 数值参考 / 判据**；Chief 已独立复算当前 worktree 一致。",
+  "revision": {
+    "before": "4cdc203502f12fdb93ec07e9499b81cf6354590e",
+    "after": null
+  },
   "created_at": "2026-11-04T04:50:00.000Z",
-  "updated_at": "2026-11-04T04:50:00.000Z",
+  "updated_at": "2026-11-03T20:44:25.226Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/"
+      ]
+    }
+  ],
+  "waivers": [
+    {
+      "at": "2026-11-03T20:53:39.683Z",
+      "check": {
+        "kind": "unchanged",
+        "paths": [
+          "src/render/kernel/cuda/",
+          "fixtures/"
+        ]
+      },
+      "reason": "去掉 fixtures/ 保护：本片必须改 fixtures/precision/t4-current-kernels.json 重钉 T4 源码身份（src/physics/flex.rs LF-sha256 0299be86，旧 cb2977a3）；其余仍由 narrowed unchanged（src/render/kernel/cuda/ only）承担。注：CLI normify waive 对 in_progress 任务不可用，故按 waivers 记录格式手写，语义等同。"
+    }
   ]
 }
