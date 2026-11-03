@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-bvh-runner-window-lock-and-abort-race-fix",
+  "title": {
+    "zh": "窗口 runner 修复：.abort 读竞态加 Test-Path 守卫 + .window-lock 单执行者互斥 + 窗口操作口径",
+    "en": "Window runner fix: Test-Path guard for .abort reads, .window-lock single-executor mutex, and window operations policy"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "perworld S1 attempt3 过程暴露两处 harness 问题：①`run-window.ps1:326`（及 :416）读取 `.abort` 时缺 `Test-Path` 守卫，sampler 后台作业尚未创建文件时抛错，导致首次 body 以 exit 1 中止；②两会话并列启动同一窗口（群留痕被当成执行信号）。本卡只改 runner 与窗口操作口径：`.abort` 读取加 Test-Path 守卫、Start-Sampler 后等待 `.abort` 就绪（最多 5 s）、新增 `<out-dir>\\.window-lock` 单执行者互斥（存活 pid 则 exit 17，死 pid 视为陈旧锁清除）、每个退出路径释放锁；并落盘 `window-execution-policy.md`（单会话执行、群留痕仅记录、开窗前四条前提、失败即停）。不动 `src/`/`tests/`/`.cu`/判据/容差。",
+    "en": "Harness-only: guard .abort reads with Test-Path, wait for the sampler to create .abort (max 5 s), add a .window-lock single-executor mutex with stale-lock recovery and release on every exit path, and record the window execution policy. No product/test/criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**abort 竞态**：`run-window.ps1` 所有 `.abort` 读取点都有 `Test-Path` 守卫；`Start-Sampler` 后等待 `.abort` 出现（最多 5 s）；复现路径（快速 body 首实体）不再以 exit 1 中断。",
+    "**窗口互斥**：非 GuardsOnly 与 GuardsOnly 启动前都检查 `<out-dir>/.window-lock`；存活 pid 则输出 `WINDOW_LOCK_HELD` 并 `exit 17`；死 pid 视为陈旧锁删除后继续；所有 `exit` 路径与正常结束都释放锁。",
+    "**操作口径**：新增 `docs/development-evidence/render-bvh/window-execution-policy.md`，写清「窗口只允许一个执行者会话、群留痕仅记录（执行以 Chief 直接指令为准）、开窗前四条前提、失败即停不重试」。",
+    "**静态校验**：PS 5.1 `Parser::ParseFile` 0 错误；`-GuardsOnly` 用 attempt3 归档 guards 演练通过（`GUARDS_OK=96/96` + `OUTLINE_LISTS_OK=2/2`，不跑 GPU）；不带 `-GuardsOnly` 的锁行为用双启动演练验证（第二个进程 `WINDOW_LOCK_HELD`）。",
+    "**边界**：只改 runner 与文档；`src/`/`tests/`/`.cu`/判据/容差/参考零改动；不执行真实窗口、不跑实体。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/validate/render-bvh/",
+      "docs/development-evidence/render-bvh/window-execution-policy.md"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-11-03 注册（proposed）。来源：perworld attempt3 首次 body 被 `.abort` 读竞态中止（exit 1，无 facts），以及两会话并列启动/两次冻结。纯 harness 修复 + 操作口径，判据零变化；修完后 attempt3 有效体轮证据不变（errata 已单独提交 ec79f698）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-03T23:10:00.000Z",
+  "updated_at": "2026-11-03T23:10:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda",
+        "tests/render_per_world.rs"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "逐 world 已判定通过",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}
