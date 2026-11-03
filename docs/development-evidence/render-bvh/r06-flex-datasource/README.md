@@ -1,7 +1,7 @@
-# R06-S2b（合并）：flex 渲染数据源 + T4 源码身份重钉（7 文件 11 行）
+# R06-S2b（合并）：flex 渲染数据源 + T4 源码身份重钉（7 文件 12 行）
 
 任务：`2026-11-04-render-r06-s2b-flex-datasource-t4-merged`（单卡单提交；原 S2b 与拆出的 T4 repin 卡已 abandon）。
-日期：2026-11-04（空闲段）。**零 GPU 计算、零窗口、零参考生成**；`src/render/kernel/` 与全部 `.cu` 零改动。
+日期：2026-11-04（空闲段）。**零 GPU 计算、零窗口、零参考生成**；`src/render/kernel/` 与全部 `.cu` 零改动（与 `src/render/kernel/cuda/` 一起零 diff）；fixtures 侧**只有 4 个登记 fixture**（`fixtures/precision/` 的 `t4-current-kernels.json`、`g01-inputs.json`、`g01-packing-routes.json`、`g01-state-packing.json`）与 3 个 `docs/evidence/t4-g03-retest/` map 做了身份重钉，**其余 fixtures 零 diff**。
 
 ## 1. 交付物（代码面）
 
