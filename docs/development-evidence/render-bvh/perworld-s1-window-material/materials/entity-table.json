@@ -15,7 +15,7 @@
     "determinism": "two-run rgb/depth/seg sha256 equal",
     "aa": "NOT covered by S1: kernel/per_world.rs returns LauncherError::Unsupported for nsamples>1 (CPU unit test); reference is spp=1",
     "reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/ (rgb/depth/seg npz), sha256 matched to capture.json",
-    "regressions": "the 8 regression entities keep their existing bitwise baselines with zero drift"
+    "regressions": "the 10 regression entities keep their existing bitwise baselines with zero drift; the set covers every render family touched by the shared launch surface (e2e, rgb, depth/seg, flags, multi-world, skybox, context lifecycle, mesh BVH, hfield, lighting/shadow)"
   },
   "entities": [
     {
@@ -72,12 +72,27 @@
       "entity": "render_mesh_bvh",
       "source": "regression",
       "window_command": "cargo test --locked --features cuda-probe --test render_mesh_bvh -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 10,
+      "entity": "render_hfield_reference",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_hfield_reference -- --ignored --test-threads=1 --nocapture",
+      "note": "QA pre-review coverage requirement: the hfield family is one of the newer families whose kernel path shares the megakernel launch surface touched by S1; at least one hfield entity must run in this window"
+    },
+    {
+      "order": 11,
+      "entity": "render_shadow_reference",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_shadow_reference -- --ignored --test-threads=1 --nocapture",
+      "note": "QA pre-review coverage requirement: the lighting/shadow family shares the same launch/upload surface; at least one lighting entity must run in this window"
     }
   ],
   "excluded_on_purpose": {
     "render_sdf_reference": "SDF has its own frozen identity (criterion v2.2, guards-sdf-validate.json); including it here would mix two acceptance surfaces"
   },
-  "guards_expected": { "frozen_exes": 9, "guard_inputs": 83, "total": 92 },
+  "guards_expected": { "frozen_exes": 11, "guard_inputs": 83, "total": 94 },
+  "guards_expected_basis": "input set identical to the SDF suite input set minus its 2 outline lists; hfield and shadow fixtures are already part of that 83-input set",
   "not_claimed": [
     "no performance statement",
     "L v1 scope = per-world geom poses only; per-world light poses deferred to L v2/K",

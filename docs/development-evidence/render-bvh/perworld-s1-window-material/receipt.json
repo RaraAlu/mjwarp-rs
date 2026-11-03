@@ -13,45 +13,46 @@
   "attempt": 1,
   "guards_file": "scripts/validate/render-bvh/guards-perworld-s1.json",
   "guards_expected": {
-    "frozen_exes": 9,
+    "frozen_exes": 11,
     "guard_inputs": 83,
-    "total": 92
+    "total": 94
   },
+  "guards_expected_basis": "input set identical to the SDF suite input set minus its 2 outline lists; the hfield (10) and shadow-capture (16) inputs needed by the two added regression entities are already inside that 83-input set",
   "files": {
     "README.md": {
-      "sha256": "742259360f5c77c12ee4939bbb71606b0a28c7a3db327e740abb23a86de4a971",
-      "bytes": 4744,
-      "lines_lf": 68,
+      "sha256": "1655acf3ac05ced38250a090d7eb555dd8d06543b8c9531d968f8f417a5020bc",
+      "bytes": 5549,
+      "lines_lf": 77,
       "language": "zh"
     },
     "materials/entity-table.json": {
-      "sha256": "9becdbbf61f8f693c6b83eb73e990d64905ebb55e40d357074df68534ed2a267",
-      "bytes": 4004,
-      "lines_lf": 87,
+      "sha256": "07c6047c0e297a12ba594bd38f33ac8b2b1cb0c42adc870ecd03c2816b264a89",
+      "bytes": 5237,
+      "lines_lf": 102,
       "language": "en-ascii"
     },
     "materials/window-plan.txt": {
-      "sha256": "c875fd4038d9c52f9b398ffc0ca437e1a1a351b2e6133d0092333ca0f6504535",
-      "bytes": 6222,
-      "lines_lf": 100,
+      "sha256": "83fd0412026a4c3ff495a58c0f66a5ba044354274f87cc68835e0f77a9c24aaf",
+      "bytes": 6526,
+      "lines_lf": 103,
       "language": "en-ascii",
       "non_ascii_bytes": 0
     }
   },
   "script_identity": {
     "path": "scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1",
-    "sha256": "2d031318b9d6821cfc45f7d17ab30b645e54b406e87c3abfc880e081fc3b4ddf",
-    "bytes": 8513,
-    "lines_lf": 165,
+    "sha256": "31724867c70b2152365bfeddb94923358fb6360b706d478ddd2da0810524149c",
+    "bytes": 8696,
+    "lines_lf": 168,
     "non_ascii_bytes": 0,
     "ascii_only": true,
     "ps51_parse_errors": 0,
     "line_budget": "<=200 LF",
     "hard_asserts": [
-      "9 frozen exes",
+      "11 frozen exes",
       "83 read-only inputs",
-      "92 total entries",
-      "stash 9/9 with equal bytes/sha256"
+      "94 total entries",
+      "stash 11/11 with equal bytes/sha256"
     ]
   },
   "entities": {
@@ -66,8 +67,11 @@
       "render_r10_multi_world",
       "render_skybox_reference",
       "render_context_lifecycle",
-      "render_mesh_bvh"
+      "render_mesh_bvh",
+      "render_hfield_reference",
+      "render_shadow_reference"
     ],
+    "coverage_rationale": "S1 touches the shared megakernel launch/upload surface, so in addition to e2e/rgb/depth-seg/flags/multi-world/context the hfield and lighting/shadow families each contribute at least one entity (QA pre-review requirement, 2026-11-03)",
     "excluded_on_purpose": {
       "render_sdf_reference": "SDF has its own frozen identity (criterion v2.2 + guards-sdf-validate.json); mixing the two acceptance surfaces is forbidden"
     }
@@ -117,9 +121,10 @@
       "legacy_reference_untouched": true,
       "legacy_reference_files": 79,
       "use_fast_math": false,
-      "use_shadows": true
+      "use_shadows": true,
+      "samples_per_pixel": 1
     },
-    "verified_by": "2026-10-30-render-perworld-capture-check (verified); sha re-checked 2026-11-03"
+    "verified_by": "2026-10-30-render-perworld-capture-check (verified); sha re-checked independently by QA 2026-11-03 (0 mismatch)"
   },
   "baseline_sop": {
     "three_points": "within 5 minutes before opening; nvidia-smi free/util x3 + compute-apps raw/filtered + build processes",
@@ -129,6 +134,7 @@
     "monitor_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\perworld-s1-window\\monitor-pre-window.csv -Required 60 -MaxMinutes 30",
     "max_util": 40,
     "exception_preapproved": false,
+    "inherited_exception": "none: the capture-window authoring-only util<60 exception is NOT inherited",
     "on_shortfall": "defer the window; never relax the threshold"
   },
   "window_order": [
@@ -136,8 +142,8 @@
     "three-point baseline re-sample and manual signed-floor check",
     "regular monitor 60/60 at util<40 (PowerShell 5.1, no exception)",
     "freeze (only after monitor passes): freeze-guards-perworld-s1.ps1 -Attempt 1",
-    "GuardsOnly 92/92 with all parameters",
-    "body: run-window.ps1 -Attempt 1 -GuardsFile ... -OutDir ... (9 entities)",
+    "GuardsOnly 94/94 with all parameters",
+    "body: run-window.ps1 -Attempt 1 -GuardsFile ... -OutDir ... (11 entities)",
     "post-window recheck and evidence archive"
   ],
   "window_build_rule": "after the freeze only the --features cuda-probe profile may build/run; default-feature builds inside the window are forbidden",
@@ -161,5 +167,12 @@
     "freeze and window execution belong to the implementation card after the user double-sign",
     "the guards file is produced inside the window, not by this material"
   ],
-  "created_at": "2026-11-03T04:20:00.000Z"
+  "revision_history": [
+    {
+      "at": "2026-11-03T04:10:00.000Z",
+      "reason": "QA pre-review: entity set was missing the hfield and lighting/shadow families although S1 touches the shared launch surface. Entities 9->11 (added render_hfield_reference, render_shadow_reference), guards expected 92->94; criteria, floor rules, util<40-no-exception and the signature scope are unchanged."
+    }
+  ],
+  "created_at": "2026-11-03T04:20:00.000Z",
+  "updated_at": "2026-11-03T04:12:00.000Z"
 }

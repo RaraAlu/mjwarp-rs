@@ -20,12 +20,14 @@ PREREQUISITES (must all hold before opening)
 - 8 regression entities: existing bitwise baselines zero drift
 - AA/spp>1: NOT covered by S1 (entry returns LauncherError::Unsupported, CPU unit test; reference spp=1)
 
-2. ENTITIES (9) - see materials/entity-table.json
+2. ENTITIES (11) - see materials/entity-table.json
   new:         render_per_world
   regressions: render_e2e, render_kernel_rgb, render_kernel_depth_seg, render_kernel_flags,
                render_r10_multi_world, render_skybox_reference, render_context_lifecycle,
-               render_mesh_bvh
+               render_mesh_bvh, render_hfield_reference, render_shadow_reference
   render_sdf_reference is intentionally excluded (SDF criterion v2.2 identity stays separate)
+  coverage note (QA pre-review): hfield and lighting/shadow are newer families whose kernel path
+  shares the megakernel launch surface touched by S1, so at least one entity from each must run.
 
 3. SUITE / GUARDS
   suite   = render-perworld-s1
@@ -33,9 +35,10 @@ PREREQUISITES (must all hold before opening)
               guards-sdf-validate.json are history and must not be reused)
   guards  = scripts/validate/render-bvh/guards-perworld-s1.json
   freeze  = scripts/validate/render-bvh/freeze-guards-perworld.ps1 -Attempt 1
-  expect  = GUARDS_FROZEN suite=render-perworld-s1 total=92 exes=9 inputs=83 ...
-            9 exe + 83 read-only inputs = 92 entries (input set identical to the SDF suite input
-            set minus its 2 outline lists; includes the 5 perworld fixture files); stash 9/9.
+  expect  = GUARDS_FROZEN suite=render-perworld-s1 total=94 exes=11 inputs=83 ...
+            11 exe + 83 read-only inputs = 94 entries (input set identical to the SDF suite input
+            set minus its 2 outline lists; includes the 5 perworld fixture files and the hfield /
+            shadow capture inputs); stash 11/11.
   GuardsOnly (all parameters mandatory):
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
       -GuardsOnly -Attempt 1 ^
@@ -57,13 +60,13 @@ PREREQUISITES (must all hold before opening)
      default MaxUtil=40; do NOT pass -OpenUtilLimit and do NOT pass -MaxUtil 60.
   4) freeze only AFTER monitor passes (never inside the window body):
      scripts/validate/render-bvh/freeze-guards-perworld.ps1 -Attempt 1
-  5) GuardsOnly 92/92 with ALL parameters (see section 3)
+  5) GuardsOnly 94/94 with ALL parameters (see section 3)
   6) body:
      powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
        -Attempt 1 ^
        -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
        -OutDir target\render-bvh\perworld-s1-window\attempt1
-     expects 9/9 entities exit 0, sha_guards 92/92, post-window exe recheck 9/9,
+     expects 11/11 entities exit 0, sha_guards 94/94, post-window exe recheck 11/11,
      zero Rust compile, floor not breached, residual processes 0.
   7) archive facts/logs/monitor CSV/entity-results/guards copy + manifest into
      docs/development-evidence/render-bvh/perworld-s1-validate/attempt1/ (or equivalent).
