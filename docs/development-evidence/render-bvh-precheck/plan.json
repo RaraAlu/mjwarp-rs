@@ -171,7 +171,7 @@
     ]
   },
   "delivery_tracking": {
-    "updated_at": "2026-10-30",
+    "updated_at": "2026-11-03",
     "policy": "Rolling table only: slice -> task id -> owner -> status -> evidence path. Do not change slice scope, acceptance, or tolerances here.",
     "gpu_policy": {
       "mutex": "gpu:windows-t4",
@@ -651,10 +651,10 @@
         "slice": "L-S1",
         "task_id": "2026-10-30-render-perworld-impl-s1",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "in progress (CPU implementation first; GPU validation window waits for the user double-sign)",
+        "normify_status": "verified",
+        "execution": "done (CPU implementation + device window attempt3 valid body round; archived)",
         "evidence": "docs/development-evidence/render-bvh/perworld-impl-s1/",
-        "note": "registered 2026-10-30, started 2026-11-03 (commit a1949f91; baselines revised at start: megakernel.rs 405 LF, args.rs pinned to src/runtime/launcher/render/args.rs(494), output.rs pinned to src/render/context/output.rs(151)); window material landed offline (material e2538d8f + freezer 5cd64eea; suite render-perworld-s1, 11 entities (hfield + lighting added after QA pre-review), guards expected 11 exe + 83 inputs = 94, no outline lists); depends_on capture 3478bbab + capture-check, both verified"
+        "note": "closed 2026-11-03: implementation task verified (commit 5be57e86); device window attempt3 valid body round archived at docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/ (commit 509c768b, 11/11 entities exit 0, guards 96/96), QA verdict valid body round + criteria PASS; the concurrent second-executor round is archived separately under window-attempt3-concurrent-invalid/ (commit d731bbe6) and is not used as numeric evidence. Original registration: registered 2026-10-30, started 2026-11-03 (commit a1949f91; baselines revised at start: megakernel.rs 405 LF, args.rs pinned to src/runtime/launcher/render/args.rs(494), output.rs pinned to src/render/context/output.rs(151)); window material landed offline (material e2538d8f + freezer 5cd64eea; suite render-perworld-s1, 11 entities (hfield + lighting added after QA pre-review), guards expected 11 exe + 83 inputs = 94, no outline lists); depends_on capture 3478bbab + capture-check, both verified"
       }
     ],
     "structural_decisions": [
@@ -1627,7 +1627,7 @@
         "required": false,
         "reason": "host/device wiring and assertions only; numeric acceptance stays in R09-S3b"
       },
-      "status": "proposed",
+      "status": "delivered",
       "note": "登记依据 QA R09-S2 复核 O1（严重、不阻断）：必须在 R09-S3b 验证窗之前完成，否则窗口无法从产品入口发射阴影。切片顺序：R09-S2 → R09-S2b → R09-S3a 捕获 → R09-S3b 窗口。任务卡 2026-10-28-render-bvh-r09-s2-host-guard-unlock。"
     },
     {
@@ -2318,6 +2318,16 @@
       ],
       "needs_user": false,
       "decided_by_user": "2026-10-28"
+    },
+    {
+      "id": "D7",
+      "topic": "next direction after the render/BVH plan (R06 flex rendering / R07 gaussian splats / G11 flex collision / mesh plan A / L v2/K)",
+      "recommendation": "Options analysed 2026-11-03; costs are estimates and no schedule is promised. R06 flex rendering: about 3-5 person-days plus 1-2 GPU windows; the flex model/physics path is already verified, the render side needs a new flex geometry channel, a megakernel split first, and a new capture script. R07 gaussian splats: about 5-8 person-days plus 2-3 windows; host SplatInputs and input validation already exist, device projection/sort/blend are missing, upstream build_splat_bvh exists but the pinned capture environment must be verified, and transparency ordering is the main determinism risk. G11 flex/soft collision: about 4-6 person-days plus 1-2 windows; the flex data path is complete while collision-side flex support is thin (7 mentions across 43 collision files) and upstream self-collision semantics are complex. mesh plan A (face 32 / degree 32) stays deferred: 1-1.5 person-days plus 1 window, and it changes the collision kernel identity so M2/M3/S4 evidence must be re-frozen and replayed. L v2/K (per-world light poses, AA+perworld, upstream-style single launch): about 3-5 person-days plus 1-2 windows and needs user approval because it adds criteria and device-code scope. Prerequisites: NP01/NP02 precision gates are the stated prerequisite for every physics/render family; any src or tests change invalidates the current 96-entry guard set, so a direction that touches them starts with a fresh freeze.",
+      "alternatives": [
+        "Take mesh plan A first (smallest window cost, but it only widens a bounded capacity and changes the collision kernel identity)",
+        "Do evidence/governance closeout only and pause new directions until the user picks a family"
+      ],
+      "needs_user": true
     }
   ],
   "non_claims": [
