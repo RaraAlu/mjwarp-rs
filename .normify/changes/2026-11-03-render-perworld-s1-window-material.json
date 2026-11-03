@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-perworld-s1-window-material",
+  "title": {
+    "zh": "per-world S1 验证窗口材料（离线：实体表/窗口计划/冻结器/基线 SOP/双签栏；不开窗不跑 GPU）",
+    "en": "Per-world S1 validation window material (offline: entity table, window plan, guard freezer, baseline SOP, signature block; no window, no GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "为 `2026-10-30-render-perworld-impl-s1` 的验证窗准备用户双签材料：①实体表（新 `render_per_world` + 8 回归，明确不含 `render_sdf_reference` 以免混入 SDF criterion v2.2 身份）；②窗口计划（suite `render-perworld-s1`、attempt=1、逐字命令、常规 util<40 60/60 无例外、失败即停手条款、18:00-19:30 时间块）；③新冻结器 `freeze-guards-perworld.ps1`（ASCII，9 exe + 83 只读输入 = 92 条；无 outline 清单）；④开窗前基线 SOP（5 分钟内三点复采、`signed floor = min_free − 3072`、`[10240, signed)` 手动 STOP）；⑤用户双签栏（计划 + 基线一起签）。本片纯离线：不开窗、不跑 GPU、不冻结、不写 fixtures/src/tests。",
+    "en": "Prepare the user double-sign material for the per-world S1 validation window: entity table, window plan, ASCII guard freezer, baseline SOP, and signature block. Offline only: no window, no GPU, no freeze, no product/fixture writes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实体表**：`materials/entity-table.json` 列 9 实体（`render_per_world` 新增 + `render_e2e`/`render_kernel_rgb`/`render_kernel_depth_seg`/`render_kernel_flags`/`render_r10_multi_world`/`render_skybox_reference`/`render_context_lifecycle`/`render_mesh_bvh` 回归），逐条给窗口内命令与判据；明确不含 `render_sdf_reference`（SDF criterion v2.2 身份独立）并写明理由。",
+    "**窗口计划**：`materials/window-plan.txt`（ASCII）含 suite/attempt/guards 路径/预计条数、逐字命令（monitor → freeze → GuardsOnly → body 的顺序与全参数）、`floor = baseline_free − 3072` 与 `[10240, signed)` 手动 STOP 规则、常规 `util<40` 60/60 无例外、窗口时限 30-60 分钟、失败即停手条款、冻结后只允许 `--features cuda-probe` 构建的窗口构建规则、用户双签栏与 NOT CLAIMED 段。",
+    "**冻结器**：`scripts/validate/render-bvh/freeze-guards-perworld.ps1`（ASCII-only、PS 5.1 可解析、LF、≤200 行）：`cargo test --no-run --message-format=json` 解析 9 个实体 exe，冻结 9 exe + 83 只读输入 = 92 条（输入集与 SDF suite 同集但无 outline 清单），含 stash 副本与条目数硬断言；输出 `GUARDS_FROZEN suite=render-perworld-s1 total=92 exes=9 inputs=83 ...`。",
+    "**基线 SOP**：开窗前 5 分钟内三点 `nvidia-smi` 复采（free/util + compute-apps raw/filtered + build 进程），`baseline_free = min(free)`，`signed floor = baseline_free − 3072`；每个 body 前样本必须 ≥ signed floor；`[10240, signed)` 由操作员手动 STOP（runner 只在 10240 以下自停）；不达标顺延、不放宽。",
+    "**双签与证据**：`receipt.json`（`/task_id` = 本卡 id）记录材料身份、实体表与冻结器 sha/bytes、baseline 公式与签署时间字段、not_claimed；`manifest.txt` 自洽；README 写清证据清单与边界。本片不产生任何数值结论。",
+    "**边界**：不开窗、不跑 GPU、不冻结 guards、不写 `fixtures/`/`src/`/`tests/`；冻结与窗口执行归实现片验证窗（用户双签后）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-s1-window-material/",
+      "scripts/validate/render-bvh/freeze-guards-perworld.ps1"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-11-03 注册（proposed）。材料片离线，只写证据目录 + 冻结器；不开窗不冻结。已定口径：实体 9（不含 render_sdf_reference）、guards 预计 9 exe + 83 输入 = 92 条、常规 util<40 无例外、18:00-19:30 时间块、floor 公式与手动 STOP 规则同 attempt5 先例（signed floor 生效、runner 10240 仅下界）。窗口与冻结必须等用户双签（计划+基线）后由实现片执行。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-03T04:07:00.000Z",
+  "updated_at": "2026-11-03T04:07:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-s1-window-material/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-03-render-perworld-s1-window-material"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "逐 world 已判定通过",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}

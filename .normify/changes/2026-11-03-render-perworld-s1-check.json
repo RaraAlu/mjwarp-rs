@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-perworld-s1-check",
+  "title": {
+    "zh": "per-world 实现 S1 独立复核（逐 world 位级/隔离/两跑 sha/零 .cu/行数死线/窗口事实）",
+    "en": "Independent check of per-world implementation S1 (per-world bitwise, isolation, two-run sha, zero .cu, line deadlines, window facts)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-30-render-perworld-impl-s1`：①逐 world 位级比对（rgb mismatched=0/max_byte_diff=0、depth bitwise 0 且 max_ulp≤4、seg 精确）与 world 隔离、两跑 sha 相等；②零 `.cu`/零 ABI 改动（`git diff --stat -- src/render/kernel/cuda` 空、81 槽不变）；③行数死线实测（megakernel.rs ≤450、megakernel_uploads.rs ≤480、per_world.rs ≤260、cast/lifecycle/args/output/megakernel_aa 零改动）；④AA/spp>1 显式拒绝与 CPU 单测；⑤证据覆盖范围与不覆盖项（灯位姿/AA/性能）、不含越界声明；⑥验证窗事实（guards/floor/zero compile/post recheck）。只读，不重跑窗口。",
+    "en": "Read-only QA check of per-world implementation S1: per-world bitwise comparison and isolation, two-run sha, zero .cu/ABI change, line deadlines, AA rejection, scope/non-claims, and window facts."
+  },
+  "modules": {},
+  "acceptance": [
+    "**逐 world 正确性**：独立解码参考 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`，逐 world 复核 rgb（mismatched=0/max_byte_diff=0/beyond_1_lsb=0）、depth（bitwise mismatched=0、max_ulp≤4、beyond=0）、seg（全等）；world 隔离（world0 输出不受 world1 数据影响）；两次运行 sha256 相等；独立复算，不直接引用实现方日志。",
+    "**零内核/ABI 改动**：`git diff --stat -- src/render/kernel/cuda` 为空；`MEGAKERNEL_SLOTS`=81 不变；`cast.rs`/`context/lifecycle.rs`/`src/runtime/launcher/render/args.rs`/`context/output.rs`/`megakernel_aa.rs` 零改动。",
+    "**行数死线**：`kernel/megakernel.rs` ≤450、`kernel/megakernel_uploads.rs` ≤480、`kernel/per_world.rs` ≤260（UTF-8 LF 实测）；任一超界即阻断。",
+    "**AA / spp>1**：`kernel/per_world.rs` 纯函数守卫对 `nsamples>1` 返回 `LauncherError::Unsupported`，CPU 单测覆盖 1→Ok、2/4→Unsupported；无静默忽略路径。",
+    "**范围与声明**：证据写明 v1 只覆盖 per-world geom 位姿、灯数组模型级单份、AA 与性能不覆盖；无「逐 world 已判定通过 / 渲染数值验收通过 / 上游等价」类越界声明；C 类证据（guards/manifest/哈希）不单独作通过依据。",
+    "**验证窗事实**：由窗口卡证据复核 guards 条目数/aggregate、monitor 真 60/60（非例外）、zero_rust_compile、post-window exe recheck、floor 未破、residual processes 0；不重跑窗口、不跑 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-perworld-impl-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-s1-check/"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "Arch 2026-11-03 注册（proposed，等实现片 verified 后 QA 复核）。只读：不重跑窗口、不跑 GPU、不改实现。复核对象为实现片证据目录 + 窗口证据 + `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-03T04:06:00.000Z",
+  "updated_at": "2026-11-03T04:06:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-s1-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-03-render-perworld-s1-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "逐 world 已判定通过",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}
