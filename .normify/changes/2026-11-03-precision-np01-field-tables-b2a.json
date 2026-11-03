@@ -1,0 +1,55 @@
+{
+    "schema_version":  1,
+    "id":  "2026-11-03-precision-np01-field-tables-b2a",
+    "title":  {
+                  "zh":  "NP01 逐字段类型表 B2a 批：fixed_tendon / spatial_tendon / tendon / tendon_velocity 四条",
+                  "en":  "NP01 per-field type tables batch B2a: fixed_tendon, spatial_tendon, tendon, tendon_velocity"
+              },
+    "status":  "proposed",
+    "intent":  {
+                   "zh":  "B2 批拆成若干小批连续推进；B2a 取肌腱族 4 条：`fixed_tendon`（raw qpos 线性组合 + 系数直写 jac，行内禁重复 joint）、`spatial_tendon`（site/moment/wrap 三内核：wrap Newton 迭代输出 scratch13、length 与 CSR 雅可比顺序累加、`1e10f` 有效点 sentinel、integer 输出内核）、`tendon`（values/indices 纯搬运与紧凑游标、固定行不加点）、`tendon_velocity`（稀疏雅可比点积 + `-131072` sentinel 与索引越界拒绝）。表落 `field-tables/`，把 4 行从 `tests/precision_type_gate.rs` 待批清单删掉（25→21→17）。只做类型审计与登记，不改产品代码/判据/容差，零 GPU。",
+                   "en":  "Split B2 into small batches and deliver the four tendon-family rows (fixed_tendon, spatial_tendon, tendon, tendon_velocity) with the same per-field table schema, and tighten the gate pending list by these four rows. Audit + registration only."
+               },
+    "modules":  {
+
+                },
+    "acceptance":  [
+                       "**四条表**：`field-tables/{fixed_tendon,spatial_tendon,tendon,tendon_velocity}.json` 与既有 schema 同构；`spatial_tendon` 必须写明 wrap Newton 迭代、`1e10f` sentinel、三内核输出块（length/points/scratch13/jac）与整数输出内核；`fixed_tendon` 写明 raw qpos（非 qpos-qpos0）与「行内禁重复 joint」的直写口径；`tendon` 写明纯搬运/紧凑游标与固定行共享游标不加点；`tendon_velocity` 写明 sentinel 与索引越界拒绝。",
+                       "**待批清单收紧**：`PENDING_ROWS` 删除这 4 行（剩 17 行），门禁用例继续全绿。",
+                       "**README 批次表**：`field-tables/README.md` 更新为 B1 5 条 + B1b 4 条 + B2a 4 条已完成、B2 余 17 条待补。",
+                       "**边界**：`src/`、`include/warp-headers/`、fixtures、判据/容差零改动；零 GPU；不宣称 NP01 通过。",
+                       "**门禁**：`cargo test --locked --test precision_type_gate` 全绿；`cargo test --locked` unit 计数只增不减。"
+                   ],
+    "schedule":  {
+                     "depends_on":  [
+                                        "2026-11-04-precision-np01-field-tables-b1b"
+                                    ],
+                     "phase":  "P11-发布准入",
+                     "owner":  "Arch",
+                     "files":  [
+                                   "docs/development-evidence/np01-type-mapping/",
+                                   "tests/precision_type_gate.rs"
+                               ],
+                     "resources":  [
+
+                                   ],
+                     "priority":  64
+                 },
+    "note":  "Arch 2026-11-04 登记（B2 第一批）。B1（5 条）+ B1b（4 条）已完成（`0d8ee05a`、`abbe89ba`）。本片只做类型审计与登记；写锁流程 acquire→写→gate/check/done→commit→release。",
+    "revision":  {
+                     "before":  "6c46bb1be0399e6c9ec098965bdfc129f9130e6b",
+                     "after":  null
+                 },
+    "created_at":  "2026-11-04T03:55:00.000Z",
+    "updated_at":  "2026-11-03T16:15:32.037Z",
+    "checks":  [
+                   {
+                       "kind":  "unchanged",
+                       "paths":  [
+                                     "src/",
+                                     "include/warp-headers/",
+                                     "fixtures/"
+                                 ]
+                   }
+               ]
+}
