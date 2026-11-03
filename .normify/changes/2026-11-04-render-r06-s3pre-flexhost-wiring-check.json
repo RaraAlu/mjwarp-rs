@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3pre-flexhost-wiring-check",
+  "title": {
+    "zh": "QA 复核：R06-S3pre FlexHostInputs 接线（三态单测、FlexHostData 边界、三条位级口径）",
+    "en": "QA audit: R06-S3pre FlexHostInputs wiring (three-state tests, FlexHostData boundary, three bit-level invariants)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-04-render-r06-s3pre-flexhost-wiring` 做独立复核并留卡：核三态单测（无 flex 传 None / 有 flex 传 Some / 尺寸映射不一致拒绝）、核 `FlexHostData` 边界与宿主校验、核三条位级口径（无 flex 路径行为位级不变、零设备 diff、f64→f32 转换集中一处）、核不宣称 flex 渲染可用。",
+    "en": "Independent audit of the S3pre wiring card: three-state tests, FlexHostData boundary, three bit-level invariants, no availability claim."
+  },
+  "modules": {},
+  "acceptance": [
+    "**三态单测**：独立跑 `cargo test --locked`，核三态测试存在且真实覆盖（不是只断言不 panic）；无 flex 路径与接线前行为位级一致（同一输入两次运行 sha 相同）。",
+    "**边界**：`FlexHostData`/`FlexHostInputs` 的宿主校验在长度/世界数/geom 映射不一致时返回显式错误；不 panic、不静默回退。",
+    "**三条口径**：`git diff` 不含 `src/render/kernel/cuda/` 与任何 `.cu`；f64→f32 转换集中一处；三条口径（只交数据层 / 调用方接线不新增 S2c / 3.12 vs 3.15 只登记差异）未被越界。",
+    "**结论三态**：PASS / PASS-with-observations / FAIL，写进证据；不宣称 flex 渲染可用。",
+    "**提交**：证据入 `docs/development-evidence/render-bvh/r06-s3pre-flexhost-wiring-check/`，按 `Normify-Task:` 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3pre-flexhost-wiring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3pre-flexhost-wiring-check/"
+    ],
+    "resources": [],
+    "priority": 72
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令）。复核对象：后端提交 `0b82c676`（S3pre 实现）；该片 scope = `src/render/context.rs` + `src/render/context/` + 证据目录；`checks.unchanged` = `src/render/kernel/cuda/` + `fixtures/`。",
+  "revision": { "before": "f0a06ca7afedcbf7729015a8e51cafe7357b1b0b", "after": null },
+  "created_at": "2026-11-03T22:08:00.000Z",
+  "updated_at": "2026-11-03T22:08:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+  ]
+}

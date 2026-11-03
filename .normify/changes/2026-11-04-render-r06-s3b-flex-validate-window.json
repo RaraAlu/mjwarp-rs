@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-validate-window",
+  "title": {
+    "zh": "R06-S3b：flex 渲染参考采集与验证窗口（capture_render_flex.py + scene-flex + 窗口材料）",
+    "en": "R06-S3b: flex render reference capture and validation window (capture script, scene-flex, window material)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3a 出设备实现后，本片做**参考采集与验证**：新增 `scripts/authoring/capture_render_flex.py`（离线 authoring，生成 flex 渲染参考）与 `fixtures/render-bvh/scene-flex/` 场景，准备窗口材料（实体清单、判据、守卫清单、freeze/Baseline 基线项）。**任何 GPU 窗口必须等 Chief 发 go 且重冻守卫**（`ebba11f7` 后测试 exe 哈希已过期），本片先只做离线材料，不许提前动窗口。",
+    "en": "Capture flex render references offline and prepare the validation window material; the GPU window itself only after Chief go plus re-freeze."
+  },
+  "modules": {},
+  "acceptance": [
+    "**采集脚本**：`capture_render_flex.py` 进仓（离线 authoring，只读 pinned upstream 与 fixtures，不启动在制品测试），输出可复现的 flex 渲染参考，带 provenance（pinned 提交、DLL sha、命令）。",
+    "**场景**：`fixtures/render-bvh/scene-flex/` 落地，含 flex 图元与刚性几何共存的最小场景；fixtures 变更登记清楚。",
+    "**窗口材料**：实体清单、逐条判据（位级口径与容差来源）、守卫清单、Baseline 采样步骤、失败停手条款；开窗前提四条全部写清。",
+    "**纪律**：窗口只在 Chief 发 go 后开；开窗必须重冻（当前 guards 已过期）；失败即停、不重试、不放宽。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU（窗口前）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3a-flex-device"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/authoring/capture_render_flex.py",
+      "fixtures/render-bvh/scene-flex/",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-validate/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：S3 拆 a/b）。S3b 含 fixture 与窗口材料，`checks.unchanged` 不含 fixtures；窗口执行需 Chief go、开窗前 5 分钟内三点基线达标、floor 取严、guard 重冻；窗口权在 Chief 四条授权内，只有放宽判据/改参考/对外声明才找用户。",
+  "revision": { "before": "f0a06ca7afedcbf7729015a8e51cafe7357b1b0b", "after": null },
+  "created_at": "2026-11-03T22:06:00.000Z",
+  "updated_at": "2026-11-03T22:06:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3a-flex-device",
+  "title": {
+    "zh": "R06-S3a：设备侧 flex 渲染（render_flex.cu + 设备 cast/BVH/seg 编码 + flex BVH 构建/重拟合），离线零窗口",
+    "en": "R06-S3a: device-side flex rendering (render_flex.cu, device cast/BVH/seg encoding, flex BVH build/refit), offline, no window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S2 已建宿主通道、S2b 已供数据层、S3pre 已接真实调用方；本片做**设备侧**：新增 `render_flex.cu`（flex 图元遍历/求交，与 pinned 上游语义对齐）、设备 cast 的 flex 分支与 seg 编码、flex BVH 构建与重拟合。要求与 pinned 上游 `_render_megakernel` 的 flex 槽语义逐项对表（S0 已核零 ABI 变更），**不改上游 pin/数值参考/判据**，不宣称 flex 渲染可用。离线可完成，零 GPU 窗口；窗口验证归 S3b。",
+    "en": "Implement the device side of flex rendering (render_flex.cu, device cast/BVH/seg encoding, flex BVH build/refit) aligned with pinned upstream slot semantics; offline only, no GPU window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**设备实现**：`render_flex.cu` 覆盖 flex 图元遍历与求交；设备 cast 增加 flex 分支；seg 编码按上游语义；flex BVH 构建/重拟合接入既有 BVH 结构。与 pinned 上游的 9 个 flex 形参与 `bvh_nflexgeom` 语义逐项对表（引用 S0 证据 `r06-flex-precheck`）。",
+    "**零判据改动**：不改上游 pin（`71da24d…`）、不改数值参考/判据/容差/fixtures；不新增 ABI 槽（S0 结论：槽数/槽类型不变）。",
+    "**离线自证**：能离线做的证据（源码对表、PTX 编译通过、单测覆盖 flex cast/BVH 路径的纯宿主逻辑）全部落地；不跑 GPU、不开窗口、不生成参考。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 只增不减）；`checks.unchanged` 含 `fixtures/` 与 `docs/evidence/`。",
+    "**边界**：不宣称 flex 渲染可用；参考采集与窗口验证归 S3b（走 Chief go 制 + 必须重冻）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3pre-flexhost-wiring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/",
+      "src/render/bvh/",
+      "docs/development-evidence/render-bvh/r06-s3a-flex-device/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：S3 本体拆 a/b 两片）。S3a = 离线设备实现，零窗口；若实现中发现需要动 `src/render/kernel/` 之外的路径（如 `src/render/cast*`），先报 Arch 改 scope。与 S3b 的关系：S3a 只出离线可证部分，参考采集/窗口/判据验证全部留 S3b。",
+  "revision": { "before": "f0a06ca7afedcbf7729015a8e51cafe7357b1b0b", "after": null },
+  "created_at": "2026-11-03T22:05:00.000Z",
+  "updated_at": "2026-11-03T22:05:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/", "docs/evidence/"] }
+  ]
+}
