@@ -42,3 +42,7 @@
 - **PASS-with-observations**；**需修 1**：`check_sources` 的 `flex_vertnum` 长度缺口导致可触发 panic（建议在后续 fix 片补一条长度断言 + 一个「vertnum 短于 nflex 返回 Length 错误」的单测）。
 - **观察 2**：无生产调用点；两次运行 sha 证据改为 3 条机器可判口径（S3 补）。
 - 边界：零 GPU、零窗口；未改产品代码以外的判据/容差/fixtures；本文件与检查卡状态是唯一写入。不宣称 flex 渲染可用、不宣称 NP01/NP03 通过。
+
+## 六、需修项闭合（2026-11-04 增量复核）
+
+- 需修（panic 路径）已由 `55d2c264`（卡 `2026-11-04-render-r06-s3pre-flexhost-panic-fix` verified）订正：`check_sources` 循环前新增 `expect("flex_vertnum", model.nflex, positions.flex_vertnum.len())?`（`flex_host.rs:183`），不一致返回显式 `FlexWiringError::Length{field:`flex_vertnum`}`；新增单测 `short_flex_vertnum_returns_length_error`（:446），既有 6 测断言未动。QA 独立复跑 `cargo test --locked --lib flex_host` = **7 passed/0 failed**；unit 记录 **1290/0/398**；文件 499 行（<500）；仅改 `flex_host.rs`，`src/render/kernel/cuda/`/`.cu`/fixtures 零 diff。本复核结论闭合；两条观察（无生产调用点、两次运行 sha 由 3 条机器可判口径替代）不变、留 S3。
