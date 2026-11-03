@@ -80,6 +80,32 @@ typedef struct mjwarp_flex_position_targets {
   double* flex_vert0;
 } mjwarp_flex_position_targets;
 
+// R06-S2b: flex render data source (additive ABI; the flex_position structs above are unchanged).
+// info is 32 B / targets is 72 B. Only five new fields plus three counts are exported:
+// flex_dim (1/2/3), flex_radius (native mjtNum; the host converts once to f32),
+// flex_rgba (native float x 4), flex_edgeadr, flex_edgenum. flex_edge stays in the G01
+// field set and is not exported here (single source of truth).
+typedef struct mjwarp_flex_render_info {
+  uint32_t schema, reserved;
+  int64_t nflex, nflexvert, nflexedge;
+} mjwarp_flex_render_info;
+typedef struct mjwarp_flex_render_targets {
+  uint32_t schema, reserved;
+  uint64_t nflex, nflexvert, nflexedge;
+  int32_t* flex_dim;
+  double* flex_radius;
+  float* flex_rgba;
+  int32_t* flex_edgeadr;
+  int32_t* flex_edgenum;
+} mjwarp_flex_render_targets;
+// Independent count DTO; zero counts allow null targets.
+int32_t mjwarp_native_flex_render_info(const mjwarp_native_owner* owner,
+                                       mjwarp_flex_render_info* info);
+// Checks all five sources/counts and required pointers before writing; targets
+// must be disjoint and sized for their declared counts. Error code 8 = reject.
+int32_t mjwarp_native_copy_flex_render(const mjwarp_native_owner* owner,
+                                       const mjwarp_flex_render_targets* targets);
+
 // Windows uses UTF-16; Linux uses native path bytes. Both are NUL-terminated.
 #ifdef _WIN32
 typedef uint16_t mjwarp_native_path_char;

@@ -2,7 +2,7 @@
 uid = "2ab8f906"
 id = "mjwarp.io.core"
 tags = ["planned", "engine"]
-fingerprint = "8ea63071d7a44c0be1d4a4d5a252b5e0e73bd1e30077d3da23cf0f8e3ee76ea3"
+fingerprint = "44081927cb9b2e7657990aa13f66bf3472fd6d1b0065050863cc1407ece3f49d"
 
 [name]
 zh = "原生准入与字段交换"

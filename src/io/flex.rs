@@ -10,6 +10,10 @@ use crate::{
 };
 use std::ffi::c_void;
 
+// R06-S2b：flex 渲染字段快照（additive ABI；单测随子模块，守 500 行棘轮）。
+mod render;
+pub use render::NativeFlexRenderSnapshot;
+
 /// 独占十二项原生柔体字段。
 /// 标量保留原生f64精度。
 /// 快照不借用模型或DLL。

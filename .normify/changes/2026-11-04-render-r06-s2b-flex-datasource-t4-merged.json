@@ -5,7 +5,7 @@
     "zh": "R06-S2b（合并）：flex 渲染数据源 + T4 源码身份重钉（7 文件 11 行，单卡单提交）",
     "en": "R06-S2b (merged): flex render data source plus T4 source-identity re-pin (7 files / 11 lines, one card, one commit)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "合并原 R06-S2b 与 T4 重钉卡：S2b 交付 flex 渲染数据层（原生 additive `mjwarp_flex_render_info`/`mjwarp_flex_render_targets`、io/model/physics 只读视图、`FlexHostInputs` 供数），同时把该改动必然触发的 **T4 源码身份重钉面（7 文件 11 行，含 `fixtures/precision/t4-current-kernels.json`）** 一并做掉，使 `t4_identity_live_check` / `live_product_sources_match_fixture` 由红转绿。合并原因（Chief 决策 a）：原卡 in_progress 后 normify 冻结声明，无法追加 6 条 fixture scope；两段式提交会让 unit gate 依赖尚未提交的 repin 文件（gate 读工作树、scope 只校验提交路径，但先提交代码后提交 repin 的中间态会让 done 语义含糊）。单卡单提交可一次过四门禁。**不改上游 pin / 数值参考 / 判据 / 断言逻辑**；`src/render/kernel/` 与 `.cu` 零改动。",
     "en": "Merge the flex data-source slice with the mandatory T4 identity re-pin so a single card passes all gates and lands in one commit; no upstream pin, reference, criteria or assertion change."
@@ -45,14 +45,35 @@
     "priority": 73
   },
   "note": "Arch 2026-11-04 登记（Chief 决策 a：单卡单提交）。由三张卡合并而来：`2026-11-04-render-r06-s2b-flex-data-source`（abandon：scope 冻结后需并入重钉面）、`2026-11-04-render-r06-s2b-t4-repin`（abandon：并入本卡）；Backend 工作树全部保留、无需重做，历史与首轮 gate 记录作废不判。scope 15 条 = 原 S2b 9 条（含 `t4-current-kernels.json` 与证据目录）+ 6 个 fixture/map。T4 重钉面 = **7 文件 11 行**：`t4-current-kernels.json`、`g01-inputs.json`、`g01-packing-routes.json`、`g01-state-packing.json`、`t4-g03-retest/{flex-internal,flex-matrices}/map.json`、`rigid-rotate-recapture/previous-kernels.json`；逐行 old/new 写进 `docs/development-evidence/render-bvh/r06-flex-datasource/` 的重钉表。已知单点：`src/physics/flex.rs` 新 LF-sha256 `0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d`（旧 `cb2977a3…`），其余 10 行以重钉时实测为准。四条口径不变：①只交数据层、`src/render/kernel/` 零改动；②调用方接线并入 S3 前置、不新增 S2c；③native 验证只记证据、不加 native gate；④3.12/3.15 基线差异只登记、不做数值结论。",
-  "revision": { "before": "92a7fdc3345afa5ef949b6c89bcc7dd4b92569f7", "after": null },
+  "revision": {
+    "before": "65a4068e211577a061771eee7a6f1ce41d1aa7a3",
+    "after": null
+  },
   "created_at": "2026-11-03T21:25:00.000Z",
-  "updated_at": "2026-11-03T21:25:00.000Z",
+  "updated_at": "2026-11-03T21:06:44.070Z",
+  "closed_at": "2026-11-03T21:06:44.070Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/"
+      ]
+    }
   ]
 }

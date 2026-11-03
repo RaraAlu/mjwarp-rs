@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-04-render-r06-s2b-flex-datasource-t4-merged",
+  "kind": "r06-s2b-flex-data-source-plus-t4-source-identity-repin",
+  "created_at": "2026-11-04T05:05:00+08:00",
+  "offline_only": true,
+  "gpu_compute": false,
+  "window_opened": false,
+  "device_change": false,
+  "render_kernel_change": false,
+  "upstream_pin": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "calibers": [
+    "本片只交数据层：原生 additive + io/model/physics 只读视图；src/render/kernel/ 零改动",
+    "render_with_flex 真实调用方接线并入 S3 前置，不新增 S2c",
+    "native 验证记证据即可，不加 native gate",
+    "flex-tree.mjb 是 MuJoCo 3.12 样本、pinned render 参考是 3.15 采集：只做字段管道、证据写基线差异、不做数值结论"
+  ],
+  "native_abi": {
+    "info_struct_bytes": 32,
+    "targets_struct_bytes": 72,
+    "counts": ["nflex", "nflexvert", "nflexedge"],
+    "new_fields": ["flex_dim", "flex_radius(mjtNum)", "flex_rgba(float)", "flex_edgeadr", "flex_edgenum"],
+    "flex_edge_exported": false,
+    "additive_only": true,
+    "static_asserts": "size/align/field offsets checked in native/model_probe.cpp",
+    "error_code_reject": 8
+  },
+  "conversion_point": {
+    "mjtnum_to_f32": "io::kinematic::native::convert(\"flex_radius\", ...)",
+    "float_rgba": "finite check only (native float, no cast)",
+    "other_fields": "i32 passthrough"
+  },
+  "code_files": [
+    { "path": "include/mjwarp_native_probe.h", "bytes": 6265, "lines": 145, "sha256": "7dbf5de1195e2ba06585408eac47ba58e8b4d0a16ab45a9ed2fe1380801d1345" },
+    { "path": "native/model_probe.cpp", "bytes": 15270, "lines": 327, "sha256": "b09edafbf426a15782cac200d255620c5bc058dfdf163e1f0e719a4f12cd3c16" },
+    { "path": "src/io/flex/render.rs", "bytes": 12769, "lines": 337, "sha256": "e5c53b0600da0b2452d0d3486eb93c8ec356cf4fef18d0f03da286cdab193f44" },
+    { "path": "src/io/flex.rs", "bytes": 16653, "lines": 466, "sha256": "f74256b311642e1ac17c74b8776291a37e3a17bba6c0f0b23a6f6b7c35ad9ce4" },
+    { "path": "src/io/mod.rs", "bytes": 18846, "lines": 472, "sha256": "d2853dfc2656de52c11d9d0d444a125d77615a6b8c9349a9d8f42c7b88093bee" },
+    { "path": "src/model/flex.rs", "bytes": 13759, "lines": 407, "sha256": "477355d8a47b1a3350a30c167f3b02683dc4fca7f42bf2e94e24ac5828ca2cb7" },
+    { "path": "src/physics/flex.rs", "bytes": 16432, "lines": 439, "sha256": "0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d" }
+  ],
+  "t4_identity_repin": {
+    "files_changed": 7,
+    "literal_edits": 12,
+    "literal_edits_note": "任务卡写「7 文件 11 行」系早期口径少计 1 行；实测 12 处（g01-inputs.json 实为 4 行），未少改任何行",
+    "hash_algorithm": "sha256(LF-normalized file bytes); model/flex.rs composite = 5-file LF concat with \\n",
+    "entries": [
+      { "file": "fixtures/precision/t4-current-kernels.json", "entry": "src/physics/flex.rs", "old": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e", "new": "0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d" },
+      { "file": "fixtures/precision/g01-inputs.json", "entry": "include/mjwarp_native_probe.h", "old": "03151bf5340c535a5c8139cea6d44ab06b1138ed731c61aa0b87ee48f813a5de", "new": "e40aff139ec2af3e67e49a65c922bacd80672a16c4826b7c03788273042c7adf" },
+      { "file": "fixtures/precision/g01-inputs.json", "entry": "native/model_probe.cpp", "old": "6a01eb01785171d2d03bf243b2b453bbdc001c433c6e77e9621499b363dd57bc", "new": "f52728543ae9d44d7c3fbe948645c0ab8572c5c15a1c5efe90a607d58150ff28" },
+      { "file": "fixtures/precision/g01-inputs.json", "entry": "src/io/flex.rs", "old": "c0f3e0bbcc9079dbc312054c53490bbbe26e689bec728f986c9129189fc803ab", "new": "f74256b311642e1ac17c74b8776291a37e3a17bba6c0f0b23a6f6b7c35ad9ce4" },
+      { "file": "fixtures/precision/g01-inputs.json", "entry": "src/model/flex.rs (single file)", "old": "8355b0f1649bd7ab7b770f734ff48088d8f782932560d3a9d0c52c2fd93d4fea", "new": "477355d8a47b1a3350a30c167f3b02683dc4fca7f42bf2e94e24ac5828ca2cb7" },
+      { "file": "fixtures/precision/g01-packing-routes.json", "entry": "src/physics/flex.rs", "old": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e", "new": "0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d" },
+      { "file": "fixtures/precision/g01-packing-routes.json", "entry": "src/model/flex.rs (single file)", "old": "8355b0f1649bd7ab7b770f734ff48088d8f782932560d3a9d0c52c2fd93d4fea", "new": "477355d8a47b1a3350a30c167f3b02683dc4fca7f42bf2e94e24ac5828ca2cb7" },
+      { "file": "fixtures/precision/g01-state-packing.json", "entry": "src/physics/flex.rs", "old": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e", "new": "0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d" },
+      { "file": "docs/evidence/t4-g03-retest/flex-internal/map.json", "entry": "src/physics/flex.rs", "old": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e", "new": "0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d" },
+      { "file": "docs/evidence/t4-g03-retest/flex-internal/map.json", "entry": "src/model/flex.rs (5-file composite)", "old": "b3603225eb6c721012ae62528c34dfbaf9deecd2feab39a8d6e2c976adbabbd4", "new": "9834e3a0931abfe58f10050ee5623a0951e3927643c06a2ab5ae3f4b24a99e25" },
+      { "file": "docs/evidence/t4-g03-retest/flex-matrices/map.json", "entry": "src/model/flex.rs (5-file composite)", "old": "b3603225eb6c721012ae62528c34dfbaf9deecd2feab39a8d6e2c976adbabbd4", "new": "9834e3a0931abfe58f10050ee5623a0951e3927643c06a2ab5ae3f4b24a99e25" },
+      { "file": "docs/evidence/t4-g03-retest/rigid-rotate-recapture/previous-kernels.json", "entry": "src/physics/flex.rs", "old": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e", "new": "0299be863b318168b5b391af4b921e1db3b5420b2da1a68b4abc93bb9249612d" }
+    ],
+    "boundary": "只改身份期望字面量；不改断言逻辑、容差、排除清单、上游 pin、数值参考、判据；precedent 61fb6baf / 097c54b9"
+  },
+  "tests": {
+    "default_features_new_unit_tests": 10,
+    "default_features_new_unit_tests_passed": 10,
+    "native_mode_smoke": {
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --no-default-features --features native-model-probe --lib flex -- --ignored --test-threads=1",
+      "env": "VsDevCmd x64; MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/package; MJWARP_MUJOCO_DLL=<root>/bin/mujoco.dll",
+      "result": "1 passed / 0 failed",
+      "fixture": "fixtures/flex-position/flex-tree.mjb (MuJoCo 3.12.0)",
+      "checks": "nflex=4; mapping length == upstream bvh_nflexgeom; 1D primitives carry edge id, 2D/3D use -1"
+    }
+  },
+  "evidence": {
+    "repin_before_fail": "repin-before-fail.txt + repin-before-fail-identity.txt",
+    "repin_before_fail_identity": "expected=cb2977a3... actual=0299be86... (exit 101, T4_IDENTITY_LIVE_FIXTURE seam)",
+    "repin_after_pass": "repin-after-pass.txt (t4_identity_live_check 2/0; t4_input_precision 36/0/12; recapture::tests_host 2/0)",
+    "native_verify": "native-verify.txt"
+  },
+  "gates": {
+    "fmt": { "passed": true },
+    "clippy": { "passed": true },
+    "clippy-cuda": { "passed": true },
+    "unit": { "passed": true, "tests_passed": 1283, "tests_failed": 0, "tests_ignored": 398 },
+    "unchanged": "src/render/kernel/cuda/ 零改动；全部 .cu 零改动"
+  },
+  "gates_source": ".normify/runs/2026-11-04-render-r06-s2b-flex-datasource-t4-merged/",
+  "limits": [
+    "只交数据层：render_with_flex 真实调用方接线并入 S3 前置（不新增 S2c）；本片不宣称 flex 渲染可用。",
+    "设备 cast/BVH/seg 编码归 S3；src/render/kernel/ 与全部 .cu 零改动。",
+    "flex-tree.mjb 是 MuJoCo 3.12.0 样本，pinned render 参考是 3.15 采集；只做字段管道，不做数值结论。",
+    "edge_lengths 是 host 只读诊断视图，非渲染判据；S3 设备侧按上游公式自行计算。",
+    "native 验证按 Chief 口径记证据、不加 gate；零 GPU 计算、零窗口、未生成参考。",
+    "T4 身份重钉行数口径：任务卡写 11 行，实测 12 处（少计 1 行，未少改）。"
+  ]
+}

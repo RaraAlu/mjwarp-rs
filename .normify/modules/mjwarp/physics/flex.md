@@ -1,7 +1,7 @@
 +++
 uid = "c8f4a621"
 id = "mjwarp.physics.flex"
-fingerprint = "3172b45127798fc15c915f69c986a70b1d5174c8144648b95352ebf66aa27ae8"
+fingerprint = "6ebcf66a42729a4c83a5ef46b9013edaccaa6693532c23ab2344460301a265c4"
 
 [name]
 zh = "柔体位置子集"

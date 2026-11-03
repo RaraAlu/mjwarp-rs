@@ -1,7 +1,13 @@
 //! GPU计算柔体节点与顶点位置。
 //! 不计算边、弹性或碰撞。
 
-use crate::{diagnostics::InputError, model::BatchLayout};
+use crate::{
+    diagnostics::InputError,
+    model::{
+        BatchLayout,
+        flex::{FlexEdgeFields, FlexGeomMapping, FlexPositionFields, FlexRenderFields},
+    },
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct FlexPositionWorld<'a> {
@@ -38,6 +44,133 @@ impl FlexPositionOutput {
             flexvert_xpos: &v[3 * self.layout.nn..],
             flex_hessian_valid: &self.validity[self.layout.validity.world_elements(world)?],
         })
+    }
+}
+
+/// R06-S2b：柔体渲染只读视图（数据面顶点世界位姿 + 模型面半径/rgba/边拓扑）。
+///
+/// 只读视图，**不进入渲染数值判据**：S3 设备侧仍按上游公式在 GPU 上自行计算边长与命中；
+/// 本视图只提供原料（逐 world `flexvert_xpos`、`flex_edge`、半径、rgba、geom 映射）。
+#[derive(Clone, Copy, Debug)]
+pub struct FlexRenderView<'a> {
+    output: &'a FlexPositionOutput,
+    positions: &'a FlexPositionFields,
+    edges: &'a FlexEdgeFields,
+    model: &'a FlexRenderFields,
+}
+
+/// 单个 world 的渲染只读数据（`[nflexvert, 3]` 顶点世界位姿）。
+#[derive(Clone, Copy, Debug)]
+pub struct FlexRenderWorld<'a> {
+    pub flexvert_xpos: &'a [f32],
+}
+
+impl FlexPositionOutput {
+    /// 构建柔体渲染只读视图；`positions`/`edges`/`model` 必须与本次输出同源。
+    pub fn render_view<'a>(
+        &'a self,
+        positions: &'a FlexPositionFields,
+        edges: &'a FlexEdgeFields,
+        model: &'a FlexRenderFields,
+    ) -> Result<FlexRenderView<'a>, InputError> {
+        model.validate()?;
+        let consistent = positions.flex_vertadr.len() == model.nflex
+            && positions.flex_vertbodyid.len() == model.nflexvert
+            && self.nflex() == model.nflex
+            && self.nflexvert() == model.nflexvert
+            && edges.nflexedge() == model.nflexedge
+            && edges.flex_edge.len() == model.nflexedge.saturating_mul(2);
+        if !consistent {
+            return Err(InputError::InvalidDimension {
+                field: "flex_render_view_source",
+            });
+        }
+        Ok(FlexRenderView {
+            output: self,
+            positions,
+            edges,
+            model,
+        })
+    }
+}
+
+impl FlexRenderView<'_> {
+    pub fn worlds(&self) -> usize {
+        self.output.worlds()
+    }
+    pub fn nflex(&self) -> usize {
+        self.model.nflex
+    }
+    pub fn nflexvert(&self) -> usize {
+        self.model.nflexvert
+    }
+    pub fn nflexedge(&self) -> usize {
+        self.model.nflexedge
+    }
+    pub fn radius(&self) -> &[f32] {
+        &self.model.flex_radius
+    }
+    pub fn rgba(&self) -> &[f32] {
+        &self.model.flex_rgba
+    }
+    pub fn flex_edge(&self) -> &[i32] {
+        &self.edges.flex_edge
+    }
+    pub fn geom_mapping(&self) -> Result<FlexGeomMapping, InputError> {
+        self.model.geom_mapping()
+    }
+    /// 单 world 顶点世界位姿（`[nflexvert, 3]`）。
+    pub fn world(&self, world: usize) -> Result<FlexRenderWorld<'_>, InputError> {
+        let data = self.output.world(world)?;
+        Ok(FlexRenderWorld {
+            flexvert_xpos: data.flexvert_xpos,
+        })
+    }
+    /// 单 world 的逐边长度（host 只读视图；**非渲染判据**，S3 设备侧按上游公式自行计算）。
+    pub fn edge_lengths(&self, world: usize) -> Result<Vec<f32>, InputError> {
+        let data = self.world(world)?;
+        let invalid = |field| InputError::InvalidDimension { field };
+        let mut lengths = Vec::with_capacity(self.model.nflexedge);
+        for flex in 0..self.model.nflex {
+            let base = usize::try_from(self.positions.flex_vertadr[flex])
+                .map_err(|_| invalid("flex_vertadr"))?;
+            let start = usize::try_from(self.model.flex_edgeadr[flex])
+                .map_err(|_| invalid("flex_edgeadr"))?;
+            let count = usize::try_from(self.model.flex_edgenum[flex])
+                .map_err(|_| invalid("flex_edgenum"))?;
+            for edge in start..start + count {
+                let mut points = [[0.0f32; 3]; 2];
+                for (slot, &local) in self
+                    .edges
+                    .flex_edge
+                    .get(2 * edge..2 * edge + 2)
+                    .ok_or_else(|| invalid("flex_edge"))?
+                    .iter()
+                    .enumerate()
+                {
+                    let vertex = usize::try_from(local).map_err(|_| invalid("flex_edge"))?;
+                    let offset = base
+                        .checked_add(vertex)
+                        .and_then(|value| value.checked_mul(3))
+                        .ok_or_else(|| invalid("flex_edge"))?;
+                    let point = data
+                        .flexvert_xpos
+                        .get(offset..offset + 3)
+                        .ok_or_else(|| invalid("flexvert_xpos"))?;
+                    points[slot].copy_from_slice(point);
+                }
+                let difference = [
+                    points[1][0] - points[0][0],
+                    points[1][1] - points[0][1],
+                    points[1][2] - points[0][2],
+                ];
+                let squared = difference[0] * difference[0]
+                    + difference[1] * difference[1]
+                    + difference[2] * difference[2];
+                lengths.push(squared.sqrt());
+            }
+        }
+        Ok(lengths)
     }
 }
 #[derive(Clone, Copy, Debug)]
@@ -205,5 +338,102 @@ mod tests {
         );
         assert!(out.world(2).is_err());
         assert!(!out.layout.is_empty());
+    }
+
+    fn render_output() -> FlexPositionOutput {
+        // 1 world、0 node、2 vertex → width 6；顶点世界位姿 (0,0,0) 与 (1,0,0)。
+        FlexPositionOutput {
+            layout: FlexPositionLayout::new(1, 1, 0, 2).unwrap(),
+            values: vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+            validity: vec![false],
+        }
+    }
+
+    fn render_positions() -> FlexPositionFields {
+        FlexPositionFields {
+            flex_vertadr: vec![0],
+            flex_vertbodyid: vec![0, 0],
+            ..Default::default()
+        }
+    }
+
+    fn render_edges() -> FlexEdgeFields {
+        FlexEdgeFields {
+            flex_edgeadr: vec![0],
+            flex_edgenum: vec![1],
+            flex_edge: vec![0, 1],
+            flexedge_j_rownnz: vec![1],
+            ..Default::default()
+        }
+    }
+
+    fn render_model() -> FlexRenderFields {
+        FlexRenderFields {
+            nflex: 1,
+            nflexvert: 2,
+            nflexedge: 1,
+            flex_dim: vec![1],
+            flex_radius: vec![0.01],
+            flex_rgba: vec![0.5; 4],
+            flex_edgeadr: vec![0],
+            flex_edgenum: vec![1],
+        }
+    }
+
+    /// R06-S2b：只读视图暴露顶点世界位姿/半径/rgba/映射，边长按 host 视图计算。
+    #[test]
+    fn exposes_flex_render_view_and_host_edge_lengths() {
+        let output = render_output();
+        let positions = render_positions();
+        let edges = render_edges();
+        let model = render_model();
+        let view = output
+            .render_view(&positions, &edges, &model)
+            .expect("同源输入必须可构建视图");
+        assert_eq!(view.worlds(), 1);
+        assert_eq!(view.nflex(), 1);
+        assert_eq!(view.nflexvert(), 2);
+        assert_eq!(view.nflexedge(), 1);
+        assert_eq!(view.radius(), [0.01f32]);
+        assert_eq!(view.rgba().len(), 4);
+        assert_eq!(
+            view.world(0).unwrap().flexvert_xpos,
+            [0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+        );
+        let mapping = view.geom_mapping().unwrap();
+        assert_eq!(mapping.flexid, [0]);
+        assert_eq!(mapping.edgeid, [0]);
+        assert_eq!(view.edge_lengths(0).unwrap(), [1.0f32]);
+        assert_eq!(view.flex_edge(), [0, 1]);
+    }
+
+    /// R06-S2b：不同源/越界输入显式拒绝（不 panic、不静默回退）。
+    #[test]
+    fn rejects_inconsistent_render_view_sources() {
+        let output = render_output();
+        let positions = render_positions();
+        let edges = render_edges();
+        let mut model = render_model();
+        model.nflex = 2;
+        model.nflexvert = 4;
+        model.nflexedge = 2;
+        model.flex_dim = vec![1, 1];
+        model.flex_radius = vec![0.01; 2];
+        model.flex_rgba = vec![0.5; 8];
+        model.flex_edgeadr = vec![0, 1];
+        model.flex_edgenum = vec![1, 1];
+        assert!(
+            output.render_view(&positions, &edges, &model).is_err(),
+            "flex 数不一致必须拒绝"
+        );
+        let mut broken = render_edges();
+        broken.flex_edge = vec![0, 5];
+        let broken_positions = render_positions();
+        let broken_model = render_model();
+        let view = output
+            .render_view(&broken_positions, &broken, &broken_model)
+            .expect("边拓扑本身长度一致");
+        assert!(view.edge_lengths(0).is_err(), "顶点号越界必须拒绝");
+        assert!(view.world(1).is_err(), "world 越界必须拒绝");
     }
 }

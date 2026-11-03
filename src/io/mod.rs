@@ -15,7 +15,7 @@ mod g01;
 use fields::check_length;
 pub use fields::{DeviceBatch, convert_f64_to_f32_into, copy_world_f32, upload_f64_batch};
 #[cfg(feature = "native-model-probe")]
-pub use flex::NativeFlexPositionSnapshot;
+pub use flex::{NativeFlexPositionSnapshot, NativeFlexRenderSnapshot};
 #[cfg(feature = "native-model-probe")]
 pub use g01::NativeG01Snapshot;
 #[cfg(feature = "native-model-probe")]
@@ -268,6 +268,16 @@ mod native {
             // SAFETY: this thread-confined owner retains its immutable model and
             // DLL; capture preflights counts and owns all disjoint target arrays.
             unsafe { super::NativeFlexPositionSnapshot::capture(self.owner.as_ptr(), self.info) }
+        }
+
+        /// 复制 flex 渲染数据桶（dim / radius / rgba / edgeadr / edgenum + 计数）。
+        /// 只读；不改 flex-position 结构、不分配设备缓冲。
+        pub fn flex_render_snapshot(
+            &self,
+        ) -> Result<super::NativeFlexRenderSnapshot, NativeProbeError> {
+            // SAFETY: this thread-confined owner retains its immutable model and
+            // DLL; capture preflights counts and owns all disjoint target arrays.
+            unsafe { super::NativeFlexRenderSnapshot::capture(self.owner.as_ptr(), self.info) }
         }
 
         /// 复制同一模型的全部G01字段。

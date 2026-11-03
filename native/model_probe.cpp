@@ -47,6 +47,16 @@ static_assert(alignof(mjwarp_flex_position_targets) == 8);
 static_assert(offsetof(mjwarp_flex_position_targets, flex_interp) == 32);
 static_assert(offsetof(mjwarp_flex_position_targets, flex_centered) == 80);
 static_assert(offsetof(mjwarp_flex_position_targets, flex_vert0) == 120);
+static_assert(sizeof(mjwarp_flex_render_info) == 32);
+static_assert(alignof(mjwarp_flex_render_info) == 8);
+static_assert(offsetof(mjwarp_flex_render_info, nflex) == 8);
+static_assert(sizeof(mjwarp_flex_render_targets) == 72);
+static_assert(alignof(mjwarp_flex_render_targets) == 8);
+static_assert(offsetof(mjwarp_flex_render_targets, nflexedge) == 24);
+static_assert(offsetof(mjwarp_flex_render_targets, flex_dim) == 32);
+static_assert(offsetof(mjwarp_flex_render_targets, flex_radius) == 40);
+static_assert(offsetof(mjwarp_flex_render_targets, flex_rgba) == 48);
+static_assert(offsetof(mjwarp_flex_render_targets, flex_edgenum) == 64);
 
 struct mjwarp_native_owner {
   NativeLibrary library;
@@ -148,6 +158,39 @@ extern "C" int32_t mjwarp_native_copy_flex_position(
     memcpy(t->flex_vertbodyid, m->flex_vertbodyid, t->nflexvert * sizeof(int32_t));
     memcpy(t->flex_vert, m->flex_vert, t->nflexvert * 3 * sizeof(double));
     memcpy(t->flex_vert0, m->flex_vert0, t->nflexvert * 3 * sizeof(double));
+  }
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_flex_render_info(
+    const mjwarp_native_owner* owner, mjwarp_flex_render_info* info) {
+  if (!owner || !owner->model || !info) return 8;
+  const mjModel* m = owner->model;
+  if (m->nflex < 0 || m->nflexvert < 0 || m->nflexedge < 0) return 8;
+  *info = {1, 0, m->nflex, m->nflexvert, m->nflexedge};
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_copy_flex_render(
+    const mjwarp_native_owner* owner, const mjwarp_flex_render_targets* t) {
+  if (!owner || !owner->model || !t || t->schema != 1 || t->reserved != 0) return 8;
+  const mjModel* m = owner->model;
+  if (m->nflex < 0 || m->nflexvert < 0 || m->nflexedge < 0 ||
+      t->nflex != static_cast<uint64_t>(m->nflex) ||
+      t->nflexvert != static_cast<uint64_t>(m->nflexvert) ||
+      t->nflexedge != static_cast<uint64_t>(m->nflexedge) ||
+      t->nflex > SIZE_MAX / (4 * sizeof(float)) ||
+      (t->nflex && (!t->flex_dim || !m->flex_dim ||
+                    !t->flex_radius || !m->flex_radius ||
+                    !t->flex_rgba || !m->flex_rgba ||
+                    !t->flex_edgeadr || !m->flex_edgeadr ||
+                    !t->flex_edgenum || !m->flex_edgenum))) return 8;
+  if (t->nflex) {
+    memcpy(t->flex_dim, m->flex_dim, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_radius, m->flex_radius, t->nflex * sizeof(double));
+    memcpy(t->flex_rgba, m->flex_rgba, t->nflex * 4 * sizeof(float));
+    memcpy(t->flex_edgeadr, m->flex_edgeadr, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_edgenum, m->flex_edgenum, t->nflex * sizeof(int32_t));
   }
   return 0;
 }

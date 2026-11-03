@@ -1,7 +1,7 @@
 +++
 uid = "f1eac802"
 id = "mjwarp.io.flex"
-fingerprint = "6bed15405f498517133997bd37c650dbc18e291673316186f523cac988a867cd"
+fingerprint = "1b7c76bb83f732d52d856b91ba298967776f616c80f6312c7d6c38b12f21092e"
 
 [name]
 zh = "原生柔体位置转换"
