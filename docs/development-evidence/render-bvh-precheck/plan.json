@@ -646,6 +646,15 @@
         "execution": "done (device validation window attempt=1, normal util<40 thresholds, no exception)",
         "evidence": "docs/development-evidence/render-bvh/r08-rgb-hetero-validate/",
         "note": "window c5592d65 (+ QA check card 337abc14, manifest must-fix 89afd36e, QA close 9b1c4d81); guards-r08-rgb-hetero.json attempt=1 sha e81d69a4.../28,970 B/77(9+68)/aggregate 3ad8b352...; WINDOW_RUN_DONE: 9/9 exit 0, sha_guards 77/77, post 9/9, zero compile, monitor 60/60 util 2-8, free_min 13,179, run-window floor 10,240 and pre-window floor 10,374 not breached, samples 177; per-camera RGB hetero/all-off/matrix all beyond_1_lsb=0, depth mismatch=0/0 ULP, seg mismatch=0; two-run sha equal; 8 regressions zero drift; four failed monitor rounds retained under monitor-history; QA O1 aggregate suite label deferred to 2026-10-30-render-window-guard-aggregate-suite-hardcode"
+      },
+      {
+        "slice": "L-S1",
+        "task_id": "2026-10-30-render-perworld-impl-s1",
+        "owner": "Backend",
+        "normify_status": "in_progress",
+        "execution": "in progress (CPU implementation first; GPU validation window waits for the user double-sign)",
+        "evidence": "docs/development-evidence/render-bvh/perworld-impl-s1/",
+        "note": "registered 2026-10-30, started 2026-11-03 (commit a1949f91; baselines revised at start: megakernel.rs 405 LF, args.rs pinned to src/runtime/launcher/render/args.rs(494), output.rs pinned to src/render/context/output.rs(151)); window material landed offline (material e2538d8f + freezer 5cd64eea; suite render-perworld-s1, 9 entities, guards expected 9 exe + 83 inputs = 92, no outline lists); depends_on capture 3478bbab + capture-check, both verified"
       }
     ],
     "structural_decisions": [
@@ -1990,6 +1999,23 @@
       "status": "delivered",
       "delivered_commits": ["f0213748", "99b88d1f", "65022c3a", "8a967468"],
       "delivered_note": "reference shas rgb cf65a570.../depth 28c1ea4b.../seg 2153fa72.../capture 47f704de...; guards blob==disk 28,931 B via local .git/info/attributes -text (R05 QA O7 class caveat recorded)"
+    },
+    {
+      "id": "L-S1",
+      "name": "per-world-geom-poses",
+      "category": "multi-world-render",
+      "depends_on": ["S2", "S3", "S5", "S6b", "R10-S1", "R10-S2"],
+      "priority": 31,
+      "scope": "Plan L v1: add a host-side per-world scene pose container (WorldScenePoses), then run a host per-world loop (update_poses -> refit_bvh -> single-world launch) so each nworld output section renders that world geom poses. Zero .cu, ABI or array-shape changes; per-world light poses, AA+per-world and the upstream-style single launch stay in L v2/K.",
+      "deliverables": ["src/render/context/world/scene_poses.rs", "src/render/kernel/per_world.rs", "tests/render_per_world.rs", "docs/development-evidence/render-bvh/perworld-impl-s1/"],
+      "acceptance": ["zero kernel/ABI change: git diff --stat -- src/render/kernel/cuda empty and 81 slots unchanged", "per-world rgb/depth/seg bitwise vs fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/: rgb 0 diff, depth <=4 ULP with 0 beyond, seg exact; world isolation; two-run sha equal", "line deadlines: megakernel.rs <=450, megakernel_uploads.rs <=480, per_world.rs <=260; cast/lifecycle/args/output/megakernel_aa and all .cu unchanged", "AA (nsamples>1) explicitly rejected with LauncherError::Unsupported and pinned by a CPU unit test", "evidence states covered vs not-covered scope and makes no performance statement"],
+      "evidence": "docs/development-evidence/render-bvh/perworld-impl-s1/",
+      "new_file_limit": 500,
+      "new_files": ["src/render/context/world/scene_poses.rs", "src/render/kernel/per_world.rs", "tests/render_per_world.rs"],
+      "modifies": ["src/render/kernel/megakernel.rs", "src/render/kernel/megakernel_uploads.rs", "src/render/kernel/renderer.rs", "src/render/kernel/mod.rs", "src/render/context/world/mod.rs", "src/render/mod.rs"],
+      "gpu": {"required": true, "kind": "windows-sm89", "reason": "per-world rendering is a device operation; the validation window needs a user double-sign"},
+      "estimate_days": 3,
+      "out_of_scope": ["per-world light poses (L v2/K)", "AA+perworld (L v2/K)", "upstream-style single launch and performance (L v2/K)", "any .cu or 81-slot ABI change"]
     }
   ],
   "r01_p8_mapping": [
