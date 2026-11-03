@@ -1,0 +1,315 @@
+{
+  "schema": 1,
+  "row_id": "mass_solve",
+  "layer": "G01 质量求解",
+  "paths": ["rigid_mass_solve", "sparse dense/small/mixed/resident", "substitute"],
+  "batch": "B1b",
+  "audit_level": "参数/缓冲/累加/输出层（族级，逐内核列形参与输出）；逐表达式位级证据沿用实现片探针，不在本表重复",
+  "source": {
+    "file": "src/physics/mass_solve/cuda.rs",
+    "const": "MASS_SOLVE_CUDA",
+    "kernel": "rigid_mass_solve"
+  },
+  "extra_sources": [
+    {
+      "file": "src/physics/mass_solve/resident.rs",
+      "const": null,
+      "kernels": ["resident_mass_factor", "resident_mass_substitute"],
+      "note": "`split_sources(MASS_SOLVE_CUDA)` 在编译期按文本切分：factor 半段改名为 resident_mass_factor 并补 x 清零，solve 半段加 `resident_mass_substitute` 前缀（保存态拷回 + rhs 偏移 +4）；切分锚点各有一次命中断言"
+    },
+    {"file": "src/physics/mass_solve/sparse.rs", "const": "CUDA", "kernels": ["sparse_mass_copy", "sparse_mass_update", "sparse_mass_diag"]},
+    {"file": "src/physics/mass_solve/sparse/dense.rs", "const": "CUDA", "kernels": ["sparse_dense_validate", "sparse_dense_gather"]},
+    {"file": "src/physics/mass_solve/sparse/dense/small/cuda.rs", "const": "CUDA", "kernels": ["small_prefix_validate", "small_prefix_factor_2..6"]},
+    {"file": "src/physics/mass_solve/sparse/mixed/cuda.rs", "const": "CUDA", "kernels": ["mixed_factor_merge"]},
+    {"file": "src/physics/mass_solve/sparse/mixed/solve/cuda.rs", "const": "CUDA", "kernels": ["mixed_solve_validate", "mixed_solve_fused"]},
+    {"file": "src/physics/mass_solve/sparse/mixed/solve/resident/cuda.rs", "const": "CUDA", "kernels": ["resident_mixed_validate", "resident_mixed_gather"]},
+    {"file": "src/physics/mass_solve/sparse/resident.rs", "const": "CUDA", "kernels": ["resident_sparse_validate", "resident_sparse_gather"]},
+    {"file": "src/physics/mass_solve/sparse/resident/solve/cuda.rs", "const": "CUDA", "kernels": ["sparse_solve_validate", "sparse_solve_fused"]}
+  ],
+  "accumulation_metrics": {
+    "note": "inventory 行登记「fma 4；MathDx 列扫描 rcp/fma 语义」，本表把机器扫描口径落到具体站点",
+    "fma_4": "`src/physics/mass_solve/cuda.rs` 文本匹配 `fmaf|__fmaf|fma(` 共 4 处：`fmaf(-u,u,pivot)`、`fmaf(-u,v,value)`、两处 `__fmaf_rn`（tile 列扫描前代/回代），与 raw-kernels.json 的 fma=4 一致",
+    "atomic_add_note": "raw-kernels 的 `atomicAdd` 文本计数为 0；但 sparse_update / mixed_solve_fused / sparse_solve_fused 用内联 `atom.global.add.f32` 做 f32 原子加（文本扫描不计入），本表逐条登记实际原子站点",
+    "scope": "均为源文本站点口径，不是运行时执行次数；逐表达式位级证据沿用探针"
+  },
+  "kernels": [
+    {
+      "name": "rigid_mass_solve",
+      "params": [
+        {"name": "blocks", "ctype": "const int*", "role": "in: `blocks[0]` 分块数 + 每块 (begin, count, kind) 三元组"},
+        {"name": "rhs", "ctype": "const float*", "role": "in: 每 world rhs（`nr*n` 布局，偏移 `w*nr*n`）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world 质量矩阵块 `4 + 10nb + n*n`（mat 从 `10nb` 起）"},
+        {"name": "output", "ctype": "float*", "role": "out: 每 world `4 + (3 + n*n + n + nr*n)`：status[3]/ld[n*n]/inv[n]/x[nr*n]"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数（仅用于定位 mat）"},
+        {"name": "n", "ctype": "unsigned", "role": "scalar: 块宽"},
+        {"name": "nr", "ctype": "unsigned", "role": "scalar: rhs 组数"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "status[0..2]", "type": "f32 状态码（0 成功 / 1 pivot 非正或非有限 / 2 逆非有限），status[1] 写 `float(begin)` 或 `float(i)`"},
+        {"name": "ld[n*n]", "type": "f32 下三角分解因子"},
+        {"name": "inv[n]", "type": "f32 对角逆（kind==0/2 写；kind==1 保持 0，tile 求解走 `__frcp_rn(ld_diag)`）"},
+        {"name": "tile", "type": "bool：`end-begin>6` 走 tile 分支，否则 scalar 分支"},
+        {"name": "pivot / reciprocal / diagonal / value / u,v", "type": "f32 标量（tile 与 scalar 两套写法）"},
+        {"name": "tmp", "type": "f32（kind==2 行更新中间量）"}
+      ],
+      "accumulations": [
+        {"what": "kind==1 tile：`pivot = tile_schur_update(pivot,u,u)`", "type": "内联 PTX `mul.f32 product; sub.f32`（未加 .rn，显式允许驱动收缩，对齐冻结 MathDx PTX）"},
+        {"what": "kind==1 tile：`reciprocal = rsqrt.approx.f32(pivot)`、`diagonal = __fmul_rn(pivot,reciprocal)`、`ld[i*n+j] = __fmul_rn(value,reciprocal)`", "type": "近似 rsqrt 后显式单次舍入乘"},
+        {"what": "kind==1 scalar：`pivot = fmaf(-u,u,pivot)`、`diagonal = sqrtf(pivot)`、`reciprocal = 1.0f/diagonal`", "type": "f32 单次正确舍入 fma + f32 sqrt + f32 除法"},
+        {"what": "kind==2：`ld[i*n+j] -= ld[k*n+j]*tmp`、`ld[k*n+j] *= reciprocal`", "type": "f32 顺序乘减/乘（k 逆序，无显式 fma）"},
+        {"what": "kind==2：`reciprocal = 1.0f/pivot`，检查 `isfinite` 且 `<= 3.4028234663852886e38f`", "type": "f32 除法 + 溢出哨兵比较"},
+        {"what": "求解 tile 列扫描：`__frcp_rn(ld[j*n+j])` → `__fmul_rn(v[j],reciprocal)` → `__fmaf_rn(-ld[..],v[j],v[i])`（先 U^T 前代、后 U 回代）", "type": "f32 显式单次舍入：取倒数/乘/fma"},
+        {"what": "求解 scalar：`value -= ld[j*n+i]*v[j]`、`v[i] = value/ld[i*n+i]`", "type": "f32 自然乘减 + f32 除法（无显式 fma）"},
+        {"what": "求解 kind==2：L^-T `v[i]-=ld[k*n+i]*v[k]`、D^-1 `v[i]*=inv[i]`、L^-1 `sum+=ld[i*n+j]*v[j]` 后 `v[i]-=sum`", "type": "f32 顺序乘加/乘"}
+      ],
+      "outputs": [
+        {"field": "status[0..2]", "type": "f32", "conversion": "错误码直接写；索引以 `float(begin)`/`float(i)` 编码"},
+        {"field": "ld[n*n]", "type": "f32", "conversion": "tile/scalar 对角写 `sqrt` 或 rsqrt 结果；非对角 `__fmul_rn(value,reciprocal)`"},
+        {"field": "inv[n]", "type": "f32", "conversion": "`1.0f/pivot`（kind==0）、`1.0f/pivot`（kind==2）；kind==1 不写"},
+        {"field": "x[nr*n]", "type": "f32", "conversion": "三角代换结果直接写"}
+      ]
+    },
+    {
+      "name": "resident_mass_factor（派生）",
+      "params": [
+        {"name": "blocks", "ctype": "const int*", "role": "in: 分块描述（同 rigid）"},
+        {"name": "rhs", "ctype": "const float*", "role": "in: 未使用（factor 阶段只读 state）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 质量矩阵块"},
+        {"name": "output", "ctype": "float*", "role": "out: status/ld/inv + x 清零槽"},
+        {"name": "nb/n/nr/nw", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "同 rigid_mass_solve 的 factor 半段", "type": "f32 status/ld/inv/pivot/reciprocal/diagonal/tmp"},
+        {"name": "x 清零", "type": "f32 零（split_sources 注入 `for(i<n) x[i]=0.0f`）"}
+      ],
+      "accumulations": [
+        {"what": "同 rigid_mass_solve 的 kind==0/1/2 factor 分支", "type": "f32（tile 可收缩 Schur + rsqrt.approx；scalar sqrt/div/fmaf；kind==2 无显式 fma）"}
+      ],
+      "outputs": [
+        {"field": "status[0..2] / ld[n*n] / inv[n] / x 零槽", "type": "f32", "conversion": "直接写（保留单 rhs 布局，先存分解）"}
+      ]
+    },
+    {
+      "name": "resident_mass_substitute",
+      "params": [
+        {"name": "blocks", "ctype": "const int*", "role": "in: 分块描述"},
+        {"name": "rhs", "ctype": "const float*", "role": "in: 每 world rhs（偏移 `4+w*nr*n`，world 内切分布局）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 已存分解结果 `status/ld/inv`（3+n*n+n）"},
+        {"name": "output", "ctype": "float*", "role": "out: 同 rigid 布局（status/ld/inv 拷回 + x[nr*n]）"},
+        {"name": "nb/n/nr/nw", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "saved 视图", "type": "f32：先整体拷回 status/ld/inv，再求解"},
+        {"name": "x[nr*n]", "type": "f32 解向量"}
+      ],
+      "accumulations": [
+        {"what": "同 rigid_mass_solve 的 solve 半段（kind==0/1/2 三条代换路径）", "type": "f32；tile 列扫描用 __frcp_rn/__fmul_rn/__fmaf_rn，scalar 用 `-`/`/`，kind==2 顺序乘加"}
+      ],
+      "outputs": [
+        {"field": "x[nr*n]", "type": "f32", "conversion": "直接写；分解结果原样拷回不重算"}
+      ]
+    },
+    {
+      "name": "sparse_mass_copy / sparse_mass_update / sparse_mass_diag",
+      "kernels": ["sparse_mass_copy", "sparse_mass_update", "sparse_mass_diag"],
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: `meta[0]=n`、`meta[1]=nc`、rownnz[n]、rowadr[n]、updates[3u]"},
+        {"name": "matrix / unused / unused2", "ctype": "const float*", "role": "in: 源矩阵（copy 用）或未使用占位"},
+        {"name": "out", "ctype": "float*", "role": "out: 压缩块（`out+4+w*stride`）"},
+        {"name": "first/count/stride/work", "ctype": "unsigned", "role": "scalar 平移与工作量"}
+      ],
+      "intermediates": [
+        {"name": "L", "type": "f32 压缩视图（stride 布局）"},
+        {"name": "tmp", "type": "f32：`__fdiv_rn(L[ki], L[row_last])`"},
+        {"name": "value", "type": "f32 更新量"}
+      ],
+      "accumulations": [
+        {"what": "`L[j] = matrix[...]`、`L[nc+i] = 0.0f`（copy）", "type": "f32 直写，无归约"},
+        {"what": "`atom.global.add.f32` 对 `L[rowadr[i]+j]` 原子加 `-value`（update）", "type": "f32 原子加（内联 PTX，非 atomicAdd 文本）"},
+        {"what": "`L[nc+i] = __fdiv_rn(1.0f, L[rowadr[i]+rownnz[i]-1])`（diag）", "type": "f32 除法（对角倒数）"}
+      ],
+      "outputs": [
+        {"field": "out[...]（压缩因子/diag 段）", "type": "f32", "conversion": "直接写；原子加结果落在 out"}
+      ]
+    },
+    {
+      "name": "sparse_dense_validate / sparse_dense_gather",
+      "kernels": ["sparse_dense_validate", "sparse_dense_gather"],
+      "params": [
+        {"name": "sources", "ctype": "const int*", "role": "in: 每 slot 源下标（gather）"},
+        {"name": "matrix", "ctype": "const float*", "role": "in: 密集块（head sentinel + nc 元素）"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用占位"},
+        {"name": "status / output", "ctype": "float*", "role": "out: 状态标志 / 聚集结果"},
+        {"name": "nc/prefix/reserved/worlds|work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [{"name": "valid", "type": "bool（sentinel 精确比较 + isfinite）"}],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`valid ? 1.0f : 0.0f`"},
+        {"field": "output[4+tid]", "type": "f32", "conversion": "`source<nc ? matrix[4+w*nc+source] : 0.0f`"}
+      ]
+    },
+    {
+      "name": "small_prefix_validate / small_prefix_factor_2..6",
+      "kernels": ["small_prefix_validate", "small_prefix_factor_2", "small_prefix_factor_3", "small_prefix_factor_4", "small_prefix_factor_5", "small_prefix_factor_6"],
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 每 block `meta[3*block+1]` 地址"},
+        {"name": "matrix", "ctype": "const float*", "role": "in: 密集块（head sentinel + prefix 元素）"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用占位"},
+        {"name": "status / output", "ctype": "float*", "role": "out: 状态 / 2..6 阶因子块"},
+        {"name": "prefix/a/b/worlds|first/count/work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [
+        {"name": "valid", "type": "bool（sentinel + isfinite）"},
+        {"name": "pivot / diagonal / reciprocal / value", "type": "f32 标量"},
+        {"name": "U[N*N]", "type": "f32 因子块（N 为模板参数 2..6）"}
+      ],
+      "accumulations": [
+        {"what": "`pivot = small_schur(pivot,U[k*N+i],U[k*N+i])`、`value = small_schur(value,U[k*N+i],U[k*N+j])`", "type": "内联 PTX `mul.f32 product; sub.f32`（未加 .rn，允许收缩）"},
+        {"what": "`sqrt.rn.f32` 取对角、`rcp.rn.f32` 取倒数、`mul.f32` 乘倒数", "type": "显式 .rn 单次舍入 PTX"},
+        {"what": "非法时 `U[i*N+i]=pivot` 后 return（不写状态码）", "type": "f32 直写"}
+      ],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`valid ? 1.0f : 0.0f`（validate）"},
+        {"field": "output（2..6 阶因子块）", "type": "f32", "conversion": "U 直接写；非法 pivot 保留非正/非有限值供上层判读"}
+      ]
+    },
+    {
+      "name": "mixed_factor_merge",
+      "kernels": ["mixed_factor_merge"],
+      "params": [
+        {"name": "metadata", "ctype": "const int*", "role": "in: 未使用（签名统一）"},
+        {"name": "small / sparse", "ctype": "const float*", "role": "in: 小阶因子块 / 稀疏因子段"},
+        {"name": "output", "ctype": "float*", "role": "out: `prefix+nc+nv` 合并布局"},
+        {"name": "prefix/nc/nv/work", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [{"name": "stride/w/i", "type": "unsigned 索引推导"}],
+      "accumulations": [],
+      "outputs": [
+        {"field": "output[4+tid]", "type": "f32", "conversion": "`i<prefix ? small[...] : sparse[...]` 纯拷贝/交错，无算术"}
+      ]
+    },
+    {
+      "name": "mixed_solve_validate / mixed_solve_fused",
+      "kernels": ["mixed_solve_validate", "mixed_solve_fused"],
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 头 4 元素 + flags/offsets/updates/small 描述；`diag=meta+4+n`"},
+        {"name": "rhs", "ctype": "const float*", "role": "in: 每 world `nr*n` rhs"},
+        {"name": "factor", "ctype": "const float*", "role": "in: 混合因子（`4 + stride`，stride=prefix+nc+nv）"},
+        {"name": "status / output", "ctype": "float*", "role": "out: 状态 / 解（每 group n）"},
+        {"name": "n/stride/nr/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "f / r", "type": "bool 有效性（factor / rhs）"},
+        {"name": "flags[i]", "type": "int：-1 独立 D*y 分支，-2 需乘 D"},
+        {"name": "x", "type": "f32 解向量"}
+      ],
+      "accumulations": [
+        {"what": "`mixed_schur(value,F[..],x[..])`（小阶前代/回代）", "type": "内联 PTX `mul.f32 product; sub.f32`（允许收缩）"},
+        {"what": "`x[start+i] = __fdiv_rn(value, F[diag])`", "type": "f32 除法单次舍入"},
+        {"what": "level 逆序/正序更新：`__fmul_rn(L[a],x[k])` 后 `atom.global.add.f32` 原子加 `-value`", "type": "f32 显式乘 + 内联 PTX 原子加"},
+        {"what": "`x[i] = __fmul_rn(D[i],b[i])`、`x[i] = __fmul_rn(x[i],D[i])`", "type": "f32 显式乘"}
+      ],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`(f?0:1)+(r?0:2)` 组合状态码"},
+        {"field": "output（每 group n 个解）", "type": "f32", "conversion": "直接写（分组布局）"}
+      ]
+    },
+    {
+      "name": "sparse_solve_validate / sparse_solve_fused",
+      "kernels": ["sparse_solve_validate", "sparse_solve_fused"],
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 头 4 元素 + flags/offsets/updates"},
+        {"name": "rhs", "ctype": "const float*", "role": "in: 每 world `n*nr` rhs"},
+        {"name": "factor", "ctype": "const float*", "role": "in: 压缩 L 段 `nc` + D 段 `n`（stride=nc+n）"},
+        {"name": "status / output", "ctype": "float*", "role": "out: 状态 / 解"},
+        {"name": "n/nc/nr/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "f / r", "type": "bool 有效性"},
+        {"name": "flags[i]", "type": "int：-1 独立 D*y 分支"},
+        {"name": "x", "type": "f32 解向量"}
+      ],
+      "accumulations": [
+        {"what": "`x[i] = flags[i]==-1 ? b[i] : __fmul_rn(D[i],b[i])`", "type": "f32 显式乘"},
+        {"what": "level 逆序/正序：`__fmul_rn(L[a],x[k])` 后 `atom.global.add.f32`", "type": "f32 显式乘 + 原子加"},
+        {"what": "`x[i] = __fmul_rn(x[i],D[i])`", "type": "f32 显式乘"}
+      ],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`(f?0:1)+(r?0:2)`"},
+        {"field": "output（每 group n 个解）", "type": "f32", "conversion": "直接写"}
+      ]
+    },
+    {
+      "name": "resident_sparse_validate / resident_sparse_gather",
+      "kernels": ["resident_sparse_validate", "resident_sparse_gather"],
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: rownnz/rowadr/colind"},
+        {"name": "source", "ctype": "const float*", "role": "in: 借用源 `10nb+n*n` stride 布局（含 CRB 段）"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用占位"},
+        {"name": "status / csr", "ctype": "float*", "role": "out: 状态 / 聚集 CSR"},
+        {"name": "nb/n/nc/worlds|work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [
+        {"name": "valid", "type": "bool（sentinel + isfinite）"},
+        {"name": "dense / output", "type": "const float* / float* 视图"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`valid ? 1.0f : 0.0f`"},
+        {"field": "csr[rowadr[row]+j]", "type": "f32", "conversion": "`dense[row*n+colind[a]]` 直接写"}
+      ]
+    },
+    {
+      "name": "resident_mixed_validate / resident_mixed_gather",
+      "kernels": ["resident_mixed_validate", "resident_mixed_gather"],
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: rownnz/rowadr/colind"},
+        {"name": "source", "ctype": "const float*", "role": "in: 借用源 `10nb+n*n` stride 布局"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用占位"},
+        {"name": "status / csr", "ctype": "float*", "role": "out: 状态 / 聚集 CSR"},
+        {"name": "nb/n/nc/worlds|work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [
+        {"name": "valid", "type": "bool（sentinel + isfinite）"},
+        {"name": "dense / output", "type": "const float* / float* 视图"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`valid ? 1.0f : 0.0f`"},
+        {"field": "csr[rowadr[row]+j]", "type": "f32", "conversion": "`dense[row*n+colind[a]]` 直接写"}
+      ]
+    }
+  ],
+  "quantization": [
+    "矩阵/rhs/因子/rhs 由宿主按 ABI 从原生 f64 转 f32 后进入；各内核内无 f64（第一片 CUDA token 门禁覆盖）",
+    "sentinel `-131072.0f` 是契约约定的精确比较值（validate 类内核逐元素精确比较，不用 epsilon）",
+    "`flags` 与 `blocks[].kind` 是整数语义（0/1/2、-1/-2），不参与浮点转换",
+    "`status` 以 f32 承载状态码（0.0f/1.0f/2.0f 与组合值），属于对外契约的位型约定"
+  ],
+  "rounding_notes": [
+    "同一 `rigid_mass_solve` 内核里 tile 与 scalar 两条路径舍入策略不同：tile 用 `rsqrt.approx.f32` + 可收缩 Schur（`mul.f32`/`sub.f32` 未加 .rn）+ `__fmul_rn`；scalar 走 `fmaf`/`sqrtf`/`1.0f/` —— 这是冻结上游 MathDx PTX 的差异，不是容差差异",
+    "tile 求解是 MathDx 列扫描语义：`__frcp_rn` 取对角倒数 → `__fmul_rn` 缩放 → 前代/回代 `__fmaf_rn` 单次正确舍入；scalar 求解是自然 `-`/`/` 写法",
+    "kind==2 的 LDL 式行更新是 `-`/`*` 自然 f32，无显式 fma；`1.0f/pivot` 用 f32 除法并带 3.4028234663852886e38f 溢出哨兵",
+    "small/mixed 路径显式使用 `sqrt.rn.f32`、`rcp.rn.f32`、`__fdiv_rn`、`__fmul_rn`；Schur 更新用可收缩 mul/sub PTX",
+    "resident 两阶段由 `split_sources` 文本切分生成，切分锚点各断言唯一命中一次（避免替换静默不生效）；算术文本与一次性路径逐字相同"
+  ],
+  "upstream": {
+    "files": ["math.py", "block_cholesky.py", "smooth.py"],
+    "functions": ["solve_LD", "cholesky/tile 求解（MathDx cuSOLVER 分支）"],
+    "confidence": "文件级 + 求解函数级"
+  },
+  "evidence": [
+    "docs/windows-mass-solve-probe.md（Windows 质量求解探针）",
+    "docs/windows-g03-block-repair.md（分块修复记录）",
+    "docs/development-evidence/g03-mathdx-alignment/README.md（MathDx LTO 路线与四摘要）",
+    "docs/development-evidence/g03-matrix-chain-alignment/README.md（6/0，NP03 三项 failed=0）",
+    "tests/mass_solve_probe.rs（rigid 求解定向）",
+    "tests/mixed_mass_solve.rs（混合求解定向）",
+    "tests/small_mass_prefix.rs（2..6 阶小前缀定向）",
+    "tests/sparse_mass_factor.rs（稀疏因子定向）",
+    "tests/sparse_mass_dense.rs（稀疏/密集聚集定向）"
+  ],
+  "status": "audited at family level (params/buffers/accumulation/output per kernel); sparse/mixed 变体逐表达式审计、每模式 20 块上游对照放行记录、MathDx SDK 内部精度边界声明仍属该行 missing 项"
+}

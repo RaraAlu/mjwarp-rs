@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "row_id": "kinematics",
+  "layer": "G01 前向/运动学",
+  "paths": [
+    "xpos",
+    "xquat",
+    "xmat",
+    "xipos",
+    "ximat",
+    "xanchor",
+    "xaxis",
+    "subtree_com",
+    "cinert",
+    "crb",
+    "cdof",
+    "matrix_dense_block"
+  ],
+  "batch": "B1b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）+ 显式 PTX 舍入口径；逐表达式位级证据沿用实现片探针，不在本表重复",
+  "source": {
+    "file": "src/physics/mod.rs",
+    "const": "KINEMATICS_CUDA",
+    "kernel": "rigid_kinematics"
+  },
+  "extra_sources": [
+    {
+      "file": "src/physics/mod.rs",
+      "const": "COM_POSITION_CUDA",
+      "kernel": "rigid_com_position",
+      "note": "subtree_com / cinert / cdof 三路径；逐字段表另见 com_position.json（同一内核，两表交叉引用，不重复登记）"
+    },
+    {
+      "file": "src/physics/mass_matrix.rs",
+      "const": "MASS_MATRIX_CUDA",
+      "kernel": "rigid_mass_matrix",
+      "note": "crb / matrix_dense_block 两路径；逐字段表见 crb.json"
+    }
+  ],
+  "device_function_chain": [
+    {"name": "load_v/load_q/store_v/store_q", "type": "f32 直拷，无转换"},
+    {"name": "add/scale/dot_v/cross_v", "type": "f32 分量式表达式（无显式 fma 指令）"},
+    {"name": "normalize(Q)", "type": "f32：`sqrtf(w²+x²+y²+z²)` → `s=1.0f/n` → 四分量乘；`MJWARP_G01_EQUIVALENT` 下 n==0 返回单位四元数"},
+    {"name": "multiply(Q,Q)", "type": "f32 四元数乘，16 项乘加按固定书写顺序（编译器可收缩，无显式 fma 调用）"},
+    {"name": "rotate(Q,V)", "type": "f32：`2(u·v)u + (w²-u·u)v + 2w(u×v)` 分组形态"},
+    {"name": "umul/uadd/usub", "type": "内联 PTX `mul.f32`/`add.f32`/`sub.f32`（未加 .rn，见 rounding_notes）"},
+    {"name": "ufma", "type": "内联 PTX `fma.rn.f32`（单次正确舍入）"},
+    {"name": "matrix_from/matrix", "type": "body 系矩阵：umul/uadd/usub 显式 PTX 序列组装 9 分量"},
+    {"name": "matrix_natural", "type": "惯性系矩阵：自然写法 `q.w*q.w±q.x*q.x…`（编译器可收缩），用于 ximat"},
+    {"name": "matrix_inertial", "type": "ufma 子集转写（`_compute_body_inertial_frames` 的 mul_quat 序）；当前 kernel 路径未调用（见 rounding_notes）"}
+  ],
+  "kernels": [
+    {
+      "name": "rigid_kinematics",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: parent[nb]/adr[nb]/num[nb]/type[nj]/qa[nj] 元数据块"},
+        {"name": "model", "ctype": "const float*", "role": "in: q0[nq]/bp[3nb]/bq[4nb]/ip[3nb]/iq[4nb]/jp[3nj]/axis[3nj]（`MJWARP_FIELD_BATCHES` 下经 field_parameter 取字段批，仍为 f32 直拷）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world qpos（nq/world）；`MJWARP_MOCAP` 下追加每 world 3nm/4nm 段"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 结果块 `4 + 28nb + 6nj`（xpos/xquat/xmat/xipos/ximat/anchor/xaxis，全 f32）"},
+        {"name": "nq", "ctype": "unsigned", "role": "scalar: qpos 宽度"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nj", "ctype": "unsigned", "role": "scalar: 关节数"},
+        {"name": "worlds", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "p / r", "type": "f32 V/Q（body 世界位姿累加器）"},
+        {"name": "delta", "type": "f32 四元数：free 关节 `normalize(load_q(q))`；hinge `{cosf(h), axis*sinf(h)}`（h=0.5f*(q-q0)）"},
+        {"name": "a / ax", "type": "f32：`a=p+rotate(r,jp)`、`ax=rotate(r,axis)`"},
+        {"name": "matrix_from 的 q00..q33 / t", "type": "f32 标量中间量"},
+        {"name": "matrix_natural / matrix 输出槽", "type": "f32 9 分量，写入 xmat / ximat 段"}
+      ],
+      "accumulations": [
+        {"what": "关节链位移 `p = add(...)`（滑移关节 `p = add(p, scale(ax, q-q0))`；其它关节 `p = add(a, scale(rotate(r,local), -1))`）", "type": "f32 顺序累加（body 序 b=0..nb-1，关节按 adr 顺序；无原子、无跨 world 归约）"},
+        {"what": "关节链旋转 `r = multiply(r, delta)`", "type": "f32 顺序四元数乘（每关节一次）"},
+        {"what": "matrix_from 组装 xmat 9 分量", "type": "`umul/uadd/usub` 显式 PTX 链：单次 mul/add/sub 舍入，收缩由驱动 JIT 决定（见 rounding_notes）"},
+        {"what": "matrix_natural 组装 ximat 9 分量", "type": "自然 f32 表达式，编译器按 fmad=true 契约收缩"},
+        {"what": "每 body 末 `r = normalize(r)`", "type": "f32 sqrt + 一次倒数乘（非零分支）"}
+      ],
+      "outputs": [
+        {"field": "xpos[3b]", "type": "f32", "conversion": "直接写；body0 为 `{0,0,0}`（`MJWARP_G01_EQUIVALENT` 下改为回读已写 xpos）"},
+        {"field": "xquat[4b]", "type": "f32", "conversion": "直接写；free 关节 body 先 `normalize(load_q(qpos))`，链式 body 在关节循环末再 `normalize` 一次"},
+        {"field": "xmat[9b]", "type": "f32", "conversion": "`matrix()` → matrix_from 的显式 PTX 序列"},
+        {"field": "xipos[3b]", "type": "f32", "conversion": "`p + rotate(r, ip)`，f32 直接写"},
+        {"field": "ximat[9b]", "type": "f32", "conversion": "`matrix_natural(multiply(r, iq))`（惯性系自然写法）"},
+        {"field": "xanchor[3j]", "type": "f32", "conversion": "关节锚点 `a = p + rotate(r, jp)`；free 关节 body 直接写 `p`"},
+        {"field": "xaxis[3j]", "type": "f32", "conversion": "`rotate(r, axis)`；free 关节 body 直接写 `axis`"}
+      ]
+    },
+    {
+      "name": "rigid_com_position",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: parent[nb]/type[nj]/body[nj]/adr[nj] 元数据"},
+        {"name": "p", "ctype": "const float*", "role": "in: mass[nb]/inertia[3nb]（`MJWARP_FIELD_BATCHES` 下经 field_parameter）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 本行前向输出块（xmat/xipos/imat/anchor/axis，f32）"},
+        {"name": "output", "ctype": "float*", "role": "out: 每 world `4 + 14nb + 6nv`（sm nb / com 3nb / ci 10nb / cd 6nv，全 f32）"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nj", "ctype": "unsigned", "role": "scalar: 关节数"},
+        {"name": "nv", "ctype": "unsigned", "role": "scalar: dof 数"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "sm[b]/com[3b]", "type": "f32 子树质量与质量加权位置"},
+        {"name": "t[9]", "type": "f32 旋转后惯量张量"},
+        {"name": "x/y/z/mb", "type": "f32 质心相对位移与 body 质量"},
+        {"name": "off[3]/ax[3]", "type": "f32 关节轴与质心偏移"}
+      ],
+      "accumulations": [
+        {"what": "`sm[up] += sm[b]`、`com[3up+a] += com[3b+a]`", "type": "f32 顺序累加（树序 b=nb-1..1，非原子）"},
+        {"what": "`com /= sm[b]`", "type": "f32 除法一次舍入（sm!=0 时）"},
+        {"what": "`v += r[3row+a]*d[a]*r[3col+a]`", "type": "f32 顺序乘加（无显式 fma）"},
+        {"what": "`c[0..9]` 复合惯量组装", "type": "f32 表达式直接写（`+`/`-`/`*`，无跨 world 归约）"}
+      ],
+      "outputs": [
+        {"field": "sm[nb] / com[3b]", "type": "f32", "conversion": "sm 直接写；com 在树累加后按 sm 做一次 f32 除法"},
+        {"field": "ci[10b]（inventory 路径 cinert）", "type": "f32", "conversion": "复合惯量 10 分量：t[9] 与 mb 的质量平行轴项直接写"},
+        {"field": "cd[6nv]（inventory 路径 cdof）", "type": "f32", "conversion": "复合 dof 6 分量：旋转轴 × 质心偏移直接写"}
+      ]
+    }
+  ],
+  "outputs_12": [
+    {"field": "xpos", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "xquat", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "xmat", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "xipos", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "ximat", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "xanchor", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "xaxis", "owner": "rigid_kinematics", "table": "本表", "type": "f32"},
+    {"field": "subtree_com", "owner": "rigid_com_position", "table": "com_position.json（本表亦登记该内核）", "type": "f32"},
+    {"field": "cinert", "owner": "rigid_com_position", "table": "com_position.json（ci 10 分量块）", "type": "f32"},
+    {"field": "cdof", "owner": "rigid_com_position", "table": "com_position.json（cd 6 分量块）", "type": "f32"},
+    {"field": "crb", "owner": "rigid_mass_matrix", "table": "crb.json（body 复合惯量 10 分量）", "type": "f32"},
+    {"field": "matrix_dense_block", "owner": "rigid_mass_matrix", "table": "crb.json（mat nv×nv 块）", "type": "f32"}
+  ],
+  "quantization": [
+    "qpos/model 由宿主按 ABI 从原生 f64 转 f32 后进入；本 CUDA 源代码区无 double（第一片 CUDA token 门禁覆盖）",
+    "`MJWARP_G01_EQUIVALENT` 只改 body0 初值来源（回读已写 xpos/xquat）与 normalize 的 n==0 兜底，不改精度层级",
+    "`MJWARP_MOCAP` 分支只替换 body 局部位姿来源（state 追加 mocap 段），仍是 f32",
+    "`MJWARP_FIELD_BATCHES` 下参数经 field_parameter 视图读取，f32 直拷无转换"
+  ],
+  "rounding_notes": [
+    "xmat 使用未加 `.rn` 的内联 PTX `mul.f32`/`add.f32`/`sub.f32`：源码注释冻结口径为「上游 quat_to_mat 发出独立 mul/add/sub，由驱动 JIT 决定收缩；发相同未限定操作复现其舍入」——这是对齐 JIT 收缩决策，不是显式禁融合",
+    "ximat 使用 `matrix_natural` 自然写法（编译器可收缩），与冻结内核位级一致；xmat 与 ximat 两套写法并存是 S7b1 类算术顺序对齐教训的应用",
+    "`matrix_inertial`（ufma 子集转写）当前 `rigid_kinematics` 路径未调用，仅定义保留；本表如实登记，不改产品代码",
+    "inventory/raw-kernels 口径 fma 7 = `src/physics/mod.rs` 文本匹配 `fmaf|__fmaf|fma(` 共 7 处（`ufma` 定义 1 + `matrix_inertial` 内 `ufma` 调用 6）；当前执行路径的 xmat/ximat 不含显式 fma 调用",
+    "无 f64/f16/bf16/tf32；`sinf/cosf` 仅用于 hinge 关节角度转四元数（f32 库函数慢路径，精度契约单列）"
+  ],
+  "upstream": {
+    "files": ["smooth.py"],
+    "functions": ["_compute_body_matrices", "_kinematics_branch", "_site_local_to_global"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/g03-matrix-chain-alignment/README.md（xmat 等逐位 0 差）",
+    "docs/development-evidence/g01-fast-loop/README.md（双模式 340/0）",
+    "docs/development-evidence/faithful-fma-fix/README.md（host 站点口径，与 xmat/ximat 写法差异相邻）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level + explicit PTX rounding policy); 12 输出中 7 条本表逐字段登记、3 条见 com_position 表、2 条见 crb 表；手写内联源与冻结 PTX 的逐表达式对照仍属该行 missing 项"
+}

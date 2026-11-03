@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "row_id": "mass_multiply",
+  "layer": "G01 质量矩阵乘",
+  "paths": ["mass_multiply", "borrowed_mass_multiply", "resident 乘"],
+  "batch": "B1b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；逐表达式位级证据沿用实现片探针，不在本表重复",
+  "source": {
+    "file": "src/physics/mass_matrix/multiply/cuda.rs",
+    "const": "CUDA",
+    "kernel": "mass_multiply"
+  },
+  "extra_sources": [
+    {
+      "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+      "const": "CUDA",
+      "kernels": ["borrowed_mass_validate", "borrowed_mass_multiply"],
+      "note": "借用路径：矩阵取自 CRB/matrix 源缓冲的 stride 布局，不单独上传 M 缓冲"
+    }
+  ],
+  "kernels": [
+    {
+      "name": "mass_multiply_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 跳过标志 `meta[so+w]`"},
+        {"name": "M", "ctype": "const float*", "role": "in: 每 world 矩阵块（头部 4 元素 sentinel + mc 个元素）"},
+        {"name": "vec", "ctype": "const float*", "role": "in: 每 world 向量（头部 4 元素 sentinel + n 个元素）"},
+        {"name": "status", "ctype": "float*", "role": "out: `status[4+w]` 有效标志（1.0f/0.0f）"},
+        {"name": "n", "ctype": "unsigned", "role": "scalar: 向量长度"},
+        {"name": "mc", "ctype": "unsigned", "role": "scalar: 矩阵压缩宽度"},
+        {"name": "so", "ctype": "unsigned", "role": "scalar: 跳过标志偏移"},
+        {"name": "worlds", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "valid", "type": "bool（sentinel 精确比较 + `isfinite` 结果；非跳过 world 才检查数值有限）"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`valid ? 1.0f : 0.0f`，无舍入转换"}
+      ]
+    },
+    {
+      "name": "mass_multiply",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 跳过标志；稀疏路径下含 CSR 列索引/行偏移"},
+        {"name": "M", "ctype": "const float*", "role": "in: 矩阵（`MASS_DENSE` 为稠密 `MASS_NV×MASS_NV`，否则压缩布局）"},
+        {"name": "vec", "ctype": "const float*", "role": "in: 每 world 向量"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world n 个结果"},
+        {"name": "n", "ctype": "unsigned", "role": "scalar: 向量长度"},
+        {"name": "mc", "ctype": "unsigned", "role": "scalar: 矩阵压缩宽度"},
+        {"name": "so", "ctype": "unsigned", "role": "scalar: 跳过标志偏移"},
+        {"name": "work", "ctype": "unsigned", "role": "scalar: 总工作量 n*worlds"}
+      ],
+      "intermediates": [
+        {"name": "matrix / v 视图", "type": "const float* 视图（无副本、无转换）"},
+        {"name": "acc", "type": "f32 点积累加器，初值 0.0f"}
+      ],
+      "accumulations": [
+        {"what": "稠密：`acc = acc + matrix[row*MASS_NV+j] * v[j]`（`#pragma unroll`）", "type": "f32 列序顺序累加；编译器按 fmad=true 契约可收缩，未显式限定"},
+        {"what": "稀疏：`acc = acc + matrix[adr[k]] * v[col[k]]`（k 按行内 CSR 顺序）", "type": "f32 顺序累加（CSR 行内顺序固定）"}
+      ],
+      "outputs": [
+        {"field": "result[4+tid]", "type": "f32", "conversion": "acc 直接写出；跳过 world 提前 return 不写"}
+      ]
+    },
+    {
+      "name": "borrowed_mass_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 头 4 元素 sentinel + 布局清单 + CSR row/col/adr"},
+        {"name": "source", "ctype": "const float*", "role": "in: 借用源（CRB 10nb + matrix n² 的 stride 布局）"},
+        {"name": "vec", "ctype": "const float*", "role": "in: 每 world 向量"},
+        {"name": "status", "ctype": "float*", "role": "out: `status[4+w]` 有效标志"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数（须等于 BORROW_NB）"},
+        {"name": "n", "ctype": "unsigned", "role": "scalar: 向量长度（须等于 BORROW_NV）"},
+        {"name": "so", "ctype": "unsigned", "role": "scalar: 跳过标志偏移"},
+        {"name": "work", "ctype": "unsigned", "role": "scalar: 工作量（本内核按 world 计）"}
+      ],
+      "intermediates": [
+        {"name": "valid", "type": "bool：维度/清单/sentinel/isfinite 与 CSR 结构（row 首尾、col 范围、adr 期望地址）联合判定"},
+        {"name": "stride", "type": "unsigned long long：`10*nb + n*n`"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "status[4+w]", "type": "f32", "conversion": "`valid ? 1.0f : 0.0f`"}
+      ]
+    },
+    {
+      "name": "borrowed_mass_multiply",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: CSR row/col/adr 与跳过标志"},
+        {"name": "source", "ctype": "const float*", "role": "in: 借用源（矩阵段 `source+4+stride*w+10nb`）"},
+        {"name": "vec", "ctype": "const float*", "role": "in: 每 world 向量"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world n 个结果"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "n", "ctype": "unsigned", "role": "scalar: 向量长度"},
+        {"name": "so", "ctype": "unsigned", "role": "scalar: 跳过标志偏移"},
+        {"name": "work", "ctype": "unsigned", "role": "scalar: 总工作量 n*worlds"}
+      ],
+      "intermediates": [
+        {"name": "M / v 视图", "type": "const float* 视图（无副本、无转换）"},
+        {"name": "acc", "type": "f32 点积累加器，初值 0.0f"}
+      ],
+      "accumulations": [
+        {"what": "稠密：`acc = acc + M[r*BORROW_NV+c] * v[c]`（`#pragma unroll`）", "type": "f32 列序顺序累加"},
+        {"what": "稀疏：`acc = acc + M[adr[k]] * v[col[k]]`", "type": "f32 CSR 行内顺序累加"}
+      ],
+      "outputs": [
+        {"field": "result[4+tid]", "type": "f32", "conversion": "acc 直接写出；跳过 world 提前 return 不写"}
+      ]
+    }
+  ],
+  "quantization": [
+    "sentinel：`M`/`vec`/`source` 头 4 元素与每 world 尾部对应位置必须精确等于 `-131072.0f`，否则判无效（精确比较，不做 epsilon）",
+    "矩阵/向量由宿主按 ABI 从原生 f64 转 f32 后进入；内核内无 f64（第一片 CUDA token 门禁覆盖）",
+    "`MASS_DENSE`/`BORROW_DENSE` 是编译期分支，不改变精度层级"
+  ],
+  "rounding_notes": [
+    "点是纯 f32 乘加：`acc = acc + a*b` 顺序累加，无显式 `__fmaf_rn`/`__fmul_rn`，也无 `atomicAdd`（raw-kernels 扫描 fma=0、atomicAdd=0，本表已复核一致）",
+    "稠密分支按 `#pragma unroll` 展开但累加次序仍是列序 0..N-1；稀疏分支按 CSR 行内顺序，两者与上游 `_mass_multiply` 的 f32 求和次序口径一致",
+    "借用路径与一次性路径的 ABI 差异只在矩阵来源/stride，算术表达式相同"
+  ],
+  "upstream": {
+    "files": ["smooth.py"],
+    "functions": ["（文件级映射；具体点积/矩阵函数待逐函数核对）"],
+    "confidence": "文件级"
+  },
+  "evidence": [
+    "docs/borrowed-mass-multiply.md（借用路径 ABI 与校验）",
+    "docs/sparse-mass-dense.md（稀疏/稠密两分支）",
+    "docs/development-evidence/g10-p5-fixtures/README.md（mass_multiply 逐位 fixture）",
+    "tests/mass_matrix_probe.rs（质量矩阵/乘法探针）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 上游具体函数定位（保持文件级，不升格）与 resident 乘变体的逐字段核对仍属该行 missing 项"
+}

@@ -1,0 +1,150 @@
+{
+  "schema": 1,
+  "row_id": "crb",
+  "layer": "G01 前向/惯量",
+  "paths": ["crb", "cinert 组合"],
+  "batch": "B1b",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）+ 显式 PTX 舍入口径；逐表达式位级证据沿用实现片探针，不在本表重复",
+  "source": {
+    "file": "src/physics/mass_matrix.rs",
+    "const": "MASS_MATRIX_CUDA",
+    "kernel": "rigid_mass_matrix"
+  },
+  "extra_sources": [
+    {
+      "file": "src/physics/mass_matrix/resident.rs",
+      "const": "CUDA",
+      "kernels": ["resident_crb_init", "resident_crb_accumulate", "resident_crb_matrix"],
+      "note": "常驻三阶段路径：一次性内核按「初始化/树序累加/矩阵装配」拆成三个 launch，元数据布局与一次性内核不同（parent=m+2 等）"
+    }
+  ],
+  "accumulation_metrics": {
+    "note": "inventory 行登记「fma 19 + atomicAdd 2」，本表把这两个机器扫描口径落到具体站点",
+    "fma_19": "`src/physics/mass_matrix.rs` 文本匹配 `fmaf|__fmaf|fma(` 共 19 处（`mfma` 定义 1 + 调用 18），与 raw-kernels.json 的 fma=19 一致",
+    "atomic_add_2": "`src/physics/mass_matrix/resident.rs` 文本匹配 `atomicAdd` 共 2 处（accumulate 的 k<10 循环、matrix 的 cell 累加），与 raw-kernels.json 的 atomicAdd=2 一致",
+    "scope": "均为源文本站点口径，不是运行时执行次数；逐表达式位级证据沿用探针"
+  },
+  "kernels": [
+    {
+      "name": "rigid_mass_matrix",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: parent[nb]/body[nv]/dparent[nv] 元数据"},
+        {"name": "p", "ctype": "const float*", "role": "in: 每 dof armature（f32）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world 前向块（本行输入 = com_position 输出块：sm nb / com 3nb / ci 10nb / cd 6nv）"},
+        {"name": "output", "ctype": "float*", "role": "out: 每 world `4 + 10nb + nv*nv`（crb 段 + mat 段，全 f32）"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nv", "ctype": "unsigned", "role": "scalar: dof 数"},
+        {"name": "unused", "ctype": "unsigned", "role": "scalar: 未使用（统一签名占位）"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [
+        {"name": "ci 视图", "type": "f32（`s+4*nb`，10/body，无副本、无转换）"},
+        {"name": "cd 视图", "type": "f32（`ci+10*nb`，6/dof）"},
+        {"name": "i0..i9", "type": "f32 惯量 10 分量标量拷贝"},
+        {"name": "v0..v5", "type": "f32 空间 dof 向量标量拷贝"},
+        {"name": "b0..b5", "type": "f32 分布力中间量（`mfma`/`madd`/`msub`/`mmul` 组合）"},
+        {"name": "value", "type": "f32 逐 (d,j) 点积累积"}
+      ],
+      "accumulations": [
+        {"what": "`crb[10*parent[b]+a] += crb[10*b+a]`", "type": "f32 顺序累加（body 逆序 b=nb-1..1；仅 `parent[b]>0` 时累加，跳过 world 根；非原子）"},
+        {"what": "`value = mfma(w[0],b0,0.0f)` 后 5 次 `mfma` 链", "type": "f32 单次正确舍入 fma 链（内联 `fma.rn.f32`）"},
+        {"what": "`value = madd(value,p[d])`（仅 j==d）", "type": "f32 单次舍入 add：armature 最后加"},
+        {"what": "`mat[d*nv+j]` 与 `mat[j*nv+d]` 两次写同一 f32 值", "type": "对称写两次，不排序"}
+      ],
+      "outputs": [
+        {"field": "crb[10b+a]", "type": "f32", "conversion": "先整体拷贝 ci，再树序累加；直接写"},
+        {"field": "mat[d*nv+j] / mat[j*nv+d]（inventory 路径 matrix_dense_block）", "type": "f32", "conversion": "同一 f32 值对称写两次"}
+      ]
+    },
+    {
+      "name": "resident_crb_init",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 常驻元数据（本阶段不读取，签名统一）"},
+        {"name": "p", "ctype": "const float*", "role": "in: 未使用（签名统一）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world 前向块（取 ci 段）"},
+        {"name": "output", "ctype": "float*", "role": "out: crb 段 + 清零的 mat 段"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nv", "ctype": "unsigned", "role": "scalar: dof 数"},
+        {"name": "unused", "ctype": "unsigned", "role": "scalar: 未使用"},
+        {"name": "nw", "ctype": "unsigned", "role": "scalar: world 数"}
+      ],
+      "intermediates": [{"name": "ci 视图", "type": "f32（`state+4+w*(14nb+6nv)+4nb`，直拷）"}],
+      "accumulations": [
+        {"what": "`crb[i] = ci[i]`（i<10nb）", "type": "f32 直写，无累加"},
+        {"what": "`crb[10nb+i] = 0.0f`（i<nv*nv）", "type": "mat 段清零（f32 零）"}
+      ],
+      "outputs": [
+        {"field": "crb[10b+a]", "type": "f32", "conversion": "ci 直拷"},
+        {"field": "mat[*]", "type": "f32", "conversion": "清零，等待 matrix 阶段原子加"}
+      ]
+    },
+    {
+      "name": "resident_crb_accumulate",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: `parent=m+2`；`depth=m+2+nb+2*nv`（元数据头部 2 个 int）"},
+        {"name": "p", "ctype": "const float*", "role": "in: 未使用（签名统一）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 未使用（本阶段只读 output 已有 crb）"},
+        {"name": "output", "ctype": "float*", "role": "in/out: crb 段（读子、原子加写父）"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nv", "ctype": "unsigned", "role": "scalar: dof 数"},
+        {"name": "level", "ctype": "unsigned", "role": "scalar: 当前树深度层"},
+        {"name": "count", "ctype": "unsigned", "role": "scalar: 本阶段工作量 nb*worlds"}
+      ],
+      "intermediates": [{"name": "w/b", "type": "unsigned 索引推导（`b=tid%nb`、`w=tid/nb`）"}],
+      "accumulations": [
+        {"what": "`atomicAdd(crb+10*parent[b]+k, crb[10*b+k])`（k=0..9）", "type": "f32 原子累加（10 槽循环）；条件 `parent[b]!=0 && depth[b]==level`"}
+      ],
+      "outputs": [
+        {"field": "crb[10*parent[b]+k]", "type": "f32", "conversion": "f32 原子加（分层调度替代批量逆序累加）"}
+      ]
+    },
+    {
+      "name": "resident_crb_matrix",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: `body=m+2+nb`；`parent=body+nv`"},
+        {"name": "p", "ctype": "const float*", "role": "in: 每 dof armature"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world 前向块（取 cd 段，`cd=state+4+w*(14nb+6nv)+14nb`）"},
+        {"name": "output", "ctype": "float*", "role": "in/out: crb 段读惯量；mat 段原子加"},
+        {"name": "nb", "ctype": "unsigned", "role": "scalar: body 数"},
+        {"name": "nv", "ctype": "unsigned", "role": "scalar: dof 数"},
+        {"name": "unused", "ctype": "unsigned", "role": "scalar: 未使用"},
+        {"name": "count", "ctype": "unsigned", "role": "scalar: 本阶段工作量 nv*worlds"}
+      ],
+      "intermediates": [
+        {"name": "i / v", "type": "f32 惯量与 cd 视图（无副本）"},
+        {"name": "first", "type": "f32：`fmaf(i[3],v[0],__fmul_rn(i[1],v[1]))`（显式单次舍入 fma + mul）"},
+        {"name": "buf[6]", "type": "f32 分布力（`i*v` 自然表达式，编译器可收缩）"}
+      ],
+      "accumulations": [
+        {"what": "`mat[d*nv+d] = p[d]` 后 `atomicAdd(cell, value)`", "type": "f32：armature 先写、点积链原子加；f32 加法可交换，与一次性路径的「点积后加 armature」位级等价"},
+        {"what": "`value = fmaf(cd[6j],buf[0],0.0f)` 后 5 次 `fmaf` 链", "type": "f32 单次正确舍入 fma 链"},
+        {"what": "`mat[j*nv+d] = *cell`（j!=d，对称回读）", "type": "f32 直写（读回刚原子加后的值）"}
+      ],
+      "outputs": [
+        {"field": "mat[d*nv+j] / mat[j*nv+d]", "type": "f32", "conversion": "原子加结果；对称回读写另一侧"}
+      ]
+    }
+  ],
+  "quantization": [
+    "state（上游前向输出块）与 p（armature）均为宿主已转好的 f32；内核内无 f64（第一片 CUDA token 门禁覆盖）",
+    "world 根子树的 crb 按源码注释「never accumulate into world」不累加进 world 根——这是累加口径契约，不是精度例外",
+    "常驻路径元数据头 2 个 int 与一次性路径的纯 parent 布局不同，仅索引差异，不改精度层级"
+  ],
+  "rounding_notes": [
+    "一次性内核四个内联 PTX 基元 `mmul/madd/msub/mfma` 复刻冻结 `math.inert_vec`/`wp.dot` 的 mul/add/sub/fma 序列：`mmul/madd/msub` 未加 `.rn`（由驱动 JIT 决定收缩），`mfma` 显式 `fma.rn.f32`",
+    "armature 在一次性内核最后 `madd` 加上、在常驻内核先写对角线再原子加点积；两边 f32 加法次序不同但结果位级等价",
+    "常驻 accumulate 用 10 槽 `atomicAdd` 循环实现树序累加；常驻 matrix 每 (d,j) 一次 `atomicAdd`"
+  ],
+  "upstream": {
+    "files": ["smooth.py", "math.py"],
+    "functions": ["crb", "_crb_accumulate", "inert_vec"],
+    "confidence": "函数级已核对"
+  },
+  "evidence": [
+    "docs/development-evidence/layers-m3-rigid-mass-matrix/（一次性与常驻路径实现切片）",
+    "docs/development-evidence/g10-p5-fixtures/README.md（crb/cinert 逐位 fixture）",
+    "docs/development-evidence/g03-matrix-chain-alignment/README.md（矩阵链位级）",
+    "tests/resident_mass_matrix.rs（常驻 CRB/矩阵定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level + explicit PTX rounding policy); 逐字段 PTX 对照与常驻/一次性路径逐字段一致性对照仍属该行 missing 项"
+}
