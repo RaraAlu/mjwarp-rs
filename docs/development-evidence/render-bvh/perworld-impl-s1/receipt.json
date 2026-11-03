@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "kind": "render-perworld-impl-s1-receipt",
+  "task_id": "2026-10-30-render-perworld-impl-s1",
+  "generated_at": "2026-11-03T04:20:00Z",
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy_cuda": "pass",
+    "unit": { "passed": 1240, "failed": 0 },
+    "command": "normify gate 2026-10-30-render-perworld-impl-s1"
+  },
+  "line_counts": {
+    "src/render/kernel/megakernel.rs": 450,
+    "src/render/kernel/megakernel_uploads.rs": 480,
+    "src/render/kernel/per_world.rs": 238,
+    "src/render/kernel/mod.rs": 476,
+    "tests/render_per_world.rs": 500
+  },
+  "line_limits": {
+    "src/render/kernel/megakernel.rs": 450,
+    "src/render/kernel/megakernel_uploads.rs": 480,
+    "src/render/kernel/per_world.rs": 260,
+    "src/render/kernel/mod.rs": 500,
+    "tests/render_per_world.rs": 500
+  },
+  "zero_change": {
+    "cuda_diff_empty": true,
+    "untouched_files": [
+      "src/render/kernel/cast.rs",
+      "src/render/context/lifecycle.rs",
+      "src/runtime/launcher/render/args.rs",
+      "src/render/context/output.rs",
+      "src/render/kernel/megakernel_aa.rs",
+      "src/render/kernel/launch.rs",
+      "src/render/context/camera_output.rs"
+    ],
+    "megakernel_slots": 81
+  },
+  "tests": {
+    "lib_cuda_probe": { "passed": 741, "failed": 0, "ignored": 137 },
+    "render_per_world_cpu": { "passed": 3, "failed": 0 },
+    "render_per_world_gpu": { "status": "ignored", "reason": "window pending" },
+    "cpu_cases": [
+      "multi_sample_guard_only_accepts_single_sample",
+      "per_world_scene_poses_are_world_major_and_checked",
+      "perworld_reference_decodes_with_bound_hashes",
+      "per_world::rejects_multi_sample_per_world_entry",
+      "per_world::splits_leaf_slots_per_world_and_requires_equal_geom_order",
+      "per_world::replicates_target_world_poses_and_restores_caller_mapping",
+      "scene_poses::keeps_world_major_scene_poses_and_round_trips_bits",
+      "scene_poses::rejects_count_mismatch_and_zero_worlds_without_panic",
+      "scene_poses::rejects_out_of_range_world_and_leaf"
+    ]
+  },
+  "scope": {
+    "covers": "per-world geom poses (geom_xpos/geom_xmat) with nworld>1",
+    "does_not_cover": [
+      "per-world light poses (v1 keeps model-level single light arrays)",
+      "anti-aliasing with per-world (spp>1 is rejected)",
+      "performance"
+    ],
+    "window_pending": true,
+    "window_command": "cargo test --locked --features cuda-probe --test render_per_world -- --ignored",
+    "reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/",
+    "rejected_alternatives": {
+      "L-2": "per-world context + device-to-device copies violates zero-copy/second-context premise",
+      "L-3": "extracting megakernel_args.rs exceeds this slice's write scope"
+    }
+  },
+  "not_claimed": [
+    "per-world numerical acceptance (window pending)",
+    "G01/G03 full acceptance",
+    "NP01-NP04 precision",
+    "Linux",
+    "release",
+    "performance"
+  ]
+}
