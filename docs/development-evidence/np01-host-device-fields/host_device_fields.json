@@ -1,0 +1,555 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-04-precision-np01-host-device-fields",
+  "kind": "np01-field-level-difference-ledger",
+  "inputs": {
+    "recipe_difference": "docs/development-evidence/g10-p5-g2-gpu-reference-capture/compare-cpu-vs-gpu.json",
+    "same_recipe_residual": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/result.json",
+    "qa_compare": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json",
+    "b1_mechanism": "docs/development-evidence/np01-host-device-expr/host_device_expr.json",
+    "a0_native_semantics": "docs/development-evidence/np01-e-recompute/e_recompute.json",
+    "field_tables": "docs/development-evidence/np01-type-mapping/{field-tables,host-tables}/"
+  },
+  "type_deviation": {
+    "count": 0,
+    "basis": [
+      "30 条产品路径 + 3 条 host 站点的逐字段类型表（NP01 B1–B3 批）",
+      "CUDA 精度 token 门禁：产品 .cu 代码区不含 double/half/bfloat16/tf32（docs/development-evidence/np01-type-mapping/cuda-surface.json）",
+      "host source token 门禁：src/**/*.rs 代码区精度 token 白名单活性（host-source-gate 卡）"
+    ],
+    "explicitly_not_inferred_from": "数值位级相等/ULP 计数——数值差可以来自 recipe 或引擎语义，不能反推类型"
+  },
+  "recipe_difference": {
+    "definition": "同码不同后端：warp CPU 参考 recipe（每乘加两次舍入）vs warp CUDA 参考 recipe（NVVM 默认 fma.rn 收缩）",
+    "mechanism": {
+      "source": "B1 逐表达式 PTX 定序表",
+      "summary": "12 条关键表达式中 8 条带乘加者在 --fmad=true 下全部出 fma.rn 且 mul.rn/add.rn 归零；--fmad=false 下 fma.rn 归零、指令数与 host 两次舍入逐项对应；face_norm2 的 head→tail→norm2 三步写法在 device 默认下仍融合为 2 条 fma.rn",
+      "expression_count": 12
+    },
+    "cases": {
+      "cylinder-box": {
+        "counts_equal": true,
+        "two_captures_bitwise_identical": true,
+        "integer_fields_bit_equal": true,
+        "fields": {
+          "dist": {
+            "components": 8,
+            "bit_equal": 8,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "pos": {
+            "components": 24,
+            "bit_equal": 19,
+            "bit_equal_ratio": 0.7916666666666666,
+            "zero_vs_nonzero": 0,
+            "max_abs": 1.4901161193847656e-08,
+            "max_ulp_nonzero": 16
+          },
+          "frame": {
+            "components": 72,
+            "bit_equal": 72,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "includemargin": {
+            "components": 8,
+            "bit_equal": 8,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "friction": {
+            "components": 40,
+            "bit_equal": 40,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solref": {
+            "components": 16,
+            "bit_equal": 16,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solreffriction": {
+            "components": 16,
+            "bit_equal": 16,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solimp": {
+            "components": 40,
+            "bit_equal": 40,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "adhesion": {
+            "components": 8,
+            "bit_equal": 8,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          }
+        }
+      },
+      "ellipsoid-box": {
+        "counts_equal": true,
+        "two_captures_bitwise_identical": true,
+        "integer_fields_bit_equal": true,
+        "fields": {
+          "dist": {
+            "components": 2,
+            "bit_equal": 0,
+            "bit_equal_ratio": 0.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 1.862645149230957e-09,
+            "max_ulp_nonzero": 2
+          },
+          "pos": {
+            "components": 6,
+            "bit_equal": 2,
+            "bit_equal_ratio": 0.3333333333333333,
+            "zero_vs_nonzero": 0,
+            "max_abs": 7.450580596923828e-09,
+            "max_ulp_nonzero": 1441
+          },
+          "frame": {
+            "components": 18,
+            "bit_equal": 8,
+            "bit_equal_ratio": 0.4444444444444444,
+            "zero_vs_nonzero": 0,
+            "max_abs": 8.192876492785217e-07,
+            "max_ulp_nonzero": 40483814
+          },
+          "includemargin": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "friction": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solref": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solreffriction": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solimp": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "adhesion": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          }
+        }
+      },
+      "mesh-mesh": {
+        "counts_equal": true,
+        "two_captures_bitwise_identical": true,
+        "integer_fields_bit_equal": true,
+        "fields": {
+          "dist": {
+            "components": 2,
+            "bit_equal": 1,
+            "bit_equal_ratio": 0.5,
+            "zero_vs_nonzero": 0,
+            "max_abs": 9.313225746154785e-09,
+            "max_ulp_nonzero": 5
+          },
+          "pos": {
+            "components": 6,
+            "bit_equal": 4,
+            "bit_equal_ratio": 0.6666666666666666,
+            "zero_vs_nonzero": 0,
+            "max_abs": 7.450580596923828e-09,
+            "max_ulp_nonzero": 2
+          },
+          "frame": {
+            "components": 18,
+            "bit_equal": 2,
+            "bit_equal_ratio": 0.1111111111111111,
+            "zero_vs_nonzero": 0,
+            "max_abs": 5.364418029785156e-07,
+            "max_ulp_nonzero": 4294967295
+          },
+          "includemargin": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "friction": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solref": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solreffriction": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solimp": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "adhesion": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          }
+        }
+      },
+      "convex-mesh": {
+        "counts_equal": true,
+        "two_captures_bitwise_identical": true,
+        "integer_fields_bit_equal": true,
+        "fields": {
+          "dist": {
+            "components": 2,
+            "bit_equal": 0,
+            "bit_equal_ratio": 0.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 1.4901161193847656e-08,
+            "max_ulp_nonzero": 2
+          },
+          "pos": {
+            "components": 6,
+            "bit_equal": 1,
+            "bit_equal_ratio": 0.16666666666666666,
+            "zero_vs_nonzero": 0,
+            "max_abs": 1.1175870895385742e-08,
+            "max_ulp_nonzero": 96
+          },
+          "frame": {
+            "components": 18,
+            "bit_equal": 2,
+            "bit_equal_ratio": 0.1111111111111111,
+            "zero_vs_nonzero": 1,
+            "max_abs": 2.980232238769531e-07,
+            "max_ulp_nonzero": 18179136
+          },
+          "includemargin": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "friction": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solref": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solreffriction": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solimp": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "adhesion": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          }
+        }
+      },
+      "degenerate-mesh": {
+        "counts_equal": true,
+        "two_captures_bitwise_identical": true,
+        "integer_fields_bit_equal": true,
+        "fields": {
+          "dist": {
+            "components": 2,
+            "bit_equal": 0,
+            "bit_equal_ratio": 0.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 1.0477378964424133e-08,
+            "max_ulp_nonzero": 45
+          },
+          "pos": {
+            "components": 6,
+            "bit_equal": 4,
+            "bit_equal_ratio": 0.6666666666666666,
+            "zero_vs_nonzero": 0,
+            "max_abs": 1.862645149230957e-09,
+            "max_ulp_nonzero": 256
+          },
+          "frame": {
+            "components": 18,
+            "bit_equal": 16,
+            "bit_equal_ratio": 0.8888888888888888,
+            "zero_vs_nonzero": 2,
+            "max_abs": 2.6510363348997146e-11,
+            "max_ulp_nonzero": 0
+          },
+          "includemargin": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "friction": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solref": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solreffriction": {
+            "components": 4,
+            "bit_equal": 4,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "solimp": {
+            "components": 10,
+            "bit_equal": 10,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          },
+          "adhesion": {
+            "components": 2,
+            "bit_equal": 2,
+            "bit_equal_ratio": 1.0,
+            "zero_vs_nonzero": 0,
+            "max_abs": 0.0,
+            "max_ulp_nonzero": 0
+          }
+        }
+      }
+    }
+  },
+  "same_recipe_residual": {
+    "definition": "设备（产品探针）vs 上游 CUDA 接触数组：两侧同为 fma.rn recipe、同为 f32，残差不能归因 recipe/类型",
+    "criterion": "CONVEX/SDF/HFIELD case：count 相等 + worldid 分组/稳定排序后比较。dist：按自身量级 ≤4 ULP（ref==0 用 4 ULP@1.0 绝对差）；pos（位置向量）：scale=max_i|ref_i|（整向量全零回落 1.0），逐分量 |dev-ref| ≤ 4·ULP(scale)，位级优先；frame（单位向量）：scale=1.0，绝对差 ≤4 ULP@1.0（4.77e-7，不设近零带）；接触参数与整数字段位级相等。判据补全的判别力自证见 gpu-window/criterion_scale.rs（修前 pos 8.3e-5 / dist 4.4e-8 在现判据下仍被拒绝）",
+    "device_probe": "target/g10-p5-g5/probe.exe（nvcc 12.8.93, fmad=true, -O3, sm_89；见 gpu-window/build-probe-report.txt）",
+    "failed_cases": [],
+    "unmet": [
+      "上游 primitive narrowphase 的 case 不列入对照（参考非 ccd 产物；设备 primitive 路径本片未实装）",
+      "multicontact 设备版未实装：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照已完成（见 witness-result.json），接触数组仍不比",
+      "NVRTC 产品 launcher 未接线：本测试比对的是 nvcc 独立探针（同一批 device 源、fmad=true）",
+      "--fmad=false 仅诊断；sdf-box 在其下大幅偏移（梯度下降分岔），官方判据用 fmad=true"
+    ],
+    "cases": {
+      "ellipsoid-box": {
+        "dist": {
+          "components": 2,
+          "bit_equal": 1,
+          "bit_equal_ratio": 0.5,
+          "max_ulp": 2
+        },
+        "pos": {
+          "components": 6,
+          "bit_equal": 5,
+          "bit_equal_ratio": 0.8333333333333334,
+          "max_abs": 3.0195224098861217e-09,
+          "max_ulp_at_scale": 0.810546875
+        },
+        "frame": {
+          "components": 18,
+          "bit_equal": 10,
+          "bit_equal_ratio": 0.5555555555555556,
+          "max_abs": 3.798091654516611e-07
+        },
+        "params_bit_equal": true,
+        "ints_bit_equal": true
+      },
+      "hfield-sphere": {
+        "dist": {
+          "components": 8,
+          "bit_equal": 8,
+          "bit_equal_ratio": 1.0,
+          "max_ulp": 0
+        },
+        "pos": {
+          "components": 24,
+          "bit_equal": 24,
+          "bit_equal_ratio": 1.0,
+          "max_abs": 0.0,
+          "max_ulp_at_scale": 0.0
+        },
+        "frame": {
+          "components": 72,
+          "bit_equal": 72,
+          "bit_equal_ratio": 1.0,
+          "max_abs": 0.0
+        },
+        "params_bit_equal": true,
+        "ints_bit_equal": true
+      },
+      "hfield-capsule": {
+        "dist": {
+          "components": 7,
+          "bit_equal": 7,
+          "bit_equal_ratio": 1.0,
+          "max_ulp": 0
+        },
+        "pos": {
+          "components": 21,
+          "bit_equal": 21,
+          "bit_equal_ratio": 1.0,
+          "max_abs": 0.0,
+          "max_ulp_at_scale": 0.0
+        },
+        "frame": {
+          "components": 63,
+          "bit_equal": 63,
+          "bit_equal_ratio": 1.0,
+          "max_abs": 0.0
+        },
+        "params_bit_equal": true,
+        "ints_bit_equal": true
+      },
+      "sdf-box": {
+        "dist": {
+          "components": 80,
+          "bit_equal": 80,
+          "bit_equal_ratio": 1.0,
+          "max_ulp": 0
+        },
+        "pos": {
+          "components": 240,
+          "bit_equal": 203,
+          "bit_equal_ratio": 0.8458333333333333,
+          "max_abs": 7.450580596923828e-09,
+          "max_ulp_at_scale": 1.0
+        },
+        "frame": {
+          "components": 720,
+          "bit_equal": 675,
+          "bit_equal_ratio": 0.9375,
+          "max_abs": 2.384185791015625e-07
+        },
+        "params_bit_equal": true,
+        "ints_bit_equal": true
+      }
+    }
+  },
+  "engine_semantic": {
+    "definition": "native MuJoCo C vs warp 实现：不同引擎的接触选择/裁剪语义差",
+    "reference": "A0 e_recompute.json（native 与 warp 接触数不等 / 可配对 case 的 pos 差 4.5e-4~7.3e-2）",
+    "status": "A0 已单独出证据；本片只引用，不做新判定、不参与类型结论",
+    "native_unpairable_cases": [
+      "hfield-sphere",
+      "hfield-capsule"
+    ]
+  },
+  "known_deviations": [
+    {
+      "record": "witness/cylinder-box-sweep: dist_bad 0 x1_bad 1 x2_bad 3 ncontact_equal True overflow [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] vs [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",
+      "source": "g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json",
+      "registry_card": "2026-10-25-g10-p5-deep-epa-witness-sampling",
+      "classification": "同 recipe 实现残差（x1/x2 witness 分量超 4·ULP@scale）；不是类型偏离、不是 recipe 差"
+    }
+  ],
+  "verdict": {
+    "type_deviation_is_zero": true,
+    "does_not_mean_bitwise_equal_across_recipes": true,
+    "statement": "类型偏离 0 项 与 「host/device 位级一致」是两件事：前者靠类型表与 token 门禁，后者需要同 recipe + 同编译形态前提（B1/A0 已给机制）；本片不宣称任何位级等价或 NP01/NP03 通过。"
+  }
+}
