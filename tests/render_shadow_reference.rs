@@ -36,7 +36,7 @@ mod outline;
 mod shadow_scene;
 
 use mjwarp_rs::render::kernel::MegakernelRenderer;
-use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg};
+use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_seg};
 use s7b2::{diff_rgb, recipe_depth_seg, session};
 use shadow::{shadow_off_reference, shadow_on_reference};
 use shadow_scene::{
@@ -200,7 +200,7 @@ fn shadow_off_bitwise_regression_to_pre_unlock_reference() {
     for camera in &recipe.cameras {
         let depth_start = layout.depth_adr[camera.index] as usize;
         let depth_actual = &first.depth[depth_start..depth_start + camera.pixels];
-        let depth_diff = diff_depth(depth_actual, camera).expect("同配方 depth diff");
+        let depth_diff = outline::recipe_depth_diff(depth_actual, camera);
         let seg_start = layout.seg_adr[camera.index] as usize;
         let seg_actual = &first.seg[seg_start..seg_start + camera.pixels];
         let seg_diff = diff_seg(seg_actual, camera).expect("同配方 seg diff");
