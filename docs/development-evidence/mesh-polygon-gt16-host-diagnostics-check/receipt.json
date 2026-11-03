@@ -1,0 +1,71 @@
+{
+  "task_id": "2026-11-03-mesh-polygon-gt16-host-diagnostics-check",
+  "reviewed_task": "2026-11-03-mesh-polygon-gt16-host-diagnostics",
+  "reviewed_commit": "ecf78951",
+  "reviewer": "QA",
+  "mode": "read-only",
+  "gpu_used": false,
+  "verdict": "pass",
+  "blockers": [],
+  "must_fix": [],
+  "observations": [
+    "inputs_from_snapshot( 的唯一调用方 prepare_inputs 目前是人工核查，建议后续加源码级回归断言（backlog，不在已 verified 的实现卡上硬改）",
+    "本片只做宿主超界诊断，U7/U8 未关闭；不作容量缺口已清 / 上游等价的结论"
+  ],
+  "scope": {
+    "commit": "ecf78951",
+    "files": 14,
+    "host_code": [
+      "src/runtime/collision_gpu.rs",
+      "src/runtime/collision_gpu/error.rs",
+      "src/runtime/collision_gpu/inputs_from_snapshot.rs",
+      "src/runtime/collision_gpu/types.rs"
+    ],
+    "zero_change_verified": {
+      "cuda_or_cu_files": 0,
+      "tests_dir_files": 0,
+      "validate_and_run_diff_lines": 0
+    }
+  },
+  "checks": {
+    "range": "pass",
+    "payload_fields": "pass",
+    "product_assembly_uniqueness": "pass",
+    "six_module_tests_executed": "pass",
+    "gates_and_evidence_consistency": "pass",
+    "forbidden_claims": "pass"
+  },
+  "independent_runs": {
+    "module_tests_6": {
+      "command": "cargo test --locked --features cuda-probe inputs_from_snapshot::tests",
+      "passed": 6,
+      "failed": 0
+    },
+    "collision_gpu_module": {
+      "command": "cargo test --locked --features cuda-probe runtime::collision_gpu",
+      "passed": 48,
+      "failed": 0,
+      "ignored": 1
+    },
+    "no_run": {
+      "command": "cargo test --locked --features cuda-probe --no-run",
+      "exit": 0
+    }
+  },
+  "evidence_reviewed": {
+    "dir": "docs/development-evidence/mesh-polygon-gt16-host-diagnostics/",
+    "manifest_entries": 3,
+    "manifest_mismatches": 0,
+    "receipt_task_id_ok": true
+  },
+  "limits": [
+    "未开 GPU 窗口、未跑 GPU 用例；本片验收面为宿主诊断 + CPU 单测",
+    "探针路径（直连 run）按设备真实行为记录，不在本片验收面"
+  ],
+  "not_claimed": [
+    "U8 已通过",
+    "mesh 容量缺口已清",
+    "上游等价",
+    "精度达标"
+  ]
+}

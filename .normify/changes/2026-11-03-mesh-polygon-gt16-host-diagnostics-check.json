@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-mesh-polygon-gt16-host-diagnostics-check",
+  "title": {
+    "zh": "C 卡独立复核：mesh polygon 宿主超界诊断（只读）",
+    "en": "Independent check for plan C: host-side mesh polygon capacity diagnostics (read-only)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对 2026-11-03-mesh-polygon-gt16-host-diagnostics（实现提交 ecf78951）做只读独立复核：确认产品入口显式拒绝的语义、错误载荷完整性、产品组装点唯一性、模块测试覆盖与常量一致性；核对门禁回执与证据自洽；给出 PASS/观察结论。不重跑 GPU、不改仓库。",
+    "en": "Read-only independent check of the host-side mesh polygon capacity diagnostics (implementation ecf78951): product-entry rejection semantics, error payload completeness, uniqueness of the product assembly point, module test coverage and constant consistency; verify gate receipts and evidence self-consistency; produce a PASS/observations verdict. No GPU rerun, no repository writes."
+  },
+  "modules": {},
+  "acceptance": [
+    "范围核对：`git show --stat ecf78951` 只含宿主代码（`src/runtime/collision_gpu*`）、卡 json、模块指纹与证据目录；`src/render/kernel/cuda`、全部 `.cu`、`tests/`、判据/容差/参考/fixtures 零改动；`validate_collision_inputs` 与 `run` 未被改（逐行 diff 核对）。",
+    "语义核对：容量拒绝只在产品入口 `inputs_from_snapshot`；错误变体 `MeshMulticontactCapacity` 的载荷含维度/actual/limit/reject_path，`Display` 打全字段；`face>20` 与 `degree>10` 各自与同时触发都能报出。",
+    "唯一性核对：独立 grep 确认产品侧 `CollisionGpuInputs` 只有 `inputs_from_snapshot` 一个组装点，不存在第二条产品组装路径；探针 `run` 仍报设备 record（README ④ 边界与实现一致）。",
+    "测试覆盖核对：模块内 6 条测试覆盖 fan-cone-24 双触发、face=21、degree=24、20/10 边界放行、无 sidecar 放行、`.cu` 宏一致性（`G5_MC_MESH_FACE_MAX`/`DEG_MAX` == 宿主常量）；用例真实执行（计数非 0），不是空壳。",
+    "门禁与证据：四门禁回执新鲜（unit 1258/0）且 `--no-run` EXIT=0；证据 `README/facts/receipt/manifest` 中 manifest 3 条对 committed blob 逐条 sha/bytes 0 mismatch，receipt `/task_id` 正确；证据面禁词（U8 已通过 / mesh 容量缺口已清 / 上游等价 / 精度达标）零命中。",
+    "输出 verdict：PASS 或列明阻断/观察；不得把本片写成 U7/U8 通过或 mesh 容量缺口已清；如发现 payload 缺字段、第二入口或测试空壳，列阻断并报 Arch。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-mesh-polygon-gt16-host-diagnostics"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/mesh-polygon-gt16-host-diagnostics-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-03 登记：C 卡由 Backend 自证 verified，按流程补 QA 独立复核。只读、零 GPU；复核结论写本卡并回群。发现阻断先报 Arch，不改实现。",
+  "revision": {
+    "before": "e5a3cb6bcb529a103d3cadaa5c8b7fbcc5c43dab",
+    "after": null
+  },
+  "created_at": "2026-11-03T15:55:00.000Z",
+  "updated_at": "2026-11-03T15:35:02.566Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-polygon-gt16-host-diagnostics-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-03-mesh-polygon-gt16-host-diagnostics-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "U8 已通过",
+        "mesh 容量缺口已清",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
