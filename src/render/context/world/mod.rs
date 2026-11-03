@@ -15,8 +15,10 @@
 
 mod errors;
 pub mod layout;
+pub mod scene_poses;
 pub mod state;
 
 pub use errors::WorldError;
 pub use layout::WorldLayout;
+pub use scene_poses::{ScenePose, WorldScenePoses};
 pub use state::{CameraPose, WorldCameraPoses, WorldResolutions, WorldStates};

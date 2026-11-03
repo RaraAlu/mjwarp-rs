@@ -31,6 +31,16 @@ pub enum WorldError {
         camera: usize,
         cameras: usize,
     },
+    /// per-world 场景位姿条目数不等于 `nworld × nleaf`。
+    SceneCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    /// 场景 leaf 下标越界。
+    SceneLeafOutOfRange {
+        leaf: usize,
+        leaves: usize,
+    },
     /// 某 world 某相机的分辨率与 `plan.resolutions` 不一致。
     ResolutionMismatch {
         world: usize,
@@ -80,6 +90,13 @@ impl std::fmt::Display for WorldError {
             ),
             Self::CameraOutOfRange { camera, cameras } => {
                 write!(formatter, "相机下标 {camera} 越界（cameras={cameras}）")
+            }
+            Self::SceneCountMismatch { expected, actual } => write!(
+                formatter,
+                "per-world 场景位姿条目数 {actual} != nworld×nleaf {expected}"
+            ),
+            Self::SceneLeafOutOfRange { leaf, leaves } => {
+                write!(formatter, "场景 leaf 下标 {leaf} 越界（leaves={leaves}）")
             }
             Self::ResolutionMismatch {
                 world,

@@ -30,12 +30,14 @@ pub mod megakernel;
 mod megakernel_aa;
 mod megakernel_arrays;
 pub mod output;
+pub mod per_world;
 pub mod renderer;
 mod world_arrays;
 pub mod world_camera;
 
 pub use megakernel::MegakernelRenderer;
 pub use megakernel_arrays::{LightDataPose, light_data_poses};
+pub use per_world::{reject_multi_sample, render_per_world};
 pub use renderer::DepthSegRenderer;
 
 use crate::runtime::launcher::{

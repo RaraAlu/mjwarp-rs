@@ -5,20 +5,14 @@
 //! - 签名迁到 S7a 冻结的 `MEGAKERNEL_SLOTS`（1 bounds + 80 形参）；内部 BVH 仍是自有打包，
 //!   经 `bvh_id`（u64 标量）以设备指针传入（`MegakernelBlob`，见 `cuda/render_common.cu`），
 //!   不消费 Warp BVH 句柄；未用槽用 1 元素占位（渲染 ABI 拒绝零长数组），逐槽表进证据。
-//! - 着色子集：headlight 三组、背景色、base color、纹理采样、顶点/面法线、自发光、高光、
-//!   背面剔除；阴影产品路径 R09-S2b 起已解锁（天空盒/splat/flex/hfield/SDF 仍写前拒绝）。
-//! - S7b3：`samples_per_pixel > 1`（AA）时按 sample 顺序发射 `render_megakernel`
-//!   （`ray_base = sample * total_rays`，与上游 `for sample in range(nsamples)` 一致），
-//!   `store_pixel` 累积到 `aa_accum`，全部 sample 之后发射 `aa_resolve` 求平均并打包。
-//! - depth/seg 是**单样本输出**：只在 `ray_base == 0` 的第一个 pass 写（上游 render.py：
-//!   「Depth and seg are single-sample outputs: only the first pass writes them」；
-//!   见 `cuda/render_megakernel.cu` 的 `first_sample`）。AA 时后续子样本不覆盖 depth/seg；
-//!   spp=1 时 `ray_base` 恒为 0，行为与 S7b1 相同。这是 AA 首轮 depth 78% 不匹配的根因修复。
+//! - 着色子集：headlight、背景色、base color、纹理、顶点/面法线、自发光、高光、背面剔除；
+//!   阴影 R09-S2b 起解锁（天空盒/splat/flex/hfield/SDF 仍写前拒绝）。
+//! - S7b3：`samples_per_pixel > 1`（AA）按 sample 顺序发射并把 `store_pixel` 累积到
+//!   `aa_accum`，全部 sample 后 `aa_resolve` 平均；depth/seg 只在 `ray_base == 0` 写。
 //! - 灯位姿（37/38 槽）：由 `RenderFields` 按上游固定灯公式推导（identity body 旋转），
 //!   与 pinned 3.15 `mjwarp.forward` 位型逐位相等由夹具 `light_data_check` 断言。
 //! - depth/seg 语义与 S7b1 完全一致：S7b1 的 120,000/120,000 位等是 S7b2 回归门。
 //! - 编译一律走 `RenderKernel::compile`（A′ 渲染门禁 `f32-render`，无旁路）。
-
 use crate::model::render::RenderFields;
 use crate::render::camera::CameraModel;
 use crate::render::context::RenderContext;
@@ -40,8 +34,7 @@ use super::megakernel_arrays::{
 use super::world_arrays::{camera_pose_shape, light_type_shape, shared_matrix_shape, shared_shape};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
-// 拆分①：上传段以 `#[path]` 在**本文件内**声明为子模块，父模块 `kernel/mod.rs` 零改动
-// （卡片 scope 只含 `megakernel.rs` 与新文件；`lighting.rs` 同款先例）。
+// 拆分①：上传段以 `#[path]` 在本文件内声明为子模块（卡片 scope；`lighting.rs` 同款先例）。
 #[path = "megakernel_uploads.rs"]
 mod megakernel_uploads;
 
@@ -88,11 +81,42 @@ impl MegakernelRenderer {
         camera_poses: &[CameraPose],
         rays: &RayBuffer,
     ) -> Result<(), LauncherError> {
+        self.render_impl(context, fields, model, camera_poses, rays, None)
+    }
+
+    /// 单 world 发射（per-world 方案 L）：发射维 `launch_worlds=1`，相机只喂该 world 行，
+    /// 输出定位由 `adr + world×pitch` 位移完成（不做 sub-buffer 视图）。
+    pub(crate) fn render_world(
+        &self,
+        context: &RenderContext,
+        fields: &RenderFields,
+        model: &CameraModel,
+        camera_poses: &[CameraPose],
+        rays: &RayBuffer,
+        world: usize,
+    ) -> Result<(), LauncherError> {
+        self.render_impl(context, fields, model, camera_poses, rays, Some(world))
+    }
+
+    fn render_impl(
+        &self,
+        context: &RenderContext,
+        fields: &RenderFields,
+        model: &CameraModel,
+        camera_poses: &[CameraPose],
+        rays: &RayBuffer,
+        world: Option<usize>,
+    ) -> Result<(), LauncherError> {
         let resolved = context.resolved();
         let layout = &resolved.output;
         let nsamples = layout.nsamples;
         if nsamples == 0 {
             return Err(LauncherError::InvalidArray("nsamples"));
+        }
+        if world.is_some() && nsamples != 1 {
+            return Err(LauncherError::Unsupported(
+                "逐 world 只支持 nsamples=1（AA+per-world 留 L v2/K）",
+            ));
         }
         if !resolved.use_precomputed_rays {
             return Err(LauncherError::Unsupported(
@@ -111,6 +135,7 @@ impl MegakernelRenderer {
             ));
         }
         let nworld = resolved.nworld;
+        let launch_worlds = if world.is_some() { 1 } else { nworld };
         let nrender = resolved.nrender();
         let total_rays = layout.total_rays;
         if nrender == 0 || total_rays == 0 {
@@ -123,8 +148,25 @@ impl MegakernelRenderer {
             return Err(LauncherError::InvalidArray("ray_count"));
         }
         let ncam = model.ncam();
-        let (cam_xpos, cam_xmat) =
-            super::world_camera::world_camera_pose_arrays(camera_poses, nworld, ncam)?;
+        let (cam_xpos, cam_xmat) = match world {
+            Some(world) => {
+                let row = if camera_poses.len() == ncam {
+                    camera_poses
+                } else {
+                    let start = world
+                        .checked_mul(ncam)
+                        .ok_or(LauncherError::Overflow("camera_pose_count"))?;
+                    let end = start
+                        .checked_add(ncam)
+                        .ok_or(LauncherError::Overflow("camera_pose_count"))?;
+                    camera_poses
+                        .get(start..end)
+                        .ok_or(LauncherError::InvalidArray("camera_pose_count"))?
+                };
+                super::world_camera::world_camera_pose_arrays(row, 1, ncam)?
+            }
+            None => super::world_camera::world_camera_pose_arrays(camera_poses, nworld, ncam)?,
+        };
 
         let model_arrays = ModelRenderArrays::from_fields(fields)?;
         let ngeom = model_arrays.geom_type.len();
@@ -223,6 +265,8 @@ impl MegakernelRenderer {
             scale_constants: &scale_constants,
             // R05-S2：无 hfield geom 时为空切片（上传侧落 1 个 `u64::MAX` 哨兵占位）。
             hfield_bvh_ids: hfield.as_ref().map_or(&[], |device| device.bvh_ids()),
+            // 方案 L：单 world 发射时把输出 adr 平移到该 world 的区段（`world × pitch`）。
+            adr_world: world,
         })?;
         let u = &uploads;
         let rgb_shape = [nworld, layout.rgb_pixels.max(1)];
@@ -231,7 +275,7 @@ impl MegakernelRenderer {
 
         // ---- 81 槽实参（顺序 = S7a MEGAKERNEL_SLOTS） ----
         let mut args: Vec<RenderArg> = Vec::with_capacity(MEGAKERNEL_SLOTS.len());
-        let camera_pose_dims = camera_pose_shape(nworld, ncam);
+        let camera_pose_dims = camera_pose_shape(launch_worlds, ncam);
         let shared_cam = shared_shape(ncam);
         let light_type_dims = light_type_shape(u.nlight);
         let shared_geom = shared_shape(ngeom);
@@ -239,7 +283,8 @@ impl MegakernelRenderer {
         let shared_mat = shared_shape(u.nmat);
         let mat_texid_dims = shared_matrix_shape(u.nmat, 10);
         args.push(RenderArg::Bounds2D(LaunchBounds2::new([
-            nworld, total_rays,
+            launch_worlds,
+            total_rays,
         ])?));
         args.push(array(&u.geom_type, RenderElem::I32, &shared_geom)?);
         args.push(array(&u.geom_dataid, RenderElem::I32, &shared_geom)?);
@@ -383,7 +428,7 @@ impl MegakernelRenderer {
             u.mat_texid.len(),
         );
 
-        let grid = u32::try_from((nworld * total_rays).div_ceil(BLOCK as usize))
+        let grid = u32::try_from((launch_worlds * total_rays).div_ceil(BLOCK as usize))
             .map_err(|_| LauncherError::Overflow("render_grid"))?;
         let dims = LaunchDims::new((grid, 1, 1), (BLOCK, 1, 1), 0)?;
 

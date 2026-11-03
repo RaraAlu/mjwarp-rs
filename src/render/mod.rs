@@ -26,7 +26,8 @@ pub use context::params::hfield::{
 pub use context::params::lighting::{LightParams, LightingParams, resolve_lighting};
 /// R10-S1 多 world 状态与布局（宿主侧）。
 pub use context::world::{
-    CameraPose, WorldCameraPoses, WorldError, WorldLayout, WorldResolutions, WorldStates,
+    CameraPose, ScenePose, WorldCameraPoses, WorldError, WorldLayout, WorldResolutions,
+    WorldScenePoses, WorldStates,
 };
 pub use context::{ContextError, ContextParams, ResolvedContext, resolve_context};
 #[cfg(feature = "cuda-probe")]

@@ -70,13 +70,14 @@ pub(super) struct UploadInputs<'a> {
     pub(super) scale_constants: &'a [f32],
     /// R05-S2：hfield_bvh_id 槽值（长度 nhfield；空切片 → 上传 1 个 u64::MAX 哨兵）。
     pub(super) hfield_bvh_ids: &'a [u64],
+    /// 方案 L：`Some(world)` 时把 rgb/depth/seg 的 adr 平移到该 world 区段（`world × pitch`）。
+    pub(super) adr_world: Option<usize>,
 }
 
 /// 上传完成的设备缓冲句柄与少量推导计数（原 `megakernel.rs` 局部变量集）。
 pub(super) struct MegakernelUploads {
     pub(super) texture_array: Option<Texture2dArray>,
-    /// BVH blob 设备缓冲：槽 56 只取 `blob_addr` 传地址，本字段仅靠结构体存活
-    /// 保持设备内存到内核发射（原 `megakernel.rs` 局部变量同职责）。
+    /// BVH blob 设备缓冲：槽 56 只取 `blob_addr` 传地址，本字段仅靠结构体存活到发射。
     #[allow(dead_code)]
     pub(super) blob_buffer: TransferBuffer<u32>,
     pub(super) blob_addr: u64,
@@ -313,14 +314,28 @@ pub(super) fn upload_megakernel_arrays(
     let geom_xmat = upload(session, inputs.geom_xmat)?;
     let cam_xpos = upload(session, inputs.cam_xpos)?;
     let cam_xmat = upload(session, inputs.cam_xmat)?;
-
     let cam_res = upload(session, inputs.cam_res_flat)?;
     let cam_id_map = upload(session, inputs.cam_id_map)?;
     let ray = upload(session, inputs.ray_dirs)?;
     let ray_offset = upload(session, inputs.ray_offsets)?;
-    let rgb_adr = upload(session, &resolved.output.rgb_adr)?;
-    let depth_adr = upload(session, &resolved.output.depth_adr)?;
-    let seg_adr = upload(session, &resolved.output.seg_adr)?;
+    // 方案 L：单 world 发射时把每相机 adr 移到该 world 区段（`world × pitch`；-1 禁用位保持）。
+    let adr = |values: &[i32], width: usize| -> Result<Vec<i32>, LauncherError> {
+        let Some(world) = inputs.adr_world else {
+            return Ok(values.to_vec());
+        };
+        let width = world
+            .checked_mul(width)
+            .ok_or(LauncherError::Overflow("adr_world_shift"))?;
+        let shift = i32::try_from(width).map_err(|_| LauncherError::Overflow("adr_world_shift"))?;
+        Ok(values
+            .iter()
+            .map(|&v| if v < 0 { v } else { v + shift })
+            .collect())
+    };
+    let layout = &resolved.output;
+    let rgb_adr = upload(session, &adr(&layout.rgb_adr, layout.rgb_pixels)?)?;
+    let depth_adr = upload(session, &adr(&layout.depth_adr, layout.depth_pixels)?)?;
+    let seg_adr = upload(session, &adr(&layout.seg_adr, layout.seg_slots)?)?;
     let render_rgb = upload(session, &bool_words(inputs.render_rgb))?;
     let render_depth = upload(session, &bool_words(inputs.render_depth))?;
     let render_seg = upload(session, &bool_words(inputs.render_seg))?;
