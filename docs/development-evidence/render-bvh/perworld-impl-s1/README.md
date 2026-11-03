@@ -33,7 +33,7 @@
 5. **L-2 / L-3 不采用（e）**：L-2（每 world 另建 context + D2D 拷贝）违背零 D2D/零第二套 context 前提；
    L-3（抽 `megakernel_args.rs`）超出本片写入面并会改动 500 行顶格文件的结构。
 
-## 行数死线与零改动面（实测，UTF-8 LF）
+## 行数死线与零改动面（实测，UTF-8 LF；2026-11-03 订正：tests 行数原误填上限 500，实测 453）
 
 | 文件 | 行数 | 限制 |
 | --- | --- | --- |
@@ -41,7 +41,7 @@
 | `src/render/kernel/megakernel_uploads.rs` | 480 | ≤480（0 余量） |
 | `src/render/kernel/per_world.rs` | 238 | ≤260 |
 | `src/render/kernel/mod.rs` | 476 | ≤500 |
-| `tests/render_per_world.rs` | 500 | ≤500 |
+| `tests/render_per_world.rs` | 453 | ≤500 |
 
 零改动面（逐文件未触碰）：`kernel/cast.rs`(481)、`context/lifecycle.rs`(498)、
 `src/runtime/launcher/render/args.rs`(494)、`context/output.rs`(151)、`kernel/megakernel_aa.rs`(93)、
