@@ -68,12 +68,15 @@ function Guard-Aggregate($entries) {
 }
 
 function Resolve-Exe([string]$entity, [string]$kind) {
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     if ($kind -eq 'bin') {
         $raw = @(& cargo build --locked --bin $entity --message-format=json 2>$null)
     } else {
         $raw = @(& cargo test --locked --features cuda-probe --no-run --message-format=json 2>$null)
     }
     if ($LASTEXITCODE -ne 0) { throw "cargo resolve failed for ${entity} (exit $LASTEXITCODE)" }
+    $ErrorActionPreference = $prevEap
     foreach ($line in $raw) {
         if (-not $line -or -not $line.Trim().StartsWith('{')) { continue }
         $obj = $null
