@@ -14,6 +14,13 @@ use std::ffi::c_void;
 mod render;
 pub use render::NativeFlexRenderSnapshot;
 
+// R06-S2c：flex shell/elem 拓扑快照（additive ABI；同款拆分）。
+mod topology;
+// 访问器与快照同在 `topology.rs`；re-export 目前仅被测试/native 冒烟间接引用，
+// 宿主层无额外引用时允许该导入（默认特性下无产品用点）。
+#[allow(unused_imports)]
+pub use topology::NativeFlexTopologySnapshot;
+
 /// 独占十二项原生柔体字段。
 /// 标量保留原生f64精度。
 /// 快照不借用模型或DLL。

@@ -94,6 +94,77 @@ pub struct FlexRenderFields {
     pub flex_edgenum: Vec<i32>,
 }
 
+/// R06-S2c：flex shell/elem 拓扑只读字段（原生 additive `mjwarp_flex_topology_*` 桶）。
+/// 只读：不进物理/设备路径；`flex_vertadr`/`vertnum` 仍在 `FlexPositionFields`。
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FlexTopologyFields {
+    pub nflex: usize,
+    pub nflexelem: usize,
+    pub nflexelemdata: usize,
+    pub nflexshelldata: usize,
+    pub flex_elemadr: Vec<i32>,
+    pub flex_elemnum: Vec<i32>,
+    pub flex_elemdataadr: Vec<i32>,
+    pub flex_elem: Vec<i32>,
+    pub flex_shellnum: Vec<i32>,
+    pub flex_shelldataadr: Vec<i32>,
+    pub flex_shell: Vec<i32>,
+}
+
+impl FlexTopologyFields {
+    /// 校验计数、长度与非负（地址链/逐维宽度由 `io::flex::topology` 边界联合校验）。
+    pub fn validate(&self) -> Result<(), InputError> {
+        let overflow = || InputError::Overflow {
+            field: "flex_topology_fields",
+        };
+        let invalid = |field, index, reason| InputError::InvalidTopology {
+            field,
+            index,
+            reason,
+        };
+        if self.nflex > i32::MAX as usize
+            || self.nflexelem > i32::MAX as usize
+            || self.nflexelemdata > i32::MAX as usize
+            || self.nflexshelldata > i32::MAX as usize
+        {
+            return Err(overflow());
+        }
+        for (field, len, expected) in [
+            ("flex_elemadr", self.flex_elemadr.len(), self.nflex),
+            ("flex_elemnum", self.flex_elemnum.len(), self.nflex),
+            ("flex_elemdataadr", self.flex_elemdataadr.len(), self.nflex),
+            ("flex_shellnum", self.flex_shellnum.len(), self.nflex),
+            (
+                "flex_shelldataadr",
+                self.flex_shelldataadr.len(),
+                self.nflex,
+            ),
+            ("flex_elem", self.flex_elem.len(), self.nflexelemdata),
+            ("flex_shell", self.flex_shell.len(), self.nflexshelldata),
+        ] {
+            if len != expected {
+                return Err(InputError::LengthMismatch {
+                    field,
+                    expected,
+                    actual: len,
+                });
+            }
+        }
+        let negative = self
+            .flex_elemadr
+            .iter()
+            .chain(&self.flex_elemnum)
+            .chain(&self.flex_elemdataadr)
+            .chain(&self.flex_shellnum)
+            .chain(&self.flex_shelldataadr)
+            .any(|&value| value < 0);
+        if negative {
+            return Err(invalid("flex_topology_fields", 0, "negative_value"));
+        }
+        Ok(())
+    }
+}
+
 /// flex 图元映射（上游 `render_util.py` L495-512）：每项 = (flex id, edge id 或 -1)。
 ///
 /// 1D flex 每条边一个胶囊图元（`edgeid = flex_edgeadr[f] + e`）；2D/3D flex 每个一个盒图元

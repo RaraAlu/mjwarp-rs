@@ -1,7 +1,7 @@
 +++
 uid = "cf104c21"
 id = "mjwarp.model.flex"
-fingerprint = "bf6ef14d76c6e1eb26efbb774936ab67d821554717a805956212bab27a412836"
+fingerprint = "0dd0819f14d68f03cee99753662742a48f3c4faa014742f6132e4477e845c47c"
 
 [name]
 zh = "柔体运动学输入"

@@ -57,6 +57,20 @@ static_assert(offsetof(mjwarp_flex_render_targets, flex_dim) == 32);
 static_assert(offsetof(mjwarp_flex_render_targets, flex_radius) == 40);
 static_assert(offsetof(mjwarp_flex_render_targets, flex_rgba) == 48);
 static_assert(offsetof(mjwarp_flex_render_targets, flex_edgenum) == 64);
+static_assert(sizeof(mjwarp_flex_topology_info) == 40);
+static_assert(alignof(mjwarp_flex_topology_info) == 8);
+static_assert(offsetof(mjwarp_flex_topology_info, nflex) == 8);
+static_assert(offsetof(mjwarp_flex_topology_info, nflexshelldata) == 32);
+static_assert(sizeof(mjwarp_flex_topology_targets) == 96);
+static_assert(alignof(mjwarp_flex_topology_targets) == 8);
+static_assert(offsetof(mjwarp_flex_topology_targets, nflexshelldata) == 32);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_elemadr) == 40);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_elemnum) == 48);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_elemdataadr) == 56);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_elem) == 64);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_shellnum) == 72);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_shelldataadr) == 80);
+static_assert(offsetof(mjwarp_flex_topology_targets, flex_shell) == 88);
 
 struct mjwarp_native_owner {
   NativeLibrary library;
@@ -191,6 +205,51 @@ extern "C" int32_t mjwarp_native_copy_flex_render(
     memcpy(t->flex_rgba, m->flex_rgba, t->nflex * 4 * sizeof(float));
     memcpy(t->flex_edgeadr, m->flex_edgeadr, t->nflex * sizeof(int32_t));
     memcpy(t->flex_edgenum, m->flex_edgenum, t->nflex * sizeof(int32_t));
+  }
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_flex_topology_info(
+    const mjwarp_native_owner* owner, mjwarp_flex_topology_info* info) {
+  if (!owner || !owner->model || !info) return 8;
+  const mjModel* m = owner->model;
+  if (m->nflex < 0 || m->nflexelem < 0 || m->nflexelemdata < 0 ||
+      m->nflexshelldata < 0) return 8;
+  *info = {1, 0, m->nflex, m->nflexelem, m->nflexelemdata, m->nflexshelldata};
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_copy_flex_topology(
+    const mjwarp_native_owner* owner, const mjwarp_flex_topology_targets* t) {
+  if (!owner || !owner->model || !t || t->schema != 1 || t->reserved != 0) return 8;
+  const mjModel* m = owner->model;
+  if (m->nflex < 0 || m->nflexelem < 0 || m->nflexelemdata < 0 ||
+      m->nflexshelldata < 0 ||
+      t->nflex != static_cast<uint64_t>(m->nflex) ||
+      t->nflexelem != static_cast<uint64_t>(m->nflexelem) ||
+      t->nflexelemdata != static_cast<uint64_t>(m->nflexelemdata) ||
+      t->nflexshelldata != static_cast<uint64_t>(m->nflexshelldata) ||
+      t->nflexelemdata > SIZE_MAX / sizeof(int32_t) ||
+      t->nflexshelldata > SIZE_MAX / sizeof(int32_t)) return 8;
+  if (t->nflex && (!t->flex_elemadr || !m->flex_elemadr ||
+                   !t->flex_elemnum || !m->flex_elemnum ||
+                   !t->flex_elemdataadr || !m->flex_elemdataadr ||
+                   !t->flex_shellnum || !m->flex_shellnum ||
+                   !t->flex_shelldataadr || !m->flex_shelldataadr)) return 8;
+  if (t->nflexelemdata && (!t->flex_elem || !m->flex_elem)) return 8;
+  if (t->nflexshelldata && (!t->flex_shell || !m->flex_shell)) return 8;
+  if (t->nflex) {
+    memcpy(t->flex_elemadr, m->flex_elemadr, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_elemnum, m->flex_elemnum, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_elemdataadr, m->flex_elemdataadr, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_shellnum, m->flex_shellnum, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_shelldataadr, m->flex_shelldataadr, t->nflex * sizeof(int32_t));
+  }
+  if (t->nflexelemdata) {
+    memcpy(t->flex_elem, m->flex_elem, t->nflexelemdata * sizeof(int32_t));
+  }
+  if (t->nflexshelldata) {
+    memcpy(t->flex_shell, m->flex_shell, t->nflexshelldata * sizeof(int32_t));
   }
   return 0;
 }

@@ -106,6 +106,35 @@ int32_t mjwarp_native_flex_render_info(const mjwarp_native_owner* owner,
 int32_t mjwarp_native_copy_flex_render(const mjwarp_native_owner* owner,
                                        const mjwarp_flex_render_targets* targets);
 
+// R06-S2c: flex shell/elem topology (additive ABI; the flex_position / flex_render
+// structs above are unchanged). info is 40 B / targets is 96 B. Seven new fields plus
+// four counts are exported: flex_elemadr, flex_elemnum, flex_elemdataadr,
+// flex_elem (nflexelemdata flat ids; dim+1 per element), flex_shellnum,
+// flex_shelldataadr, flex_shell (nflexshelldata flat ids; dim per fragment).
+// flex_vertadr / flex_vertnum stay in the flex_position bucket and are not duplicated.
+typedef struct mjwarp_flex_topology_info {
+  uint32_t schema, reserved;
+  int64_t nflex, nflexelem, nflexelemdata, nflexshelldata;
+} mjwarp_flex_topology_info;
+typedef struct mjwarp_flex_topology_targets {
+  uint32_t schema, reserved;
+  uint64_t nflex, nflexelem, nflexelemdata, nflexshelldata;
+  int32_t* flex_elemadr;
+  int32_t* flex_elemnum;
+  int32_t* flex_elemdataadr;
+  int32_t* flex_elem;
+  int32_t* flex_shellnum;
+  int32_t* flex_shelldataadr;
+  int32_t* flex_shell;
+} mjwarp_flex_topology_targets;
+// Independent count DTO; zero counts allow null targets.
+int32_t mjwarp_native_flex_topology_info(const mjwarp_native_owner* owner,
+                                         mjwarp_flex_topology_info* info);
+// Checks all seven sources/counts and required pointers before writing; targets
+// must be disjoint and sized for their declared counts. Error code 8 = reject.
+int32_t mjwarp_native_copy_flex_topology(const mjwarp_native_owner* owner,
+                                         const mjwarp_flex_topology_targets* targets);
+
 // Windows uses UTF-16; Linux uses native path bytes. Both are NUL-terminated.
 #ifdef _WIN32
 typedef uint16_t mjwarp_native_path_char;
