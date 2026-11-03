@@ -1,0 +1,165 @@
+{
+  "task_id": "2026-11-03-render-perworld-s1-window-material",
+  "kind": "render-perworld-s1-window-material",
+  "owner": "Arch",
+  "material_only": true,
+  "executed": false,
+  "gpu_used": false,
+  "frozen": false,
+  "fixtures_written": false,
+  "source_code_written": false,
+  "target_task": "2026-10-30-render-perworld-impl-s1",
+  "suite": "render-perworld-s1",
+  "attempt": 1,
+  "guards_file": "scripts/validate/render-bvh/guards-perworld-s1.json",
+  "guards_expected": {
+    "frozen_exes": 9,
+    "guard_inputs": 83,
+    "total": 92
+  },
+  "files": {
+    "README.md": {
+      "sha256": "742259360f5c77c12ee4939bbb71606b0a28c7a3db327e740abb23a86de4a971",
+      "bytes": 4744,
+      "lines_lf": 68,
+      "language": "zh"
+    },
+    "materials/entity-table.json": {
+      "sha256": "9becdbbf61f8f693c6b83eb73e990d64905ebb55e40d357074df68534ed2a267",
+      "bytes": 4004,
+      "lines_lf": 87,
+      "language": "en-ascii"
+    },
+    "materials/window-plan.txt": {
+      "sha256": "c875fd4038d9c52f9b398ffc0ca437e1a1a351b2e6133d0092333ca0f6504535",
+      "bytes": 6222,
+      "lines_lf": 100,
+      "language": "en-ascii",
+      "non_ascii_bytes": 0
+    }
+  },
+  "script_identity": {
+    "path": "scripts/validate/render-bvh/freeze-guards-perworld-s1.ps1",
+    "sha256": "2d031318b9d6821cfc45f7d17ab30b645e54b406e87c3abfc880e081fc3b4ddf",
+    "bytes": 8513,
+    "lines_lf": 165,
+    "non_ascii_bytes": 0,
+    "ascii_only": true,
+    "ps51_parse_errors": 0,
+    "line_budget": "<=200 LF",
+    "hard_asserts": [
+      "9 frozen exes",
+      "83 read-only inputs",
+      "92 total entries",
+      "stash 9/9 with equal bytes/sha256"
+    ]
+  },
+  "entities": {
+    "new": [
+      "render_per_world"
+    ],
+    "regressions": [
+      "render_e2e",
+      "render_kernel_rgb",
+      "render_kernel_depth_seg",
+      "render_kernel_flags",
+      "render_r10_multi_world",
+      "render_skybox_reference",
+      "render_context_lifecycle",
+      "render_mesh_bvh"
+    ],
+    "excluded_on_purpose": {
+      "render_sdf_reference": "SDF has its own frozen identity (criterion v2.2 + guards-sdf-validate.json); mixing the two acceptance surfaces is forbidden"
+    }
+  },
+  "criteria_summary": {
+    "rgb": "mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0",
+    "depth": "bitwise mismatched=0 AND max_ulp<=4 AND beyond_ulp=0",
+    "seg": "exact (mismatched=0)",
+    "isolation": "world0 outputs unaffected by world1 data",
+    "determinism": "two-run rgb/depth/seg sha256 equal",
+    "aa": "not covered by S1: kernel/per_world.rs returns LauncherError::Unsupported for nsamples>1 (CPU unit test); reference spp=1",
+    "regressions": "existing bitwise baselines zero drift"
+  },
+  "fixture_identity": {
+    "dir": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/",
+    "files": [
+      {
+        "name": "rgb.npz",
+        "sha256": "305f2bfdffc4e4efe406c4b8461a67ea115df73bf16d4303496fd3aa4eee56b7",
+        "bytes": 2765524
+      },
+      {
+        "name": "depth.npz",
+        "sha256": "cc065d0499f957d14d071fde295152c6e5cd0ca7989adb0cb7065226179903c5",
+        "bytes": 922336
+      },
+      {
+        "name": "seg.npz",
+        "sha256": "b46b637097f9d53cf7d30a97d40c7511f5d266668c6dea45952826490e15a11a",
+        "bytes": 1843924
+      },
+      {
+        "name": "state.npz",
+        "sha256": "36c56b4c26ac4b36602d8fec31bb3a56b33031513b1e8660ded372c777b6e426",
+        "bytes": 2486
+      },
+      {
+        "name": "capture.json",
+        "sha256": "b8f9e474b209dc2a9de8cae968961243cf989777580e6b58feeaab925ee9ec46",
+        "bytes": 8836
+      }
+    ],
+    "capture_json_fields": {
+      "nworld": 3,
+      "hinge_deg": [0.0, 20.0, 40.0],
+      "two_captures_bitwise_identical": true,
+      "legacy_reference_untouched": true,
+      "legacy_reference_files": 79,
+      "use_fast_math": false,
+      "use_shadows": true
+    },
+    "verified_by": "2026-10-30-render-perworld-capture-check (verified); sha re-checked 2026-11-03"
+  },
+  "baseline_sop": {
+    "three_points": "within 5 minutes before opening; nvidia-smi free/util x3 + compute-apps raw/filtered + build processes",
+    "formula": "signed floor = min(free) - 3072 MiB",
+    "runner_floor": "min(OpenFreeMiB=10240, baseline_free-3072) is only a lower bound",
+    "manual_stop_band": "[10240, signed floor): the runner does not abort, the operator MUST stop manually",
+    "monitor_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\perworld-s1-window\\monitor-pre-window.csv -Required 60 -MaxMinutes 30",
+    "max_util": 40,
+    "exception_preapproved": false,
+    "on_shortfall": "defer the window; never relax the threshold"
+  },
+  "window_order": [
+    "tree clean + build processes 0 + cargo test --no-run EXIT=0",
+    "three-point baseline re-sample and manual signed-floor check",
+    "regular monitor 60/60 at util<40 (PowerShell 5.1, no exception)",
+    "freeze (only after monitor passes): freeze-guards-perworld-s1.ps1 -Attempt 1",
+    "GuardsOnly 92/92 with all parameters",
+    "body: run-window.ps1 -Attempt 1 -GuardsFile ... -OutDir ... (9 entities)",
+    "post-window recheck and evidence archive"
+  ],
+  "window_build_rule": "after the freeze only the --features cuda-probe profile may build/run; default-feature builds inside the window are forbidden",
+  "signature": {
+    "status": "pending",
+    "signed_at": null,
+    "approved_by": null,
+    "coverage": "this window plan (v1) + the 3-point baseline re-sampled within 5 minutes before opening",
+    "signed_plan_text_sha256": null,
+    "note": "the sign block in materials/window-plan.txt section 8 is filled at sign time"
+  },
+  "not_claimed": [
+    "no performance statement",
+    "L v1 scope is per-world geom poses only; per-world light poses deferred to L v2/K",
+    "no AA+per-world coverage",
+    "no upstream nworld>1 numeric claim",
+    "guards/manifest hashes are integrity evidence only and do not by themselves establish any acceptance claim"
+  ],
+  "boundaries": [
+    "material only: no window, no GPU, no freeze, no fixture/src/tests writes",
+    "freeze and window execution belong to the implementation card after the user double-sign",
+    "the guards file is produced inside the window, not by this material"
+  ],
+  "created_at": "2026-11-03T04:20:00.000Z"
+}

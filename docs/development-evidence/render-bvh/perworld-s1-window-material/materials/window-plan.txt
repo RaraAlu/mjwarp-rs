@@ -1,0 +1,100 @@
+RENDER PERWORLD S1 VALIDATION WINDOW PLAN (material; not executed)
+==================================================================
+Material task: 2026-11-03-render-perworld-s1-window-material (Arch; offline, zero GPU)
+Executed task: 2026-10-30-render-perworld-impl-s1   [GPU full load; user double-sign required]
+
+PREREQUISITES (must all hold before opening)
+- implementation committed; CPU unit tests pass; gates fmt/clippy/clippy-cuda/unit + `--no-run` pass
+- zero kernel/ABI change: `git diff --stat -- src/render/kernel/cuda` empty; 81 slots unchanged
+- fixture fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/ (5 files) sha256 match capture.json;
+  capture-check card verified
+- tree clean; build processes 0
+
+1. CRITERIA (existing per-world bitwise rules; no new tolerance)
+- new entity render_per_world:
+    rgb   mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0
+    depth bitwise mismatched=0 AND max_ulp<=4 AND beyond_ulp=0
+    seg   exact (mismatched=0)
+    world isolation (world0 output not affected by world1 data)
+    two-run rgb/depth/seg sha256 equal
+- 8 regression entities: existing bitwise baselines zero drift
+- AA/spp>1: NOT covered by S1 (entry returns LauncherError::Unsupported, CPU unit test; reference spp=1)
+
+2. ENTITIES (9) - see materials/entity-table.json
+  new:         render_per_world
+  regressions: render_e2e, render_kernel_rgb, render_kernel_depth_seg, render_kernel_flags,
+               render_r10_multi_world, render_skybox_reference, render_context_lifecycle,
+               render_mesh_bvh
+  render_sdf_reference is intentionally excluded (SDF criterion v2.2 identity stays separate)
+
+3. SUITE / GUARDS
+  suite   = render-perworld-s1
+  attempt = 1 (new suite; guards.json / guards-r02-skybox.json / guards-r08-rgb-hetero.json /
+              guards-sdf-validate.json are history and must not be reused)
+  guards  = scripts/validate/render-bvh/guards-perworld-s1.json
+  freeze  = scripts/validate/render-bvh/freeze-guards-perworld.ps1 -Attempt 1
+  expect  = GUARDS_FROZEN suite=render-perworld-s1 total=92 exes=9 inputs=83 ...
+            9 exe + 83 read-only inputs = 92 entries (input set identical to the SDF suite input
+            set minus its 2 outline lists; includes the 5 perworld fixture files); stash 9/9.
+  GuardsOnly (all parameters mandatory):
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
+      -GuardsOnly -Attempt 1 ^
+      -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
+      -OutDir target\render-bvh\perworld-s1-window\attempt1
+    expect GUARDS_OK=92/92 + GUARDS_ONLY_DONE.
+
+4. WINDOW ORDER (single full-load GPU task; block 18:00-19:30)
+  0) tree clean, build processes 0, `cargo test --no-run` EXIT=0 (before opening)
+  1) re-sample three nvidia-smi points within 5 min; baseline_free = min(free)
+     signed floor = baseline_free - 3072 MiB; record points verbatim (free/util)
+  2) MANUAL check: every pre-body sample free >= signed floor. The runner's own floor is
+     min(OpenFreeMiB=10240, baseline_free-3072) and is only a LOWER bound: a sample in
+     [10240, signed) does NOT abort the runner, so the operator MUST STOP manually.
+  3) regular monitor 60/60 (PowerShell 5.1), no exception pre-approval:
+     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 ^
+       -OutCsv target\render-bvh\perworld-s1-window\monitor-pre-window.csv -Required 60 -MaxMinutes 30
+     clean = free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0
+     default MaxUtil=40; do NOT pass -OpenUtilLimit and do NOT pass -MaxUtil 60.
+  4) freeze only AFTER monitor passes (never inside the window body):
+     scripts/validate/render-bvh/freeze-guards-perworld.ps1 -Attempt 1
+  5) GuardsOnly 92/92 with ALL parameters (see section 3)
+  6) body:
+     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 ^
+       -Attempt 1 ^
+       -GuardsFile scripts\validate\render-bvh\guards-perworld-s1.json ^
+       -OutDir target\render-bvh\perworld-s1-window\attempt1
+     expects 9/9 entities exit 0, sha_guards 92/92, post-window exe recheck 9/9,
+     zero Rust compile, floor not breached, residual processes 0.
+  7) archive facts/logs/monitor CSV/entity-results/guards copy + manifest into
+     docs/development-evidence/render-bvh/perworld-s1-validate/attempt1/ (or equivalent).
+
+5. BUILD RULE (fail-closed)
+  After the freeze ONLY the `--features cuda-probe` test profile may build/run (the profile the
+  frozen exe were built with). Building/testing with the default feature set inside the window is
+  forbidden: it re-links the test executables with a different fingerprint and invalidates the
+  signed guards. Any deps drift is already a runner hard failure (zero_rust_compile / post recheck).
+
+6. FAILURE TERMS (fail-closed; no retry, no threshold change, no re-freeze, no criteria change)
+  1. any step exits nonzero
+  2. free < signed floor
+  3. external compute app appears or a build process is running
+  4. freeze counts/sha mismatch (not 92/92) or stash mismatch
+  5. frozen exe drift before/after any entity
+  6. any entity red or two-run sha differs
+  => STOP, keep facts verbatim, report Chief and the user; archive an INVALID round record if any
+     body step already ran.
+
+7. TIME: 30-60 min total (monitor up to 30 + freeze 3-4 min + body ~2 min + recheck); block
+   18:00-19:30 (+08:00, idle band). Window never opens during 09:00-12:00 or 14:00-18:00 weekdays.
+
+8. BASELINE SIGN BLOCK (filled at sign time; baseline re-sampled within 5 min before opening)
+  signed_at        : ____________________
+  approved_by      : user via Chief ____________________
+  baseline points 3: free ____ / ____ / ____ MiB ; util ____ / ____ / ____ %
+  signed floor     : ____ MiB   (= baseline_free - 3072)
+  coverage         : this window plan + the 3-point baseline above
+
+9. NOT CLAIMED
+  no performance statement; L v1 scope = per-world geom poses only (per-world light poses deferred
+  to L v2/K); no AA+per-world coverage; no upstream nworld>1 numeric claim; the guards/manifest
+  hashes are integrity evidence only and do not by themselves establish any acceptance claim.
