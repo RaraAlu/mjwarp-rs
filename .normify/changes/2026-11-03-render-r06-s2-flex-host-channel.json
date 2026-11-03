@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-r06-s2-flex-host-channel",
+  "title": {
+    "zh": "R06-S2：flex 宿主通道——9 个数组 + bvh_nflexgeom 填真值，两处 1-D 占位改 2-D（不构成 ABI 变更）",
+    "en": "R06-S2: host flex channel - fill the nine arrays and bvh_nflexgeom, change two 1-D placeholders to 2-D (not an ABI change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S0 对表已确认：上游 `_render_megakernel` 的 9 个 flex 形参全部已在 81 槽内（`flex_vertadr`/`flex_edge`/`flex_radius`/`flexvert_xpos_in`/`flex_bvh_id`/`flex_group_root`/`flex_rgba`/`flex_geom_flexid`/`flex_geom_edgeid`），`bvh_nflexgeom` 标量也在槽内。本片把宿主侧 flex 数据接进实参：从 model/context 取 flex 顶点数、边、半径、顶点世界位姿、rgba、geom→flex/edge 映射，替换现有 1 元素占位；`flex_group_root` 由 1-D 改 2-D `[nworld, nflex]`、`flexvert_xpos` 由 1-D 改 2-D `[nworld, nflexvert]`。**形状从 1-D 占位改成 2-D 属实参填充，81 槽的槽数/槽类型不变，不构成 ABI 变更**（S0 证据 r06-flex-precheck 已留档）。本片不改设备行为、不生成参考、不宣称 flex 渲染可用。",
+    "en": "Wire the host flex data into the existing nine slots and the bvh_nflexgeom scalar, replacing 1-element placeholders; the two 1-D placeholders become 2-D. Slot count and slot types are unchanged, so this is not an ABI change (S0 evidence recorded)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**填真值**：9 个 flex 数组按上游语义填真值（顶点数/边/半径/顶点世界位姿/rgba/geom 映射），`bvh_nflexgeom` 标量按 flex geom 数量填；空场景保持现有等价占位行为（1 元素占位 + `max(1)` 形状口径），零 flex 场景输出不变。",
+    "**形状**：`flex_group_root` = 2-D `[nworld, nflex]`、`flexvert_xpos` = 2-D `[nworld, nflexvert]`；验收里必须写明「**槽数/槽类型不变 → 不构成 ABI 变更**」，并引用 `docs/development-evidence/render-bvh/r06-flex-precheck/` 的 S0 对表。",
+    "**宿主校验**：flex 数组长度/世界数/geom 映射不一致时返回显式错误（不 panic、不静默回退）；模块内 `#[cfg(test)]` 覆盖空 flex、单 flex、多 flex、长度不一致拒绝。",
+    "**零设备改动**：`src/render/kernel/cuda/` 与全部 `.cu` 零改动；设备 cast 分支留 S3。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（基线只增不减）；零 GPU、零窗口。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-render-r06-s1a-megakernel-args-split"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/megakernel_args.rs",
+      "src/render/kernel/megakernel_uploads.rs"
+    ],
+    "resources": [],
+    "priority": 73
+  },
+  "note": "Arch 2026-11-04 登记（R06 第二实现片）。Chief 要求：把「1-D 占位改 2-D 属实参填充、**不构成 ABI 变更**」写进本卡 acceptance，免得后续被误判为改 ABI。依赖 S1a 先把实参装配块拆出来。",
+  "revision": { "before": "bedf3c318be0865d442cd5aaad3ab2046a8ca92f", "after": null },
+  "created_at": "2026-11-04T03:05:00.000Z",
+  "updated_at": "2026-11-04T03:05:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+  ]
+}

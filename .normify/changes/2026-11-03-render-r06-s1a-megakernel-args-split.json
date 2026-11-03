@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-render-r06-s1a-megakernel-args-split",
+  "title": {
+    "zh": "R06-S1a：megakernel.rs（450/450）拆出 megakernel_args.rs（零行为结构拆分）",
+    "en": "R06-S1a: extract megakernel_args.rs from megakernel.rs (450/450 cap, zero-behaviour split)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R06 柔性体渲染要在 81 槽实参装配块上扩展（S2 填 flex 真值），而 `src/render/kernel/megakernel.rs` 已顶 450/450 行死线、无余量。本片只做结构拆分：把 81 槽实参装配块（约 130 行，`MegakernelRenderer` 的 `args.push` 段）抽到新文件 `src/render/kernel/megakernel_args.rs`，`megakernel.rs` 只保留执行器骨架并调用它。要求逐字节行为不变：内核源与 PTX sha 不变、实参顺序/类型不变、四门禁全绿、`src/render/kernel/cuda` 零 diff。不改任何 .cu、ABI、判据、容差、测试断言。",
+    "en": "Structural split only: move the 81-slot argument-assembly block out of megakernel.rs into megakernel_args.rs so R06-S2 has room to extend it. Zero behaviour change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**拆分**：新增 `src/render/kernel/megakernel_args.rs`，承载原 `megakernel.rs` 的 81 槽实参装配段；`megakernel.rs` 调用之，行数回落到死线以下且仍 ≤450。",
+    "**零行为**：实参顺序、元素类型、形状（含 1 元素占位与 `mesh_slot_shape` 口径）逐项不变；内核源 sha 与 PTX sha 不变（用现有门禁/断言或本地复算核对）。",
+    "**三条硬判据**：①内核源/PTX sha 不变；②`cargo test --locked` unit 全绿（基线只增不减，当前 1267）；③**`git diff --stat -- src/render/kernel/cuda` 为空**。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`cargo test --locked --features cuda-probe --no-run` EXIT=0。",
+    "**边界**：不改 `.cu`、81 槽 ABI、判据/容差/夹具、任何测试断言；不宣称 R06 任何能力。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-render-r06-flex-precheck"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "src/render/kernel/megakernel_args.rs"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（R06 第一实现片；Chief 已批 12:00 写窗时序）。顶格拆分沿用 R05 先例（r05-split-megakernel / r05-split-cast：零行为、内核 sha 不变）。判据第三条是 Chief 2026-11-04 追加：拆完 `git diff --stat -- src/render/kernel/cuda` 必须为空。",
+  "revision": { "before": "bedf3c318be0865d442cd5aaad3ab2046a8ca92f", "after": null },
+  "created_at": "2026-11-04T03:05:00.000Z",
+  "updated_at": "2026-11-04T03:05:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/", "fixtures/"] }
+  ]
+}
