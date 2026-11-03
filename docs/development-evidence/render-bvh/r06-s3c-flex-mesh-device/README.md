@@ -68,6 +68,28 @@
 - 精度：设备侧只做 f32；mesh 路径复用既有 `ray_mesh_leaf`/`mesh_query_ray`（S3 位级口径不变），
   未新增 `sin/cos`/f64 归约；隐藏段与胶囊路径共享统一后判据。
 
+### 3.1 S3a 相对索引 → S3c 绝对索引（修复说明）
+
+S3c 是首个把 flex mesh 段并入既有 `MeshDevice` 的路径。S3a 只走 1D 胶囊（`u64::MAX` 哨兵、
+不碰 mesh 段），所以下面这处语义差在 S3a 从未暴露，S3c 接线时必须修掉：
+
+- **Before（S3a 遗留语义）**：`bvh/flex_scene.rs::mesh_device` 产出的 `bvh_ids[flex]` 是**该 flex
+  段内的相对条目号**（`device.entries.len()`）。若原样写进设备 `flex_bvh_id` 槽，设备侧
+  `flex_bvh_id[flexid] + worldid` 会拿相对号索引 `MeshDevice.offsets`——当本帧既有 mesh 条目数
+  `> 0` 时指向错误条目（错命中/越界），既有条目越多偏得越远。
+- **After（S3c 修复）**：`FlexMeshDevice::append_to` 返回 `base = offsets.len()`（**追加前**的既有
+  条目数），`FlexMeshAssembly::append_to_mesh_device` 输出 `base + 相对id`；`u64::MAX`（1D/无 mesh）
+  原样保留。设备条目索引因此是 `MeshDevice.offsets` 的**绝对条目号**；相对号只存在于
+  `mesh_device` 内部，转换点唯一在 `append_to_mesh_device`。
+- **一致性三件套**：`mesh.meta`/`mesh.params` 追加后，本段条目偏移 `[meta_base, params_base]` 加同一
+  基址，设备 `flex_bvh_id` 槽值加同一 `base`——三处同源，`append_to` 返回值是唯一契约
+  （`base` 的语义写进函数文档与 `FlexMeshAssembly::append_to_mesh_device` 文档）。
+- **可复核点（QA）**：①`mesh_device` 内 `bvh_ids` 只做段内相对计数（不改写为绝对号）；
+  ②`append_to` 的 `offsets.push([entry[0] + meta_base, entry[1] + params_base])` 与
+  `mesh.meta`/`mesh.params` 的 `extend_from_slice` 同序同基址；③`append_to_mesh_device` 对每 flex
+  输出 `base + id`（`u64::MAX` 哨兵保留）；④单测 `packs_mesh_bvh_into_mesh_device_layout` 覆盖
+  2D/3D 条目数、条目偏移与顶点值。
+
 ## 4. 验证
 
 1. **四门禁**（`.normify/runs/2026-11-04-render-r06-s3c-flex-mesh-device/`）：fmt / clippy /
