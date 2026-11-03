@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "row_id": "spatial_tendon",
+  "layer": "G02 空间肌腱",
+  "paths": ["spatial_site", "spatial_moment", "spatial_wrap"],
+  "batch": "B2a",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；wrap 求解器内部逐轮位级证据沿用实现片探针",
+  "source": {"file": "src/physics/spatial_tendon.rs", "const": "SPATIAL_TENDON_CUDA", "kernels": ["spatial_site", "spatial_moment", "spatial_wrap"]},
+  "kernels": [
+    {
+      "name": "spatial_site",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 头部元数据（nt/nwrap/nnz/nbody/attached stride/site offset/ngeom/size period/size offset）+ CSR 与 wrap 类型/objid/body/side"},
+        {"name": "scales", "ctype": "const float*", "role": "in: 每 world 几何尺寸与肌腱 scales（f32）"},
+        {"name": "attached", "ctype": "const float*", "role": "in: 每 world attached 位姿（f32）"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 4 + (nt + nnz + 19*nwrap)：length/CSR/points/scratch13"},
+        {"name": "nv/a/b/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "SV（3×f32）", "type": "f32 向量结构体，load/store 直拷"},
+        {"name": "Wrap3 r", "type": "f32：`wrap()` device 函数输出 len/a/b/dir0/dir1（Newton 迭代在 f32 上）"},
+        {"name": "radius", "type": "f32 由 `scales[...]` 取几何半径"},
+        {"name": "scratch[13*i..]", "type": "f32 每 wrap 点私有 scratch（length + 两个接触点 + 两个预舍入内方向）"}
+      ],
+      "accumulations": [
+        {"what": "`out[t] += norm(...) * scales[i]`", "type": "f32 顺序累加（每肌腱按 CSR 顺序；一 world 一线程，无原子）"},
+        {"what": "`wrap()` 内 Newton 迭代", "type": "f32 迭代（逐步 norm/dot/减乘，逐轮位级由探针承担）"}
+      ],
+      "outputs": [
+        {"field": "length[t]", "type": "f32", "conversion": "累加后直接写"},
+        {"field": "points[6*nwrap]", "type": "f32", "conversion": "wrap 点与内方向直写"},
+        {"field": "scratch[13*nwrap]", "type": "f32", "conversion": "内部 scratch 进结果块（供 moment 复用）"},
+        {"field": "空场景", "type": "f32", "conversion": "整段预置 0.0f"}
+      ],
+      "quantization": [
+        "scales/attached 由宿主转 f32；内核内无 f64",
+        "sentinel：非 wrap 点用 `1e10f` 标记（`norm(point) < 1e10f` 判有效）"
+      ],
+      "rounding_notes": ["wrap 求解器全部 f32；无显式 fma 指令；两套内方向（预舍入）用于后续 moment 复用"]
+    },
+    {
+      "name": "spatial_moment",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 元数据 + 每肌腱 row/count + wrap type/body"},
+        {"name": "scales", "ctype": "const float*", "role": "in: 肌腱 scales（f32）"},
+        {"name": "input", "ctype": "const float*", "role": "in: 每 world com 块（含 cdof 6/dof），复用 site 的 scratch 需另有缓冲"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 4 + (nt + nnz + 19*nwrap)，jac 段为 nnz"},
+        {"name": "nv/a/b/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "SV dif/direction", "type": "f32 方向向量"},
+        {"name": "j", "type": "f32 单列雅可比"},
+        {"name": "cdof 视图", "type": "f32（`com+14*nb`）"}
+      ],
+      "accumulations": [
+        {"what": "`jac[row+ptr] += j`（chain/directed_segment）", "type": "f32 顺序累加（每 world 单线程按 CSR 列顺序，无原子）"}
+      ],
+      "outputs": [
+        {"field": "jacobian[nnz]", "type": "f32", "conversion": "先预置 0.0f，再累加"},
+        {"field": "其余段", "type": "f32", "conversion": "与 site 布局一致（本内核只写 jac 段）"}
+      ],
+      "rounding_notes": ["链式项 `((c[3]+v.x)*vec.x + ...)*scale` 为 f32 先加后乘的顺序写法"]
+    },
+    {
+      "name": "spatial_wrap",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 元数据 + wrap type/id"},
+        {"name": "params", "ctype": "const float*", "role": "in: 参数（本内核不使用浮点主体）"},
+        {"name": "state", "ctype": "const float*", "role": "in: site 输出块（读 scratch 判有效点）"},
+        {"name": "result", "ctype": "int*", "role": "out: 每 world 4 + 2*(nt + nwrap) 的整数索引"},
+        {"name": "nv/a/b/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [{"name": "cursor", "type": "int 紧凑点游标"}],
+      "accumulations": [],
+      "outputs": [
+        {"field": "wrapid/权重点索引", "type": "i32", "conversion": "直写；type==2 记 -2、type==3 记 -1"}
+      ],
+      "quantization": ["混合 f32 输入 / i32 输出的八参指针 ABI；只读 site scratch 判有效（`< 1e10f`）"]
+    }
+  ],
+  "upstream": {"files": ["util_misc.py", "smooth.py"], "functions": ["transmission", "wrap 数学路径"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（spatial_site/moment/wrap 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_spatial_tendon（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); wrap Newton 迭代的逐轮位级对照仍属该行 missing 项（现由探针承担整体位级）"
+}

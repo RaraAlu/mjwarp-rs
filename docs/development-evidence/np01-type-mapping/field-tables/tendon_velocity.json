@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "row_id": "tendon_velocity",
+  "layer": "G02 肌腱速度",
+  "paths": ["tendon_velocity_validate", "tendon_velocity_compute"],
+  "batch": "B2a",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；表达式级位级证据沿用实现片探针",
+  "source": {"file": "src/physics/tendon_velocity.rs", "const": "CUDA", "kernels": ["tendon_velocity_validate", "tendon_velocity_compute"]},
+  "kernels": [
+    {
+      "name": "tendon_velocity_validate",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: 4 头 + 每肌腱 start/count + CSR 列索引"},
+        {"name": "jac", "ctype": "const float*", "role": "in: 每 world 稀疏雅可比（TV_STRIDE 布局）"},
+        {"name": "v", "ctype": "const float*", "role": "in: 每 world 速度（TV_NV）"},
+        {"name": "status", "ctype": "float*", "role": "out: 每 world 有效标志"},
+        {"name": "a/b/worlds/work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [{"name": "ok", "type": "bool：sentinel 比较 + 索引边界 + isfinite"}],
+      "accumulations": [],
+      "outputs": [{"field": "status[4+w]", "type": "f32", "conversion": "ok ? 1.0f : 0.0f"}],
+      "quantization": [
+        "sentinel：meta/jac/v 的 4 个头部元素与首元素必须精确等于 `-131072`（int）或 `-131072.0f`",
+        "索引校验：start/count 与 CSR 列必须落在 TV_NNZ/TV_NV 内，越界即判无效（不 panic）"
+      ]
+    },
+    {
+      "name": "tendon_velocity_compute",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: start/count 与 CSR 列索引"},
+        {"name": "jac", "ctype": "const float*", "role": "in: 稀疏雅可比"},
+        {"name": "v", "ctype": "const float*", "role": "in: 每 world 速度"},
+        {"name": "out", "ctype": "float*", "role": "out: 每 world `4 + nt` 肌腱速度"},
+        {"name": "a/b/worlds/work", "ctype": "unsigned", "role": "scalar 维度与工作量"}
+      ],
+      "intermediates": [{"name": "J", "type": "f32 单列雅可比（为 0 时跳过）"}, {"name": "velocity", "type": "f32 累加器"}],
+      "accumulations": [
+        {"what": "`velocity += J * v[col]`", "type": "f32 顺序累加（每肌腱一趟，无原子）"}
+      ],
+      "outputs": [{"field": "out[4+tid]", "type": "f32", "conversion": "velocity 直接写"}],
+      "rounding_notes": ["f32 乘加按列顺序；`J != 0.0f` 短路跳过零列（不改变数值结果，只省算）"]
+    }
+  ],
+  "upstream": {"files": ["forward.py"], "functions": ["_tendon_velocity"], "confidence": "函数级已核对（冻结 forward.py 71da24d）"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（tendon_velocity 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_tendon_velocity（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}

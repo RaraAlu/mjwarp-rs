@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "row_id": "fixed_tendon",
+  "layer": "G02 固定肌腱",
+  "paths": ["fixed_tendon"],
+  "batch": "B2a",
+  "audit_level": "参数/缓冲/累加/输出层（per-field）；表达式级位级证据沿用实现片探针",
+  "source": {"file": "src/physics/fixed_tendon.rs", "const": "FIXED_TENDON_CUDA", "kernel": "fixed_tendon"},
+  "kernels": [
+    {
+      "name": "fixed_tendon",
+      "params": [
+        {"name": "meta", "ctype": "const int*", "role": "in: `meta[0]=nq` + adr/num/qadr/jslot"},
+        {"name": "coefficients", "ctype": "const float*", "role": "in: 每个 (tendon, joint) 的系数（f32）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 每 world qpos（f32）"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 4 + (nt + nnz)：length[nt] + jacobian[nnz]"},
+        {"name": "nq/nt/nnz/worlds", "ctype": "unsigned", "role": "scalar 维度"}
+      ],
+      "intermediates": [
+        {"name": "sum", "type": "f32 单条肌腱长度累加器"},
+        {"name": "qpos[qadr[i]]", "type": "f32 原始 qpos（源码注释明确：用 raw qpos，不是 qpos-qpos0）"}
+      ],
+      "accumulations": [
+        {"what": "`sum += coefficients[i] * qpos[qadr[i]]`", "type": "f32 顺序累加（每肌腱内部按 CSR 顺序，无原子操作）"}
+      ],
+      "outputs": [
+        {"field": "length[t]", "type": "f32", "conversion": "sum 直接写"},
+        {"field": "jacobian[jslot[i]]", "type": "f32", "conversion": "系数直接写（每行拒绝重复 joint 引用，故为直写不是累加）"},
+        {"field": "jac 预置", "type": "f32", "conversion": "先整段写 0.0f"}
+      ],
+      "quantization": [
+        "qpos/coefficients 由宿主转 f32 后进入；内核内无 f64",
+        "契约：同一 tendon 行内不得重复引用同一 joint（重复会静默覆盖 jac，故由宿主布局校验拒绝）"
+      ],
+      "rounding_notes": ["f32 乘加按书写顺序，无显式 fma/舍入指令"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["_tendon_armature", "transmission"], "confidence": "函数级已核对"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（fixed_tendon 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_fixed_tendon（定向）"
+  ],
+  "status": "audited (param/buffer/accumulation/output level); 逐字段 PTX 对照仍属该行 missing 项"
+}

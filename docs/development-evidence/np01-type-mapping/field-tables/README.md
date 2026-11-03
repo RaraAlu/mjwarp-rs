@@ -49,18 +49,27 @@ PTX vs 显式 `.rn`）。逐表达式的位级对照仍由实现片的探针证�
 | `mass_multiply` | `mass_multiply`、`borrowed_mass_multiply`、`resident 乘` | `mass_multiply_validate/multiply`、`borrowed_mass_validate/multiply` | f32 列序/CSR 行内顺序累加，无 fma/atomicAdd；sentinel `-131072` 精确比较 | n 个结果 + 状态码（f32） |
 | `mass_solve` | `rigid_mass_solve`、`sparse dense/small/mixed/resident`、`substitute` | 11 组内核族（含 resident 文本切分的 `resident_mass_factor`/`substitute`） | tile 分支 `rsqrt.approx` + 可收缩 Schur vs scalar 分支 `sqrt/div/fmaf`；求解列扫描 `__frcp_rn/__fmul_rn/__fmaf_rn`；sparse/mixed 用内联 `atom.global.add.f32`；fma 文本口径 4 | status/ld/inv/x、CSR 因子与解（f32） |
 
-## 四、待补（21 条产品路径 + 3 条 host 站点）
+## 四、B2a 已完成（4 条，肌腱族）
 
-- **B2（21 条，G10/G-limbs 面）**：`joint_passive`、`smooth_force`、`passive_force`、`fixed_tendon`、`spatial_tendon`、`tendon_wrap`、`tendon`、`tendon_velocity`、`tendon_passive`、`flex_position`、`flex_edge`、`flex_face`、`flex_hessian`、`flex_edge_passive`、`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`（按依赖再分两小批）。
+| row_id | 路径 | 内核 | 累加/舍入口径 | 输出 |
+| --- | --- | --- | --- | --- |
+| `fixed_tendon` | `fixed_tendon` | `fixed_tendon` | f32 顺序累加 `sum += coeff*qpos`（raw qpos，非 qpos-qpos0）；行内禁重复 joint → jac 直写 | length[nt] + jacobian[nnz]（f32） |
+| `spatial_tendon` | `spatial_site/moment/wrap` | 3 内核（wrap Newton 迭代、CSR 雅可比、整型索引） | f32 顺序累加（每 world 单线程，无原子）；`1e10f` 有效点 sentinel；wrap 输出 13/点 scratch | length/points/scratch13（f32）+ jac（f32）+ wrap 索引（i32） |
+| `tendon` | `tendon_values/indices` | 2 内核 | 纯搬运（f32 原样搬、i32 直搬），无算术；固定行共享游标不加点 | values（f32）+ indices（i32） |
+| `tendon_velocity` | `tendon_velocity_validate/compute` | 2 内核 | f32 稀疏雅可比点积顺序累加；`-131072` sentinel + 索引越界拒绝 | status（f32）+ 肌腱速度（f32） |
+
+## 五、待补（17 条产品路径 + 3 条 host 站点）
+
+- **B2b–B2e（17 条，G10/G-limbs 面）**：`joint_passive`、`smooth_force`、`passive_force`、`tendon_wrap`、`tendon_passive`、`flex_position`、`flex_edge`、`flex_face`、`flex_hessian`、`flex_edge_passive`、`fluid_force`、`applied_force`、`kinetic_energy`、`attached`、`camlight`、`sleep_wake`、`field_batch`（按依赖分小批交付）。
 - **B3（3 条 host 站点）**：`gjk_host`、`ccd_host`、`epa_host`（口径已在 `inventory.json` 的 `hostSiteRegistration` 登记，缺逐字段表）。
 
-## 五、门禁联动
+## 六、门禁联动
 
 `tests/precision_type_gate.rs` 增加一条断言：`inventory.json` 的每一行必须在 `field-tables/` 下有表、
 或在该测试内显式登记的「待批清单」里；表内 `kernels/params/intermediates/accumulations/outputs/upstream/evidence`
-缺段即失败。待批清单随每批交付收紧（B1 后 25 条 → B1b 后 21 条）——**不允许静默缺表**。
+缺段即失败。待批清单随每批交付收紧（B1 后 25 条 → B1b 后 21 条 → B2a 后 17 条）——**不允许静默缺表**。
 
-## 六、边界
+## 七、边界
 
 - 不改 `src/`、`include/warp-headers/`、fixtures、判据/容差；零 GPU；不宣称 NP01 通过。
 - 表中的「上游置信级别」沿用 `inventory.json` 原值，不升级（如 `mass_multiply` 保持文件级）。

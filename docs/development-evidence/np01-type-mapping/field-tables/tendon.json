@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "row_id": "tendon",
+  "layer": "G02 肌腱取值/索引",
+  "paths": ["tendon_values", "tendon_indices"],
+  "batch": "B2a",
+  "audit_level": "参数/缓冲/累加/输出层（per-field，含整型搬运口径）",
+  "source": {"file": "src/physics/tendon.rs", "const": "TENDON_CUDA", "kernels": ["tendon_values", "tendon_indices"]},
+  "kernels": [
+    {
+      "name": "tendon_values",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 头部 nt/nz(全局)/nwrap + 固定/空间 nt,nz,nwrap + 每肌腱 5 元行"},
+        {"name": "spatial_ids", "ctype": "const int*", "role": "in: 每 world 空间缓冲（含 index 段）"},
+        {"name": "state", "ctype": "const float*", "role": "in: 固定或空间的源缓冲（f32）"},
+        {"name": "result", "ctype": "float*", "role": "out: 每 world 4 + (nt + nz + 6*nwrap)"},
+        {"name": "kind/a/b/worlds", "ctype": "unsigned", "role": "scalar：kind=0 固定、1 空间"}
+      ],
+      "intermediates": [
+        {"name": "cursor", "type": "int 紧凑 wrap 游标"},
+        {"name": "row[5]", "type": "int：kind/local tendon/local CSR offset/global CSR offset/count"},
+        {"name": "ids 视图", "type": "const int* 视图"}
+      ],
+      "accumulations": [],
+      "outputs": [
+        {"field": "out[t]", "type": "f32", "conversion": "`in[local]` 直搬（kind==1 时）"},
+        {"field": "out[nt+row[3]+j]", "type": "f32", "conversion": "CSR 系数直搬"},
+        {"field": "out[nt+nz+3*cursor+j]", "type": "f32", "conversion": "空间 wrap 点直搬（3 个/点）"},
+        {"field": "kind==0 预置", "type": "f32", "conversion": "整段写 0.0f（固定路径不含 wrap 点）"}
+      ],
+      "quantization": [
+        "本内核是纯搬运：f32 值原样搬，不做类型/精度转换（位型保持）",
+        "固定肌腱不产生 wrap 点（源码注释：fixed paths add no wrap points）"
+      ]
+    },
+    {
+      "name": "tendon_indices",
+      "params": [
+        {"name": "m", "ctype": "const int*", "role": "in: 头部 + 每肌腱行"},
+        {"name": "unused", "ctype": "const float*", "role": "in: 未使用（统一签名）"},
+        {"name": "state", "ctype": "const int*", "role": "in: 每 world 空间整数缓冲"},
+        {"name": "result", "ctype": "int*", "role": "out: 每 world 4 + 2*(nt + nwrap) 整数"},
+        {"name": "a/b/c/worlds", "ctype": "unsigned", "role": "scalar（未使用参数占位）"}
+      ],
+      "intermediates": [{"name": "cursor", "type": "int"}],
+      "accumulations": [],
+      "outputs": [
+        {"field": "out[t] / out[nt+t]", "type": "i32", "conversion": "起点与计数直写"},
+        {"field": "out[2nt+cursor+j]", "type": "i32", "conversion": "wrap 索引直搬"}
+      ],
+      "quantization": ["整型搬运，无浮点参与；`row[0]==0`（固定行）共享当前游标但不加点"]
+    }
+  ],
+  "upstream": {"files": ["smooth.py"], "functions": ["transmission"], "confidence": "函数级已核对（纯索引合并，头树无直接对应）"},
+  "evidence": [
+    "docs/development-evidence/g10-p5-fixtures/README.md（tendon_values/tendon_indices 逐位 fixture）",
+    "cargo test --locked --features cuda-probe --test g10_p5_tendon（定向）"
+  ],
+  "status": "audited (param/buffer/output level; packing/copy kernel only, no arithmetic); 上游头文件函数级对应仍属该行 missing 项"
+}
