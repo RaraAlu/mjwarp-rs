@@ -48,6 +48,15 @@
 
 因此本复核结论维持 **PASS-with-observations**，且**观察项全部闭合**；P7 的真实闭合取决于本复核队列里的 BOM 审计卡（`2026-11-04-governance-evidence-bom-audit`）落库——该卡交付后材料 P7 即可转 ✅。
 
+### 5.1 后续闭合提交（2026-11-04，QA 已核对）
+
+| 提交 | 内容 | QA 核对结果 |
+| --- | --- | --- |
+| `ff681521` | 材料卡按本复核 §2 的 5 条观察收口（P7 前置、floor/`-OpenFreeMiB` 衔接、R02 floor 9795、`seg_channel2_eq_9_pixels` 改名、`-MaxMinutes` 注明） | 已逐条核对，见 §5 表 |
+| `df7dad06` | **P7 闭合**：标 ✅ `f8a0fa75`（脚本 `scripts/validate/check-evidence-bom.ps1`，基线 128 non-`.ps1` WARN + 4 manifest 违规），并记录 BOM 漂移史（S3b③ 新文件 `r06-s3b-flex-harness/compile.log` 曾使计数到 129，已由 `d034eb43` 剥离回 128）；plan §0 剩余前置只剩 **P3 冻结器**（新卡 `2026-11-04-render-r06-s3b-flex-freeze-guards`，`f1ab11a3`，owner Backend） | 已核对：材料 README §4 第 7 行为 ✅ `f8a0fa75`；plan §0「P7 … -> DONE (f8a0fa75)」「Remaining before window: P3 …」；`r06-s3b-flex-harness/compile.log` 首 3 字节 `63 61 72`（无 BOM，剥离已生效） |
+
+因此本复核提出的「可执行性」缺口（BOM 脚本 + floor 衔接）已全部闭合；窗口仍受 P3（冻结器）约束，属 S3b④/⑤ 开窗流程，不在本复核面。
+
 ## 4. 文件
 
 | 文件 | 内容 |
