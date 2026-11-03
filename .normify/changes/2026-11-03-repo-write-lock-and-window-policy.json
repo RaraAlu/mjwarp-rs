@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-repo-write-lock-and-window-policy",
+  "title": {
+    "zh": "统一写锁（跨会话 .normify/locks marker）+ 窗口口径更新（guards 过期规则、窗口授权为 Chief go 制）",
+    "en": "Unified repo write lock (cross-session .normify/locks marker) and window policy update (guards staleness, Chief-go window authority)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "2026-11-03 夜间两次双写者险情（群会话在一个会话改到一半时执行 done 并整体提交，把在途改动一并带走；两次都靠事后核对才确认无害）暴露同一个缺口：会话之间没有共用的「谁在写仓」仲裁。本卡做两件事：①新增跨会话统一写锁 `scripts/validate/repo-write-lock.ps1`（acquire/release/status，锁文件 `.normify/locks/repo-write.lock`，存活 pid 拒绝并 exit 17、死 pid 才清陈旧锁、release 只释放自己），与既有窗口 `<outdir>/.window-lock` 同一套规则，形成「写锁管仓写、窗口锁管同 outdir 双执行」的两层；②更新窗口口径：测试支撑或源码改动后 96 条 guards 整体不可复用（`ebba11f7` 后 11/96 测试 exe 哈希过期，必须新 attempt 重冻，attempt3 有效轮仍绑 `f122adec`），并把窗口授权口径改成 Chief go 制（开启权在 Chief，四条前提满足即发 go、群里留痕 record-only；只有放宽判据/改参考/对外发布声明才找用户）。不改 `src/`、`tests/`、`.cu`、判据/容差/夹具。",
+    "en": "Add a cross-session repo write lock (`scripts/validate/repo-write-lock.ps1`, marker `.normify/locks/repo-write.lock`) with the same rules as the window lock (live pid refuses with exit 17, dead pid is stale and cleared, release only by the owner), plus a window-policy update: any test-support or source change invalidates all 96 guards (11/96 test exe hashes stale after `ebba11f7`; a new attempt must re-freeze; attempt3 stays bound to `f122adec`) and window opening authority is the Chief's go under the four preconditions. No source/test/device/criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**写锁脚本**：`scripts/validate/repo-write-lock.ps1` 提供 `-Action acquire|release|status`；锁文件 `.normify/locks/repo-write.lock`（pid/owner/host/started/reason）；持有者 pid 存活时第二次 acquire 打印 `REPO_WRITE_LOCK_HELD pid=... owner=...` 并 `exit 17`（不修改锁）；pid 已死或锁内容不可解析且超过陈旧阈值时清除后获取；`release` 只释放自己 pid 持有的锁（非己打印 `REPO_WRITE_LOCK_NOT_OWNER` 且不删，exit 18）；`status` 只读。PS 5.1 `Parser::ParseFile` 0 错误。",
+    "**双启动演练**：同一仓上三项演练并落日志：①进程 A acquire 成功；②进程 B acquire 返回 exit 17 且锁内容不变；③A release 后 B acquire 成功、release 后 status 显示 FREE。演练日志与三次退出码写入证据目录。",
+    "**写锁口径**：新增 `docs/development-evidence/write-lock-policy.md`，写明适用范围（任何仓写：代码/证据/材料/提交前）、群会话在写窗期间只读、窗口执行者必须先持写锁、写锁与 `.window-lock` 的分工（写锁=仓写仲裁，窗口锁=同一 outdir 双执行）、存活锁不得手动删除、死 pid 才清、跨会话要求（群会话与主会话共用同一 marker）。",
+    "**窗口口径更新**：`docs/development-evidence/render-bvh/window-execution-policy.md` 新增两节：①guards 过期——任何测试支撑/源码改动后 96 条 guards 整体不可复用，下一次窗口必须作为新 attempt 重新冻结（`ebba11f7` 后 11/96 测试 exe 哈希过期；attempt3 有效轮证据仍绑 `f122adec`）；②窗口授权——开启权在 Chief，四条前提（实现+材料收口、QA pass、开窗前 5 分钟内三点基线达标、floor 取严）满足即发 go，开前群留痕 record-only；只有「放宽判据/改参考/对外发布声明」找用户。",
+    "**边界与门禁**：`src/`、`tests/`、`*.cu`、判据/容差/参考/夹具零改动；fmt / clippy / clippy-cuda / unit 全过；证据目录 `docs/development-evidence/write-lock/`（README + 演练日志 + receipt.json 含 `/task_id` + 不自引用 manifest）自洽。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/validate/repo-write-lock.ps1",
+      "docs/development-evidence/write-lock-policy.md",
+      "docs/development-evidence/write-lock/",
+      "docs/development-evidence/render-bvh/window-execution-policy.md"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-03 23:5x 登记（Chief 令：写仓前必须持同一把写锁，群会话与主会话共用；并与已做的窗口锁做成同一机制通用版；guards 过期与窗口授权口径一并写进窗口操作口径）。来源：perworld S1 attempt3 期间两次双写者险情（群会话在另一会话改到一半时 done+整体提交；`bfa9f1aa` 的 `.window-lock` 只覆盖同 outdir）。本卡只加 harness 脚本与口径文档，零设备/判据/测试改动，零 GPU。",
+  "revision": {
+    "before": "e781761a4a998aeb27488dafe5cf3865b1a627b7",
+    "after": null
+  },
+  "created_at": "2026-11-03T15:52:00.000Z",
+  "updated_at": "2026-11-03T15:52:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/write-lock/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-03-repo-write-lock-and-window-policy"
+    }
+  ]
+}
