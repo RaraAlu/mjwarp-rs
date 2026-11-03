@@ -72,6 +72,20 @@
   发射前 `InvalidArray("ray_count")`。**修复**：射线改按自身 `resolved.plan` 构造；判据/容差/参考未动。
 - 未重试、未改阈值；attempt2 需新的三点基线 + 重新双签，guards 96 条（11 exe + 83 输入 + 2 清单）。
 
+## 窗口 attempt2（INVALID_ROUND，record-only）
+
+- 2026-11-03T22:41 用户签（计划 v2 + 基线 14,839/14,839/14,827 + signed floor **11,755** + QA 材料 v2 pass），22:47:20 开窗；
+  环境全绿：monitor 60/60、free_min 14,839、freeze **96 = 11 exe + 83 输入 + 2 清单**（guards `036e7f86…`/38,659 B /
+  aggregate `a3712c2a…`）、GuardsOnly `96/96` + `OUTLINE_LISTS_OK=2/2`、zero compile、post 11/11、residual 0、floor 未破。
+- 结果 **10/11 过**：**新实体 `render_per_world` 首次通过**，9 个回归通过，仅 `render_shadow_reference` exit 101
+  （cam1 depth `mismatch=183 / max_ulp=73`，first pixel 28969=(169,120)；shadow-off 与 shadow-on 两用例同值）。
+- 根因（测试支持面，非产品/内核）：失败值与 criterion v2.2 已签清单逐项一致且 env 已生效，但
+  `tests/support/render_bvh/shadow_scene.rs:155` 的 cam1 depth 比较直接断言位级相等、**未走 v2.2 清单豁免 helper**
+  （其余实体均走 `outline::depth_stats`/`recipe_depth_diff`）。attempt3 修复：shadow_scene 改用 `Arm::Recipe` 清单豁免
+  （清单外位级/清单内 |ULP|≤128/成员逐像素，env 未启用时保持原行为），判据不变。
+- 事实与日志原样归档于 `window-attempt2-invalid/`（25 文件 + manifest，含 attempt2 guards 本体与 cargo-artifacts）。
+  未重试、未重冻、未改判据/容差/源码；`scripts/` 下的 attempt2 guards 生成物已移除以保持树干净，attempt3 重新冻结同口径。
+
 ## 窗口待执行（GPU 用例，就绪）
 
 ```text
