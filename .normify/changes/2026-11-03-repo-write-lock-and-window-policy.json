@@ -5,7 +5,7 @@
     "zh": "统一写锁（跨会话 .normify/locks marker）+ 窗口口径更新（guards 过期规则、窗口授权为 Chief go 制）",
     "en": "Unified repo write lock (cross-session .normify/locks marker) and window policy update (guards staleness, Chief-go window authority)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "2026-11-03 夜间两次双写者险情（群会话在一个会话改到一半时执行 done 并整体提交，把在途改动一并带走；两次都靠事后核对才确认无害）暴露同一个缺口：会话之间没有共用的「谁在写仓」仲裁。本卡做两件事：①新增跨会话统一写锁 `scripts/validate/repo-write-lock.ps1`（acquire/release/status，锁文件 `.normify/locks/repo-write.lock`，存活 pid 拒绝并 exit 17、死 pid 才清陈旧锁、release 只释放自己），与既有窗口 `<outdir>/.window-lock` 同一套规则，形成「写锁管仓写、窗口锁管同 outdir 双执行」的两层；②更新窗口口径：测试支撑或源码改动后 96 条 guards 整体不可复用（`ebba11f7` 后 11/96 测试 exe 哈希过期，必须新 attempt 重冻，attempt3 有效轮仍绑 `f122adec`），并把窗口授权口径改成 Chief go 制（开启权在 Chief，四条前提满足即发 go、群里留痕 record-only；只有放宽判据/改参考/对外发布声明才找用户）。不改 `src/`、`tests/`、`.cu`、判据/容差/夹具。",
     "en": "Add a cross-session repo write lock (`scripts/validate/repo-write-lock.ps1`, marker `.normify/locks/repo-write.lock`) with the same rules as the window lock (live pid refuses with exit 17, dead pid is stale and cleared, release only by the owner), plus a window-policy update: any test-support or source change invalidates all 96 guards (11/96 test exe hashes stale after `ebba11f7`; a new attempt must re-freeze; attempt3 stays bound to `f122adec`) and window opening authority is the Chief's go under the four preconditions. No source/test/device/criteria changes."
@@ -33,11 +33,12 @@
   },
   "note": "Arch 2026-11-03 23:5x 登记（Chief 令：写仓前必须持同一把写锁，群会话与主会话共用；并与已做的窗口锁做成同一机制通用版；guards 过期与窗口授权口径一并写进窗口操作口径）。来源：perworld S1 attempt3 期间两次双写者险情（群会话在另一会话改到一半时 done+整体提交；`bfa9f1aa` 的 `.window-lock` 只覆盖同 outdir）。本卡只加 harness 脚本与口径文档，零设备/判据/测试改动，零 GPU。",
   "revision": {
-    "before": "e781761a4a998aeb27488dafe5cf3865b1a627b7",
+    "before": "78d212e0d1d38f9d95fc57684043958822c04011",
     "after": null
   },
-  "created_at": "2026-11-03T15:52:00.000Z",
-  "updated_at": "2026-11-03T15:52:00.000Z",
+  "created_at": "2026-11-03T15:33:00.000Z",
+  "updated_at": "2026-11-03T15:36:12.697Z",
+  "closed_at": "2026-11-03T15:33:40.937Z",
   "checks": [
     {
       "kind": "gate",
@@ -68,6 +69,20 @@
       "path": "docs/development-evidence/write-lock/receipt.json",
       "pointer": "/task_id",
       "equals": "2026-11-03-repo-write-lock-and-window-policy"
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-11-03T15:34:20.717Z",
+      "reason": "done 之后对 scope 内文档做了两处措辞修正：锁目录忽略改为本克隆 .git/info/exclude（根 .gitignore 不在本卡 scope，提交被 hook 拒为 E commit/scope），并把仓库级 .gitignore 落地记为后续治理项；脚本与证据字节未再改动，重跑门禁后收口",
+      "prev": null,
+      "hash": "sha256:da4fc0e77fc9a3a9b036b3e98888dda6e07aee1c3c7d98edeef829dcd165e236"
+    },
+    {
+      "at": "2026-11-03T15:36:12.697Z",
+      "reason": "重开追加与当前范围一致的 addenda（文档措辞修正后 scope 哈希刷新；上一笔 addenda 哈希基于修正前内容）",
+      "prev": "sha256:da4fc0e77fc9a3a9b036b3e98888dda6e07aee1c3c7d98edeef829dcd165e236",
+      "hash": "sha256:61c3b185f2ffe15fcd63636bf8131ecebd4054d88da808307ff28b0ca556429c"
     }
   ]
 }
