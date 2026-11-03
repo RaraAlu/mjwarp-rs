@@ -24,7 +24,7 @@
 
 ## 二、recipe 差（同码不同后端：CPU 两次舍入 vs CUDA fma.rn）
 
-来源 `g10-p5-g2-gpu-reference-capture/compare-cpu-vs-gpu.json`（CPU 参考 vs GPU 参考，5 case 全 GREEN、两跑位级一致）。机制见 B1：`--fmad=true` 下 8/12 条带乘加表达式全部融合成 `fma.rn`。
+来源 `g10-p5-g2-gpu-reference-capture/compare-cpu-vs-gpu.json`（CPU 参考 vs GPU 参考，5 case 全 GREEN、两跑位级一致）。机制见 B1：`--fmad=true` 下 9/12 条带乘加表达式全部融合成 `fma.rn`（8 条 2×fma、`pos_midpoint` 1×fma）。
 
 | case | dist（位等/总数，max_abs） | pos | frame |
 | --- | --- | --- | --- |
