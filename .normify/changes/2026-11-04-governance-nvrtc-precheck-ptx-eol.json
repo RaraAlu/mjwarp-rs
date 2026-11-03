@@ -5,7 +5,7 @@
     "zh": "工具修正：nvrtc_precheck.py 的 .ptx 落盘改二进制写（文本模式在 Windows 产生 CRLF，与记录的 ptx sha256/bytes 不一致）",
     "en": "Fix nvrtc_precheck.py .ptx output to binary write (text mode emits CRLF on Windows, mismatching the recorded ptx sha256/bytes)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "`tools/nvrtc_precheck.py` 里 `(out).write_text(ptx, encoding=\"utf-8\")` 是**文本模式**写 `.ptx`：Windows 下换行被翻成 CRLF，磁盘文件 354,740 B / `4e397438…`，而同一脚本算出的 `ptx_bytes`/`ptx_sha256`（343,993 B / `9118d1ea…`）是对 LF 字符串算的——任何人去哈希磁盘 `.ptx` 都会 mismatch。`.ptx` 本身未入库（工具产物），不影响既有证据 sha，但**后续窗口/复核只要哈希 `.ptx` 就会踩坑**（S3b 窗口材料就要哈希设备侧工件）。修法：改 `write_bytes(ptx.encode(\"utf-8\"))`（或写出前 LF 归一），并在两份证据 README 各加一句「`.ptx` 落盘为 LF、其 sha 与 `nvrtc-precheck.txt` 记录值一致」。S3c 复核实证：QA 2026-11-04 只读复核检出（`2716c092` 复核证据）。",
     "en": "Make the .ptx artifact LF on disk so its on-disk sha256 matches the recorded value; note it in both evidence READMEs."
@@ -36,13 +36,29 @@
     "priority": 73
   },
   "note": "Arch 2026-11-04 登记（来源：QA S3c 只读复核 `2716c092` 的建议 1）。非阻断、不涉及判据/容差/参考值；记录值保持不动，只修落盘方式并补 README 说明。注意这两处路径属已 verified 证据，必须走 `normify fix` + `Normify-Fixes:` trailer，且两张卡要拆两笔提交（钩子只允许一个 trailer）。",
-  "revision": { "before": "b5fc77ffd88e6beea9c6ee284039a7507c76c0ce", "after": null },
+  "revision": {
+    "before": "5a818255f97f94e4461853f4f5e8fddb5ce2e085",
+    "after": null
+  },
   "created_at": "2026-11-04T07:02:00.000Z",
-  "updated_at": "2026-11-04T07:02:00.000Z",
+  "updated_at": "2026-11-03T23:26:48.716Z",
+  "closed_at": "2026-11-03T23:26:48.716Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    }
   ]
 }
