@@ -8,8 +8,8 @@ use mjwarp_rs::render::context::RenderFlagSpec;
 use mjwarp_rs::render::kernel::output::MAX_DEPTH_ULP;
 use mjwarp_rs::render::kernel::{MegakernelRenderer, reject_multi_sample, render_per_world};
 use mjwarp_rs::render::{
-    CameraActive, CameraModel, ContextParams, LeafPose, ScenePose, SceneState, WorldError,
-    WorldScenePoses, resolve_context,
+    CameraActive, CameraModel, ContextParams, LeafPose, RayBuilder, RayMode, ScenePose, SceneState,
+    WorldError, WorldScenePoses, resolve_context,
 };
 use mjwarp_rs::runtime::launcher::LauncherError;
 use sha2::{Digest, Sha256};
@@ -337,7 +337,24 @@ fn gpu_per_world_matches_captured_reference() {
         true,
     );
     let renderer = MegakernelRenderer::new(&session).expect("megakernel 编译");
-    let rays = s7b2::precomputed_rays(&session, &fields);
+    // 射线必须按本实体自己的 resolved plan 构造：perworld 参数只激活 1 个相机
+    // （`cam_active=[true,false]` → total_rays=76,800），不能用默认双相机 helper。
+    let rays = RayBuilder::new(&session)
+        .expect("build_rays 编译")
+        .build(&model, &resolved3.plan, RayMode::Precomputed)
+        .expect("per-world 预计算射线");
+    // 内核按 `total_rays × nsamples` 校验射线数，且 total_rays = 本 plan 激活相机数 × 宽 × 高
+    // （不能混入未激活相机的射线，否则触发 `InvalidArray("ray_count")`）。
+    assert_eq!(
+        rays.len(),
+        resolved3.output.ray_count,
+        "射线条数必须等于 resolved plan 的 ray_count"
+    );
+    assert_eq!(
+        resolved3.output.total_rays,
+        resolved3.nrender() * WIDTH * HEIGHT,
+        "总射线数必须 = 激活相机数 × 宽 × 高"
+    );
     let launch = |context: &mut mjwarp_rs::render::RenderContext, poses: &WorldScenePoses| {
         render_per_world(
             &renderer,

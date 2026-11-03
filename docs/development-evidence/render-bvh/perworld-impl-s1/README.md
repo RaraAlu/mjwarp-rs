@@ -6,8 +6,9 @@
 
 - 本片完成方案 L 的 **host 逐 world 循环 + 单 world 发射** 实现：per-world geom 位姿容器、AA 守卫、
   逐 world 发射编排、最小接线与 CPU 单测均已落地；四门禁通过。
-- **窗口尚未执行**：逐 world 数值比对用例已就绪（`tests/render_per_world.rs::gpu_per_world_matches_captured_reference`，
-  `#[ignore]`），等 18:00 后空闲块内由用户双签的验证窗运行。本证据不预判窗口结果。
+- **窗口状态**：attempt1（2026-11-03 22:24）为 **INVALID_ROUND**，原因是 guards 未带 criterion v2.2
+  两条已签清单（7 个回归按严判位级比较、恰在 183 像素失败）与新实体射线构造错（见下节），
+  环境全绿、非产品回归；修复已提交、attempt2 等重新双签后执行。本证据不预判窗口结果。
 - v1 只覆盖 **per-world geom 位姿**（`geom_xpos`/`geom_xmat` → `WorldScenePoses` → `update_poses` → `refit_bvh`）；
   灯数组仍模型级单份（v1 不注入 per-world 灯）。per-world 灯与 AA 组合留 L v2/K。
 - 性能不做声明；不改 `.cu`/ABI/判据/参考/夹具。
@@ -33,7 +34,7 @@
 5. **L-2 / L-3 不采用（e）**：L-2（每 world 另建 context + D2D 拷贝）违背零 D2D/零第二套 context 前提；
    L-3（抽 `megakernel_args.rs`）超出本片写入面并会改动 500 行顶格文件的结构。
 
-## 行数死线与零改动面（实测，UTF-8 LF；2026-11-03 订正：tests 行数原误填上限 500，实测 453）
+## 行数死线与零改动面（实测，UTF-8 LF；2026-11-03 订正：tests 行数原误填上限 500；容器/GPU 用例修复射线构造后 470）
 
 | 文件 | 行数 | 限制 |
 | --- | --- | --- |
@@ -41,7 +42,7 @@
 | `src/render/kernel/megakernel_uploads.rs` | 480 | ≤480（0 余量） |
 | `src/render/kernel/per_world.rs` | 238 | ≤260 |
 | `src/render/kernel/mod.rs` | 476 | ≤500 |
-| `tests/render_per_world.rs` | 453 | ≤500 |
+| `tests/render_per_world.rs` | 470 | ≤500 |
 
 零改动面（逐文件未触碰）：`kernel/cast.rs`(481)、`context/lifecycle.rs`(498)、
 `src/runtime/launcher/render/args.rs`(494)、`context/output.rs`(151)、`kernel/megakernel_aa.rs`(93)、
@@ -58,6 +59,18 @@
 - 集成测试（cuda-probe）：`cargo test --locked --features cuda-probe --test render_per_world` →
   CPU **3 过**（容器/守卫 + **参考解码自查**：4 个 npz 的 sha256 绑定、逐 world 成员布局、state f32 位型、
   world 间位姿差异）、GPU 用例 **1 ignored**（窗口执行）。
+- 编译证据：`cargo test --locked --features cuda-probe --no-run` → **EXIT=0 / 0.4 s**（`Finished` 行在内），
+  日志 `logs/no-run.txt`（14,848 B）。
+
+## 窗口 attempt1（INVALID_ROUND，record-only）
+
+- 事实与日志原样归档于 `window-attempt1-invalid/`（24 文件 + manifest）：环境全绿（signed floor 11,673 未破、
+  zero compile、post exe recheck 11/11、residual 0），3 过 / 8 败。
+- 根因 1：freeze 94 条未带 criterion v2.2 两条已签清单 → runner 不导出 `MJWARP_RENDER_OUTLINE_LIST_DIR`，
+  7 个回归按严判位级比较、恰在 183 像素失败（非产品回归）。
+- 根因 2：`render_per_world` 用默认双相机 helper 建射线（240,000）而 perworld 参数仅 1 相机（76,800），
+  发射前 `InvalidArray("ray_count")`。**修复**：射线改按自身 `resolved.plan` 构造；判据/容差/参考未动。
+- 未重试、未改阈值；attempt2 需新的三点基线 + 重新双签，guards 96 条（11 exe + 83 输入 + 2 清单）。
 
 ## 窗口待执行（GPU 用例，就绪）
 
