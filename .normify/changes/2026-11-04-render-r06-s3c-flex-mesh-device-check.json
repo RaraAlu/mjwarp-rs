@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3c-flex-mesh-device-check",
+  "title": {
+    "zh": "QA 复核：R06-S3c 2D/3D flex 设备接线（零 diff 三类、MeshDevice blob、dim 2/3 解锁）",
+    "en": "QA audit: R06-S3c 2D/3D flex device wiring (three zero-diff classes, MeshDevice blob, dim 2/3 unlock)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-04-render-r06-s3c-flex-mesh-device`（提交 `181eaa7a`）独立复核：设备侧 flex mesh BVH/cast/refit 走 `FlexMeshChannel` 注入、host 对 `dim==2/3` 解锁且对无 mesh 通道仍显式报错不 panic；`megakernel.rs` 449/450 的等量压缩是否只搬不改；三类零 diff（`.cu`、`src/render/kernel/cuda/`、`src/render/bvh/`）口径与证据目录。",
+    "en": "Independent audit of the S3c wiring: channel injection, dim 2/3 unlock with explicit errors, equal-size compaction check, and three zero-diff classes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**零 diff 三类逐项核**：`git diff` 不含 `.cu` 内容改动（允许 device 源新增 `render_flex.cu` 已在 S3a 登记）、不含 `src/render/kernel/cuda/` 既有文件语义改动、不含 `src/render/bvh/` 既有刚性路径改动；给出逐项命令与输出。",
+    "**通道与错误路径**：`FlexMeshChannel` 注入路径与 `render_with_flex` 第二通道路由正确；无 mesh 通道的 2D/3D 显式报错（`flex-scene-leaves: ...`）不 panic；S3c 调用点已先 `topology.validate()`（与 S2c 修卡验收条呼应）。",
+    "**等量压缩**：`megakernel.rs` 449/450 的「S3a 场景打包纯移动」用 diff 证明只搬不改（函数体逐字节等价或语义等价可证）。",
+    "**离线证据**：NVRTC PTX 343,993 B / `9118d1ea…`、入口在、无 f16/bf16/tf32；unit 1302/0/398（+4）；零 GPU/零窗口/零参考。",
+    "**结论三态**：PASS / PASS-with-observations / FAIL 写进证据；证据入 `docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device-check/`，按 `Normify-Task:` 提交。"
+  ],
+  "schedule": {
+    "depends_on": ["2026-11-04-render-r06-s3c-flex-mesh-device"],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": ["docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device-check/"],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（S3c 收口后）。对象 `181eaa7a`；证据目录 `docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/`。与 S2c 修卡的联动：S3c 调用点须先 `render.validate()`/`topology.validate()`，复核时独立查一次调用顺序。",
+  "revision": {
+    "before": "eb6ddf20af970ae3bbc3423871c0249ad32b58b8",
+    "after": null
+  },
+  "created_at": "2026-11-03T23:58:00.000Z",
+  "updated_at": "2026-11-03T23:58:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/",
+        "fixtures/"
+      ]
+    }
+  ]
+}
