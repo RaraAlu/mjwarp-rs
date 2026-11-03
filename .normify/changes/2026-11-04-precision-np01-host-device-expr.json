@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-host-device-expr",
+  "title": {
+    "zh": "NP01 B1：host/device 逐表达式 PTX 定序表（12 条关键表达式，只编译不跑内核）",
+    "en": "NP01 B1: host/device per-expression PTX ordering table for twelve key expressions"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "host 站点（gjk/ccd/epa）的关键算式按 CPU recipe 写成独立乘加语句（每乘加两次舍入），而 device 侧 NVVM 默认做 FMA 收缩（pinned ccd PTX 实测 fma.rn=1480、mul.rn/add.rn=0）。本片把 ≤20 条关键表达式各写最小 CUDA 探针，用 NVRTC 12.8 分别以 `--fmad=true` / `--fmad=false` 编译成 PTX（**只编译、不跑内核、不写 buffer、零 GPU**），统计 `fma.rn/mul.rn/add.rn/sub.rn/div.rn/sqrt.rn` 形态，与 host 语句/舍入次数逐一对照，产出「哪些表达式 device 会融合、host 与非融合稿是否同形」的定序表。**不宣称数值等价**，只给 recipe 前提证据。不回改产品源码/判据/容差/fixtures。",
+    "en": "Compile twelve minimal CUDA probes with NVRTC under fmad=true/false (compile only, no GPU run), tabulate per-expression contraction shapes and pair them with host CPU-recipe rounding counts."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本进仓可复跑**：`scripts/authoring/np01-host-device-expr.py` 只读 host 源码引用 + NVRTC（`target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll`），输出 `host_device_expr.json`；README 数字全部来自脚本。",
+    "**表达式数量 ≤20 且来源可溯**：本片 **12 条**，每条给 host 出处（文件:行）、host 语句与舍入次数、CUDA 探针表达式、两套 recipe 的 PTX 指令计数与 ptx sha256。",
+    "**结论与前提**：写明 device 默认收缩普遍存在；`face_norm2` 的 head→tail→norm2 写法在 device 默认下仍收缩为 fma.rn（源码写法不能表达「禁止融合」）；host/device 位级判据必须声明 recipe 前提。**不做数值等价声明、不判通过**。",
+    "**边界**：零 GPU、零产品代码/判据/容差/fixtures 改动；不宣称 NP01/NP03 通过。",
+    "**门禁**：`cargo fmt --check`、`cargo test --locked --test precision_type_gate`、`cargo test --locked --test precision_host_gate` 全绿（本片只新增离线脚本与证据）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-precision-np01-e-recompute"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "scripts/authoring/np01-host-device-expr.py",
+      "docs/development-evidence/np01-host-device-expr/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-11-04 登记（Chief 批准 A0+B1 并行；B1 范围锁死 ≤20 条关键表达式，超即停手报 Chief）。方法沿 `scripts/u038-ptx-diff-tool/` 的「只编译不跑内核」先例，改用离线 Python + NVRTC ctypes（更轻）。结论 3 条：①device 默认收缩普遍；②`face_norm2` 三步写法在 fmad=true 下仍融合成 2 条 fma.rn；③host/device 位级判据必须声明 recipe 前提、不能直接判通过。后续 B2（字段级位差分账）→ B4（QA 复核「没把 recipe 差写成类型偏离」）。",
+  "revision": { "before": "c882b3fc11421922bfb8ce150ab1999b7a94a754", "after": null },
+  "created_at": "2026-11-03T21:50:00.000Z",
+  "updated_at": "2026-11-03T21:50:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+  ]
+}
