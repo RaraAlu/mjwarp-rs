@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-governance-nvrtc-precheck-ptx-eol",
+  "title": {
+    "zh": "工具修正：nvrtc_precheck.py 的 .ptx 落盘改二进制写（文本模式在 Windows 产生 CRLF，与记录的 ptx sha256/bytes 不一致）",
+    "en": "Fix nvrtc_precheck.py .ptx output to binary write (text mode emits CRLF on Windows, mismatching the recorded ptx sha256/bytes)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "`tools/nvrtc_precheck.py` 里 `(out).write_text(ptx, encoding=\"utf-8\")` 是**文本模式**写 `.ptx`：Windows 下换行被翻成 CRLF，磁盘文件 354,740 B / `4e397438…`，而同一脚本算出的 `ptx_bytes`/`ptx_sha256`（343,993 B / `9118d1ea…`）是对 LF 字符串算的——任何人去哈希磁盘 `.ptx` 都会 mismatch。`.ptx` 本身未入库（工具产物），不影响既有证据 sha，但**后续窗口/复核只要哈希 `.ptx` 就会踩坑**（S3b 窗口材料就要哈希设备侧工件）。修法：改 `write_bytes(ptx.encode(\"utf-8\"))`（或写出前 LF 归一），并在两份证据 README 各加一句「`.ptx` 落盘为 LF、其 sha 与 `nvrtc-precheck.txt` 记录值一致」。S3c 复核实证：QA 2026-11-04 只读复核检出（`2716c092` 复核证据）。",
+    "en": "Make the .ptx artifact LF on disk so its on-disk sha256 matches the recorded value; note it in both evidence READMEs."
+  },
+  "modules": {},
+  "acceptance": [
+    "两份 `tools/nvrtc_precheck.py` 副本（`r06-s3a-flex-device`、`r06-s3c-flex-mesh-device`）的 `.ptx` 落盘改二进制写或写出前 LF 归一；两份副本内容保持一致（同 sha）。",
+    "实跑（CPU-only、离线 NVRTC，不占 GPU）确认：磁盘 `.ptx` 字节数 = `nvrtc-precheck.txt` 记录的 `ptx_bytes`，其 sha256 = 记录的 `ptx_sha256`；`.txt`/`.nvrtc-log.txt` 的换行同理不引入 CR。",
+    "两份证据 README 各加一句说明；**不改**任何已记录的 `ptx_sha256`/`ptx_bytes` 数值（记录值本来就是 LF，正确）。",
+    "走正式通道：对两张已 verified 的卡分别 `normify fix <卡> --reason ...`（一次提交一个 `Normify-Fixes:` trailer），重算两份 manifest 的 sha+bytes 并复核 6/6。",
+    "门禁：fmt / clippy / clippy-cuda / unit 全过；零 GPU；不改产品代码。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3a-flex-device"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3a-flex-device/tools/nvrtc_precheck.py",
+      "docs/development-evidence/render-bvh/r06-s3a-flex-device/manifest.txt",
+      "docs/development-evidence/render-bvh/r06-s3a-flex-device/README.md",
+      "docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/tools/nvrtc_precheck.py",
+      "docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/manifest.txt",
+      "docs/development-evidence/render-bvh/r06-s3c-flex-mesh-device/README.md"
+    ],
+    "resources": [],
+    "priority": 73
+  },
+  "note": "Arch 2026-11-04 登记（来源：QA S3c 只读复核 `2716c092` 的建议 1）。非阻断、不涉及判据/容差/参考值；记录值保持不动，只修落盘方式并补 README 说明。注意这两处路径属已 verified 证据，必须走 `normify fix` + `Normify-Fixes:` trailer，且两张卡要拆两笔提交（钩子只允许一个 trailer）。",
+  "revision": { "before": "b5fc77ffd88e6beea9c6ee284039a7507c76c0ce", "after": null },
+  "created_at": "2026-11-04T07:02:00.000Z",
+  "updated_at": "2026-11-04T07:02:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" }
+  ]
+}
