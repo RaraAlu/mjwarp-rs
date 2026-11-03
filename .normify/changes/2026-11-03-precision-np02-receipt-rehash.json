@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-precision-np02-receipt-rehash",
+  "title": {
+    "zh": "NP02 回执与 PTX 实体重算（恢复上游 pinned checkout 后重跑 np02 扫描）",
+    "en": "NP02 receipt and PTX-entity re-verification (re-run the np02 scanner after restoring the pinned upstream checkouts)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "NP02 第一片只做已提交清单的静态棘轮与指针可解析；回执 701 份文件哈希、650 份在仓 PTX 实体哈希、51 份不在仓实体的判定都还没机器复算。重算需要恢复 `target/mjwarp-parallel/upstream`（MJWarp pinned `71da24d…`）与 `target/research/warp`（Warp 1.15.0 `ffa038b1…`）两个 checkout（仓瘦身后不在仓），再跑 `scripts/np02-evidence/np02-evidence.ps1`。本卡负责恢复前置、重算回执/实体哈希、把 51 份不在仓实体逐条定性（历史捕获产物 / 应入库 / 应记为缺口），并按结果更新清单计数与第一片棘轮快照。零 GPU（扫描只读），不重采参考、不改判据。",
+    "en": "Re-run the np02 scanner after restoring the pinned upstream checkouts: rehash the 701 receipts and the in-repo PTX entities, classify the 51 missing entities, and update the inventory counts plus the slice-1 ratchet snapshot. Read-only scan, zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置恢复**：`target/mjwarp-parallel/upstream` 与 `target/research/warp` 按文档 commit 恢复并 `git rev-parse` 校验一致（不得用其它版本顶替）；恢复步骤写成可复现脚本或文档。",
+    "**重算**：`scripts/np02-evidence/np02-evidence.ps1` 跑通，回执文件哈希 701/701 复算一致、在仓 PTX 实体 650 份哈希一致；结果与当前 `inventory.json` 计数逐项对比，差异逐条解释。",
+    "**51 份缺失定性**：逐条给出 `historical-target-artifact` / `should-commit` / `genuine-gap` 分类与理由；`should-commit` 的实体入库并刷新计数，`genuine-gap` 进缺口清单，不静默消失。",
+    "**棘轮同步**：按重算结果更新 `inventory.json` 与 `tests/precision_evidence_gate.rs` 的快照；若计数变化，提交说明必须写清变化来源。",
+    "**边界**：只动 `docs/development-evidence/np02-evidence/`、np02 扫描工具脚本与门禁测试；`src/`、判据/容差/fixtures 零改动；不重采参考、不宣称 NP02 或双平台通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-precision-np02-evidence-gate"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np02-evidence/",
+      "scripts/np02-evidence/",
+      "tests/precision_evidence_gate.rs"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-11-04 登记（NP02 剩余主缺口）。估算 0.5–1 人日，但要先恢复两个上游 checkout（网络/体积成本另计）；零 GPU。建议 QA 做（原 np02 工具与清单由 QA 维护）。",
+  "revision": { "before": "4184c7156b755466c094c2faeac5c9bdac8831c9", "after": null },
+  "created_at": "2026-11-04T01:25:00.000Z",
+  "updated_at": "2026-11-04T01:25:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "fixtures"] }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-precision-np01-field-tables",
+  "title": {
+    "zh": "NP01 逐字段类型表（30 条产品路径 + 3 条 host 站点，分批）",
+    "en": "NP01 per-field type tables (30 product paths + 3 host sites, batched)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "NP01 的门禁面已在第一/二片机械化（CUDA 源面 + 宿主 token），但清单里 30 条产品路径与 3 条 host 站点**仍全部缺逐字段类型表**，这是 NP01 未验收的核心缺口。本卡分批产出逐字段表：每条路径写清每个输入字段的量化位置、中间缓冲类型、累加/归约类型、输出转换舍入点、上游对应实现与证据指针。批次：B1=kinematics/ com_pos/com_vel/ rigid_mass_solve/ rne/ gravity（5 条，已有逐位或探针证据）；B2=其余 25 条；B3=host 3 条（gjk/ccd/epa）。表落 `docs/development-evidence/np01-type-mapping/field-tables/`（JSON+MD），并把第一片门禁扩展为「清单行必须有表且表结构完整」。只做类型审计与登记，不改产品代码/判据/容差，不跑 GPU。",
+    "en": "Produce per-field type tables for the 30 product paths and 3 host sites (input quantization, intermediate, accumulation, output conversion, upstream implementation, evidence pointer), in three batches, and extend the slice-1 gate so every inventory row must have a structurally complete table. Audit + registration only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**表结构**：`field-tables/<row-id>.json` 每条路径含 `inputs[]`（字段名/类型/量化位置/来源）、`intermediates[]`、`accumulations[]`、`outputs[]`（类型/转换舍入点）、`upstream{files,functions,confidence}`、`evidence[]`（可解析路径）、`status`；同一 schema 供机器校验。",
+    "**分批交付**：B1 至少 5 条（kinematics、com_pos、com_vel、rigid_mass_solve、rne、gravity 中取 5）完成表并通过结构校验；B2/B3 逐批追加，不宣称整卡完成前任何一行可达标。",
+    "**门禁扩展**：`tests/precision_type_gate.rs` 增加断言——清单每行在 `field-tables/` 下有对应表、表内五段非空、`evidence[]` 指向的文件存在；缺表的行按批次白名单显式登记（未做即失败，不允许静默缺）。",
+    "**边界**：只写 `docs/development-evidence/np01-type-mapping/` 与门禁测试；`src/`、判据/容差/fixtures 零改动；零 GPU；不宣称 NP01 通过，直到 30+3 条全部有表且门禁全绿。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-03-precision-np01-cuda-type-gate",
+      "2026-11-03-precision-np01-host-source-gate"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/np01-type-mapping/",
+      "tests/precision_type_gate.rs"
+    ],
+    "resources": [],
+    "priority": 66
+  },
+  "note": "Arch 2026-11-04 登记（NP01 剩余主缺口）。估算 2–3 人日、零窗口；B1 可独立先行。依赖第一/二片门禁已在位。",
+  "revision": { "before": "4184c7156b755466c094c2faeac5c9bdac8831c9", "after": null },
+  "created_at": "2026-11-04T01:25:00.000Z",
+  "updated_at": "2026-11-04T01:25:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "include/warp-headers/", "fixtures"] }
+  ]
+}
