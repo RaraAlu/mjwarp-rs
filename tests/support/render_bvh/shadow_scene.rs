@@ -18,12 +18,12 @@ use mjwarp_rs::render::kernel::output::{DepthDiff, MAX_DEPTH_ULP, SegDiff, diff_
 use mjwarp_rs::runtime::TransferSession;
 use sha2::{Digest, Sha256};
 
+use super::s7b1::outline::{Arm, diff_depth_with_outline};
 use super::s7b1::{camera_data_poses, read_depth, read_seg};
 use super::s7b2::{
     RgbStats, create_context, default_params, diff_rgb, precomputed_rays, read_rgb,
     recipe_depth_seg, render,
 };
-use super::outline::{Arm, diff_depth_with_outline};
 use super::shadow::ShadowReference;
 
 /// S3a 捕获时间（两组同一 `MJWARP_CAPTURE_AT`；仅作窗口证据追溯用）。
@@ -125,7 +125,11 @@ pub fn compare_group(
         let depth_start = layout.depth_adr[camera.index] as usize;
         let depth_actual = &rendered.depth[depth_start..depth_start + camera.pixels];
         // criterion v2.2：cam1 球面轮廓比较走已签清单豁免（env 未启用时 helper 返回原始 diff，行为不变）。
-        depth_stats.push(diff_depth_with_outline(depth_actual, camera, Some(Arm::Recipe)));
+        depth_stats.push(diff_depth_with_outline(
+            depth_actual,
+            camera,
+            Some(Arm::Recipe),
+        ));
         let seg_start = layout.seg_adr[camera.index] as usize;
         let seg_actual = &rendered.seg[seg_start..seg_start + camera.pixels];
         seg_stats.push(diff_seg(seg_actual, camera).expect("seg diff"));

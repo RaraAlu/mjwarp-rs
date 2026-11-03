@@ -30,8 +30,6 @@ mod s7b1;
 mod s7b2;
 #[path = "support/render_bvh/shadow.rs"]
 mod shadow;
-#[path = "support/render_bvh/outline.rs"]
-mod outline;
 #[path = "support/render_bvh/shadow_scene.rs"]
 mod shadow_scene;
 
@@ -200,7 +198,7 @@ fn shadow_off_bitwise_regression_to_pre_unlock_reference() {
     for camera in &recipe.cameras {
         let depth_start = layout.depth_adr[camera.index] as usize;
         let depth_actual = &first.depth[depth_start..depth_start + camera.pixels];
-        let depth_diff = outline::recipe_depth_diff(depth_actual, camera);
+        let depth_diff = s7b1::outline::recipe_depth_diff(depth_actual, camera);
         let seg_start = layout.seg_adr[camera.index] as usize;
         let seg_actual = &first.seg[seg_start..seg_start + camera.pixels];
         let seg_diff = diff_seg(seg_actual, camera).expect("同配方 seg diff");
