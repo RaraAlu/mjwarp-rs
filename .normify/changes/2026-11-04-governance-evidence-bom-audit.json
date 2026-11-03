@@ -5,7 +5,7 @@
     "zh": "证据目录 UTF-8 BOM 审计与门禁提示（存量 144 个：.txt 57/.log 55/.ps1 16/.json 5/.md 2/其它 7；不改历史字节）",
     "en": "Audit UTF-8 BOM in evidence dirs and add a pre-gate hint (144 existing files; .ps1 BOM is intentional; no historical byte rewrites)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "QA 在 S3c 复核时踩到 `manifest.txt` 首 3 字节为 `EF BB BF`（BOM）导致 `#` 不在字节 0、严格解析器把第一行当条目（已由 `ddd06292` 去掉 S3c 三份证据的 BOM）。全仓扫描实测 `docs/evidence` + `docs/development-evidence` + `fixtures` 下**仍有 144 个带 BOM 的文件**：`.txt` 57、`.log` 55、`.ps1` 16、`.patch` 6、`.json` 5、`.md` 2、`.rs`/`.tsv`/`.cpp` 各 1。其中 **`.ps1` 的 BOM 是有意的**（Windows PowerShell 5.1 读无 BOM UTF-8 中文脚本会乱码，p60 甚至专门加过 BOM），其余类别的 BOM 只会给严格解析器制造假信号。本卡只做**审计 + 门禁提示 + 口径说明**，**不重写这 144 个历史文件**（改证据字节属需用户签范围）。",
     "en": "Audit BOM in evidence dirs, document that .ps1 BOM is intentional, and add a pre-gate hint; never rewrite the 144 existing files."
@@ -32,13 +32,29 @@
     "priority": 72
   },
   "note": "Arch 2026-11-04 登记（来源：QA S3c 复核中 BOM 假信号 + 全仓实测 144 个 BOM 文件）。**不重写历史字节**是硬边界：改证据字节要用户签。与 EOL 治理卡同族（证据卫生），依赖它先落地以便 pre-gate 流程成套。",
-  "revision": { "before": "4b98249f377c1d96de102f09b461d6897a5375ba", "after": null },
+  "revision": {
+    "before": "bef7bee14814a915fca1338132622dd0ca7f44d3",
+    "after": null
+  },
   "created_at": "2026-11-04T07:12:00.000Z",
-  "updated_at": "2026-11-04T07:12:00.000Z",
+  "updated_at": "2026-11-03T23:23:34.817Z",
+  "closed_at": "2026-11-03T23:23:34.817Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    }
   ]
 }
