@@ -91,5 +91,5 @@
 
 ## 7. Archive
 
-- This directory contains the attempt3 payload (22 files), a copy of the frozen guard body
-  (`guards-perworld-s1.json`), and `manifest.txt` (sha256 + bytes per file; the manifest does not register itself).
+- This directory holds 24 manifest entries / 25 files: 22 payload files + a copy of the frozen guard body
+  (`guards-perworld-s1.json`) + `manifest.txt` (sha256 + bytes per file; the manifest does not register itself).
