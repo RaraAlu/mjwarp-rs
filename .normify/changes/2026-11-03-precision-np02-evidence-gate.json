@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-03-precision-np02-evidence-gate",
+  "title": {
+    "zh": "NP02 门禁第一片：证据清单静态棘轮 + 证据指针可解析断言",
+    "en": "NP02 gate slice 1: static ratchet of the evidence inventory plus resolvable evidence-pointer assertions"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "把 NP02（精度证据覆盖率 100%、证据缺失 0）里**已提交清单**那部分机械化：新增 `tests/precision_evidence_gate.rs`（零 GPU、零网络、只读文件），断言 ①`np02-evidence/inventory.json` 的 counts 与快照完全一致（88 路径 / 84 内核 / 3 冻结链 / 1 MathDx / 88 有证据 / 0 缺失 / 701 回执 / 32 缺口 …），②每行的 `source.path` 与 `artifact.evidence_paths` 都指向仓内存在的文件（当前 158 条可解析指针），③状态词表（verified/source-drift/derived）、HandWrittenCuda 行必须是 f32-physics、两个上游 pin 不得漂移、平台不得写成双平台。并更新 np02 证据 README 记录本片覆盖与未覆盖项。不重跑 np02 扫描工具（需 `target/mjwarp-parallel` checkout，仓瘦身后不在仓），不宣称 NP02 通过。",
+    "en": "Mechanize the already-committed NP02 evidence inventory: ratchet the counts, assert every registered evidence pointer resolves to a real file, and pin the state vocabulary, the f32-physics compile gate for hand-written CUDA rows, the two upstream pins and the Windows-only platform. No GPU, no network, no re-run of the np02 scanner; NP02 is not claimed as passed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**计数棘轮**：`np02_counts_match_the_registered_snapshot` 断言 `inventory.json` 的 14 个关键计数与测试内快照逐项相等（88/84/3/1/88/0/100.0/9/701/701/650/32/7/5），`rows` 88 条、`gaps` 32 条；任一数字变化即失败。",
+    "**指针可解析**：`np02_evidence_pointers_resolve` 逐行核对 `source.path`（派生源说明文字跳过）与 `artifact.evidence_paths` 每一项在仓内存在；可解析指针计数 ≥158。",
+    "**词表与 pin**：`np02_states_and_pins_stay_on_the_registered_vocabulary` 断言 `evidence_state` ∈ {verified, source-drift, derived}、`route` ∈ {HandWrittenCuda, FrozenPtx, MathDxLto}、HandWrittenCuda 行 `compile.precision_gate == f32-physics`、MJWarp pin `71da24d…`、Warp pin `ffa038b1…`、`platform.os == Windows`。",
+    "**证据与边界**：`docs/development-evidence/np02-evidence/README.md` 增「NP02 门禁第一片」一节，写清三个用例、当前数字与未覆盖项（重跑工具/回执哈希/双平台/21 条已知缺口）；`src/`、`include/warp-headers/`、fixtures、判据/容差零改动，零 GPU。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 新增 3 个用例，总数只增不减）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "tests/precision_evidence_gate.rs",
+      "docs/development-evidence/np02-evidence/"
+    ],
+    "resources": [],
+    "priority": 69
+  },
+  "note": "Arch 2026-11-03 登记（与 NP01 门禁第一片同一批，Chief 定的夜间优先项 NP01/NP02）。本片只做已提交清单的静态棘轮与指针可解析断言；np02 扫描工具需上游 checkout，不在本片范围；NP02 卡保持 backlog，不因本片变为 verified。",
+  "revision": {
+    "before": "c47a61a7a66f5b140e8f9dd4d6cfb659fe02e44a",
+    "after": null
+  },
+  "created_at": "2026-11-04T00:50:00.000Z",
+  "updated_at": "2026-11-04T00:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "include/warp-headers/",
+        "fixtures"
+      ]
+    }
+  ]
+}
