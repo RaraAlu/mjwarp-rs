@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-capture",
+  "title": {
+    "zh": "R06-S3b①：flex 渲染参考离线采集（capture_render_flex.py + scene-flex fixture + provenance）",
+    "en": "R06-S3b(1): offline flex render reference capture (capture script, scene-flex fixture, provenance)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3a/S3c 已出 flex 设备实现，本片做**离线参考采集**（CPU、只读 pinned 上游与 fixtures、不启动在制品测试、不占 GPU 窗口）：新增 `scripts/authoring/capture_render_flex.py`（形态照 `capture_render_{hfield,perworld,sdf,shadow}.py` 先例）与 `fixtures/render-bvh/scene-flex/` 首版场景（1D flex + 刚性几何共存；2D/3D 只留机制不进首窗），产出 rgb/depth/seg 参考与 provenance。窗口执行（判据、守卫、Baseline、开窗）由 S3b② 承载，本片不碰。",
+    "en": "Capture flex render references offline (CPU only, pinned upstream, no in-progress test binaries, no GPU window) and add the first scene-flex fixture; the window itself is card S3b(2)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**采集脚本**：`scripts/authoring/capture_render_flex.py` 进仓，离线 authoring：只读 pinned upstream（`target/mjwarp-parallel/upstream`，**editable 安装**，禁 PyPI 轮子——PyPI 3.15.0 与 pinned commit 有 5 个 `.py` 逐字节不一致）与 `fixtures/render-bvh/scene-flex/`，不启动在制品测试、不占 GPU。输出形态与既有采集脚本一致：`rgb/depth/seg.npz` + `state.npz` + `capture.json`，`--repeat 2` 两次运行字节一致，采集前后 fixtures sha 对照，`MJWARP_CAPTURE_AT` 固定 provenance（pinned 提交、DLL sha、命令）。",
+    "**场景**：`fixtures/render-bvh/scene-flex/` 首版 = **1D flex + 刚性几何共存**的最小场景（2D/3D 只留机制），含 `scene.xml`、`model-{312,315}.json`、`provenance.json`、`reference/`。**tie-break 前提**：flex 在近共面平局永不赢（上游 `hit_geom_id=-2`、设备 `candidate_id=-2`，`-2 > geom_id` 不成立），采集场景**不得**放置与刚性面近共面/贴脸的 flex 边，也不得依赖平局结果；flex 与刚性几何 world 隔离断言成立。",
+    "**参考判读口径（S3a 交付口径）**：flex 命中 `geom_id=-2`、`mesh_id=flexid`、seg `(flexid, 9)`（`mjOBJ_FLEX=9`，只首样本写）、depth 同式 `dist * -ray_dir_local_cam[2]`、颜色取 `flex_rgba[mesh_id]`。",
+    "**边界**：本片不做窗口、不重冻守卫、不写判据/容差、不改 `src/`（零设备改动）；`fixtures/` 的变更在卡内登记清楚。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3a-flex-device"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/capture_render_flex.py",
+      "fixtures/render-bvh/scene-flex/",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-capture/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：S3b 拆两片——① 采集/场景归 Backend，② 窗口材料归 Arch）。本片纯离线、CPU-only，不占 GPU 窗口；`checks.unchanged` 只覆盖 `src/render/kernel/cuda/`，不含 `fixtures/`（本片要写 fixtures）。EOL 治理卡（`2026-11-04-governance-evidence-eol-normalization`）先落地，跑 unchanged 前先跑 `scripts/validate/normalize-evidence-eol.ps1`。",
+  "revision": { "before": "45d5dceb625dfac066a6fcacfe400ea576e09038", "after": null },
+  "created_at": "2026-11-04T06:45:00.000Z",
+  "updated_at": "2026-11-04T06:50:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+  ]
+}
