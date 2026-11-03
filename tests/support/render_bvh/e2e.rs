@@ -339,7 +339,7 @@ pub fn assert_depth_seg_same_recipe(
         let diff = super::s7b1::outline::diff_depth_with_outline(
             &depth[base..base + camera.pixels],
             camera,
-            Some(super::s7b1::outline::Arm::Recipe),
+            super::s7b1::outline::Arm::Recipe,
         );
         let seg_diff =
             diff_seg(&seg[seg_base..seg_base + camera.pixels], camera).expect("seg diff");

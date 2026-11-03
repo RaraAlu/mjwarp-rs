@@ -287,18 +287,18 @@ impl OutlineStats {
     }
 }
 
-/// Criterion-v2.2 depth comparison for one camera. `None` arm or disabled env => `None`
-/// (caller keeps the raw comparison).
+/// Criterion-v2.2 depth comparison for one camera. Disabled env => `None`
+/// (caller keeps the raw comparison). The arm is required: a call site must state which signed
+/// list it is compared against, so no site can silently fall back to a raw diff.
 pub fn depth_stats(
     actual: &[f32],
     expected: &[f32],
     camera_index: usize,
-    arm: Option<Arm>,
+    arm: Arm,
 ) -> Option<OutlineStats> {
     if !enabled() {
         return None;
     }
-    let arm = arm?;
     assert_eq!(
         actual.len(),
         expected.len(),
@@ -356,17 +356,17 @@ pub fn depth_stats(
     Some(stats)
 }
 
-/// Drop-in for `diff_depth` applying the env-gated v2.2 exemption. `None` arm keeps the raw
-/// comparison. Panics on any violation; on success the returned numbers express the criterion
-/// (outside-list mismatches, in-list values logged separately).
-pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Option<Arm>) -> DepthDiff {
+/// Drop-in for `diff_depth` applying the env-gated v2.2 exemption. The arm is required (call
+/// sites must name the signed list); disabled env keeps the raw comparison. Panics on any
+/// violation; on success the returned numbers express the criterion (outside-list mismatches,
+/// in-list values logged separately).
+pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Arm) -> DepthDiff {
     let raw = diff_depth(actual, camera).expect("depth diff");
-    if !enabled() || arm.is_none() {
+    if !enabled() {
         return raw;
     }
-    let arm = arm.expect("checked");
     let expected = camera.depth_values();
-    let Some(stats) = depth_stats(actual, &expected, camera.index, Some(arm)) else {
+    let Some(stats) = depth_stats(actual, &expected, camera.index, arm) else {
         return raw;
     };
     assert_eq!(
@@ -392,7 +392,7 @@ pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Option<A
 
 /// Recipe-arm comparison for a single camera (used by rgb/r10/e2e/skybox call sites).
 pub fn recipe_depth_diff(actual: &[f32], camera: &RefCamera) -> DepthDiff {
-    diff_depth_with_outline(actual, camera, Some(Arm::Recipe))
+    diff_depth_with_outline(actual, camera, Arm::Recipe)
 }
 
 /// Variant-aware comparison for `render_kernel_flags` (criterion v2.2 clause 1).
@@ -413,7 +413,7 @@ pub fn variant_depth_diff(
     } else {
         Arm::Recipe
     };
-    diff_depth_with_outline(actual, camera, Some(arm))
+    diff_depth_with_outline(actual, camera, arm)
 }
 
 /// Adjust a raw `diff_depth` result for the recipe comparison (used by
@@ -424,7 +424,7 @@ pub fn adjust_recipe_diff(
     expected: &[f32],
     camera_index: usize,
 ) -> bool {
-    let Some(stats) = depth_stats(actual, expected, camera_index, Some(Arm::Recipe)) else {
+    let Some(stats) = depth_stats(actual, expected, camera_index, Arm::Recipe) else {
         return false;
     };
     assert_eq!(

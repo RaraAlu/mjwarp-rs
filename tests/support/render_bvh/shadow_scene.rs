@@ -125,11 +125,7 @@ pub fn compare_group(
         let depth_start = layout.depth_adr[camera.index] as usize;
         let depth_actual = &rendered.depth[depth_start..depth_start + camera.pixels];
         // criterion v2.2：cam1 球面轮廓比较走已签清单豁免（env 未启用时 helper 返回原始 diff，行为不变）。
-        depth_stats.push(diff_depth_with_outline(
-            depth_actual,
-            camera,
-            Some(Arm::Recipe),
-        ));
+        depth_stats.push(diff_depth_with_outline(depth_actual, camera, Arm::Recipe));
         let seg_start = layout.seg_adr[camera.index] as usize;
         let seg_actual = &rendered.seg[seg_start..seg_start + camera.pixels];
         seg_stats.push(diff_seg(seg_actual, camera).expect("seg diff"));

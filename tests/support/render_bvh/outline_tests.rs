@@ -204,3 +204,86 @@ fn parses_committed_prototype_list_recipe() {
     assert_eq!(parsed.entries.len(), 183);
     assert!(parsed.entries.contains_key(&28969));
 }
+
+fn rs_sources(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let entries = std::fs::read_dir(dir).expect("read tests source dir");
+    for entry in entries {
+        let path = entry.expect("dir entry").path();
+        if path.is_dir() {
+            rs_sources(&path, out);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+            out.push(path);
+        }
+    }
+}
+
+/// `open` 指向 `(`；按括号配对返回该调用表达式的文本。
+fn call_text(text: &str, open: usize) -> &str {
+    let mut depth = 0usize;
+    for (offset, ch) in text[open..].char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return &text[open..open + offset + 1];
+                }
+            }
+            _ => {}
+        }
+    }
+    &text[open..]
+}
+
+/// 测试支撑护栏：不经 criterion v2.2 清单豁免的裸 depth 比较（`diff_depth` 调用）只允许出现在
+/// 白名单文件里；新增必须先在这里登记并写明理由，评审可见。带清单豁免的 helper 与
+/// `depth_stats` 也不得传 `None`（arm 已改为必填 `Arm`，编译期兜底；本断言防回归到 `Option` 写法）。
+#[test]
+fn bare_depth_diff_call_sites_are_allowlisted() {
+    // 拼接构造，避免扫描器命中本文件自身的字面量。
+    let bare = ["diff", "_depth("].concat();
+    let outlined = ["diff_depth", "_with_outline("].concat();
+    let stats_fn = ["depth", "_stats("].concat();
+    let allowlist = [
+        "tests/render_kernel_depth_seg.rs", // 合成扰动 depth，判据是 mismatch 计数本身
+        "tests/support/render_bvh/hfield_scene.rs", // hfield 参考无球面轮廓，位级比较
+        "tests/support/render_bvh/outline.rs", // 豁免 helper 自身先算原始 diff
+        "tests/support/render_bvh/r08.rs",  // 多世界逐相机 depth 位级比较
+        "tests/support/render_bvh/r08_gpu.rs", // 同上（GPU 变体）
+        "tests/support/render_bvh/s7b1.rs", // 泛化比较，随后 adjust_recipe_diff 调整
+        "tests/support/render_bvh/sdf_compare.rs", // SDF 参考比较，无球面轮廓清单
+    ];
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    rs_sources(&root.join("tests"), &mut files);
+    files.sort();
+    let mut bare_sites = Vec::new();
+    for path in &files {
+        let rel = path
+            .strip_prefix(root)
+            .expect("tests source under manifest dir")
+            .to_string_lossy()
+            .replace('\\', "/");
+        let text = std::fs::read_to_string(path).expect("read test source");
+        if text.contains(bare.as_str()) {
+            bare_sites.push(rel.clone());
+        }
+        for needle in [outlined.as_str(), stats_fn.as_str()] {
+            let mut from = 0usize;
+            while let Some(index) = text[from..].find(needle) {
+                let open = from + index + needle.len() - 1;
+                let call = call_text(&text, open);
+                assert!(
+                    !call.contains("None"),
+                    "{rel}: `{needle}` 调用传了 None（arm 必填）: {call}"
+                );
+                from = open + 1;
+            }
+        }
+    }
+    bare_sites.sort();
+    assert_eq!(
+        bare_sites, allowlist,
+        "裸 depth 比较的白名单不符：新增裸比较必须先在这里登记并写明理由"
+    );
+}

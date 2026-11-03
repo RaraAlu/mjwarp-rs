@@ -372,7 +372,7 @@ pub fn compare(
         depth_stats.push(super::s7b1::outline::diff_depth_with_outline(
             &rendered.depth[depth_start..depth_start + camera.pixels],
             camera,
-            Some(super::s7b1::outline::Arm::Recipe),
+            super::s7b1::outline::Arm::Recipe,
         ));
         let seg_start = layout.seg_adr[camera.index] as usize;
         seg_stats.push(

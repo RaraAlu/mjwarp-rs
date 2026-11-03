@@ -5,7 +5,7 @@
     "zh": "shadow 测试支撑加固：outline 比较的 arm 参数必填 + 裸 diff_depth 调用点白名单断言",
     "en": "Shadow test-support hardening: require the outline comparison arm and pin bare diff_depth call sites with a source allowlist assertion"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "perworld S1 attempt2 的唯一失败实体 `render_shadow_reference` 根因是两处 cam1 depth 比较走了裸 `diff_depth`（不经 criterion v2.2 清单豁免），而 `outline::diff_depth_with_outline`/`depth_stats` 的 `arm` 是 `Option<Arm>`、`None` 会静默退回裸比较，评审时看不出调用点口径。本卡只改测试支撑面：①把 `arm: Option<Arm>` 改为必填 `Arm`，让每个调用点显式声明比较口径（env 未启用时仍保持 raw 行为不变）；②新增一条源码级断言测试，把 `tests/` 下允许出现裸 `diff_depth(` 的文件集合钉成白名单，新增裸比较必须先改白名单才过门禁。不改判据/容差/参考/guards，不动 `src/`、`.cu`、ABI。",
     "en": "Test-support only: make the outline comparison arm a required `Arm` instead of `Option<Arm>` so every call site states its comparison arm explicitly (env-off behaviour stays raw), and add a source-level assertion test pinning the set of files allowed to call the raw `diff_depth(`. Criteria, tolerances, references and guards unchanged; no `src/`, `.cu` or ABI change."
@@ -30,11 +30,12 @@
   },
   "note": "Arch 2026-11-03 注册（proposed）。来源：perworld S1 attempt2 的 `render_shadow_reference` 因两处裸 `diff_depth` 未走 v2.2 清单豁免而失败；修复（294d6040/1691b442）已落地，但 `Option<Arm>` 仍留静默裸比较路径，属已记录的测试支撑 backlog 项（Arm 必填 + grep 断言）。impl-s1 已 verified（5be57e86）、attempt3 证据冻结后单独立卡落地，判据零变化。全部 CPU-only，不开窗口、不占 GPU。",
   "revision": {
-    "before": "a92e4eb32fd866220e9766d0053b4542e028e2f6",
+    "before": "04deeeaa2fff8911244b4fc954588c356e0402ba",
     "after": null
   },
   "created_at": "2026-11-03T15:16:00.000Z",
-  "updated_at": "2026-11-03T15:16:00.000Z",
+  "updated_at": "2026-11-03T15:18:28.408Z",
+  "closed_at": "2026-11-03T15:18:28.408Z",
   "checks": [
     {
       "kind": "gate",
