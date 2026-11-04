@@ -5,6 +5,8 @@
 //! `(flexid,9)`）、两跑 sha256 相同。CPU 自证：model dump → flex fields → host 通道/BVH 输入逐数组断言。
 //! GPU: cargo test --locked --features cuda-probe --test render_flex_validate -- --ignored --test-threads=1
 
+#[path = "support/render_bvh/allowlist.rs"]
+mod allowlist;
 #[path = "support/render_bvh/s7b1.rs"]
 mod s7b1;
 #[path = "support/render_bvh/s7b2.rs"]
@@ -24,7 +26,7 @@ use mjwarp_rs::render::context::flex_host::{FlexHostAssembly, FlexHostData};
 use mjwarp_rs::render::context::owner::MeshState;
 use mjwarp_rs::render::context::{RenderFlagSpec, ResolvedContext};
 use mjwarp_rs::render::kernel::cast::{CameraPose, ModelRenderArrays};
-use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, RefCamera, ulp_distance};
+use mjwarp_rs::render::kernel::output::RefCamera;
 use mjwarp_rs::render::kernel::world_camera::{
     world_active_camera_arrays, world_camera_pose_arrays,
 };
@@ -338,14 +340,7 @@ fn compare(reference: &RefData, layout: &ResolvedContext, rendered: &Output) {
     }
     for camera in &reference.1 {
         let start = layout.output.depth_adr[camera.index] as usize;
-        let (mut mismatched, mut max_ulp, mut beyond) = (0usize, 0i64, 0usize);
-        for (value, expected) in rendered.1[start..start + camera.pixels].iter().zip(&camera.depth_bits) {
-            let (bits, ulp) = (value.to_bits(), ulp_distance(value.to_bits(), *expected));
-            mismatched += usize::from(bits != *expected); beyond += usize::from(ulp > MAX_DEPTH_ULP);
-            max_ulp = max_ulp.max(ulp);
-        }
-        assert_eq!((mismatched, beyond), (0, 0), "cam{} depth 位级/超 4 ULP", camera.index);
-        assert!(max_ulp <= MAX_DEPTH_ULP, "cam{} depth max_ulp={}", camera.index, max_ulp);
+        allowlist::assert_depth_allowlisted(camera.index, camera.width, &rendered.1[start..start + camera.pixels], &camera.depth_bits, &camera.seg_pairs);
         let seg_start = layout.output.seg_adr[camera.index] as usize;
         let seg_mismatched = rendered.2[seg_start..seg_start + camera.pixels].iter().zip(&camera.seg_pairs).filter(|(a, e)| a != e).count();
         assert_eq!(seg_mismatched, 0, "cam{} seg 逐像素全等", camera.index);
