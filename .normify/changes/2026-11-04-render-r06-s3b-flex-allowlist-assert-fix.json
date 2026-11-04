@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-allowlist-assert-fix",
+  "title": {
+    "zh": "R06-S3b attempt6 前置：GPU 用例实现签名 allowlist（仅 cam2/(134,128)/flexid0 允许 ULP≤4 且 beyond4=0，其余严格）+ CPU 自证",
+    "en": "attempt6 prerequisite: encode the signed one-pixel allowlist in the GPU test (only cam2/(134,128)/flexid0 may be ULP<=4 with beyond4=0) plus a CPU self-proof"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "attempt5（`6e9aa585`）FAILED_ROUND 的原因是**判据实现缺口**：冻结用例 `tests/render_flex_validate.rs:347` 仍断言 cam2 depth `(mismatched, beyond4) == (0,0)`，而用户签名 allowlist 允许 `cam2/(134,128)/flexid0` 为 `ULP≤4 且 beyond4=0`。实测观测 `(1,0)` 恰好等于签名允许状态 → 不是数值红。本卡把 allowlist **精确实现**进用例判据（不扩大范围），并加 CPU 自证；**不改判据文本、不改容差/参考/fixtures**，零 GPU。",
+    "en": "Implement the signed allowlist in the GPU test's assertion (exact pixel only) with a CPU self-proof; no criteria text change, zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实现（逐字范围）**：仅对 `cam2`、像素 `(x=134, y=128)`（idx 41094）、`flexid0` 放宽为 `ULP ≤ MAX_DEPTH_ULP(4)` **且** `beyond4 = 0`；**其余全部维持严格**（`mismatched = 0`、`beyond = 0`），包括 cam0/cam1 全部像素、cam2 其它所有像素、所有 rgb、所有 seg。**不得**写相机级/区域级/条件式（如「附近像素」「≤4 ULP 即可」）放宽。",
+    "**实现方式要求**：allowlist 以**显式常量**（相机索引、像素坐标、flexid）在断言处判定，且断言失败信息须打印该像素的实际 `(mismatched, beyond, max_ulp, bits)`；不得用「先算出总数再减 1」这类隐式做法。",
+    "**CPU 自证（普通 `cargo test`，不碰 CUDA）**：对允许/拒绝三类输入各一条断言——① 该像素 `(1, 0)` 且 ULP≤4 → **PASS**；② 该像素 `beyond4 ≥ 1` → **FAIL**；③ 除该像素外任何像素 `mismatched=1` → **FAIL**（证明限定范围不被扩成相机级）。",
+    "**边界**：不改判据文本（签名 allowlist 不变）、不改容差/参考/`fixtures/`、不碰 r2 证据；**零 GPU、不开窗口**。",
+    "**attempt6 衔接**：修复后需 `cargo test --locked --features cuda-probe --no-run --test render_flex_validate` 重建 + **重新 freeze 16/16、exes=2、inputs=14** + **Chief 新 GO**；本卡不执行窗口。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/` 收 README（allowlist 实现位置/常量、三类 CPU 自证输出、与 attempt5 `6e9aa585` 的对应关系）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-allowlist-signature"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_validate.rs",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Arch 2026-11-04 登记（来源 attempt5 FAILED_ROUND `6e9aa585`：用例断言严于签名 allowlist，观测 `(1,0)` = 允许范围）。**只改判据实现、不改判据文本**；attempt6 需重建 + 重冻 + Chief 新 GO。",
+  "revision": { "before": "1068d52741a492698791bca9ce95b97a96303315", "after": null },
+  "created_at": "2026-11-04T22:43:00.000Z",
+  "updated_at": "2026-11-04T22:43:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
