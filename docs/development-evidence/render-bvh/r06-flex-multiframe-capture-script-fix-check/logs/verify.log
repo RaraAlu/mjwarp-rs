@@ -1,0 +1,61 @@
+== base e1d93aca fix 3e5fc677 oldfix 1678545e HEAD 1678545e
+
+[1] commit scope and trailers
+PASS fix commit carries exactly one Normify-Task (its own card), no Normify-Fixes :: ['Normify-Task: 2026-11-05-render-r06-flex-multiframe-capture-script-fix']
+PASS old-evidence commit carries exactly one Normify-Fixes (old card), no Normify-Task :: ['Normify-Fixes: 2026-11-05-render-r06-flex-multiframe-capture-script']
+PASS fix commit touches only scripts/authoring(+module/README) and fix evidence/card/runs :: []
+PASS fix commit does not touch the old evidence dir
+PASS old-evidence commit touches only the old evidence dir + card/runs :: []
+PASS neither commit touches src/tests/fixtures/Cargo
+PASS no npz/capture artifact committed by either commit
+
+[2] line-count ratchet, main script unchanged, frozen spec
+PASS capture_render_flex.py byte-identical to QA baseline e1d93aca
+PASS capture_render_flex.py = 498 lines (git blob / wc -l) :: 498
+PASS extension module = 479 lines :: 479
+PASS scripts/authoring/README.md +4/-0 :: ['4\t0\tscripts/authoring/README.md']
+PASS frozen spec sha/bytes unchanged :: 1d9fa5cef1eb / 10506B
+PASS spec not touched by either commit
+PASS fixtures/.../scene-flex/multiframe absent
+
+[3] O3 static wiring (AST)
+PASS capture_multiframe calls _delta_report :: ['Path', '_base_anchor_z', '_capture_pass', '_delta_report', '_frame_bodies', '_multiframe_readme', '_print_delta_report', '_sha256', '_write_json', 'all', 'as_posix', 'check_environment', 'create_render_context', 'delta_exit_code', 'dict', 'dumps', 'fail', 'from_xml_path', 'get', 'items', 'legacy_manifest', 'len', 'list', 'perf_counter', 'print', 'range', 'resolve', 'rmtree', 'round', 'set_device', 'sorted', 'split', 'state_bitwise_equal', 'str', 'values', 'verify_frozen_spec', 'write_cam_poses', 'write_text']
+PASS capture_multiframe calls _print_delta_report
+PASS capture_multiframe calls delta_exit_code
+PASS _delta_report is called with stream=False in capture path
+PASS capture_multiframe ends with 'return delta_exit_code(...)'
+PASS no unconditional 'return 0' left in capture_multiframe :: 0
+PASS capture.json dict has 'delta_selfcheck' key
+PASS delta_selfcheck = {thresholds, cam2_pixels, report, overall} :: ['thresholds', 'cam2_pixels', 'report', 'overall']
+
+[4] O3 functional: warning + exit code per verdict (synthetic data, no GPU)
+PASS pass: verdict=pass-margin -> exit 0, warning=False
+PASS --check-deltas standalone keeps exit 0 for pass :: exit=0
+PASS insufficient: verdict=insufficient-margin -> exit 3, warning=True
+PASS --check-deltas standalone keeps exit 3 for insufficient :: exit=3
+PASS non-discriminating: verdict=non-discriminating -> exit 3, warning=True
+PASS --check-deltas standalone keeps exit 3 for non-discriminating :: exit=3
+
+[5] O2: --frames whitelist
+PASS --frames 0 exit 1 with reason :: exit=1
+PASS --frames -1 exit 1 with reason :: exit=1
+PASS --frames 2 exit 1 with reason :: exit=1
+PASS --frames 1 still takes the original single-frame path (exit 0, no multiframe plan) :: exit=0
+PASS --frames 1 dry-run output is not the multiframe plan
+
+[6] O1/O4/O5 old-evidence fixes (commit 1678545e)
+PASS O1: dry-run-multiframe.json is pure JSON (json.load OK)
+PASS O1: stderr split into dry-run-multiframe.stderr.txt
+PASS O4: old README artifact row now says '+7 行 / 0 删除'
+PASS O4: any remaining '+5 行' is only the historical quote in the revision record :: occurrences=1
+PASS O5: implementation receipt status=verified, commit=5a99047f :: 'verified'
+PASS old implementation evidence manifest self-check 17/17
+PASS fix evidence manifest self-check 18/18
+
+[7] cards and evidence
+PASS card 2026-11-05-render-r06-flex-multiframe-capture-script-fix verified :: verified
+PASS card 2026-11-05-render-r06-flex-multiframe-capture-script verified :: verified
+OBS  capture-path exit code is verified statically + by the shared functions; no GPU capture was run (card allows synthetic/stub demonstration); dynamic exit-3 on a real capture is exercised in the capture window
+wrote docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-fix-check/logs/qa-rerun.json
+
+RESULT: PASS fails=
