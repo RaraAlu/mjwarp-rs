@@ -1,0 +1,66 @@
+{
+  "task_id": "2026-11-04-render-r05-r09-r10-family-closeout",
+  "owner": "Arch",
+  "date": "2026-11-04",
+  "status": "closeout-evidence-only",
+  "gpu_used": false,
+  "product_code_changed": false,
+  "criteria_changed": false,
+  "families": ["R05 hfield terrain", "R09 lighting and shadows", "R10 multi-world"],
+  "family_index": {
+    "R05": {
+      "slices": [
+        {"slice": "R05-S1", "card": "2026-10-28-render-bvh-r05-s1-hfield-params", "evidence": "docs/development-evidence/render-bvh/r05-s1-hfield-params/"},
+        {"slice": "R05-S2", "card": "2026-10-28-render-bvh-r05-s2-hfield-intersect", "evidence": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/"},
+        {"slice": "R05-S3a", "card": "2026-10-28-render-bvh-r05-s3a-hfield-capture", "evidence": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/"},
+        {"slice": "R05-S3b", "card": "2026-10-28-render-bvh-r05-s3b-hfield-validate", "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-validate/"}
+      ],
+      "window": {"attempt": 2, "entities": "9/9 exit 0", "sha_guards": "73/73", "post": "9/9", "zero_compile": true, "floor_mib": 10233, "samples": 171, "two_run_sha_equal": true},
+      "product_fixes": ["dce78b1f zero-mesh family-slot placeholder", "6f246b46 host camera-pose FMA contraction order"],
+      "exceptions": ["S3a authoring-only util<60 (user pre-approved)", "S3b validation-only util<60 (Chief pre-approved)"],
+      "failed_rounds_retained": ["attempt1 INVALID_ROUND"]
+    },
+    "R09": {
+      "slices": [
+        {"slice": "R09-S1", "card": "2026-10-28-render-bvh-r09-s1-lighting-params", "evidence": "docs/development-evidence/render-bvh/r09-s1-lighting-params/"},
+        {"slice": "R09-S2", "card": "2026-10-28-render-bvh-r09-s2-lighting-kernel", "evidence": "docs/development-evidence/render-bvh/r09-s2-lighting-kernel/"},
+        {"slice": "R09-S2b", "card": "2026-10-28-render-bvh-r09-s2-host-guard-unlock", "evidence": "docs/development-evidence/render-bvh/r09-s2b-host-guard-unlock/"},
+        {"slice": "R09-S3a", "card": "2026-10-28-render-bvh-r09-s3a-capture-exact", "evidence": "docs/development-evidence/render-bvh/r09-s3a-shadow-capture/"},
+        {"slice": "R09-S3b", "card": "2026-10-28-render-bvh-r09-s3b-shadow-validation", "evidence": "docs/development-evidence/render-bvh/r09-s3b-shadow-validation/"},
+        {"erratum": "2026-10-28-render-bvh-r09-s3b-evidence-erratum", "evidence": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray/"}
+      ],
+      "disclosed_prerequisite": "before R09-S2b the host rejected use_shadows=true; the older rejection contract stays in the historical evidence and is not erased",
+      "product_path_available_only_after": "R09-S2b"
+    },
+    "R10": {
+      "slices": [
+        {"slice": "R10-S1", "card": "2026-10-28-render-bvh-r10-s1-world-state", "evidence": "docs/development-evidence/render-bvh/r10-s1-world-state/"},
+        {"slice": "R10-S2", "card": "2026-10-28-render-bvh-r10-s2-multi-world", "evidence": "docs/development-evidence/render-bvh/r10-s2-multi-world-e2e/"},
+        {"slice": "L-S1", "card": "2026-10-30-render-perworld-impl-s1", "evidence": "docs/development-evidence/render-bvh/perworld-impl-s1/"}
+      ],
+      "window": {"attempt": "2-run", "entities": "8/8 exit 0", "guards": "46/46", "post": "8/8", "zero_rust_recompiles": true, "deps": "1823->1823", "floor_mib": 9708, "two_run_sha_equal": true},
+      "qa": ["a3ce62e1", "5cc6a3d5"],
+      "known_limit": "no upstream nworld>1 numeric reference; internal consistency and world isolation only"
+    }
+  },
+  "known_limits": [
+    "R05/R09 window exceptions (authoring-only and validation-only util<60) are pre-approved and are never normal-threshold passes; failed rounds and INVALID_ROUND retained",
+    "R09 product shadow path is only available after R09-S2b; the pre-unlock rejection contract stays in the older evidence",
+    "R10 has no upstream nworld>1 numeric reference; per-world light poses / AA+perworld / upstream-style single launch stay in backlog 2026-11-03-render-perworld-l-v2-k-backlog (not executed)",
+    "higher spp, Linux/T4 and upstream consistency not covered; no performance claim in these three families"
+  ],
+  "plan_json_changes": {
+    "file": "docs/development-evidence/render-bvh-precheck/plan.json",
+    "delivery_rows_added": ["R05", "R09", "R10"],
+    "scheduling_note": "N18",
+    "delivery_tracking_updated_at": "2026-11-04",
+    "roadmap_nodes": "roadmap-r05-p8 / roadmap-r09-p8 / roadmap-r10-p8 not started or closed (batch closeout after C1/C2/C3)"
+  },
+  "qa_card": "2026-11-04-render-r05-r09-r10-family-closeout-check",
+  "non_claims": [
+    "no render capability claim beyond R05/R09/R10",
+    "no equivalence-to-upstream claim",
+    "not a basis for external release",
+    "no endorsement of other families"
+  ]
+}
