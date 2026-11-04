@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r02-rgb-closeout",
+  "title": {
+    "zh": "R02 输出族收口：RGB 输出与天空盒（S7b2/S7b3/S7b-followups/S8/R08-S3 + R02-S1/S1b/S2/S2b/S3/S3a）",
+    "en": "R02 output-family closeout: RGB output and skybox (S7b2/S7b3/S7b-followups/S8/R08-S3 plus R02-S1/S1b/S2/S2b/S3/S3a)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R02@P8（RGB 输出：打包 u32、通道序、图像容差；天空盒作为背景通道）的交付面已由 S7b2/S7b3/S7b-followups/S8/R08-S3（RGB 与逐相机 RGB 异构）以及 R02 天空盒族 S1/S1b/S2/S2b/S3/S3a（离线内核/注册、负控制、采集 authoring、参考测试、验证窗 attempt=2、签入产物）覆盖并 verified。本卡做**家族级收口证据**：① summary（两段证据索引、判据与达成值、已知限制、非声明）；② `plan.json` 记账（rows 追加 R02/R02-skybox 两行 + `N17`，`updated_at` 保持 2026-11-04）；③ 同批登记 QA 复核卡。**零 GPU、零 `src/`/`tests/`/`fixtures/`、不改判据/容差/参考、不重复声明其他家族。**",
+    "en": "Close out R02 (RGB output plus skybox as the background channel) at the family level: RGB is covered by S7b2/S7b3/S7b-followups/S8/R08-S3 and skybox by R02-S1/S1b/S2/S2b/S3/S3a. Write the family summary, add plan.json rows and a scheduling note, and register a QA review card. Zero GPU; no product code, criteria or reference change."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/render-bvh/r02-rgb-summary/`：README（RGB 段 + 天空盒段逐片证据索引到实现卡、判据与达成值、已知限制、非声明）+ `receipt.json`（`task_id` 指向本卡）+ `manifest.txt`；LF、无 BOM、manifest 首行 `#`。",
+    "`plan.json` `delivery_tracking.rows` 追加 **R02** 与 **R02-skybox** 两行（task_id 指向本卡、evidence 指向 summary、note 含关键数字与实现卡）；`scheduling_notes` 追加 `N17`；`updated_at` 保持 2026-11-04。",
+    "**判据写死（不重议）**：RGB ≤1 LSB 且 beyond_1_lsb=0（位级优先，实测 120,000/120,000 零差）；天空盒 2 相机 RGB/depth/seg 全零偏差、两跑 sha 相同。",
+    "**已知限制写死**：跨 recipe（fast_math=true 的 S0b 夹具）差异只作已知偏差记录、不作等价声明（S7b2 记录的 332 px 类）；`vertex_normals_off` 在 scene-a 无判别力（followups 已补合成夹具）；AA 仅 `samples_per_pixel=2` 有图像级参考；R02 窗口使用用户预批的 validation-only util<60 例外且 attempt1 INVALID_ROUND 原样保留；更高 spp、Linux/T4、上游完全一致未覆盖。",
+    "**非声明**：不声明完整 R02 之外的渲染能力、不与上游等价、不声明对外发布依据、不替其他家族背书；每族证据索引到实现卡，不重复声明。",
+    "roadmap 节点 `roadmap-r02-p8` **不在本卡 start/done**（roadmap 节点不承载实现，C 全绿后统一收口）。",
+    "`git diff` 只含 `plan.json`、`r02-rgb-summary/`、本卡与 QA 卡记录；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s7b2-independent-check",
+      "2026-10-25-render-bvh-s7b3-independent-check",
+      "2026-10-25-render-bvh-s7b-followups",
+      "2026-10-30-render-r08-rgb-hetero-closeout",
+      "2026-10-29-render-bvh-r02-skybox-closeout",
+      "2026-11-04-render-r01-p8-closeout"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh/r02-rgb-summary/"
+    ],
+    "resources": [],
+    "priority": 66
+  },
+  "note": "Arch 2026-11-04 登记（Chief C 系列第 2 张：C2 = R02 输出族含 skybox）。plan.json 单写者：C1/C2/C3 串行。天空盒族已有 `r02-skybox-summary/` 与 closeout 卡 `2026-10-29-render-bvh-r02-skybox-closeout`，本卡引用而不复述其数字。roadmap 节点不承载实现。",
+  "revision": {
+    "before": "e2c0f44b2d57c435cdc713e4e861af9babfbdf90",
+    "after": null
+  },
+  "created_at": "2026-11-04T15:48:00.000Z",
+  "updated_at": "2026-11-04T15:41:26.670Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-rgb-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-04-render-r02-rgb-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "双平台通过",
+        "产品渲染验收通过",
+        "动画一致性"
+      ]
+    }
+  ]
+}

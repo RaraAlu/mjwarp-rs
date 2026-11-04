@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r02-rgb-closeout-check",
+  "title": {
+    "zh": "QA 独立复核：R02 输出族收口（RGB + 天空盒证据索引、判据达成值、跨 recipe 偏差登记、非声明）",
+    "en": "QA independent review: R02 output-family closeout (RGB + skybox evidence index, achieved criteria, cross-recipe deviation register, non-claims)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-04-render-r02-rgb-closeout` 做独立复核：RGB 段（S7b2/S7b3/S7b-followups/S8/R08-S3）与天空盒段（R02-S1/S1b/S2/S2b/S3/S3a）逐条指针是否指向 verified 卡、判据达成值是否可复算、跨 recipe 偏差是否只登记不作等价声明、已知限制与非声明是否齐全、plan.json 记账是否一致。**只读 + 写自己的证据目录；零 GPU。**",
+    "en": "Independent review of the R02 closeout: pointers to verified cards, recomputable achieved criteria, cross-recipe deviations registered without equivalence claims, known limits and non-claims present, and plan.json bookkeeping consistent. Read-only; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**RGB 段**：S7b2 120,000/120,000 零差（QA 38298e5）、S7b3 五变体 + AA 零差（QA 7e5affd）、S8 端到端零差、R08-S3 逐相机 RGB 异构 beyond_1_lsb=0 均可对原始日志复算；`≤1 LSB` 不得写成放宽后通过。",
+    "**天空盒段**：R02-S3 窗口 attempt=2 的 9/9 exit 0、guards 77/77、post 9/9、零编译、floor 9,786 未破、两跑 sha 相同、2 相机 RGB/depth/seg 全零偏差可核；attempt1 INVALID_ROUND 原样保留、未被抹掉。",
+    "**跨 recipe 偏差**：S0b fast_math=true 类差异只作已知偏差记录，未被写成等价或通过。",
+    "**已知限制**：跨 recipe、`vertex_normals_off` 判别力、AA 仅 spp=2、R02 validation-only util<60 例外、更高 spp/Linux/T4/上游一致未覆盖——逐条在场。",
+    "**非声明**：不与上游等价、不声明对外发布依据、不替其他家族背书——逐条在场。",
+    "**记账**：`plan.json` 新增 R02/R02-skybox 两行 + `N17`，与 summary 一致；roadmap-r02-p8 未被改动；`r02-skybox-summary/` 与 closeout 卡被引用而非复述。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix`；证据落 `docs/development-evidence/render-bvh/r02-rgb-summary-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r02-rgb-closeout"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r02-rgb-summary-check/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Arch 2026-11-04 登记（C2 同批）。只读复核：不得回改 summary、plan.json、r02-skybox-summary 或已 verified 证据；问题以 addenda/needs-fix 记录。零 GPU。",
+  "revision": { "before": "e2c0f44b2d57c435cdc713e4e861af9babfbdf90", "after": null },
+  "created_at": "2026-11-04T15:48:00.000Z",
+  "updated_at": "2026-11-04T15:48:00.000Z",
+  "checks": []
+}
