@@ -1,0 +1,93 @@
+{
+  "task_id": "2026-11-04-render-r06-flex-closeout",
+  "owner": "Arch",
+  "date": "2026-11-04",
+  "status": "closeout-evidence-only",
+  "gpu_used": false,
+  "product_code_changed": false,
+  "criteria_changed": false,
+  "reference_changed": false,
+  "family": "R06 flex render",
+  "slices_delivered": [
+    {"slice": "R06-S0", "task_id": "2026-11-03-render-r06-flex-precheck", "commits": ["7e8ec8c8"]},
+    {"slice": "R06-S1a", "task_id": "2026-11-03-render-r06-s1a-megakernel-args-split", "commits": ["0ac566a5"]},
+    {"slice": "R06-S2", "task_id": "2026-11-03-render-r06-s2-flex-host-channel", "commits": ["7c0bb8f9"]},
+    {"slice": "R06-S2b", "task_id": "2026-11-04-render-r06-s2b-flex-datasource-t4-merged", "commits": ["1f199737", "88e19c44"]},
+    {"slice": "R06-S2c", "task_id": "2026-11-04-render-r06-s2c-flex-shell-data", "commits": ["df6d74af", "b4a7e827"]},
+    {"slice": "R06-S3pre", "task_id": "2026-11-04-render-r06-s3pre-flexhost-wiring", "commits": ["0b82c676"]},
+    {"slice": "R06-S3a", "task_id": "2026-11-04-render-r06-s3a-flex-device", "commits": ["544d02b9", "735dcc6f"]},
+    {"slice": "R06-S3b", "task_id": "2026-11-04-render-r06-s3b-closure", "commits": ["71ec7c83", "d35cab68", "3406f1ca", "7a48205d", "db082561", "8aec9619", "3c38199d"]},
+    {"slice": "R06-S3c", "task_id": "2026-11-04-render-r06-s3c-flex-mesh-device", "commits": ["181eaa7a", "e9e198cd", "ddd06292", "5d52ebeb"]}
+  ],
+  "acceptance_unit": "single frame",
+  "multi_frame_evolution_covered": false,
+  "multi_frame_tracking_card": "2026-11-04-render-r06-flex-multiframe",
+  "criteria": {
+    "base": "bit-first for rgb (<=1 LSB, beyond_1_lsb=0), depth (<=4 ULP, beyond4=0) and seg (exact) on frozen scene-flex reference",
+    "signed_allowlist": {
+      "card": "2026-11-04-render-r06-s3b-flex-allowlist-signature",
+      "commit": "3406f1ca",
+      "signed_at": "2026-11-04T22:14+08:00",
+      "scope": "cam2 / (x=134,y=128) / flexid0 only",
+      "condition": "ulp <= 4 AND beyond4 == 0; beyond4 != 0 fails",
+      "widened": false
+    },
+    "d8_kept_separate": {
+      "card": "2026-11-04-render-r06-s3b-flex-cam2-depth-gap",
+      "commit": "a1cc22ae",
+      "pixels": 321,
+      "beyond4": 297,
+      "max_ulp": 259,
+      "note": "pre-fix diagnosis; after d35cab68 the residual is 1 px; the two counts are never summed"
+    },
+    "b_class_premises": {
+      "class": "B reference-premise",
+      "same_gpu": "NVIDIA GeForce RTX 4070 Ti SUPER / driver 596.36 / SM89",
+      "same_recipe": "WARP_1_15_RENDER, use_fast_math=false, compute_70",
+      "same_compile_form": "attempt6 in-window canonical rebuild (forced clean + 14.25 s build)",
+      "frozen_reference": "fixtures/render-bvh/scene-flex/reference/base/ (6 files, byte-identical per closure-check)"
+    }
+  },
+  "window": {
+    "attempt": 6,
+    "result": "VALID_ROUND",
+    "commit": "7a48205d",
+    "frozen_test_exe_sha256_prefix": "e48c7268",
+    "frozen_test_exe_bytes": 107854859,
+    "frozen_bin_sha256_prefix": "c5014d83",
+    "frozen_bin_bytes": 85041741,
+    "guards": {"ok": "16/16", "exes": 2, "inputs": 14, "attempt": 2, "status": "frozen"},
+    "aggregate_all": "c5263d33",
+    "aggregate_inputs": "ec6fa222",
+    "monitor": {"required": 60, "clean": 60, "util_min": 2, "util_max": 7, "free_min_mib": 14414, "floor_mib": 11688},
+    "entity": "running 1 test -> 1 passed (1.41 s)",
+    "two_run_sha": {"rgb": "d84ecaed", "depth": "98292153", "seg": "c4be9853"},
+    "zero_compile_after_freeze": true
+  },
+  "reviews": [
+    {"card": "2026-11-04-render-r06-s3b-closure-check", "commit": "8aec9619", "verdict": "PASS-with-observations", "blockers": 0},
+    {"addenda": "3c38199d", "note": "O1 BOM baseline restored to 128 non-.ps1 + 4 manifests; O3 index 10 -> 11 lines; verdict unchanged"}
+  ],
+  "known_limits": [
+    "multi-frame evolution not covered (no criteria, no reference)",
+    "flex z2vec near-parallel negative branch latent defect (tracking card 2026-11-04-render-r06-flex-z2vec-parallel-branch)",
+    "flex-vs-flex in-tolerance tie semantics unchanged; r4 placeholder only if the user picks the min-d option",
+    "attempt5 6e9aa585 FAILED_ROUND is a criteria-implementation gap, not a numeric red",
+    "no upstream equivalence, no parity pass, no performance, no Linux/T4, no higher spp, no multi-world flex"
+  ],
+  "plan_json_changes": {
+    "file": "docs/development-evidence/render-bvh-precheck/plan.json",
+    "slices_added": 9,
+    "delivery_rows_added": 10,
+    "scheduling_note": "N14",
+    "delivery_tracking_updated_at": "2026-11-04",
+    "roadmap_r06_p8": "stays proposed (gated by roadmap-r01-p8; roadmap nodes carry no implementation)"
+  },
+  "non_claims": [
+    "no animation-and-geometry consistency claim",
+    "no equivalence-to-upstream claim",
+    "no parity pass claim",
+    "not a basis for external release",
+    "no render capability claim beyond the R06 single-frame scope"
+  ]
+}
