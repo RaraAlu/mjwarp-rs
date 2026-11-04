@@ -1,0 +1,49 @@
+== environment ==
+python: 3.12.13 | numpy: 2.5.4 | os: Windows-11-10.0.26200-SP0
+
+== 1. reviewed-object identity (uncommitted WIP at review time) ==
+object manifest: entries=24 bad=0 | manifest sha256=ecd80ea0aabd3e6d3e3a100d232f0091293efabb5c7713593f6ec709731a2959
+  README.md                                      bytes=14857   sha256=c0278424ae658a3ca3eccd08e03acca40cc630a3a7b0d0db9ef2b689f4649a8e
+  artifacts/verification-summary.json            bytes=6131    sha256=6e5424f627fa4c655925a718e3a47f3a94665e08555c0b33843ae472e8a4a5d3
+  artifacts/residual-pixel.json                  bytes=1722    sha256=fceac64fcd6c2055d54f0ef47c7b7061b3e5cdac5bf4d685fca1b84eafa2d3f1
+  artifacts/flex0-oracle.npz                     bytes=62746   sha256=530b90d0cb296272d23075790122eb5be213be617763ef9acd4e0e08afae4ac9
+  artifacts/flex1-oracle.npz                     bytes=13563   sha256=3fdaa745239de3c27d4f928d19bc0e1b1a97f0652dfde0441e02bc5f05e8f1e1
+  artifacts/fingerprint-canonical-rebuild.json   bytes=3092    sha256=5247f6852b1323bad28cdfc345f160de1128fe0b52a3d23969971ff2a94b2f1e
+
+== 2. derived product bits vs reference (independently recomputed) ==
+derived npz: docs\development-evidence\render-bvh\r06-s3b-flex-f32-order-check\artifacts\cam2-depth-seg-fixed.npz bytes=17005 sha256=1e12fb81e8e59f477e368757135b2bd10a6c301cf3e75976719223ef8be8003d
+pixels=76800 mismatched=1 beyond4=0 max_ulp=3
+  mismatch px=(134,128) flat=41094 ulp=3 prod_bits=0x400015ba ref_bits=0x400015b7 prod_m=2.00132608 ref_m=2.00132537
+seg mismatched pixels=0 / 76800
+mismatch in flex0=1 flex1=0 non-flex=0
+D8 mismatched=321 -> post-fix 1 | fixed=320 | post-fix subset of D8=True
+
+== 3. derive-check against target dumps (optional, target-only) ==
+  cam2-depth.f32le bytes=307200 sha256=d7a04b1aebeec74d6366eab63b5c6fae28515a04bbecaf97884078b4e8a99802
+  cam2-seg.i32le   bytes=614400 sha256=86106de1036beb308ffc1288d34dabe602aa753b1bc4b3aed78be9210d505742
+  derived == on-disk dumps: depth=True seg=True
+
+== 4. oracle npz: reproduction and binding ==
+  flex0: px=403 oracle==reference 403/403 | oracle vs product mismatch=1 | ref binds reference=True | prod binds post-fix product=True
+  flex1: px=251 oracle==reference 251/251 | oracle vs product mismatch=251 | ref binds reference=True | prod binds D8(pre-fix) product=True
+
+== 5. residual pixel tie math (recomputed from flex0-oracle + residual-pixel.json) ==
+  residual flat=41094 coords=(134,128) flexid=0 ulp=3 beyond4=0
+  reference winner edge=0 | d3=[2.009920835494995, 2.0099215507507324, -1.0]
+  recomputed delta=7.152557373046875e-07 tol=rel*max(d,1)=2.009920835494995e-06 delta<tol=True
+  depth/d factor=0.995723482 | d3[1]*factor==product bits True | d3[0]*factor==ref bits True
+  json delta_d=7.152557373046875e-07 json tol=2.009920835494995e-06 tie=True
+  other edges within tol of winner: [1]
+
+== 6. fingerprint / rebuild records (object artifacts) ==
+  canonical build1 sha256=3A096B52EBAB24624E59998527E14463CB47505E3C3F5D2931E288DA7BB64B4A bytes=107661795
+  determinism probe sha256=3CF1EA0219A9676328E2C78877C471F91BC9F2D0D17F59F2AD8ACCD9A60E82A6 bytes=107661795
+  superseded (gate build) sha256=291841816232CA922B05FEEDE483AB996E9B58243FE657BB65056BBFBB460EA5
+  summary: ptx=aa51258b8cac0e52815870131762579f2347517fcacbb4afeda47df726e9e256 bytes=345514 source_concat=545c8fbefc1bfd78ea3587bd848fd3a1c813e85e15daf0e334b7b49ea7faec24
+  summary: test_exe bytes=107661795 (deprecated as freeze target: yes)
+
+== 7. reviewed scene.cu worktree sha (Backend WIP, not authored by this card) ==
+  src/render/bvh/cuda/scene.cu bytes=17834 sha256=caac8c86a4e4f1e7942cf5c920e2406755dc2e2cade73505f45e28cfff46ab93
+
+== 8. verdict inputs ==
+mismatched=1 px (134,128) ulp=3 beyond4=0 seg_mismatched=0 oracle_flex0_vs_ref=0/403

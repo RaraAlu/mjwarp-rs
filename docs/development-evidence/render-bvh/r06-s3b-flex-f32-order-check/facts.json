@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-04-render-r06-s3b-flex-f32-order-check",
+  "reviewer": "QA",
+  "verdict": "pass",
+  "object": {
+    "task_id": "2026-11-04-render-r06-s3b-flex-f32-order-fix-r2",
+    "evidence_dir": "docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/",
+    "committed": false,
+    "note": "r2 was in_progress (started from cb815c3f) and the evidence dir was being finalised while QA reviewed it; this check pins the reviewed snapshot by the object manifest sha256 and per-file sha256/bytes printed in logs/qa_f32_verify.log section 1. If the r2 commit changes those bytes, re-check the final blobs in the r2 review / attempt5 material.",
+    "review_time_head": "cb815c3f",
+    "snapshot_source": "logs/qa_f32_verify.log section 1"
+  },
+  "scope": {
+    "read_only": true,
+    "gpu_used": false,
+    "wrote_product_code": false,
+    "revised_criteria_or_fixtures": false,
+    "lock_at_review": "held by backend-chat (pid 7156, acquired 19:24:50); QA reviewed read-only and acquired the lock only for its own evidence commit"
+  },
+  "independent_recompute": {
+    "inputs": [
+      "artifacts/cam2-depth-seg-fixed.npz (derived product cam2 depth_bits+seg, 17005 B, from the reviewed product dump)",
+      "fixtures/render-bvh/scene-flex/reference/base/{depth.npz,seg.npz}",
+      "object artifacts/flex0-oracle.npz, flex1-oracle.npz, residual-pixel.json, verification-summary.json',
+      "docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/artifacts/cam2-depth-seg.npz"
+    ],
+    "cam2_depth": { "pixels": 76800, "mismatched": 1, "beyond4ulp": 0, "max_ulp": 3 },
+    "residual_pixel": { "x": 134, "y": 128, "flat": 41094, "flexid": 0, "ulp": 3, "product_bits": "0x400015ba", "reference_bits": "0x400015b7" },
+    "seg": { "mismatched_pixels": 0, "of": 76800 },
+    "mismatch_region": { "flex0": 1, "flex1": 0, "non_flex": 0 },
+    "d8_baseline": { "mismatched": 321, "fixed": 320, "post_fix_mismatched": 1, "post_fix_subset_of_d8": true },
+    "oracle": {
+      "flex0_vs_reference": { "mismatched": 0, "of": 403 },
+      "flex0_vs_product": { "mismatched": 1, "of": 403 },
+      "flex1_vs_reference": { "mismatched": 0, "of": 251 },
+      "product_column_binding": { "flex0": "post-fix product dump", "flex1": "D8 pre-fix product dump (a1cc22ae)" }
+    }
+  },
+  "tie_math": {
+    "d3_at_pixel": [2.009920835494995, 2.0099215507507324, -1.0],
+    "delta_d": 7.152557373046875e-07,
+    "tie_tolerance": 2.009920835494995e-06,
+    "ray_tol_rel": 1e-06,
+    "delta_lt_tolerance": true,
+    "reference_winner_edge": 0,
+    "product_winner_edge": 1,
+    "depth_over_d_factor": 0.995723482,
+    "depth_bits_reproduced_from_d": { "edge1": "0x400015ba", "edge0": "0x400015b7" },
+    "rule_source": "RAY_TOL_REL in src/render/kernel/cuda/render_math.cu:28; candidate_id=-2 at render_common.cu:377; closer rule at render_common.cu:455-460",
+    "conclusion": "flex-0 edge0/edge1 tie inside RAY_TOL_REL; winner decided by candidate visit order, not by f32 contraction"
+  },
+  "rigid_zero_drift": {
+    "derivation": "compare() asserts rgb for all cameras first, then per camera depth (line 347) -> max_ulp (348) -> seg (351); the run fails at cam2 depth, so cam0/cam1 depth (0,0) and seg passed, and all three rgb assertions passed before that",
+    "cam2_seg_assertion_executed_in_short_run": false,
+    "cam2_seg_recompute_from_dump": "0 / 76800",
+    "source": "tests/render_flex_validate.rs:332-353"
+  },
+  "fingerprints_and_ptx": {
+    "ptx_independent_recompute": {
+      "source_concat_sha256": "545c8fbefc1bfd78ea3587bd848fd3a1c813e85e15daf0e334b7b49ea7faec24",
+      "ptx_bytes": 345514,
+      "ptx_sha256": "aa51258b8cac0e52815870131762579f2347517fcacbb4afeda47df726e9e256",
+      "previous": { "source_concat": "d48fc74e...", "bytes": 343993, "ptx_sha256": "9118d1ea..." },
+      "log": "logs/ptx-precheck.log"
+    },
+    "test_exe": {
+      "note": "debug test exe sha256 is build-instance specific; pre-recorded sha must not be used as a freeze target",
+      "canonical_rebuild": "3A096B52EBAB24624E59998527E14463CB47505E3C3F5D2931E288DA7BB64B4A",
+      "determinism_probe": "3CF1EA0219A9676328E2C78877C471F91BC9F2D0D17F59F2AD8ACCD9A60E82A6",
+      "superseded_gate_build": "291841816232CA922B05FEEDE483AB996E9B58243FE657BB65056BBFBB460EA5",
+      "bytes_all": 107661795,
+      "window_rule_v2": "attempt5: run one canonical rebuild first, immediately record exe sha+bytes, freeze THAT artifact (16/16, exes=2, inputs=14), then run with zero rebuilds; pre-recorded sha is reference only, never the freeze gate"
+    }
+  },
+  "prior_findings": [
+    {
+      "id": "F1",
+      "status": "closed",
+      "title": "flex1 oracle product column source was unlabeled (pre-fix D8 vs post-fix)",
+      "resolution": "object added product_source + post_fix_product in verification-summary.json, added artifacts/oracle-product-sources.json, and README labels the flex1 prod_depth as pre-fix D8; QA re-verified"
+    },
+    {
+      "id": "F2",
+      "status": "closed",
+      "title": "r2 gate runs were still under the abandoned card id",
+      "resolution": "four gates re-ran under ...-f32-order-fix-r2 (fmt/clippy/clippy-cuda/unit pass, 19:25-19:26); QA verified run records"
+    }
+  ],
+  "findings_new": [
+    {
+      "id": "F3",
+      "severity": "low",
+      "kind": "requires-fix",
+      "title": "object manifest.txt has no leading # header (byte 0 is the first sha line)",
+      "evidence": "scripts/validate/check-evidence-bom.ps1: RESULT: WARN (128 non-.ps1 BOM files, 5 manifest header violations); baseline was 4 before the r2 evidence dir appeared",
+      "fix": "prepend a # comment line to the object manifest.txt (manifest does not list itself; listed sha256/bytes stay valid)",
+      "owner_action": "r2 close-out"
+    }
+  ],
+  "observations_open": [
+    {
+      "id": "O1",
+      "severity": "low",
+      "title": "product dumps were produced by a temporary WIP F32DUMP harness (reverted, not in repo); README reproduction section has no step that produces them",
+      "impact": "dumps are target-only, bound by sha; this check committed a derived compact copy (artifacts/cam2-depth-seg-fixed.npz) so the residual numbers stay recomputable",
+      "suggestion": "r2 evidence states the harness origin or attaches the patch/snippet"
+    },
+    {
+      "id": "O2",
+      "severity": "low",
+      "title": "two-run sha equality is only a harness printout; not recomputable offline from the single retained dump",
+      "impact": "none on this review (independent recompute uses the derived bits)",
+      "suggestion": "attempt5 re-records the two runs in-window"
+    }
+  ],
+  "criteria_decision": {
+    "classification_of_release": "criteria relaxation (signature level), NOT natural applicability of the class-B premise",
+    "reason": "frozen criterion is bit-first (mismatched,beyond)=(0,0); after the fix beyond4=0 is satisfied and the only failing item is mismatched=1; releasing it overrides the frozen criterion",
+    "proposed_minimal_scope": "cam2 / (x=134,y=128) / flexid0 / ULP<=4 and beyond4ULP=0",
+    "attempt5_criteria_text": "bit-first for all pixels except this subset; this subset requires ULP<=4 and beyond4=0",
+    "separation": "keep separate from the D8 321-px codegen ULP tail (class B, downgraded); this pixel is a tie/candidate-order issue, not a codegen tail",
+    "parallel_root_cause_card": "1D flex candidate-order / tie-semantics alignment: registered as 2026-11-04-render-r06-s3b-flex-tie-order (commit 3e3f363d), owner Backend, decoupled from attempt5; requires zero bit-level regression on rigid and existing render entities",
+    "if_user_does_not_sign": "attempt5 prerequisite unmet; cannot claim the f32 fix passing",
+    "detail": "DECISION-SUPPORT-user-signature.md"
+  },
+  "non_claims": [
+    "does not claim r2 verified, attempt5 passing, or this pixel released",
+    "does not change criteria, tolerances, references, guards or fixtures",
+    "does not modify the reviewed object evidence (read-only snapshot)"
+  ],
+  "artifacts": {
+    "sha256_source": "manifest.txt",
+    "files": [
+      "README.md",
+      "DECISION-SUPPORT-user-signature.md",
+      "facts.json",
+      "artifacts/cam2-depth-seg-fixed.npz",
+      "scripts/qa_f32_verify.py",
+      "logs/qa_f32_verify.log",
+      "logs/ptx-precheck.log",
+      "logs/reviewed-state.txt"
+    ]
+  }
+}
