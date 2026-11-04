@@ -48,7 +48,7 @@ docs/development-evidence/** -text -diff
 | `docs/development-evidence/**` 下已有的逐目录 `-text -diff` 规则 | 值不变（仍 `unset/unset`），无行为变化 |
 | `src/`、`tests/`、`fixtures/`、`docs/evidence/` | **不受影响**（各自既有规则不变；`check-attr` 实样见下） |
 | `.ps1` 的 BOM 规则 | **未动**（本卡不改任何 `.ps1` 行） |
-| `.git/info/attributes` | **未动**（不存在/未创建） |
+| `.git/info/attributes` | **已存在、本次未改动**：本卡取数时该文件已存在（2026-10-30 起，3 条 guards 规则 `scripts/validate/render-bvh/guards.json -text` / `guards-r02-skybox.json -text` / `guards-r08-rgb-hetero.json -text`）；本卡只追加 `.gitattributes` 一行，未读改该文件（见「证据修订记录」O1） |
 
 ## 属性前后对照（主工作树，`git check-attr text diff -- <files>`）
 
@@ -96,9 +96,22 @@ docs/development-evidence/** -text -diff
 
 - 纯配置：未用 GPU、未跑产品/参考测试、未改判据/容差/参考/fixtures；
 - 只追加 `.gitattributes` 一行 + 本证据目录；未 `git add --renormalize`、未触发任何 blob 重写、
-  未改 `.ps1` 规则、未动 `.git/info/attributes`；
+  未改 `.ps1` 规则、未改动 `.git/info/attributes`（该文件已存在，见「效果范围」）；
 - `normify` 检查：`json(receipt.json/task_id)` + `unchanged src/, tests/, fixtures/, docs/evidence/`；
   门禁 fmt/clippy/clippy-cuda/unit 全过（无代码改动，unit 数不变）。
+
+## 证据修订记录（2026-11-05，`normify fix`）
+
+QA 复核（`.gitattributes` 卡 PASS）拎出两条**执行证据事实错误**，经 `normify fix` 修正；**规则本身
+（`.gitattributes` 追加行）与已入库 blob 均未改动**，本修订只改本证据目录的 README/receipt/manifest：
+
+- **O1**：本 README 原写 `.git/info/attributes`「不存在/未创建」——实际该文件 2026-10-30 起已存在
+  （3 条 guards `-text` 规则，见「效果范围」）；已更正为「已存在、本次未改动」。
+- **O2**：`manifest.txt` 头原写 `repo-relative path`——条目实际是**证据目录内相对路径**；已把表头改为
+  `evidence-dir-relative path` 并加一行 `# base dir: docs/development-evidence/repo-evidence-gitattributes-rule`。
+- **O3/O4**（记录性/提交信息 cosmetic）：按 Chief 指示**不修**，仅在此说明。
+- 复核锚点：`git show ce4a7d18 -- .gitattributes` 仍为 1 insertion；本修订提交只改
+  `docs/development-evidence/repo-evidence-gitattributes-rule/` 下 README/receipt/manifest。
 
 ## 证据文件
 
@@ -110,4 +123,4 @@ docs/development-evidence/** -text -diff
 | `gitattributes-diff.txt` | `git diff -- .gitattributes` 原文（1 行新增） |
 | `verify/clone-compare.json` | fresh clone before/after 逐文件 sha256 对比与命令 |
 | `verify/verify_fresh_checkout.py` | 可复跑的验证脚本 |
-| `manifest.txt` | 本目录 sha256 + bytes + 相对路径（不自列） |
+| `manifest.txt` | 本目录 sha256 + bytes + **证据目录内相对路径**（base dir 见表头，不自列） |
