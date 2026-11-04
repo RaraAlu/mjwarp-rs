@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-capture-script-fix-check",
+  "title": {
+    "zh": "QA 最小复核：R06 多帧采集脚本 O3 修复（非 pass-margin 时警告+非零退出+verdict 入 capture.json）+ O1/O2/O4/O5 文案",
+    "en": "QA minimal review: R06 capture-script O3 fix (warn + non-zero exit + verdict in capture.json when not pass-margin) plus O1/O2/O4/O5 wording"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-05-render-r06-flex-multiframe-capture-script-fix` 做**最小**只读复核：只核 O3 修复是否真的让采集路径在 verdict 非 `pass-margin` 时打印「不得落库」警告并非零退出、且 verdict 写入 `capture.json`；再抽查 O1（dry-run JSON 纯 JSON）、O2（`--frames 0` exit1）、O4（README +7）、O5（实现 receipt status）；不重复全量复核，不碰脚本/spec/实现卡证据。**只读 + 写自己的证据目录；零 GPU、不执行采集。**",
+    "en": "Minimal read-only review of the fix card: confirm the capture path now warns and exits non-zero on any non-pass-margin verdict and records the verdict in capture.json; spot-check O1/O2/O4/O5. No full re-review, no edits outside the reviewer evidence directory. Read-only; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**O3**：代码层面确认采集路径不再无条件 `return 0`；用合成/桩数据或 dry-run 路径演示 verdict = `insufficient-margin` 与 `non-discriminating` 时**打印「不得落库」并非零退出**（exit≠0），`pass-margin` 时返回 0；`capture.json` 结构含 verdict 字段（可给出键名与示例片段，无需真实采集）。",
+    "**O1**：`dry-run-multiframe.json` 为纯 JSON，`json.load` 可解析。",
+    "**O2**：`--frames 0` exit 1 且打印原因。",
+    "**O4**：`scripts/authoring/README.md` 行数为「+7 行」口径（与 `capture_render_flex.py` +7/−0 一致）。",
+    "**O5**：实现 receipt status 为 `verified` 或有清晰注记。",
+    "**边界/不变**：脚本仍在 `scripts/authoring/`；主脚本行数 ≤500（git blob 口径，建议贴数）；冻结 spec sha `1d9fa5ce…`/10,506 B 未变；无 `fixtures/`/`src/`/`tests/` 改动、无采集产物、无 GPU 运行。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix`；证据落 `docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-fix-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-capture-script-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-fix-check/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Arch 2026-11-05 登记（与 O3 修卡同批）。只读、最小复核：不重复全量、不改脚本/证据、不执行采集。采集窗仍等 S-1 用户签名 + Chief GO；O6/O7 记已知（spec §8.3 落点 vs `--out-dir`、单帧不变静态判定），不在本卡范围。",
+  "revision": { "before": "3de2361015decddbbab2dc5e847425ad5e201551", "after": null },
+  "created_at": "2026-11-05T02:15:00.000Z",
+  "updated_at": "2026-11-05T02:15:00.000Z",
+  "checks": []
+}
