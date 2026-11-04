@@ -1,0 +1,67 @@
+{
+  "task_id": "2026-11-05-render-r06-flex-multiframe-criteria",
+  "owner": "Arch",
+  "date": "2026-11-05",
+  "status": "design-draft-only",
+  "gpu_used": false,
+  "product_code_changed": false,
+  "criteria_changed": false,
+  "reference_changed": false,
+  "fixtures_changed": false,
+  "current_state": {
+    "single_frame_evidence": {
+      "family_closeout": "2026-11-04-render-r06-flex-closeout (evidence 1de0321a)",
+      "window": "attempt6 7a48205d",
+      "criteria": "rgb <=1 LSB beyond_1_lsb=0; depth <=4 ULP beyond4=0; seg exact; two-run sha equal",
+      "signed_allowlist": "3406f1ca - only cam2/(134,128)/flexid0, ULP<=4 and beyond4=0, base frame only"
+    },
+    "gap": "no multi-frame reference, no pose-change-to-render criterion, no multi-frame test entity"
+  },
+  "candidates": [
+    {"id": "A", "scheme": "independent bit-level reference per frame", "cost": "highest (4.73 MB per frame, linear)", "power": "strongest", "verdict": "feasible but heavy for a first version"},
+    {"id": "B", "scheme": "per-frame criteria (reuse signed) + cross-frame change-visibility assertion + product==reference per frame + two-run sha", "cost": "3 frames ~14 MB, 1 capture window + 1 validation window", "power": "sufficient", "verdict": "recommended"},
+    {"id": "C", "scheme": "direction/monotonicity only", "cost": "lowest", "power": "weak (no numeric correctness)", "verdict": "not for acceptance; possible negative control"}
+  ],
+  "recommended_design": {
+    "frames": 3,
+    "frame_set": "base + 2 clock steps with monotonic flex pose evolution",
+    "per_frame_criteria": "same as the signed single-frame criteria (bit-first)",
+    "cross_frame_criteria": "adjacent-frame depth/seg changed pixel count >= threshold (candidate 0.5% of that camera's pixels, awaiting user signature), product==reference bit-level on every frame, two-run sha equal",
+    "degenerate_guard": "if adjacent reference frames are bit-identical the frame set is declared non-discriminating and the round fails (never passes)",
+    "fail_conditions": "any frame out of bounds / insufficient changed pixels / two-run sha mismatch / non-discriminating reference -> round fails; stop, no retry, no relaxation",
+    "allowlist_not_inherited": "3406f1ca applies to the base frame only; new frames are bit-first, and a recurring same-pixel difference must be reported to the user instead of widening the allowance",
+    "user_signature_required": ["whether to do multi-frame at all", "frame count (3)", "changed-pixel threshold (candidate 0.5%)", "handling if a new frame reproduces the base 1-pixel difference"]
+  },
+  "capture_plan": {
+    "env": "offline authoring, pinned venv, editable mujoco-warp 71da24d9, use_fast_math=false, same GPU; no PyPI wheel",
+    "script_extension": "scripts/authoring/capture_render_flex.py gains a frame loop: step flex state a fixed number of times, record flexvert_xpos (host state.npz) plus upstream render reference (rgb/depth/seg) and camera poses per frame",
+    "artifact_layout": "fixtures/render-bvh/scene-flex/multiframe/frame-000..002/{rgb,depth,seg,state}.npz + capture.json + cam-poses.json + README.md",
+    "size_estimate": "single frame rgb 2.36 MB + depth 0.79 MB + seg 1.58 MB = 4.73 MB; 3 frames ~14 MB",
+    "determinism": "capture twice, byte-identical; provenance records pin/recipe/GPU"
+  },
+  "impact": {
+    "src": "no change",
+    "tests": "one new entity render_flex_multiframe",
+    "fixtures": "new scene-flex/multiframe (3 frames, ~14 MB)",
+    "existing_single_frame_evidence": "unaffected (renderer untouched, base reference unchanged)",
+    "window": "new validation window needs freeze -Attempt re-freeze (guards ~16 -> 16 + new exe + new inputs)",
+    "criteria": "new (cross-frame change visibility + threshold) -> needs user signature",
+    "cost": "2 slices (capture authoring + entity/validation) + 1 capture window + 1 validation window"
+  },
+  "risks": [
+    "threshold subjectivity (0.5% candidate needs calibration against actual reference differences)",
+    "scene-flex pose change may be too small to be discriminating (must be verified at capture time)",
+    "allowlist boundary if a new frame reproduces the base pixel difference",
+    "fixture size grows linearly with frame count",
+    "new entity invalidates the current 16-entry guard set until re-frozen",
+    "doing nothing remains valid: the current single-frame wording can stay"
+  ],
+  "non_claims": [
+    "no animation-consistency claim",
+    "no multi-frame coverage claim",
+    "no multi-frame acceptance claim",
+    "no equivalence-to-upstream claim",
+    "not a basis for external release",
+    "no capture, no window, no product change in this card"
+  ]
+}
