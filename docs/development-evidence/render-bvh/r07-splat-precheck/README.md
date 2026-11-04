@@ -78,4 +78,4 @@
 
 ## 10. addenda（2026-11-05，QA 抽查更正）
 
-- §3 原写「最多 32 趟」有误：上游 shade_splats **没有趟数上限**；_MAX_SPLAT_HITS=32 只约束**每趟**命中数，循环以 	ransmittance ≤ 0.005 或单趟命中数 < 32（含 0）终止，每次新趟把 min_distance 推进到上一趟最远命中 +1e-6。eceipt.json 原文正确，无需改。
+- §3 原写「最多 32 趟」有误：上游 `shade_splats` **没有趟数上限**；`_MAX_SPLAT_HITS=32` 只约束**每趟**命中数，循环以 `transmittance ≤ 0.005` 或单趟命中数 < 32（含 0）终止，每次新趟把 `min_distance` 推进到上一趟最远命中 `+1e-6`。`receipt.json` 原文正确，无需改。
