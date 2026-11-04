@@ -74,6 +74,29 @@
   - **D1/D2（工具，owner 本卡）**：freeze 脚本 EAP 修复已随本轮提交；`-GuardsOnly` 语义需区分「冻结前结构自检」与「冻结后校验」，建议冻结后校验交给开窗卡并复用独立核验步骤。
 - 修复 + 纳入后需**重新真冻结**（exe 会因 rebuild 变哈希）再开新 attempt；按 Chief 2026-11-04 指令，若 08:50 前无法收干净则顺延到 12:00 空闲块。
 
+## 7bis. attempt 2（S3b⑥ 修复后重开，仍 INVALID_ROUND）
+
+Chief 2026-11-04 08:00 前发 **GO attempt 2（有条件）**：逐点 free ≥ 11,618、build 0、无外部计算负载。
+
+| 步骤 | 结果 |
+| --- | --- |
+| 三点基线（07:51:11） | free **14757 / 14765 / 14770**（逐点 ≥11618 ✓）、util 2%、temp 28°C、build 0、树 clean、HEAD `802b21de` |
+| monitor | **60/60 连续干净**，util 2–4%，free_min **14844** ≥ floor 11682（原始 `attempts/attempt-2-monitor-pre-window.csv`） |
+| 重新真冻结（exe 因 S3b⑥ 重建） | `GUARDS_OK=15/15 exes=2 inputs=13`，aggregate_all `4f6cbb54…`、aggregate_inputs `d64be09e…`、guards_sha `8bf38602…` |
+| 等价 guards 核验 | live==guard **2/2**、stash==guard **2/2**、inputs **13/13** |
+| 实体体 | **FAILED（未进入渲染）**：`panicked at tests/render_flex_validate.rs:256`，`flex 渲染发射: Unsupported("S7b2 要求 enabled_geom_ids 覆盖全部 geom（自有打包按 geom id 索引）")`（产品侧检查在 `src/render/kernel/megakernel.rs:258`） |
+
+- 根因（harness 侧）：用例用 `ContextParams::default()` 构造 context（`render_flex_validate.rs:342` 只设了 render targets），**没有把 4 个 geom 的 enabled 集合拉满**；生产路径在 flex 分支要求「按 geom id 索引 ⇒ 全部 geom 必须 enabled」，于是首步发射即被拒。场景侧 `scene.xml` 共 4 个 geom，采集 recipe 的 `enabled_geom_groups=[0,1,2,3]` 是所有分组——即**参考数据的视角是「全 geom 开」，用例必须与之一致**。
+- **仍是 INVALID**：rgb/depth/seg 判据仍未进入评估，不能据此判定 flex 数值通过或不通过。
+- 计入的缺陷：**D4**（harness：context/geom 使能集合与参考 recipe 不一致；且 CPU 自证只覆盖到 model→fields→assembly，**未覆盖 RenderContext/发射前校验**，所以这类错误仍要到 GPU 窗口才暴露）。
+- 处置：停手、GPU 已空、原文留档（`attempts/attempt-2-*`）；修复方向见 §9。
+
+## 9. attempt 2 之后需要的修复（供下一轮窗口）
+
+1. **D4a（阻断，owner Backend）**：用例构造 context 时按参考 recipe 把 enabled geom 集合拉满（4/4），或在用例里显式断言「场景 geom 数 == enabled 数」。
+2. **D4b（流程，owner Backend）**：把 **CPU 自证** 延伸覆盖 `RenderContext` 构造 + 发射前校验（即 `render_with_flex` 之前的全部 `Unsupported/InputError` 分支），使「只编译不执行」不再能把此类缺陷带到 GPU 窗口。**该要求并入 `2026-11-04-render-r06-s3b-flex-harness-schema-fix` 的后续修复（或该卡重开）**。
+3. 修复后 exe 重建 ⇒ 必须再次真冻结；attempt 3 仍需 Chief GO。
+
 ## 8. 非声明
 
 不宣称 flex 渲染通过/不通过；不放宽任何判据/容差；不改参考、不改产品代码；`nbuffer` 版本差异（B 类，`b94698e5`）不参与本窗口判据。
