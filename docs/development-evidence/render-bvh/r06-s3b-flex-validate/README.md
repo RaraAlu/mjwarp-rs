@@ -70,3 +70,13 @@
 
 - 本片不宣称 flex 渲染数值可用；不宣称 NP01/NP02/R06 通过；不动判据/容差/参考/夹具；零 GPU。
 - `fixtures/render-bvh/scene-flex/provenance.json.model_parity.known_difference` 记录的 `nbuffer`（312=37552 vs 315=37296、去 flex 对照 32368==32368）**未放宽、未宣称 parity pass**，判据分类裁定归 Chief/QA，不进入本窗口判据。
+
+## 9. attempt5 验收口径（用户签名 allowlist，2026-11-04 22:14）
+
+- **判据落点**：`materials/attempt5-criteria.md`（权威链 = 该文件 + 签名治理卡 `2026-11-04-render-r06-s3b-flex-allowlist-signature`（`3406f1ca`）+ QA 决策支持 `a3f690df`）。
+- **唯一放宽范围**：`cam2 / (x=134,y=128) / flexid0 / ULP≤4 且 beyond4=0`（**beyond4≠0 即失败**）；**其余全部 bit-first**（cam0/cam1、cam2 除该像素外所有像素、所有 seg、所有 rgb）。
+- **与 D8 分开登记、不混算**：D8 的 321 px（`a1cc22ae`）为 f32 修复前记录；f32 修复（`d35cab68`）后为 1 px，本 allowlist 只覆盖这 1 px。
+- **冻结输入清单不含判据文件**（明确回答）：guards 的 14 条 `guard_inputs` 只冻结代码/场景/参考数据/脚本；判据权威链靠签名卡 + 本材料，开窗前须记录本文件与 README 的 sha256，文本被改动即本次 attempt5 无效。
+- **窗口规则 v2 序**（Chief 批准）：窗口内一次 canonical rebuild → 立即记 exe sha+bytes → `freeze -Attempt 1`（16/16、exes=2、inputs=14）→ **冻结后零编译**；冻结后任何编译/relink 即 INVALID_ROUND。
+- **失败即停、不重试、不二次放宽**；不宣称上游等价 / parity pass / flex 渲染通过。
+- attempt5 剩余前置清单见 `materials/attempt5-criteria.md` §7（P1/P3 已 ✅，P4 QA 复核、P5 执行卡、P6 Chief GO 待）。
