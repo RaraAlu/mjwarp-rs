@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-tie-order",
+  "title": {
+    "zh": "R06-S3b：flex BVH tie 语义/候选访问顺序对齐（残留 1 px：`d3` 两候选 Δ=7.15e-7 < tol 2.01e-6，参考取 edge0、产品取 edge1）",
+    "en": "Align flex BVH tie semantics / candidate visit order (residual 1 px: two candidates within RAY_TOL_REL, reference picks edge0, product picks edge1)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "f32 次序修复后 cam2 depth 从 (321,297) 降到 **(1,0)**，唯一残留像素 `(134,128)`（flexid0、ULP=3）经独立复核定性为：该像素两条候选边 `d3=[2.0099208355, 2.0099215508]`，**Δ=7.15e-7 < `RAY_TOL_REL` tol=2.01e-6**，即容差内平局；**参考「后访问者胜」取 edge0、产品取 edge1**，导致深度差 3 ULP。**定性：BVH 候选访问顺序/tie 语义差异，不是 f32 收缩点**，在 f32 收缩序修复卡 scope 内不可修。本卡对齐产品场景 BVH 构建/遍历顺序或 tie 语义，目标让该像素与参考位一致；**与 attempt5 解耦、不阻塞**。",
+    "en": "Align the product's BVH build/traversal order or tie semantics so the single residual pixel matches the reference; decoupled from attempt5."
+  },
+  "modules": {},
+  "acceptance": [
+    "**可复算依据（卡内固定）**：`(134,128)`、flexid0、prod `2.001326084136963` vs ref `2.0013253688812256`（ULP=3）；候选边 `d3=[2.0099208355, 2.0099215508]`、**Δ=7.15e-7**、`RAY_TOL_REL` tol=**2.01e-6**；参考侧「后访问者胜」→ edge0，产品 → edge1；oracle 对参考 **403/403 逐位复现**（`upstream-flex0-chain.npz`）；seg 双方 `[0,9]` 一致。",
+    "**对齐目标**：使 `(134,128)` 的 cam2 depth 与参考**逐位相等**；手段限于「对齐场景 BVH 构建顺序 / 遍历顺序 / tie 打破规则」之一（卡内说明选择与依据），**不得**通过改参考、改判据、放宽容差达成。",
+    "**零回归**：rigid 路径（cam0/cam1 与 cam2 非 flex 区）depth 位级零漂移；scene-a / 既有 render 实体位级零回归（给出证据）。",
+    "**边界**：不改判据/容差/参考、不动 `fixtures/`；**与 attempt5 解耦**（不阻塞、不作为 attempt5 前置）；CPU/离线优先，若需 GPU 验证走短窗口规则并事先报 Chief。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-tie-order/` 收 README（平局数学、参考 vs 产品选择、BVH 顺序对照、修复前后 bits、回归证据）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/bvh/",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-tie-order/"
+    ],
+    "resources": [],
+    "priority": 45
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：无论用户 1 px 三选一选哪个都并行立此卡）。定性经 QA 独立复核（1/76800、ULP=3、beyond4=0、seg 0/76800、Δd=7.15e-7 < tol=2.01e-6、oracle 0/403 不等）与 Arch 从产物复算（`d3` 两候选差 7.15e-7、oracle 403/403 对参考逐位复现）。**与 attempt5 解耦、不阻塞**；用户若选「判据放宽（签名级）」仍需并行完成本卡的 tie 语义对齐，或由 Chief 明确接受为已知限制。",
+  "revision": { "before": "dbdcec8bde64d58f547e05865d361bd2faf5cfab", "after": null },
+  "created_at": "2026-11-04T19:32:00.000Z",
+  "updated_at": "2026-11-04T19:32:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
