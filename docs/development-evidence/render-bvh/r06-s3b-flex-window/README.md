@@ -104,7 +104,7 @@ Chief 2026-11-04 08:09 GO（条件同前：逐点 free ≥11,618、build 0、无
 | 步骤 | 结果 |
 | --- | --- |
 | 三点基线（08:09:11） | free **14764 / 14765 / 14760**（逐点 ≥11618 ✓）、util 2–3%、temp 28°C、build 0、树 clean、HEAD `3a2ce18b` |
-| monitor | **60/60 连续干净**，util 2–4%，free_min **14766** ≥ floor 11682 |
+| monitor | **60/60 连续干净**，util 2–4%，free_min **14766** ≥ floor **11688** |
 | 重新真冻结（S3b⑥b 修复后 exe 哈希再变） | `GUARDS_OK=15/15 exes=2 inputs=13`，aggregate_all `710228a8…`、guards_sha `91000770…` |
 | 等价 guards 核验 | live==guard **2/2**、stash==guard **2/2**、inputs **13/13** |
 | 实体体 | **进入判据并失败**：`panicked at tests/render_flex_validate.rs:332` → **`cam1 rgb max_byte_diff=255`** |
@@ -116,6 +116,10 @@ Chief 2026-11-04 08:09 GO（条件同前：逐点 free ≥11,618、build 0、无
 - 事实注记：参考侧 `cam0`/`cam1` 的 flex 像素均为 0（`cam-flex` 才是 654），所以 cam1 的 255 差异**不指向 flex 数值本身**；可能是相机/输出映射或该相机渲染未写入。**这只是假设，不是结论**——根因需按下一节流程诊断，本记录不下判断。
 
 **处置（按 Chief 指令）**：判据性红 → **停手、留档、不请求第四次**；GPU 已释放；attempt 原文 `attempts/attempt-3-*`。本片**不宣称 flex 渲染通过，也不宣称不通过**（只记录「在 cam1 rgb 处判据性红」）。
+
+**errata（2026-11-04，两处，均如实入证）**：
+1. **floor 更正**：attempt 3 三点 min_free = **14760**，按公式 floor = max(14760−3072, 9795) = **11688**；本节原写 **11682**（沿用了 attempt 2 的 14754 值），偏松 6 MiB。**结论不受影响**（free_min 14766 ≥ 11688 ≥ 11682，均达标）。这是 Arch 的算账错误，记 Arch 的账。
+2. **定性更正（D5）**：本节的「判据性红」**被 D5 相机位姿来源缺陷污染**——诊断 `348da9fd` 证明 cam1/cam2 是 mode-3 TARGETBODY 相机、用例从 model `cam_mat0`（单位阵）派生，朝向差 85.5°/75.6°，产品只是按错位姿渲染。因此 **`cam1 rgb max_byte_diff=255` 不能作为产品结论**；本节仅保留「窗口机制与判据链路首次跑通」的工程事实，**flex 数值仍未评估**。
 
 ## 8bis. 两条要求如实入证
 
