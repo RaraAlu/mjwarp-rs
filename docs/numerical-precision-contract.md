@@ -264,6 +264,26 @@ SDF的frame/normal实测2.78e-5含有限差分h=1e-4的方法学放大，非缺�
 除本表外，本文件其它章节的数字与口径不动。
 记录见[接触字段容差分档](development-evidence/native-contact-frame-normal-tiers/README.md)。
 
+### E指标定稿（NP01，用户2026-11-05拍板选项①）
+
+用户于2026-11-05拍板选项①：**同码跨后端核对**。
+该拍板为签名级。
+判据写成「**实测worst ≤ 已签atol**」的核对。
+不使用E比值作判据。
+原因：以同码跨后端基线作参考时`E_mjwarp ≡ 0`、`1.05 * E_mjwarp`退化，
+E比值恒成立，等于没有判据。
+适用范围写死为：CONVEX/SDF两路径 × 字段块dist/pos/frame（normal并入frame）。
+样本为同码跨后端97个标量。
+该口径明确不宣称native口径。
+契约native侧「仅诊断」语义保留（2026-10-25选项B不变）。
+本口径不用于native侧放行。
+本口径也不改变接触字段对上游f32的主判据。
+本口径不新增数值、不改已签atol。
+上一节的atol/rtol表与实测worst数值保持原样。
+自本口径起，后续收口证据写「NP01已核对；E指标用户2026-11-05已签（同码跨后端核对，A2 `<提交号>`）」。
+本口径之前已verified的历史summary中「E指标1项待用户签」是当时快照，不回改。
+记录见[NP01 E指标A2](development-evidence/np01-e-criterion-a2/README.md)。
+
 ## 测试项与报告标注
 
 测试项须通过全部独立门禁。
