@@ -11,7 +11,22 @@
 #    P7 BOM audit script landed and passing                             -> DONE (f8a0fa75)
 #    Remaining before window: P3 (freeze script card 2026-11-04-render-r06-s3b-flex-freeze-guards).
 #
-# 1) PRE-WINDOW HYGIENE (run right before the window, in this order)
+# 0b) WINDOW RULE v2 (Chief 2026-11-04 approved; supersedes "zero compile" for attempt5)
+#     Step 0 of the window: exactly ONE canonical rebuild
+#       cargo test --locked --features cuda-probe --no-run --test render_flex_validate
+#     - confirm no build process remains (cargo/rustc/link/cl/nvcc == 0)
+#     - IMMEDIATELY record that run's exe sha256 + bytes (and PTX sha/bytes via the offline precheck)
+#     - then freeze -Attempt 1 right away (expect GUARDS_OK=16/16 exes=2 inputs=14, aggregate recomputed,
+#       exe entries no longer pending)
+#     - after freezing: ZERO compile. Any build/relink after the freeze => INVALID_ROUND (archive and stop).
+#     Rationale (measured, not assumed):
+#       * CARGO_INCREMENTAL=0 + cargo clean -p mjwarp-rs, two builds => same 101,028,364 B but different
+#         sha256 (d05e4c64... vs 574f8969...) => debug test exe is build-instance dependent.
+#       * -C link-arg=/Brepro is NOT usable here (build scripts generic-array/serde fail to compile).
+#       * Backend canonical vs forced-relink also differ (3A096B52... vs 3CF1EA02...).
+#     Therefore: exe identity = the artifact produced by THIS window's canonical rebuild and frozen at
+#     that moment; any pre-recorded sha is reference only, never a freeze gate.
+## 1) PRE-WINDOW HYGIENE (run right before the window, in this order)
 #    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/normalize-evidence-eol.ps1 -DryRun
 #    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/normalize-evidence-eol.ps1
 #    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/check-evidence-bom.ps1
