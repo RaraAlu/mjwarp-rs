@@ -1,0 +1,71 @@
+== object 5a99047f HEAD 5a99047f
+
+[1] scripts: identity, line counts, additive-only diff
+PASS capture_render_flex.py = 498 lines (git blob / wc -l) :: 498
+PASS capture_render_flex_multiframe.py = 446 lines (git blob / wc -l) :: 446
+PASS both scripts LF-only, no BOM
+PASS sha256 matches receipt: scripts/authoring/capture_render_flex.py
+PASS sha256 matches receipt: scripts/authoring/capture_render_flex_multiframe.py
+PASS additive only: +7/-0 on capture_render_flex.py :: ['24\t0\tscripts/authoring/README.md', '7\t0\tscripts/authoring/capture_render_flex.py', '446\t0\tscripts/authoring/capture_render_flex_multiframe.py']
+PASS no deleted lines in baseline script :: []
+PASS dispatch block present (returns None on single-frame path)
+
+[2] frozen spec correspondence
+PASS spec sha256/bytes match frozen values :: 1d9fa5cef1eb / 10506 B
+PASS module constant: FRAMES = 3
+PASS module constant: FRAME_DZ = 0.10
+PASS module constant: ANCHOR_BODIES = ("flex-anchor0", "flex-anchor1", "flex-anchor2")
+PASS module constant: DELTA_ACCEPT_MIN = 384
+PASS module constant: DELTA_MARGIN_MIN = 576
+PASS module constant: CAM2_INDEX = 2
+PASS module constant: 1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6
+PASS module constant: 10506
+PASS frame offset k*FRAME_DZ applied to anchor body_pos.z
+PASS no physics stepping (no mj_step / mjw.step)
+PASS per-frame layout frame-xxx/{rgb,depth,seg,state}.npz
+PASS top-level capture.json / cam-poses.json / README.md
+PASS only 3 new CLI options and no threshold CLI
+PASS no skip/force switch
+
+[3] commit scope and zero-capture boundary
+PASS commit touches only scripts/authoring + evidence + card/runs :: []
+PASS no src/tests/fixtures/Cargo change
+PASS no npz/capture artifact committed
+PASS fixtures/.../scene-flex/multiframe absent
+PASS spec untouched by commit
+
+[4] implementation evidence self-check
+PASS implementation manifest self-check 16/16 :: 16/16
+PASS evidence documents static single-frame basis (no dynamic claim)
+PASS evidence non-claims: implementation != capture/acceptance
+PASS evidence text files UTF-8, no BOM/NUL :: []
+OBS  logs/dry-run-multiframe.json has a PowerShell ErrorRecord preamble before the JSON object :: first '{' at line 13; body parses fine from there, file itself is not valid JSON
+OBS  evidence README says capture-script.diff is '+5 行'; actual diff is +7/-0 (artifact content is correct) :: README section 6
+OBS  receipt.json status is 'implemented_pending_commit' (card is verified/committed)
+
+[5] CPU reruns (no GPU, no capture)
+PASS --help exit 0 and lists 3 new options
+PASS dry-run exit 0, spec sha/bytes and frozen values echoed
+PASS dry-run wrote nothing and reports gpu_used=false
+PASS rejects frames=2 (exit 1) :: exit=1
+PASS rejects dz=0.2 (exit 1) :: exit=1
+PASS rejects no out-dir (exit 1) :: exit=1
+PASS rejects repeat=1 (exit 1) :: exit=1
+PASS rejects check-deltas no out-dir (exit 1) :: exit=1
+PASS rejects check-deltas + frames (exit 1) :: exit=1
+PASS rejects check-deltas missing dir (exit 1) :: exit=1
+PASS rejects check-deltas empty dir (exit 1) :: exit=1
+OBS  --frames 0 falls back to the single-frame path with exit 0 (no explicit rejection) :: frames<=1 are not validated against (1,3); no spec change possible via this path
+PASS synth-pass: exit 0 / pass-margin :: counts=[(600, 600), (600, 600)] verdict=pass-margin
+PASS synth-insufficient: exit 3 / insufficient-margin :: counts=[(600, 600), (500, 500)] verdict=insufficient-margin
+PASS synth-non-discriminating: exit 3 / non-discriminating :: counts=[(600, 600), (300, 300)] verdict=non-discriminating
+PASS check-deltas prints stop warning when not pass-margin
+OBS  capture_multiframe computes the delta report with stream=False and returns 0 even when the verdict is not pass-margin (explicit warning/exit only via --check-deltas); evidence README section 2/§8.5 claims a printed warning in the capture path
+
+[6] line-count convention (resolves Arch vs Backend numbers)
+PASS authoritative counts = git blob newline count = wc -l = 498 / 446
+PASS documented 500-line scan covers rs/cu/c/h/cpp/sh/ps1 only (.py not scanned) :: '.rs', '.cu', '.c', '.h', '.cpp', '.sh', '.ps1'
+OBS  PS 5.1 Get-Content default ANSI decoding undercounts UTF-8 files (observed 496/432); use wc -l / git blob / [IO.File]::ReadAllLines; capture_render_flex.py 498 is 2 lines below 500
+wrote docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-check/logs/qa-cpu-rerun.json
+
+RESULT: PASS fails=
