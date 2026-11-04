@@ -26,7 +26,7 @@ CLI（挂在原脚本入口）：`--frames 3 --frame-dz 0.1`（帧循环）、`-
 | §8.2 脚本扩展点 | 帧循环模式即上述模块；单帧输出路径/字段不改 |
 | §8.3 产物布局 | `frame-{000,001,002}/{rgb,depth,seg,state}.npz` + 顶层 `capture.json` / `cam-poses.json` / `README.md`；输出根目录必须显式 `--out-dir`（脚本内不写默认 fixtures 路径） |
 | §8.4 确定性/provenance | `--repeat 2` 两遍完整采集逐帧逐文件 sha256 对比，不一致非零退出并打印差异；`capture.json` 含帧数/Δz/逐帧文件 sha/两次一致标记/环境版本/pinned commit/GPU/recipe/时间/命令 |
-| §8.5 自查顺序 | 采集完成即用 `_delta_report()` 算 cam2 相邻帧变化像素并打印判定（与 `--check-deltas` 同一实现）；非 pass-margin 时打印「不得落库」提示 |
+| §8.5 自查顺序 | 采集完成即用 `_delta_report()` 算 cam2 相邻帧变化像素并打印判定（与 `--check-deltas` 同一实现）；非 pass-margin 时打印「不得落库」警告并 **exit 3**，verdict 写入 `capture.json.delta_selfcheck`（O3 修卡，提交 `3e5fc677`） |
 | §6 allowlist | 本脚本只负责采集与变化量自检，**不实现、不扩展** allowlist（判定侧规则见 spec，脚本无放宽入口） |
 
 ## 3) CPU 侧自检（本次实际执行；零 GPU）
@@ -36,7 +36,7 @@ CLI（挂在原脚本入口）：`--frames 3 --frame-dz 0.1`（帧循环）、`-
 - `--help`：exit 0，新增 3 个参数（`--frames` / `--frame-dz` / `--check-deltas`）可见（`logs/help.txt`）；
 - `--frames 3 --frame-dz 0.1 --out-dir … --dry-run`：exit 0，CPU-only 计划（不渲染/不写采集产物），
   输出含冻结 spec sha 校验块、锚点 body id `[1,2,3]`、base z `[0.0,0.0,0.0]`、
-  期望布局、阈值常量（`logs/dry-run-multiframe.json`）；
+  期望布局、阈值常量（`logs/dry-run-multiframe.json`，纯 JSON；stderr 另存 `logs/dry-run-multiframe.stderr.txt`）；
 - 参数错误路径（期望拒绝）：见下表，均 exit 1 且打印原因；
 - `--check-deltas`（喂合成采集数据，三组，`logs/check-deltas-synth-*.txt`）：
   - `synth-pass`：两组相邻帧 depth/seg 变化均 ≥576 → `pass-margin`，exit 0；
@@ -78,10 +78,27 @@ CLI（挂在原脚本入口）：`--frames 3 --frame-dz 0.1`（帧循环）、`-
 | --- | --- |
 | `README.md` | 本文件 |
 | `receipt.json` | 机器可读回执（`/task_id` 供 normify `json` 检查） |
-| `artifacts/capture-script.diff` | `git diff scripts/authoring/capture_render_flex.py`（+5 行） |
+| `artifacts/capture-script.diff` | `git diff scripts/authoring/capture_render_flex.py`（+7 行 / 0 删除） |
 | `artifacts/script-identity.json` | 两脚本路径/行数/sha256 与增量说明 |
-| `logs/help.txt` / `logs/dry-run-multiframe.json` | CLI 帮助与 CPU 计划输出 |
+| `logs/help.txt` / `logs/dry-run-multiframe.json` | CLI 帮助与 CPU 计划输出（纯 JSON，`json.load` 可解析） |
+| `logs/dry-run-multiframe.stderr.txt` | dry-run 的 stderr（mujoco 警告等），与纯 JSON stdout 分离 |
 | `logs/param-*.txt` | 参数错误路径（帧数/Δz/out-dir/repeat 等） |
 | `logs/check-deltas-synth-*.txt` | 三种判定的合成数据自检 |
 | `logs/cpu-checks.json` | 上述用例逐条 exit code 机器可读汇总 |
 | `manifest.txt` | 本目录 sha256 + bytes + 证据目录内相对路径（base dir 见表头，不自列） |
+
+## 7) 证据修订记录（2026-11-05，normify fix）
+
+QA 复核（`2026-11-05-render-r06-flex-multiframe-capture-script-check`，提交 `e1d93aca`）拎出的证据层
+O1/O4/O5 三项修正（不改脚本行为，由本 `Normify-Fixes:` 提交落地；manifest 已按新内容重算）：
+
+- **O1**：`logs/dry-run-multiframe.json` 重导为**纯 JSON**（2188 B，`json.load` 可解析；原文件的 PowerShell
+  ErrorRecord 前导已去除）；stderr 另存 `logs/dry-run-multiframe.stderr.txt`（268 B）。
+- **O4**：§6 的 `capture-script.diff` 行数由「+5 行」更正为「+7 行 / 0 删除」（artifact 内容本就正确）。
+- **O5**：`receipt.json` 的 `status` 由 `implemented_pending_commit` 改为 `verified`，并注明由提交 `5a99047f`
+  收口；既有数字字段未改。
+- **O3 对齐（关联修卡）**：§2 §8.5 行补「非 pass-margin → exit 3 + verdict 入 `capture.json.delta_selfcheck`」，
+  对应该行为的修卡 `2026-11-05-render-r06-flex-multiframe-capture-script-fix`（提交 `3e5fc677`）。该修卡把
+  扩展模块从 446 行改到 479 行，故本回执 `scripts.module` 的 sha256 仍是 `5a99047f` 时点的历史值；当前值见
+  修卡证据 `r06-flex-multiframe-capture-script-fix/logs/script-identity-after.json`（`3b70a38f…`）。
+- **O2（关联修卡）**：`--frames 0`/负数现在显式 exit 1，属修卡行为，证据见修卡目录。
