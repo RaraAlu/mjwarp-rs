@@ -1,0 +1,109 @@
+{
+  "gpu_used": false,
+  "capture_executed": false,
+  "cases": [
+    {
+      "name": "param-frames-2",
+      "argv": [
+        "--frames",
+        "2",
+        "--out-dir",
+        "target/multiframe-work/never",
+        "--dry-run"
+      ],
+      "exit_code": 1,
+      "output": "R06-S3b flex capture environment/reference mismatch: spec §2 冻结：帧数必须为 3（收到 2）"
+    },
+    {
+      "name": "param-dz-02",
+      "argv": [
+        "--frames",
+        "3",
+        "--frame-dz",
+        "0.2",
+        "--out-dir",
+        "target/multiframe-work/never",
+        "--dry-run"
+      ],
+      "exit_code": 1,
+      "output": "R06-S3b flex capture environment/reference mismatch: spec §2 冻结：Δz 必须为 0.10 m（收到 0.2）"
+    },
+    {
+      "name": "param-no-out-dir",
+      "argv": [
+        "--frames",
+        "3",
+        "--frame-dz",
+        "0.1",
+        "--dry-run"
+      ],
+      "exit_code": 1,
+      "output": "R06-S3b flex capture environment/reference mismatch: 帧循环模式必须显式 --out-dir（输出根目录参数化）"
+    },
+    {
+      "name": "param-repeat-1",
+      "argv": [
+        "--frames",
+        "3",
+        "--frame-dz",
+        "0.1",
+        "--out-dir",
+        "target/multiframe-work/never",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 1,
+      "output": "R06-S3b flex capture environment/reference mismatch: spec §8.4 冻结：两次采集逐位一致校验要求 --repeat 2（不得跳过校验）"
+    },
+    {
+      "name": "param-check-deltas-no-out-dir",
+      "argv": [
+        "--check-deltas"
+      ],
+      "exit_code": 1,
+      "output": "R06-S3b flex capture environment/reference mismatch: --check-deltas 必须显式 --out-dir（读取采集结果的根目录）"
+    },
+    {
+      "name": "param-check-deltas-with-frames",
+      "argv": [
+        "--check-deltas",
+        "--out-dir",
+        "target/multiframe-work/synth-pass",
+        "--frames",
+        "3"
+      ],
+      "exit_code": 1,
+      "output": "R06-S3b flex capture environment/reference mismatch: --check-deltas 不能与 --frames/--frame-dz 同用（spec §5 冻结口径）"
+    },
+    {
+      "name": "check-deltas-synth-pass",
+      "argv": [
+        "--check-deltas",
+        "--out-dir",
+        "target/multiframe-work/synth-pass"
+      ],
+      "exit_code": 0,
+      "output": "R06 multiframe delta self-check (spec §5; thresholds hardcoded 384/576, cam2 pixels 76,800)\n  cam2 000->001: depth_changed=600 seg_changed=600 -> pass-margin\n  cam2 001->002: depth_changed=600 seg_changed=650 -> pass-margin\n  overall: pass-margin"
+    },
+    {
+      "name": "check-deltas-synth-insufficient",
+      "argv": [
+        "--check-deltas",
+        "--out-dir",
+        "target/multiframe-work/synth-insufficient"
+      ],
+      "exit_code": 3,
+      "output": "R06 multiframe delta self-check (spec §5; thresholds hardcoded 384/576, cam2 pixels 76,800)\n  cam2 000->001: depth_changed=600 seg_changed=600 -> pass-margin\n  cam2 001->002: depth_changed=500 seg_changed=600 -> insufficient-margin\n  overall: insufficient-margin\n  spec §5：未达采集前置余量（>=576），不得落库为验收材料；停手报用户，不得改阈值。"
+    },
+    {
+      "name": "check-deltas-synth-non-discriminating",
+      "argv": [
+        "--check-deltas",
+        "--out-dir",
+        "target/multiframe-work/synth-non-discriminating"
+      ],
+      "exit_code": 3,
+      "output": "R06 multiframe delta self-check (spec §5; thresholds hardcoded 384/576, cam2 pixels 76,800)\n  cam2 000->001: depth_changed=600 seg_changed=600 -> pass-margin\n  cam2 001->002: depth_changed=300 seg_changed=600 -> non-discriminating\n  overall: non-discriminating\n  spec §5：未达采集前置余量（>=576），不得落库为验收材料；停手报用户，不得改阈值。"
+    }
+  ]
+}

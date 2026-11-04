@@ -30,6 +30,8 @@ import sys
 import time
 import zipfile
 
+from capture_render_flex_multiframe import add_frame_args, dispatch as dispatch_multiframe
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCENE_DIR = ROOT / "fixtures/render-bvh/scene-flex"
 SCENE_XML = SCENE_DIR / "scene.xml"
@@ -375,6 +377,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--warp-cache", type=pathlib.Path, default=DEFAULT_CACHE, help="warp kernel cache dir")
     parser.add_argument("--dry-run", action="store_true", help="environment + plan check only; no rendering")
     parser.add_argument("--cam-poses-only", action="store_true", help="forward-only data camera-pose provenance (writes cam-poses.json, nothing else)")
+    add_frame_args(parser)
     return parser.parse_args()
 
 
@@ -385,6 +388,10 @@ def main() -> int:
         fail(f"--out-dir {out_dir} is inside legacy reference tree {RENDER_BVH}")
     PARAMS["use_shadows"] = args.use_shadows == "true"
     PARAMS["use_fast_math"] = args.use_fast_math == "true"
+    # 帧循环 / 变化像素自检分派（不带相关参数时返回 None，原单帧路径逐字节不变）。
+    dispatched = dispatch_multiframe(args, out_dir, sys.modules[__name__])
+    if dispatched is not None:
+        return dispatched
     import warp as wp
 
     wp.config.kernel_cache_dir = str(args.warp_cache)

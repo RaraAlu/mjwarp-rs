@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-capture-script",
+  "status": "implemented_pending_commit",
+  "slice": "P8-render-bvh",
+  "frozen_premise": {
+    "spec_task_id": "2026-11-05-render-r06-flex-multiframe-criterion-spec",
+    "spec_path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md",
+    "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "spec_bytes": 10506,
+    "runtime_verified_by": "verify_frozen_spec()（脚本内逐次校验）"
+  },
+  "frozen_values": {
+    "frames": 3,
+    "frame_dz": 0.1,
+    "anchor_bodies": [
+      "flex-anchor0",
+      "flex-anchor1",
+      "flex-anchor2"
+    ],
+    "criterion_camera": "cam2 (cam-flex)",
+    "cam2_pixels": 76800,
+    "delta_accept_min": 384,
+    "delta_margin_min": 576
+  },
+  "scripts": {
+    "baseline": {
+      "path": "scripts/authoring/capture_render_flex.py",
+      "lines": 498,
+      "sha256": "f50e150e4dc29522ce5f49b64bbb50b01bfc5177cee82a3f3c704c9e5c0a16f9",
+      "change": "additive only (+7 lines, 0 deletions): import + blank, add_frame_args(parser), comment + 3-line dispatch in main"
+    },
+    "module": {
+      "path": "scripts/authoring/capture_render_flex_multiframe.py",
+      "lines": 446,
+      "sha256": "3cdd936e8f60b4a9d8f040d5f9dbe96e146020325877ba7cac794f41e2a9e8f6"
+    },
+    "readme_updated": "scripts/authoring/README.md（新增「R06 多帧采集（帧循环模式）」用法节）"
+  },
+  "implementation": {
+    "frame_loop": "--frames 3 --frame-dz 0.1：第 k 帧锚点 body_pos.z += k*0.10 → put_model → forward → render",
+    "per_frame_outputs": [
+      "frame-000",
+      "frame-001",
+      "frame-002"
+    ],
+    "top_level_outputs": [
+      "capture.json",
+      "cam-poses.json",
+      "README.md"
+    ],
+    "repeat_check": "--repeat 2 only；两遍逐帧逐文件 sha256 对比，不一致非零退出",
+    "check_deltas": "cam2 相邻帧 depth 位级/seg 对变化像素；verdict 三态；阈值 384/576 硬编码",
+    "single_frame_path": "dispatch 返回 None；原路径/参数默认值/输出字段不变（静态判定，见证据 README §4）",
+    "no_override_cli": true,
+    "spec_not_modified": true,
+    "fixtures_not_written": true
+  },
+  "cpu_checks": {
+    "gpu_used": false,
+    "capture_executed": false,
+    "help_exit": 0,
+    "dry_run_exit": 0,
+    "param_error_cases": [
+      {
+        "name": "param-frames-2",
+        "argv": [
+          "--frames",
+          "2",
+          "--out-dir",
+          "target/multiframe-work/never",
+          "--dry-run"
+        ],
+        "exit_code": 1
+      },
+      {
+        "name": "param-dz-02",
+        "argv": [
+          "--frames",
+          "3",
+          "--frame-dz",
+          "0.2",
+          "--out-dir",
+          "target/multiframe-work/never",
+          "--dry-run"
+        ],
+        "exit_code": 1
+      },
+      {
+        "name": "param-no-out-dir",
+        "argv": [
+          "--frames",
+          "3",
+          "--frame-dz",
+          "0.1",
+          "--dry-run"
+        ],
+        "exit_code": 1
+      },
+      {
+        "name": "param-repeat-1",
+        "argv": [
+          "--frames",
+          "3",
+          "--frame-dz",
+          "0.1",
+          "--out-dir",
+          "target/multiframe-work/never",
+          "--repeat",
+          "1"
+        ],
+        "exit_code": 1
+      },
+      {
+        "name": "param-check-deltas-no-out-dir",
+        "argv": [
+          "--check-deltas"
+        ],
+        "exit_code": 1
+      },
+      {
+        "name": "param-check-deltas-with-frames",
+        "argv": [
+          "--check-deltas",
+          "--out-dir",
+          "target/multiframe-work/synth-pass",
+          "--frames",
+          "3"
+        ],
+        "exit_code": 1
+      }
+    ],
+    "delta_synth_cases": [
+      {
+        "name": "check-deltas-synth-pass",
+        "argv": [
+          "--check-deltas",
+          "--out-dir",
+          "target/multiframe-work/synth-pass"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "check-deltas-synth-insufficient",
+        "argv": [
+          "--check-deltas",
+          "--out-dir",
+          "target/multiframe-work/synth-insufficient"
+        ],
+        "exit_code": 3
+      },
+      {
+        "name": "check-deltas-synth-non-discriminating",
+        "argv": [
+          "--check-deltas",
+          "--out-dir",
+          "target/multiframe-work/synth-non-discriminating"
+        ],
+        "exit_code": 3
+      }
+    ],
+    "detail": "logs/cpu-checks.json"
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/authoring/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script/"
+    ],
+    "unchanged": [
+      "src/",
+      "tests/",
+      "fixtures/"
+    ],
+    "no_gpu_window": true,
+    "no_capture_outputs_created": true,
+    "gates": "fmt / clippy / clippy-cuda / unit"
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "note": "实现完成不产生多帧覆盖/等价性结论；判据实现与采集窗另行推进。"
+  }
+}
