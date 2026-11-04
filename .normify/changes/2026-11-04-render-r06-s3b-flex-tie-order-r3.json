@@ -5,7 +5,7 @@
     "zh": "R06-S3b：`cast_ray` 候选遍历改回上游 LIFO 右优先栈（tie 语义对齐；目标 cam2 残差 0、零回归）",
     "en": "Switch cast_ray candidate traversal back to upstream LIFO right-priority stack (tie alignment; target cam2 residual 0, zero regression)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "f32 次序修复后 cam2 depth 残留 1 px `(134,128)`（flexid0、ULP=3），定性为容差内平局下的**候选访问顺序差异**（参考「后访问者胜」选 edge0、产品选 edge1）。**可行性调查结论（Chief 2026-11-04）：可行且便宜**——不用改 BVH 构建，只需把 `render_common.cu::cast_ray` 的候选遍历从「入口距离最小堆」改回上游 warp 的 **LIFO 右优先栈**；离线复现显示该像素会翻回参考 bits、影响面仅 **2 个容差内平局像素**、预测 cam2 depth **1→0**，**不改判据 ⇒ 不需要用户签**。",
     "en": "Revert cast_ray candidate traversal to the upstream LIFO right-priority stack; expected to zero out the cam2 residual without touching criteria."
@@ -33,14 +33,34 @@
     "priority": 70
   },
   "note": "Arch 2026-11-04 重登记（r2 → r3）：Chief 把 tie 可行性结论定为「可行且便宜」，要求 `schedule.files` 加唯一实现文件 `src/render/kernel/cuda/render_common.cu` 并把验收写死为「cam2 残差 0 + rigid/scene-a/既有 render 实体位级零回归 + seg 不变 + 两跑 sha 相等；不改判据/容差/参考/fixtures；先四门禁 → 1 次 ≤3 分钟验证短跑 → 结果报 Chief 再谈全量回归与 attempt5」。proposed 卡无法原地改声明，故 abandon r2 + 登记 r3。用户 1 px 决策卡**暂挂**：若本卡成功则不再需要用户签。",
-  "revision": { "before": "c5e0c2d99d1afe816234521158f0069142ce4b2e", "after": null },
+  "revision": {
+    "before": "de4f37147ec2f10d0ca9ff1ec6e62707fee9fcfb",
+    "after": null
+  },
   "created_at": "2026-11-04T19:42:00.000Z",
-  "updated_at": "2026-11-04T19:42:00.000Z",
+  "updated_at": "2026-11-04T11:41:05.320Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    }
   ]
 }
