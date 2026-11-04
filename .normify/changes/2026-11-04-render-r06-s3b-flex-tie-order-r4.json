@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-tie-order-r4",
+  "title": {
+    "zh": "R06-S3b r4 占位：flex-vs-flex 容差内平局 min-d 规则（仅在用户选②「批 min-d 语义偏离」时启用；不得提前实现）",
+    "en": "R06-S3b r4 placeholder: flex-vs-flex in-tolerance min-d rule (only if the user picks option 2; no implementation ahead)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "**占位卡，不得提前实现**。Chief 2026-11-04 把用户 1 px 决策卡重新激活并加入新选项：①签判据 allowlist（B 类，走 QA `a3f690df` 决策支持）；②**批 min-d 语义偏离**（`hit.geom_id == -2 && candidate_id == -2` 时容差内平局按严格更小 d 取胜）+ QA 复核 + attempt5 前**全量回归窗口**；③保持 bit-first、R06 记已知限制。**仅当用户选②**，才把 r4 从占位转正并实现；选①或③则本卡保持 proposed/backlog 不动。",
+    "en": "Placeholder only; implement only if the user picks option 2 (min-d semantic deviation with QA review and a full regression window)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置（选②才启动）**：用户明确选②、Chief 书面确认；未确认前**不得改 `src/`、不得改 `.cu`、不得开短跑**。",
+    "**实现（转正后）**：`src/render/kernel/cuda/render_common.cu` 仅加「`hit.geom_id == -2 && candidate_id == -2` 时容差内平局按**严格更小 d 取胜**」；`rigid` 分支、`RAY_TOL_REL`、`d>=0` 判据、flex-vs-rigid 一律不动；不改判据/容差/参考/`fixtures/`。",
+    "**语义偏离记录（硬要求）**：证据必须写「本规则**偏离上游『后访问者胜』tie 语义、不宣称上游等价**」，列影响面（cam2 flex 654 px 中仅 2 个容差内平局）、min-d 与参考 654/654 一致的**经验事实与局限**、失效条件；**QA 按《机器判据裁定标准》出分类意见、Chief 复核**。",
+    "**验证短跑**：1 次 ≤3 分钟（Chief token）：cam2 depth `(0,0)`、rigid 位级零漂移、seg 0/76,800、两跑 sha 相等；rigid 位差即停手。",
+    "**attempt5 前全量回归窗口**：遍历/平局规则变化对每条射线都可能生效 → 全量位级回归（既有 render 实体集 + scene-a 等），零回归才许进 attempt5；全量回归窗口与 attempt5 均需 Chief GO + 重冻 16/16。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_common.cu",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-tie-order-r4/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：r3 收口后登记 r4 占位，若用户选②才用，**别提前写实现**）。当前 `.cu` 状态 = HEAD（LIFO 已回滚），r4 若转正从 HEAD 起步加一条规则。",
+  "revision": { "before": "14898ceb937479456a64a2e8274d7524bdf64d39", "after": null },
+  "created_at": "2026-11-04T20:02:00.000Z",
+  "updated_at": "2026-11-04T20:02:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
