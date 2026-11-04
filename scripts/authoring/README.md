@@ -49,5 +49,9 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/capture_rend
 ```
 
 - 帧数 3 / Δz 0.10 / 相机选择是**冻结值**：脚本拒绝其它值（改这些需新 spec + 用户重签）；
+- **采集路径采集完立即跑同一自检**：verdict 写入 `capture.json.delta_selfcheck`（`pass-margin` /
+  `insufficient-margin` / `non-discriminating`）；非 `pass-margin`（余量 <576）时打印「不得落库」警告
+  并以 **exit 3** 结束（与 `--check-deltas` 同义），不会静默成功；
+- `--frames` 只接受 1（单帧原路径）或 3（帧循环）：`--frames 0` / 负数显式 exit 1，不静默走单帧；
 - 单帧路径（不带 `--frames`/`--check-deltas`）保持原行为不变（`dispatch` 返回 None，原逻辑照跑）；
 - 输出根目录由调用方显式给出，本目录脚本不写默认 fixtures 路径；本仓库当前不执行采集（采集窗另批）。

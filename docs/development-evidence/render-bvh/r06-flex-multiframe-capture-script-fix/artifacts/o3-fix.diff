@@ -1,0 +1,151 @@
+diff --git a/scripts/authoring/README.md b/scripts/authoring/README.md
+index d795b3b8..55a36210 100644
+--- a/scripts/authoring/README.md
++++ b/scripts/authoring/README.md
+@@ -49,5 +49,9 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/capture_rend
+ ```
+ 
+ - 帧数 3 / Δz 0.10 / 相机选择是**冻结值**：脚本拒绝其它值（改这些需新 spec + 用户重签）；
++- **采集路径采集完立即跑同一自检**：verdict 写入 `capture.json.delta_selfcheck`（`pass-margin` /
++  `insufficient-margin` / `non-discriminating`）；非 `pass-margin`（余量 <576）时打印「不得落库」警告
++  并以 **exit 3** 结束（与 `--check-deltas` 同义），不会静默成功；
++- `--frames` 只接受 1（单帧原路径）或 3（帧循环）：`--frames 0` / 负数显式 exit 1，不静默走单帧；
+ - 单帧路径（不带 `--frames`/`--check-deltas`）保持原行为不变（`dispatch` 返回 None，原逻辑照跑）；
+ - 输出根目录由调用方显式给出，本目录脚本不写默认 fixtures 路径；本仓库当前不执行采集（采集窗另批）。
+diff --git a/scripts/authoring/capture_render_flex_multiframe.py b/scripts/authoring/capture_render_flex_multiframe.py
+index 26792e60..b171e145 100644
+--- a/scripts/authoring/capture_render_flex_multiframe.py
++++ b/scripts/authoring/capture_render_flex_multiframe.py
+@@ -7,6 +7,10 @@
+   `README.md`；输出根目录必须显式 `--out-dir`（不在本脚本内写任何 fixtures 路径）。
+ - `--check-deltas`：读取采集结果，计算 cam2 相邻帧 depth 位级 / seg 对变化像素数，按 spec §5
+   硬编码常量（384 / 576）打印判定；不提供改阈值/改帧数/改 Δz 的参数。
++- 采集路径末尾强制跑同一自检（`_delta_report`），verdict 写入 `capture.json.delta_selfcheck`；
++  非 `pass-margin` 时打印「不得落库」警告并以 **exit 3** 退出（与 `--check-deltas` 的 0/3 同义），
++  避免把停手交给人工记忆（QA O3）。
++- `--frames` 只接受 1（原单帧路径）或 3（spec §2 冻值）：`--frames 0`/负数显式 exit 1（QA O2）。
+ - 不带上述参数时 `dispatch()` 返回 None，`capture_render_flex.py` 原有单帧路径逐字节不变。
+ 
+ 边界：本模块属于离线 authoring 工具，不被产品构建/测试/cargo 门禁引用；不执行采集、不占用 GPU
+@@ -47,7 +51,10 @@ def add_frame_args(parser: argparse.ArgumentParser) -> None:
+         "--frames",
+         type=int,
+         default=1,
+-        help=f"帧数（spec §2 冻结为 {FRAMES}；默认 1 = 原单帧路径逐字节不变）",
++        help=(
++            f"帧数：只接受 1（原单帧路径）或 {FRAMES}（spec §2 冻值；帧循环）；"
++            "其它值（含 0/负数）显式拒绝"
++        ),
+     )
+     parser.add_argument(
+         "--frame-dz",
+@@ -64,6 +71,11 @@ def add_frame_args(parser: argparse.ArgumentParser) -> None:
+ 
+ def dispatch(args: argparse.Namespace, out_dir: pathlib.Path, api) -> int | None:
+     """CLI 分派：返回 None 表示走原单帧路径（逐字节不变）；否则返回退出码。"""
++    if args.frames not in (1, FRAMES):
++        api.fail(
++            f"spec §2 冻结：--frames 只接受 1（单帧原路径）或 {FRAMES}（帧循环），"
++            f"收到 {args.frames}；其它值（含 0/负数）一律拒绝"
++        )
+     frame_mode = args.frames > 1 or args.frame_dz != FRAME_DZ
+     if args.check_deltas:
+         if frame_mode:
+@@ -236,6 +248,8 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) ->
+     for name, sha in sorted(first["files_sha256"].items()):
+         frame, filename = name.split("/", 1)
+         per_frame[frame][filename] = sha
++    # O3：采集完成后强制跑同一自检；verdict 写入 capture.json，并以自检状态决定返回码。
++    delta_lines = _delta_report(out_dir, api, stream=False)
+     capture = {
+         "schema": api.SCHEMA,
+         "task_id": api.TASK_ID,
+@@ -266,6 +280,12 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) ->
+             "cam2_index": CAM2_INDEX,
+             "cam2_pixels": CAM2_PIXELS,
+         },
++        "delta_selfcheck": {
++            "thresholds": delta_lines["thresholds"],
++            "cam2_pixels": delta_lines["cam2_pixels"],
++            "report": delta_lines["report"],
++            "overall": delta_lines["overall"],
++        },
+         "legacy_reference_untouched": True,
+         "legacy_reference_files": len(legacy_before),
+         "reads_product_tree": False,
+@@ -275,7 +295,7 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) ->
+     capture_sha = _write_json(out_dir / "capture.json", capture)
+     readme = _multiframe_readme(frame_spec, anchor_ids, anchor_z)
+     (out_dir / "README.md").write_text(readme, encoding="utf-8", newline="\n")
+-    delta_lines = _delta_report(out_dir, api, stream=False)
++    _print_delta_report(delta_lines)
+     summary = {
+         "script_task_id": SCRIPT_TASK_ID,
+         "kind": MULTIFRAME_KIND,
+@@ -293,7 +313,8 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) ->
+         "delta_verdict": delta_lines["overall"],
+     }
+     print(json.dumps(summary, indent=2, ensure_ascii=False))
+-    return 0
++    # O3：非 pass-margin 时以非零码收尾（3 = 与 --check-deltas 同义），避免把停手交给人工记忆。
++    return delta_exit_code(delta_lines)
+ 
+ 
+ def _multiframe_readme(frame_spec: dict, anchor_ids: list[int], anchor_z: list[float]) -> str:
+@@ -308,6 +329,8 @@ def _multiframe_readme(frame_spec: dict, anchor_ids: list[int], anchor_z: list[f
+ - 每帧产物：`frame-{{000,001,002}}/{{rgb,depth,seg,state}}.npz`；顶层 `capture.json` / `cam-poses.json` /
+   本 README。`state.npz` 字段同 base：qpos / geom_xpos / geom_xmat / light_xpos / light_xdir / flexvert_xpos。
+ - 两次采集：`--repeat 2`，逐帧逐文件 sha256 一致（`capture.json.two_captures_bitwise_identical = true`）。
++- 变化像素自检（spec §5）：结论见 `capture.json.delta_selfcheck.overall`；非 `pass-margin` 时脚本
++  **exit 3** 并打印「不得落库」警告（`--check-deltas` 独立模式同语义）。
+ - 本目录只是离线 authoring 产物记录；帧内/跨帧判定口径见冻结 spec，本 README 不作结论。
+ """
+ 
+@@ -371,18 +394,28 @@ def _delta_report(root: pathlib.Path, api, *, stream: bool = True) -> dict:
+     result = {"thresholds": {"accept_min": DELTA_ACCEPT_MIN, "margin_min": DELTA_MARGIN_MIN},
+               "cam2_pixels": CAM2_PIXELS, "report": report, "overall": overall}
+     if stream:
++        _print_delta_report(result)
++    return result
++
++
++def _print_delta_report(result: dict) -> None:
++    """打印自检明细；非 pass-margin 时补「不得落库」警告（采集路径与独立自检共用）。"""
++    print(
++        "R06 multiframe delta self-check (spec §5; thresholds hardcoded 384/576, cam2 pixels 76,800)"
++    )
++    for item in result["report"]:
+         print(
+-            "R06 multiframe delta self-check (spec §5; thresholds hardcoded 384/576, cam2 pixels 76,800)"
++            f"  cam2 {item['pair']}: depth_changed={item['depth_changed']} "
++            f"seg_changed={item['seg_changed']} -> {item['verdict']}"
+         )
+-        for item in report:
+-            print(
+-                f"  cam2 {item['pair']}: depth_changed={item['depth_changed']} "
+-                f"seg_changed={item['seg_changed']} -> {item['verdict']}"
+-            )
+-        print(f"  overall: {overall}")
+-        if overall != "pass-margin":
+-            print("  spec §5：未达采集前置余量（>=576），不得落库为验收材料；停手报用户，不得改阈值。")
+-    return result
++    print(f"  overall: {result['overall']}")
++    if result["overall"] != "pass-margin":
++        print("  spec §5：未达采集前置余量（>=576），不得落库为验收材料；停手报用户，不得改阈值。")
++
++
++def delta_exit_code(result: dict) -> int:
++    """自检 verdict → 退出码：pass-margin = 0，其余 = 3（采集路径与 --check-deltas 共用）。"""
++    return 0 if result["overall"] == "pass-margin" else 3
+ 
+ 
+ def check_deltas(args: argparse.Namespace, out_dir: pathlib.Path, api) -> int:
+@@ -392,7 +425,7 @@ def check_deltas(args: argparse.Namespace, out_dir: pathlib.Path, api) -> int:
+     if not root.is_dir():
+         api.fail(f"--check-deltas 目录不存在：{root.as_posix()}")
+     result = _delta_report(root, api, stream=True)
+-    return 0 if result["overall"] == "pass-margin" else 3
++    return delta_exit_code(result)
+ 
+ 
+ # ----------------------------------------------------------------------------------

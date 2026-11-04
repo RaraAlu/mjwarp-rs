@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-capture-script-fix",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-05-render-r06-flex-multiframe-capture-script-fix",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "depends_on": [
+    "2026-11-05-render-r06-flex-multiframe-capture-script",
+    "2026-11-05-render-r06-flex-multiframe-capture-script-check"
+  ],
+  "frozen_premise": {
+    "spec_task_id": "2026-11-05-render-r06-flex-multiframe-criterion-spec",
+    "spec_path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md",
+    "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "spec_bytes": 10506,
+    "runtime_verified_by": "verify_frozen_spec()（脚本内逐次校验）",
+    "frozen_values_unchanged": {
+      "frames": 3,
+      "frame_dz": 0.1,
+      "criterion_camera": "cam2 (cam-flex)",
+      "cam2_pixels": 76800,
+      "delta_accept_min": 384,
+      "delta_margin_min": 576
+    }
+  },
+  "changes": {
+    "scripts": {
+      "capture_render_flex.py": {
+        "lines": 498,
+        "lines_before": 498,
+        "sha256": "f50e150e4dc29522ce5f49b64bbb50b01bfc5177cee82a3f3c704c9e5c0a16f9",
+        "changed": false,
+        "note": "单帧路径主脚本零改动（git blob 逐字节相同）"
+      },
+      "capture_render_flex_multiframe.py": {
+        "lines": 479,
+        "lines_before": 446,
+        "insertions": 47,
+        "deletions": 14,
+        "sha256": "3b70a38f46c958de499c5f4e8e5e48ba301c4f1f8ed5b3094a66f6eb6363c1f3",
+        "sha256_before": "3cdd936e8f60b4a9d8f040d5f9dbe96e146020325877ba7cac794f41e2a9e8f6",
+        "note": "全部行为改动集中于此（O3 自检打印/退出码/verdict + O2 --frames 白名单）"
+      },
+      "README.md": {
+        "lines": 57,
+        "lines_before": 53,
+        "note": "用法节补 O3 非零退出语义与 --frames 白名单"
+      }
+    },
+    "evidence_only": "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-fix/"
+  },
+  "o3": {
+    "gap": "采集路径 _delta_report(stream=False) 后固定 return 0：verdict 非 pass-margin 时不打印「不得落库」、不非零退出",
+    "fix": {
+      "capture_path_selfcheck": "采集完成后仍用同一 _delta_report() 计算 cam2 相邻帧变化像素",
+      "verdict_recorded_in": "capture.json.delta_selfcheck.overall（含 thresholds/cam2_pixels/report）",
+      "warning": "_print_delta_report()：非 pass-margin 打印「不得落库为验收材料；停手报用户，不得改阈值」",
+      "exit_code": "delta_exit_code()：pass-margin → 0；insufficient-margin / non-discriminating → 3",
+      "capture_return": "return delta_exit_code(delta_lines)（无无条件 return 0 收尾）",
+      "check_deltas_unchanged": "--check-deltas 复用同函数，独立模式语义保持 0/3/3"
+    },
+    "dynamic_limit": "真实采集端到端非零退出需 GPU 窗口，本卡不能执行；以「纯函数三态动态证明 + AST 接线证明 + --check-deltas 同实现三态回归」组合覆盖，真实采集首跑复核留采集窗（O7 同类已知项）"
+  },
+  "o2": {
+    "gap": "--frames 0 / 负数静默落入单帧路径 exit 0",
+    "fix": "dispatch() 先校验 --frames in (1, 3)；其它值（含 0/负数）exit 1 并打印拒绝原因；--frames 1 仍走单帧原路径",
+    "cases": [
+      {"name": "o2-frames-0", "exit": 1},
+      {"name": "o2-frames-minus-1", "exit": 1},
+      {"name": "o2-frames-2", "exit": 1}
+    ]
+  },
+  "o1_o4_o5": {
+    "target": "旧实现卡证据目录 docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script/（已 verified）",
+    "not_in_this_commit_reason": "纪律：新任务 Normify-Task 与已关闭任务 Normify-Fixes 不得写进同一提交",
+    "planned_landing": "紧随本卡的独立 normify fix + Normify-Fixes: 2026-11-05-render-r06-flex-multiframe-capture-script 提交",
+    "items": {
+      "O1": "logs/dry-run-multiframe.json 重导为纯 JSON（stdout 单独落盘、stderr 另存纯文本；json.load 可解析）",
+      "O4": "证据 README §6「+5 行」→「+7 行」（+7/−0）；注：卡面写的 scripts/authoring/README.md 中无「+5 行」字样，实际文本在旧证据 README",
+      "O5": "实现卡 receipt status → verified，并注明由 commit 5a99047f 收口（不改其它既有数字）"
+    }
+  },
+  "cpu_checks": {
+    "gpu_used": false,
+    "capture_executed": false,
+    "script": "scripts/verify_fix.py",
+    "result": "PASS",
+    "passed": 22,
+    "failed": 0,
+    "groups": {
+      "A_verdict_dynamic": 5,
+      "B_wiring_ast": 6,
+      "C_o2_guards": 3,
+      "D_regression": 4,
+      "E_line_counts": 2,
+      "F_spec": 1,
+      "G_single_frame_identity": 1
+    },
+    "detail": "logs/verify-fix.json"
+  },
+  "checks": {
+    "fmt_clippy_clippy_cuda_unit": "见 .normify/runs/2026-11-05-render-r06-flex-multiframe-capture-script-fix/",
+    "unchanged": ["src/", "tests/", "fixtures/"],
+    "forbid_claim": "按卡面 checks 的三项禁用表述执行，本回执与 README 均无命中"
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/authoring/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-fix/"
+    ],
+    "unchanged": ["src/", "tests/", "fixtures/", "Cargo.toml", "Cargo.lock"],
+    "no_gpu_window": true,
+    "no_capture_outputs_created": true,
+    "no_fixtures_written": true,
+    "spec_not_modified": true
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "note": "本卡只修脚本行为与参数边界；不产生多帧判据结论，不做上游对齐声明。采集窗仍等 S-1 用户签名 + Chief GO。"
+  }
+}
