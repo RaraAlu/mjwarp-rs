@@ -6,7 +6,7 @@
 ## 1. 结论
 
 **PASS-with-observations（0 阻断）。** 四口径全部成立：规则只加 1 行且在末尾；无 renormalize、无 blob 重写；属性前后对照符合预期；**独立 fresh clone 复跑**与提交者证据一致（且我用全量 manifest 扩大了覆盖面）；`.ps1` 与 `docs/evidence/**` 行为不变；回滚方法与不 renormalize 理由在证据里写清。
-4 条低观察（O1–O4），均不影响规则正确性与可回滚性。
+4 条低观察（O1–O4）：**O1/O2 已由 `1bfc4ac8` 修正并复核闭合**（见 §6），O3/O4 记录不修；均不影响规则正确性与可回滚性。
 
 ## 2. 四口径核对
 
@@ -57,10 +57,10 @@
 
 | # | 级别 | 内容 | 建议 |
 | --- | --- | --- | --- |
-| O1 | 低（文字准确性） | 执行证据 README 写 `.git/info/attributes`「**不存在/未创建**」，实际该文件**自 2026-10-30 已存在**（3 条 guards `-text` 规则；mtime 早于本卡，本卡未修改） | 文案改为「已存在、本卡未修改」；不影响规则效果 |
-| O2 | 低（证据自核口径） | 执行证据 `manifest.txt` 头写 `repo-relative path`，但 8 条条目实际是**证据目录内相对路径**（按头注释从仓根解析会全部失败；按 base dir 解析 8/8 通过）；与其它证据目录的仓相对路径约定不一致 | 改头注释或改为仓相对路径 |
-| O3 | 低（样本代表性） | 提交者 18 个样本中 17 个位于**既有 `-text` 规则已覆盖**的目录，故 clone-before 只暴露 1 个失配；我全量 161 个实测 **14 个**未覆盖目录失配（同方向，规则必要性更强） | 后续同类证据用全量或分层抽样，避免低估影响面 |
-| O4 | 低（commit message） | `ce4a7d18` 提交正文含未展开的 `\n`/`\` 转义（可读性差） | 下次注意提交正文转义；不影响内容 |
+| O1 | 低（**已闭合 `1bfc4ac8`**） | 执行证据 README 写 `.git/info/attributes`「**不存在/未创建**」，实际该文件**自 2026-10-30 已存在**（3 条 guards `-text` 规则；mtime 早于本卡，本卡未修改） | 已改为「已存在、本次未改动」并写明 3 条规则来源（§6） |
+| O2 | 低（**已闭合 `1bfc4ac8`**） | 执行证据 `manifest.txt` 头写 `repo-relative path`，但 8 条条目实际是**证据目录内相对路径**（按头注释从仓根解析会全部失败；按 base dir 解析 8/8 通过）；与其它证据目录的仓相对路径约定不一致 | 已改为 `evidence-dir-relative path` + `# base dir: …`（§6） |
+| O3 | 低（记录不修） | 提交者 18 个样本中 17 个位于**既有 `-text` 规则已覆盖**的目录，故 clone-before 只暴露 1 个失配；我全量 161 个实测 **14 个**未覆盖目录失配（同方向，规则必要性更强） | 按 Chief 指示不修，仅记录；后续同类证据用全量或分层抽样 |
+| O4 | 低（记录不修） | `ce4a7d18` 提交正文含未展开的 `\n`/`\` 转义（可读性差） | 按 Chief 指示不修，仅记录 |
 
 ## 4. 顺带复核（advisory，不属于本卡验收项）
 
@@ -70,6 +70,18 @@
 ## 5. 复现与证据
 
 - `scripts/verify_rule.py`：规则 diff、属性前后、blob 抽样、提交范围、执行证据 manifest 8/8、`src/tests/fixtures/docs/evidence` 边界、R07/G10 顺带检查。
-- `scripts/qa_clone_compare.py`：独立 fresh clone 对照（before/after 全量 manifest + 提交者 18 样本复跑 + `core.longpaths` 说明）；结果 JSON `logs/qa-clone-compare.json`。
+- `scripts/qa_clone_compare.py`：独立 fresh clone 对照（before/after 全量 manifest + 提交者 18 样本复跑 + `core.longpaths` 说明）；本次闭合 addenda 用 `after=1bfc4ac8` 复跑，结果 JSON `logs/qa-clone-compare.json`（163/163，0 失配）。
 - 日志：`logs/verify-rule.log`、`logs/qa-clone-compare.log`（均 `RESULT: PASS`；UTF-8/LF，由 Python 直写，规避本机 PowerShell `>` 的 UTF-16LE 重定向）。
 - `manifest.txt` 7 条（README + facts + 2 脚本 + 3 日志），LF、无 BOM，首行 `#`，路径为仓相对。
+
+## 6. 观察闭合 addenda（2026-11-05，`1bfc4ac8`）
+
+Chief 派单后 Backend 用 `1bfc4ac8` 修正执行卡证据层（**不含 `.gitattributes`**；只改执行卡 README/receipt/manifest + 卡记录 + 门禁 runs）。我做最小独立复核：
+
+- **规则零改动**：`HEAD:.gitattributes` blob 与 `ce4a7d18` 完全相同（`e6ba69f5…`）；`1bfc4ac8` 文件清单不含 `.gitattributes`；`48bc2840..ce4a7d18` 仍 +1/−0。
+- **O1 闭合**：执行 README 已改为「已存在、本次未改动」并写明 3 条 guards `-text` 规则来源；receipt 新增 `git_info_attributes` 事实块（`exists_at_capture=true`、3 行与 `.git/info/attributes` 实际内容**逐行相同**、`changed_by_task=false`、note「2026-10-30 起已存在」）。
+- **O2 闭合**：执行 manifest 头改为 `evidence-dir-relative path` 并新增 `# base dir: docs/development-evidence/repo-evidence-gitattributes-rule`；按 base dir 自核 **8/8** sha/bytes 全对。
+- **规则有效性数据不受影响**：在 `1bfc4ac8` 独立 fresh clone（`autocrlf=true` + `longpaths=true`，强制重建）→ 全量 `docs/development-evidence/**/manifest.txt` **163 个全部与提交 blob 一致、0 失配**，clone 工作树干净。原 after=162/162（`b88f7964`）继续成立；+1 是本复核卡目录在 `f750e10b` 新增的 manifest。
+- **O3/O4**：按 Chief 指示不修，仅在执行证据 README/receipt 记为 `not_fixed`，本卡保留记录。
+
+闭合后结论不变：**PASS-with-observations（0 阻断）**；**O1/O2 = 已闭合（`1bfc4ac8`）**，O3/O4 = 记录不修。

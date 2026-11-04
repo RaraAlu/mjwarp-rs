@@ -164,5 +164,32 @@ ok("G10 receipt JSON valid + counts unchanged",
    json.loads(old)["requirement_counts"] == json.loads(new)["requirement_counts"])
 ok("G10 README untouched by cosmetic commit", "README.md" not in sh("show", "--name-only", "--format=", G10))
 
+print("\n[9] addenda closure: executant evidence fixed by 1bfc4ac8")
+FIXC = "1bfc4ac8"
+ok("rule blob unchanged since ce4a7d18",
+   sh("rev-parse", "HEAD:.gitattributes").strip() == sh("rev-parse", RULE + ":.gitattributes").strip())
+ok("fix commit does not touch .gitattributes",
+   ".gitattributes" not in [l.split("\t")[-1] for l in sh("diff-tree", "-r", "--name-only", FIXC + "^", FIXC).splitlines()])
+man = blob("HEAD", EVID + "/manifest.txt").decode()
+ok("manifest header says evidence-dir-relative", "evidence-dir-relative path" in man.splitlines()[0], man.splitlines()[0])
+ok("manifest declares base dir", ("# base dir: " + EVID) in man)
+n = okc = 0
+for line in man.splitlines():
+    if not line.strip() or line.startswith("#"):
+        continue
+    h, b, rel = line.split()
+    data = blob("HEAD", EVID + "/" + rel)
+    okc += (sha(data) == h and str(len(data)) == b)
+    n += 1
+ok("executant manifest re-checked 8/8 with base dir", n == 8 and okc == 8, "%d/%d" % (okc, n))
+rec = json.loads(blob("HEAD", EVID + "/receipt.json").decode())
+g = rec.get("git_info_attributes") or {}
+actual = open(os.path.join(REPO, ".git", "info", "attributes"), encoding="utf-8").read().splitlines()
+ok("receipt git_info_attributes.exists_at_capture=true", g.get("exists_at_capture") is True)
+ok("receipt lines match actual .git/info/attributes", g.get("lines") == actual, repr(actual))
+ok("receipt changed_by_task=false", g.get("changed_by_task") is False)
+ok("receipt evidence_revision.base_commit=ce4a7d18",
+   (rec.get("evidence_revision") or {}).get("base_commit") == "ce4a7d18")
+
 print("\nRESULT:", "PASS" if not fails else "FAIL", "fails=" + ",".join(fails))
 raise SystemExit(0 if not fails else 1)
