@@ -5,7 +5,7 @@
     "zh": "治理：`.gitattributes` 追加 `docs/development-evidence/** -text -diff`（防 fresh checkout 行尾漂移；一行规则、不 renormalize）",
     "en": "Governance: add `docs/development-evidence/** -text -diff` to .gitattributes (prevents fresh-checkout EOL drift; one line, no renormalize)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "QA 复核发现：`docs/development-evidence/` **顶层**目录（如 `g10-p5-summary/`、`np01-e-criterion-a2/`、各家族 summary 与 `*-check/`）没有属性规则，而 `render-bvh/**`、`docs/evidence/**` 已有 `-text -diff`。这些目录的 `manifest.txt` 以 **sha256+字节数**自证，在 `core.autocrlf=true` 的 fresh checkout 下会被当成文本做 LF→CRLF 转换 → manifest 逐条漂移。本卡在 `.gitattributes` **末尾追加一行** `docs/development-evidence/** -text -diff`，只改后续 checkout/diff 行为，**不 renormalize、不改任何既有 blob**。执行交 Backend，复核交 QA（Arch 只登记）。",
     "en": "Evidence directories directly under docs/development-evidence/ have no attribute rule while render-bvh/** and docs/evidence/** already do; their manifests self-verify by sha256+bytes, so an autocrlf fresh checkout would corrupt the byte match. Append one line `docs/development-evidence/** -text -diff` to .gitattributes: checkout/diff behaviour only, no renormalize, no blob rewrite. Backend executes, QA reviews."
@@ -35,9 +35,12 @@
     "priority": 60
   },
   "note": "Arch 2026-11-05 登记（Chief 采纳 QA 建议、指派 Backend 执行 / QA 复核；Arch 因锁纪律第四次违规本卡不写实现，只登记卡面，登记提交按 status→acquire→确认 owner 三步）。先例：`2026-10-25-evidence-bin-eol-hygiene`（同一文件、同 `-text -diff` 规则、含临时 clone 逐文件 sha 验证）。本卡不动 `.git/info/attributes`（本机本地例外，不随仓分发）。",
-  "revision": { "before": "1e6b97340fe7c092656598c71351ce8515e80a42", "after": null },
+  "revision": {
+    "before": "fc99126c51932fb28c2eb9b64471498d505395c7",
+    "after": null
+  },
   "created_at": "2026-11-05T00:45:00.000Z",
-  "updated_at": "2026-11-05T00:45:00.000Z",
+  "updated_at": "2026-11-04T16:19:31.449Z",
   "checks": [
     {
       "kind": "json",
@@ -47,7 +50,12 @@
     },
     {
       "kind": "unchanged",
-      "paths": ["src/", "tests/", "fixtures/", "docs/evidence/"]
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "docs/evidence/"
+      ]
     }
   ]
 }
