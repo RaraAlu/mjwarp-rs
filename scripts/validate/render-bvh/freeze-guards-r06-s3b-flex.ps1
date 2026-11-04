@@ -3,8 +3,8 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1 -Attempt 1
 # Static structure self-check (authoring card; reads no binaries, runs no cargo):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1 -GuardsOnly
-# The suite has 2 exe entries (product binary + render_flex_validate test binary) and 13 read-only
-# input entries (6 scene-flex files + 5 reference files + capture script + this freeze script).
+# The suite has 2 exe entries (product binary + render_flex_validate test binary) and 14 read-only
+# input entries (6 scene-flex files + 6 reference files + capture script + this freeze script).
 # Run this only BEFORE the validation window freeze; never inside the window.
 # The R02/R08/SDF guard files are history and must not be touched.
 param(
@@ -37,10 +37,11 @@ $inputPaths = @(
     'fixtures/render-bvh/scene-flex/reference/base/seg.npz',
     'fixtures/render-bvh/scene-flex/reference/base/state.npz',
     'fixtures/render-bvh/scene-flex/reference/base/capture.json',
+    'fixtures/render-bvh/scene-flex/reference/base/cam-poses.json',
     'scripts/authoring/capture_render_flex.py',
     'scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1'
 )
-if ($inputPaths.Count -ne 13) { throw "expected 13 guard inputs, got $($inputPaths.Count)" }
+if ($inputPaths.Count -ne 14) { throw "expected 14 guard inputs, got $($inputPaths.Count)" }
 
 function File-Entry([string]$path) {
     $full = if ([IO.Path]::IsPathRooted($path)) { $path } else { Join-Path $RepoRoot $path }
@@ -94,7 +95,7 @@ if ($GuardsOnly) {
     $guards = Get-Content $path -Raw | ConvertFrom-Json
     if ($guards.schema -ne 1) { throw "guards schema mismatch" }
     if ($guards.suite -ne $suite) { throw "guards suite mismatch" }
-    if ($guards.guard_inputs.Count -ne 13) { throw "guards input count mismatch" }
+    if ($guards.guard_inputs.Count -ne 14) { throw "guards input count mismatch" }
     if ($guards.frozen_exes.Count -ne 2) { throw "guards exe count mismatch" }
     $bad = @()
     foreach ($entry in $guards.guard_inputs) {
@@ -160,7 +161,7 @@ $scriptEntry = File-Entry 'scripts/validate/render-bvh/freeze-guards-r06-s3b-fle
 $scriptEntry | Add-Member -NotePropertyName kind -NotePropertyValue 'guard_script' -Force
 $inputs += $scriptEntry
 $total = $frozenExes.Count + $inputs.Count
-if ($total -ne 15) { throw "expected 15 frozen entries, got $total" }
+if ($total -ne 16) { throw "expected 16 frozen entries, got $total" }
 $guards = [pscustomobject]@{
     schema = 1
     suite = $suite
@@ -174,7 +175,7 @@ $guards = [pscustomobject]@{
         guard_inputs = $inputs.Count
         total = $total
     }
-    aggregate_algorithm = 'sha256 over the sha256 hex strings of all 15 entries in repo-relative path-sorted order, concatenated with no separator'
+    aggregate_algorithm = 'sha256 over the sha256 hex strings of all 16 entries in repo-relative path-sorted order, concatenated with no separator'
     aggregate_inputs_sha256 = (Guard-Aggregate $inputs)
     aggregate_sha256 = (Guard-Aggregate (@($frozenExes) + @($inputs)))
     frozen_exe_stash_dir = $stashDirRel

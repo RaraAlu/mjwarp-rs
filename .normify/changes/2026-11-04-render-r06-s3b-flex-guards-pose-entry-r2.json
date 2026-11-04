@@ -5,7 +5,7 @@
     "zh": "R06-S3b guards 扩条目（含冻结器 scope 修正）：位姿 provenance 纳入冻结（inputs 13→14 / total 15→16，aggregate 重算，冻结器 `$inputPaths` 与 count 断言同步）",
     "en": "Extend S3b guards (and fix the freeze script scope): add cam-pose provenance (inputs 13→14 / total 15→16, aggregate recomputed, freeze script input list + count assertions)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "D5 修复卡（`2026-11-04-render-r06-s3b-cam-pose-source-fix`）新增 `fixtures/render-bvh/scene-flex/reference/base/cam-poses.json` 并修改 `scripts/authoring/capture_render_flex.py`。原卡 `2026-11-04-render-r06-s3b-flex-guards-pose-entry` 的 files **漏了冻结器脚本**（它硬编码 `$inputPaths` 13 条清单、两处 `Count -ne 13` 断言、`aggregate_algorithm` 文案与头注释），只改 JSON 会导致：① `-GuardsOnly` 抛 `guards input count mismatch`；② attempt 4 现场 `-Attempt 1` 用脚本内 `$inputPaths` **重新生成整个 guards JSON** → `cam-poses.json` 条目被静默丢弃。故重登记本卡，把冻结器一并纳入 scope。",
     "en": "Re-register the guards extension card with the freeze script in scope (its $inputPaths, count assertions and aggregate text must be updated together with the JSON)."
@@ -35,14 +35,35 @@
     "priority": 78
   },
   "note": "Arch 2026-11-04 重登记（原卡 `2026-11-04-render-r06-s3b-flex-guards-pose-entry` 已 abandon：files 漏冻结器，proposed 卡不可原地改 scope）。缺口由 Backend 指出：冻结器硬编码 `$inputPaths` 与 count 断言，只改 JSON 会在 attempt 4 重冻时静默丢条目。**attempt 4 开窗前必须 verified**；时段纪律：现在–09:00 可写、09:00–12:00 只读、12:00–13:50 空闲块执行。",
-  "revision": { "before": "d3d96f9aada8f1558c3de038372ee06fe748949b", "after": null },
+  "revision": {
+    "before": "dd3ae985a2c112ecc6c8ddb74a490110b9e4d766",
+    "after": null
+  },
   "created_at": "2026-11-04T08:30:00.000Z",
-  "updated_at": "2026-11-04T08:30:00.000Z",
+  "updated_at": "2026-11-04T04:08:56.903Z",
+  "closed_at": "2026-11-04T04:08:56.903Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    }
   ]
 }
