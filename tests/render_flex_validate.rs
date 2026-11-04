@@ -491,6 +491,7 @@ fn flex_renders_match_captured_reference() {
     let (positions, edges, flex_fields) = (flex_positions(&model), flex_edges(&model), flex_model(&model));
     let assembly = FlexHostAssembly::build(1, &positions, &edges, &flex_fields, FlexHostData { flexvert_xpos: &flexvert, flex_bvh_ids: &[u64::MAX; 2], flex_group_root: &[-1i32; 2] }).expect("组装").expect("有 flex");
     let first = render_once(&renderer, &context, &fields, &camera_model, &poses, &rays, &assembly);
+    assert!(first.2.iter().any(|pair| pair[1] == 9), "D7 回归：mesh=None（1D-only）必须出现 (flexid,9) seg 像素");
     let second = render_once(&renderer, &context, &fields, &camera_model, &poses, &rays, &assembly);
     let (h1, h2) = (hash_rendered(&first), hash_rendered(&second));
     assert_eq!(h1, h2, "两次运行 sha256 必须相同");

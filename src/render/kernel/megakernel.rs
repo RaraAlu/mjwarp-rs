@@ -319,6 +319,13 @@ impl MegakernelRenderer {
                 flex_bvh_id: ids,
                 ..*inputs
             });
+        // D7：场景含 flex 叶（负 `leaf_geom`）时，最终上传实参不得缺省（否则设备侧把 1 元素
+        // 占位当 `bvh_nflexgeom` 数据源解引用，首个 flex 命中即 CUDA 700）。
+        let upload_flex = adjusted_flex.as_ref().or(flex);
+        let flex_missing = upload_flex.is_none_or(|inputs| inputs.flex_geom_flexid.is_empty());
+        if flex_leaves.is_some() && flex_missing {
+            return Err(LauncherError::InvalidArray("flex_channel_placeholder"));
+        }
 
         // ---- 相机参数（按模型相机 id；上游 `cam_*_in[worldid, mujoco_cam_id]`） ----
         let cam_projection = ints(fields, "cam_projection")?;
@@ -400,7 +407,7 @@ impl MegakernelRenderer {
             // R05-S2：无 hfield geom 时为空切片（上传侧落 1 个 `u64::MAX` 哨兵占位）。
             hfield_bvh_ids: hfield.as_ref().map_or(&[], |device| device.bvh_ids()),
             // R06-S2/S3c：宿主 flex 通道（可能带 S3c 修正后的 `flex_bvh_id` 条目基址）。
-            flex: adjusted_flex.as_ref(),
+            flex: adjusted_flex.as_ref().or(flex),
             // 方案 L：单 world 发射时把输出 adr 平移到该 world 的区段（`world × pitch`）。
             adr_world: world,
         })?;
