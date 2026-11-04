@@ -91,3 +91,14 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B `
 - `README.md`（本文）、`DECISION-SUPPORT-user-signature.md`（供 Chief 引用的一页口径）、`facts.json`、`manifest.txt`
 - `artifacts/cam2-depth-seg-fixed.npz`（产品 cam2 位副本，派生）
 - `scripts/qa_f32_verify.py`、`logs/qa_f32_verify.log`、`logs/ptx-precheck.log`、`logs/reviewed-state.txt`
+
+## 11. r2 最终 blob 快照核对（对象 `d35cab68`）与签名状态
+
+- 用户已于 **2026-11-04 22:14** 签①（判据 allowlist，签名级）；判据落点为 attempt5 材料 `materials/attempt5-criteria.md`（`ecc93b56`）+ 签名卡（`3406f1ca`）。**本卡的 `DECISION-SUPPORT-user-signature.md` 保持签字前原文、逐字节不改**（窗口材料 §5：引用链被改动即 attempt5 无效）。
+- 对象 r2 已提交 **`d35cab68`**（verified）。对本卡 pin 的未提交快照与最终 blob 逐文件核对（脚本 `scripts/r2_blob_snapshot_check.py`，日志 `logs/r2-blob-snapshot-check.log`）：
+  - **PASS**：最终 blob 的对象 `manifest.txt` 为 2,517 B / `8f8e31be…` / 首字符 `#` / 24 条，**24/24 sha256+bytes 自核通过**（直接从 git blob 读，不依赖工作树）。
+  - **与 pin 的差异清单（仅 1 条，属预期）**：`manifest.txt` 由 2,405 B `ecd80ea0…` 变为 2,517 B `8f8e31be…`，即 F3（缺 `#` 表头）在 r2 收口时被修；**manifest 所列 24 条 sha/bytes 未变**，其余 pin 住文件（README / verification-summary / residual-pixel / 两个 oracle npz / fingerprint json）**逐字节相同**。
+  - 机读字段复核：`oracle.product_source`（flex1=pre-fix）、`oracle.post_fix_product` + `post_fix_depth`（flex1 0 / flex0 1 / 全 flex 1 / cam2 1 且 beyond4 0）、`depth_after_fix`（cam0/cam1 `[0,0]`、cam2 `[1,0]`）、PTX `aa51258b…`/345,514 B、`r2_post_gate_canonical_rebuild=2331BA26…`/107,661,795 B、determinism `evidence_rule` 均在。
+  - oracle npz 从 git blob 复算：flex0 `403/403 == 参考`、对 post-fix 产品失配 1；flex1 `251/251 == 参考`、product 绑定 D8 pre-fix：均正确。
+  - r2 四门禁记录（committed）：fmt / clippy / clippy-cuda / unit **全 pass、exit 0、unit 1316/0**；r2 卡在提交内 `verified`；本卡引用的 `DECISION-SUPPORT-user-signature.md` **逐字节未变**（`ab35859d…`/3,871 B）。
+  - 说明：对象证据已随 r2 入库，本卡「pin 快照 → 最终 blob」映射闭合；若 r2 证据后续再被 `normify fix` 改动，需按新提交重核。
