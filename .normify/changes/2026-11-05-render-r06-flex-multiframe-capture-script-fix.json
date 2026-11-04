@@ -5,7 +5,7 @@
     "zh": "R06 多帧采集脚本小修：O3 采集路径按 verdict 停手/非零退出（+O1/O2/O4/O5 文案与参数校验）",
     "en": "R06 multi-frame capture-script fix: O3 capture path must stop/non-zero on non-pass verdict (plus O1/O2/O4/O5 wording and parameter guards)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "QA 复核（`2026-11-05-render-r06-flex-multiframe-capture-script-check`，提交 `e1d93aca`）PASS-with-observations，其中 **O3 是真缺口**：采集路径 `capture_render_flex_multiframe.py:278` 调 `_delta_report(out_dir, api, stream=False)` 后在 `:296` 固定 `return 0`，verdict 为 `insufficient-margin`/`non-discriminating` 时**既不打印「不得落库」也不非零退出**，与实现证据 README §2/§8.5 不符。本卡修 O3，并合并三条低成本项：O1 `dry-run-multiframe.json` 重导为纯 JSON、O2 `--frames 0` 显式 exit1、O4 README「+5 行」改「+7 行」、O5 实现 receipt status 改 `verified` 或注记。**不采集、不开窗、不动 `fixtures/`、不改产品代码、不改判据/阈值/帧数/Δz、不动冻结 spec（sha `1d9fa5ce…`/10,506 B）。**",
     "en": "QA's review passed with observations; O3 is a real gap: the capture path calls _delta_report(stream=False) and then returns 0 unconditionally, so an insufficient-margin or non-discriminating verdict neither prints the do-not-land warning nor exits non-zero, contradicting the evidence README sections 2/8.5. Fix O3 and fold in O1 (re-export dry-run JSON as pure JSON), O2 (reject --frames 0 with exit 1), O4 (README +5 -> +7) and O5 (implementation receipt status). No capture, no window, no fixtures or product-code change; frozen spec untouched."
@@ -37,9 +37,12 @@
     "priority": 60
   },
   "note": "Arch 2026-11-05 登记（Chief 指派：O3 必修 + O1/O2/O4/O5 合并；O6/O7 记已知不修）。QA 最小复核卡 `2026-11-05-render-r06-flex-multiframe-capture-script-fix-check` 同批登记，只核 O3 + 文案，不做全量复核。500 行棘轮提醒：主脚本 498/500，改动优先新模块。采集窗仍等 S-1 用户签名 + Chief GO。",
-  "revision": { "before": "3de2361015decddbbab2dc5e847425ad5e201551", "after": null },
+  "revision": {
+    "before": "2bacdf2be47e5784d571d1eb512136cdfa786204",
+    "after": null
+  },
   "created_at": "2026-11-05T02:15:00.000Z",
-  "updated_at": "2026-11-05T02:15:00.000Z",
+  "updated_at": "2026-11-04T18:13:26.660Z",
   "checks": [
     {
       "kind": "json",
@@ -49,11 +52,19 @@
     },
     {
       "kind": "unchanged",
-      "paths": ["src/", "tests/", "fixtures/"]
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
     },
     {
       "kind": "forbid_claim",
-      "terms": ["采集已执行", "多帧已验收", "上游等价"]
+      "terms": [
+        "采集已执行",
+        "多帧已验收",
+        "上游等价"
+      ]
     }
   ]
 }
