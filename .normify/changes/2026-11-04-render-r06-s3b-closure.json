@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-closure",
+  "title": {
+    "zh": "R06-S3b 验收收口证据（attempt6 PASS + 跨轮明细闭环 + B 类前提 + 用户签名 allowlist + 非声明）",
+    "en": "R06-S3b acceptance closure evidence (attempt6 PASS, cross-round closure, class-B premises, signed allowlist, non-claims)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "Chief 2026-11-04 裁选项①：**attempt6（`7a48205d`）VALID_ROUND / PASS 接受**，不做 attempt7 复跑。本卡把 R06-S3b 的验收结论、前提、签名放宽、跨轮明细闭环与非声明**一次性收口**成单一审计证据，供 QA 复核后由 Chief 汇总给用户。**本卡不改代码、不改判据文本、不碰 attempt6 证据、零 GPU。**",
+    "en": "Single audit-closure record for R06-S3b acceptance: PASS, premises, signed allowlist, cross-round closure, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① B 类前提声明**：明确写出「参考型判据的成立前提」并逐条声明——冻结参考（`fixtures/render-bvh/scene-flex/reference/base/` 6 文件 sha）、同 GPU（RTX 4070 Ti SUPER / driver 596.36）、同 recipe（`use_fast_math=false`/`use_shadows=true`/`samples_per_pixel=1`/`flex_render_smooth=true` 等，见采集 provenance）、同编译形态（窗口内 canonical rebuild 产物）；**任一前提失效即需重跑/重判**。",
+    "**② 用户签名 allowlist**：`3406f1ca`（2026-11-04 22:14 签名级）——仅 `cam2/(x=134,y=128)/flexid0` 允许 `ULP ≤ 4` **且** `beyond4 = 0`；其余全部 bit-first；不得扩大、不得二次放宽。",
+    "**③ 与 D8 的 321 px 分开登记**：D8（`a1cc22ae`）为 f32 修复**前** cam2 321 px（beyond4 297 / maxULP 259）；f32 修复 r2（`d35cab68`）后为 1 px；attempt6 的 PASS 建立在该 1 px 走签名 allowlist 之上。两者数字不混算、不重解释。",
+    "**④ 跨轮明细闭环（三条证据链）**：a) `8c15ad75`（allowlist 断言实现）只动 `tests/`，`git diff d35cab68..8c15ad75 -- src/` 为空 → 渲染器源码未变；b) attempt6 两跑 sha（depth `98292153…`、seg `c4be9853…`、rgb `d84ecaed…`）与 r2/D8 采集轮**逐位相同** → 输出与明细采集时一致；c) r2 证据已含该像素明细（bits `0x400015ba` vs ref `0x400015b7`、ULP=3、beyond4=0、seg 双方 `[0,9]`、flexid0）。",
+    "**⑤ 非声明**：不宣称上游等价（upstream equivalence）、不宣称 parity pass、不宣称 flex 渲染整体可用、**不作为对外发布依据**；allowlist 仅限 R06-S3b 本次验收。",
+    "**⑥ 证据索引**：attempt6 `7a48205d`（`docs/development-evidence/render-bvh/r06-s3b-flex-attempt6/`）、r2 `d35cab68`、D8 `a1cc22ae`、tie 负结果 `9a1f102b`、criteria/QA 复核 `1927d62e`、签名卡 `3406f1ca`、材料 `ecc93b56`；并注明 attempt5 `6e9aa585` = FAILED_ROUND（判据实现缺口）为历史记录。",
+    "**边界**：只写证据；不改代码/判据文本/attempt6 证据；零 GPU；证据目录 `docs/development-evidence/render-bvh/r06-s3b-closure/`（README + `manifest.txt` 带 `#` 表头、LF、无 BOM）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`unchanged`：`src/`、`fixtures/`、`docs/development-evidence/render-bvh/r06-s3b-flex-attempt6/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-validate-attempt6"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-closure/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：登记并落 R06-S3b 验收收口证据卡，六项必含；attempt6 README 已 done、不再回改）。QA 复核 PASS 后由 Chief 汇总给用户。",
+  "revision": { "before": "b5592c20f68346443214aa06b3fcfdaac91dc6ca", "after": null },
+  "created_at": "2026-11-04T23:15:30.000Z",
+  "updated_at": "2026-11-04T23:15:30.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/", "fixtures/", "docs/development-evidence/render-bvh/r06-s3b-flex-attempt6/"] }
+  ]
+}
