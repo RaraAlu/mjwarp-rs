@@ -1,0 +1,72 @@
+{
+  "task_id": "2026-11-04-render-r07-splat-precheck",
+  "owner": "Arch",
+  "date": "2026-11-04",
+  "status": "precheck-read-only",
+  "gpu_used": false,
+  "product_code_changed": false,
+  "criteria_changed": false,
+  "reference_changed": false,
+  "family": "R07 gaussian splats",
+  "family_opened": false,
+  "upstream_pin": {
+    "checkout": "target/mjwarp-parallel/upstream (gitignored authoring env)",
+    "commit": "71da24d9",
+    "mujoco_warp": "3.15.0"
+  },
+  "upstream_params": ["splat_position vec3[]", "splat_rotation quat[]", "splat_scale vec3[]", "splat_rgba vec4[]", "splat_bvh_id uint64", "splat_group_root int32[]"],
+  "slot_status": [
+    {"param": "splat_position", "our_slot": "occupied by constants: [headlight_ambient, headlight_diffuse, headlight_specular, background] (Vec3 x4)", "conflict": true},
+    {"param": "splat_rotation", "our_slot": "1-element placeholder, not read by kernel", "conflict": false},
+    {"param": "splat_scale", "our_slot": "occupied by constants: [znear, zfar, shadow_light_fraction] (read as data[0][2])", "conflict": true},
+    {"param": "splat_rgba", "our_slot": "1-element placeholder, not read by kernel", "conflict": false},
+    {"param": "splat_bvh_id", "our_slot": "occupied by (packed_background_u32 << 32) | flags", "conflict": true},
+    {"param": "splat_group_root", "our_slot": "1-element placeholder", "conflict": false}
+  ],
+  "abi_conflict": {
+    "summary": "3 of 6 splat slots are occupied by the constants/flags channel, 3 are empty placeholders; enabling R07 requires an 81-slot / constants-channel redesign (ABI-level, needs user signature)",
+    "evidence": ["src/render/kernel/cuda/render_megakernel.cu (signature + slot repurposing comment)", "src/render/kernel/megakernel_args.rs", "src/render/kernel/megakernel_arrays.rs (scale_constants = znear/zfar/shadow_light_fraction)"]
+  },
+  "semantics": {
+    "ray_splat": "local-space transform by inverse rotation and scale; plane intersection distance = -dot(lpnt,lvec)/dot(lvec,lvec); response = exp(-0.5*|delta|^2); alpha = min(response*opacity, 1); reject alpha < max(SPLAT_MIN_RESPONSE=0.01, 1/255); distance must be in (min,max)",
+    "shade_splats": "BVH ray query per pass, insertion sort by distance (bounded MAX_SPLAT_HITS=32), front-to-back compositing color += rgb*alpha*transmittance, transmittance *= 1-alpha, stop below 0.005, new pass with min_distance = last+1e-6 when 32 hits reached",
+    "composition": "rgb = splat_color + shade/skybox/background * transmittance; depth overridden by splat_depth when > 0 (even on geometry hit); seg written by geometry only",
+    "splat_bvh": "bounds from position/rotation/scale/opacity via clamp(SPLAT_MIN_RESPONSE/opacity, 1e-6, 0.97); wp.Bvh(groups=..., constructor='sah'); compute_bvh_group_roots; refit recomputes bounds then refit()"
+  },
+  "gaps": [
+    "no splat fields in native/, include/, src/model, src/io (product data path is empty)",
+    "src/render/kernel/megakernel.rs returns Unsupported when splat_count != 0",
+    "no splat BVH in src/render/bvh/ (build/refit/group roots missing)",
+    "no render_splat.cu (ray_splat/shade_splats missing)",
+    "unknown: whether the product pinned MuJoCo model exposes splat model fields (not checked in S0)"
+  ],
+  "criteria_draft": {
+    "reference_class": "B-class reference (same GPU / same recipe / same compile form)",
+    "rgb": "bit-level or <=1 LSB preferred; if not reachable, an <=N LSB fallback needs the user's signature",
+    "depth": "splat depth override is new behaviour; needs its own criterion (with/without geometry hit)",
+    "seg": "geometry only; splat scenes keep seg unchanged (negative control)",
+    "determinism": "two runs identical sha256",
+    "premise": "bounded 32 hits per pass and the multi-pass loop are lossy approximations; the criterion must state the hit-set bound as a premise"
+  },
+  "slice_draft": [
+    {"slice": "R07-S0", "content": "this precheck", "window": "none"},
+    {"slice": "R07-S1", "content": "constants-channel redesign (ABI-level) + native additive splat data + io/model/physics read-only views", "window": "none", "detaches_verified_exes": true},
+    {"slice": "R07-S2", "content": "splat BVH (bounds/group roots/refit) + render_splat.cu + launcher unlock", "window": "none", "detaches_verified_exes": true},
+    {"slice": "R07-S3a", "content": "authoring capture: capture_render_splat.py + fixtures/render-bvh/scene-splat/", "window": "1 authoring"},
+    {"slice": "R07-S3b", "content": "validation window: same-recipe reference, rgb/depth/seg, two-run sha", "window": "1 validation"}
+  ],
+  "risks": [
+    "ABI conflict is the highest risk: splat slots are occupied by constants; a redesign touches frozen 81-slot ABI and forces re-freeze/re-verify of all render evidence",
+    "transparency math is f32-sensitive (exp, multiplies, sort comparisons); bounded 32 hits and multi-pass loop are lossy -> bit-level criteria may be unreachable",
+    "splat BVH bounds/SAH order affects the hit set; cross-implementation alignment is harder than scene/mesh BVH",
+    "product pinned MuJoCo splat model fields are unverified (model/ABI gap may be user-level)",
+    "cost: 5 slices + 2 windows, and S1/S2 detach the current HEAD from the verified executables"
+  ],
+  "non_claims": [
+    "R07 is not delivered and the family is not opened",
+    "no splat acceptance claim, no upstream-equivalence claim",
+    "not a basis for external release",
+    "src/tests/fixtures unchanged"
+  ],
+  "next_step_for_user": "go/no-go on opening R07; the binding question is whether to fund an 81-slot/constants-channel redesign (ABI-level) plus 5 slices and 2 windows"
+}
