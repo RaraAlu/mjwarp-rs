@@ -1,0 +1,75 @@
+# R06-S3b cam1 rgb 诊断：CPU-only 原始输出（零 GPU、零窗口；未改判据/参考）
+# command: target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/render-bvh/r06-s3b-cam1-diagnosis/diag_cam_pose.py
+# inputs: fixtures/render-bvh/scene-flex/{scene.xml, model-312.json, reference/base/{state.npz,capture.json}}
+# env: mujoco 3.15.0 (pinned authoring version), python 3.12.13
+WARNING: flex 'flex-line' is not rigid and has no equality constraints or passive forces
+Element name 'flex-line', id 0, line 87
+
+WARNING: flex 'flex-line-fat' is not rigid and has no equality constraints or passive forces
+Element name 'flex-line-fat', id 1, line 92
+
+== inputs ==
+scene      : D:/Rust/mjwarp-rs/fixtures/render-bvh/scene-flex/scene.xml
+mujoco     : 3.15.0
+state.npz  : ['flexvert_xpos', 'geom_xmat', 'geom_xpos', 'light_xdir', 'light_xpos', 'qpos']
+capture ctx: cam_id_map [0, 1, 2] cam_res [[320, 240], [240, 180], [320, 240]] total_rays 196800
+dump       : cam_mode [0, 3, 3] cam_bodyid [0, 0, 0] cam_targetbodyid [-1, 6, 4]
+         cam names ['cam-persp', 'cam-track', 'cam-flex'] body names ['world', 'flex-anchor0', 'flex-anchor1', 'flex-anchor2', 'flex-target', 'base', 'tri_body']
+
+== 1) camera pose table: test input (model cam_pos0/cam_mat0) vs reference data pose ==
+camera   mode body target | pos_delta | mat_max_abs_delta | mat_bit_equal | fwd_angle_deg
+cam0 cam-persp   0    0     -1 | 0.000e+00 | 0.000000 | True | 0.017
+cam1 cam-track   3    0      6 | 0.000e+00 | 1.693267 | False | 85.517
+cam2 cam-flex    3    0      4 | 0.000e+00 | 0.968418 | False | 75.562
+
+test mat vs data mat detail:
+cam0 cam-persp: test_pos=[1.2000000476837158, -1.100000023841858, 0.800000011920929] data_pos=[1.2000000476837158, -1.100000023841858, 0.800000011920929]
+        test_mat = [[0.7263157963752747, -0.6105263233184814, -0.31578946113586426], [0.5263158082962036, 0.7894737124443054, -0.31578946113586426], [0.4421052634716034, 0.06315789371728897, 0.8947368264198303]]
+        data_mat = [[0.7263157963752747, -0.6105263233184814, -0.31578946113586426], [0.5263158082962036, 0.7894737124443054, -0.31578946113586426], [0.4421052634716034, 0.06315789371728897, 0.8947368264198303]]
+cam1 cam-track: test_pos=[-0.800000011920929, 0.8999999761581421, 0.699999988079071] data_pos=[-0.800000011920929, 0.8999999761581421, 0.699999988079071]
+        test_mat = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        data_mat = [[-0.6932670474052429, 0.056324560195207596, -0.718476414680481], [-0.720680832862854, -0.05418204516172409, 0.6911464929580688], [0.0, 0.9969412684440613, 0.07815465331077576]]
+cam2 cam-flex: test_pos=[-0.3499999940395355, -1.149999976158142, 1.0499999523162842] data_pos=[-0.3499999940395355, -1.149999976158142, 1.0499999523162842]
+        test_mat = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        data_mat = [[0.9423230290412903, -0.08345328271389008, 0.32413411140441895], [0.3347048759460449, 0.23495309054851532, -0.9125621318817139], [-0.0, 0.9684175848960876, 0.249333918094635]]
+
+== 2) upstream look-at formula sanity (f64) on TARGETBODY cameras ==
+cam1 cam-track: look-at(formula f64) vs mj_forward data xmat max_abs_delta=1.110e-16
+cam2 cam-flex: look-at(formula f64) vs mj_forward data xmat max_abs_delta=0.000e+00
+
+== 3) output mapping vs reference npz ==
+resolved cam_id_map : [0, 1, 2]
+resolved cam_res    : [[320, 240], [240, 180], [320, 240]]
+pixels per slot     : [76800, 43200, 76800] total 196800 == total_rays 196800
+expected rgb_adr    : [0, 76800, 120000] (OutputLayout: cumulative in plan order)
+reference npz keys  : ['rgb_cam0', 'rgb_cam1', 'rgb_cam2'] ['depth_cam0', 'depth_cam1', 'depth_cam2'] ['seg_cam0', 'seg_cam1', 'seg_cam2']
+slot0 -> rgb_cam0.npy (240, 320) depth (240, 320) seg (240, 320, 2) | npz order slot == mujoco cam id 0 (cam_id_map identity) | rgb_adr 0 | pixels 76800
+slot1 -> rgb_cam1.npy (180, 240) depth (180, 240) seg (180, 240, 2) | npz order slot == mujoco cam id 1 (cam_id_map identity) | rgb_adr 76800 | pixels 43200
+slot2 -> rgb_cam2.npy (240, 320) depth (240, 320) seg (240, 320, 2) | npz order slot == mujoco cam id 2 (cam_id_map identity) | rgb_adr 120000 | pixels 76800
+
+== 4) flex pixels per camera in the reference (seg object_type==9) ==
+slot0 cam-persp: flex_pixels=0 seg_unique=[(-1, -1), (0, 5)]
+slot1 cam-track: flex_pixels=0 seg_unique=[(-1, -1), (0, 5), (1, 5), (2, 5), (3, 5)]
+slot2 cam-flex: flex_pixels=654 seg_unique=[(-1, -1), (0, 5), (0, 9), (1, 9)]
+
+== 5) fix feasibility: rebuild data pose from state.npz + model dump alone ==
+tri_body(6) derived from tri-mesh geom(2) + state.npz:
+  xpos derived [0.21320490539073944, -0.07466384023427963, 0.5897852778434753]  mj_forward [0.21320490539073944, -0.07466386258602142, 0.5897852778434753]  f32_bits_equal False  max_abs_delta 2.2351741790771484e-08
+cam-track look-at(derived tri_body) vs data xmat: f32_bits_equal False  max_abs_delta 5.960464477539063e-08
+cam-flex target body 4 (flex-target): has geom in scene? False ; model dump body_pos present? False
+  -> cam-flex data pose is NOT derivable from state.npz + current model dump alone
+     flex-target world pos (only from MuJoCo model here) = [-1.0, 0.68, 0.55]
+
+== 6) conclusion (printed for the evidence reader) ==
+A. cam1/cam2 are mode=3 TARGETBODY cameras; reference render() uses d.cam_xpos/d.cam_xmat
+   (upstream render.py:1491-1550), and data cam_xmat is the look-at product
+   (upstream smooth.py:867-885). model cam_mat0 for mode==3 is identity.
+B. test feeds model cam_pos0/cam_mat0: cam0 (mode=0) pose is bit-equal to data pose;
+   cam1/cam2 orientation is off by 85.517 deg / 75.562 deg -> cam1 renders an
+   unrelated view -> rgb max_byte_diff=255 is explained without any flex involvement.
+C. output mapping (cam_id_map / cam_res / pixels / rgb_adr / npz slot order) is consistent
+   with the reference; cam0 passing the rgb criterion confirms the write path for a
+   correct pose.
+D. reference lacks camera data poses: state.npz has only ['flexvert_xpos', 'geom_xmat', 'geom_xpos', 'light_xdir', 'light_xpos', 'qpos'] and capture.json records no cam_xpos/cam_xmat.
+E. attempt 3 is therefore an input/harness defect (camera pose source), not a product
+   mapping defect and not a flex numeric red; cam2 (654 flex pixels) was never evaluated.
