@@ -1,0 +1,85 @@
+== 0. objects ==
+  closure evidence commit: db0825614437
+  closure card: 9351a339d695
+  HEAD: db0825614437
+
+== 1. closure manifest self-check (git blobs) ==
+  manifest bytes=278 sha=82a5dc2c5b718ce8be538721a4394c5f3cbacf9c2792fee0f37f4e806f75780e first='#'
+  entries=2 bad=0
+  README bytes=6188 sha=49a4b5fc85c46b16
+  facts keys: ['schema_version', 'kind', 'task_id', 'verdict', 'class', 'premises', 'signed_allowlist', 'd8_separate', 'cross_round_closure', 'attempt6', 'non_claims', 'evidence_index']
+  facts evidence_index size: 11
+
+== 2. P1 frozen reference 6 files (current worktree) ==
+  cam-poses.json   bytes=3987     OK
+  capture.json     bytes=16166    OK
+  depth.npz        bytes=787918   OK
+  rgb.npz          bytes=2362306  OK
+  seg.npz          bytes=1575106  OK
+  state.npz        bytes=1748     OK
+  P1 bad=0/6
+
+== 3. P2/P3 GPU + recipe from capture provenance ==
+  capture.json found: {"use_shadows": true, "use_fast_math": false, "flex_render_smooth": true, "samples_per_pixel": 1, "use_precomputed_rays": true, "render_skybox": false, "enable_backface_culling": true, "gpu": {"name": "NVIDIA GeForce RTX 4070 Ti SUPER", "arch": 89, "driver": "596.36", "cuda_toolkit": [12, 9], "cuda_driver": [13, 2]}, "driver": "596.36"}
+  claimed P2: RTX 4070 Ti SUPER / driver 596.36
+  claimed P3: {"use_fast_math": false, "use_shadows": true, "samples_per_pixel": 1, "flex_render_smooth": true, "use_precomputed_rays": true, "render_skybox": false, "enable_backface_culling": true}
+
+== 4. P4 attempt6 compile form + guards attempt=2 ==
+  guards: attempt=2 status=frozen counts={"frozen_exes": 2, "guard_inputs": 14, "total": 16}
+  guards sha256=c72caea095a87929e5df22e36c477131d2d61647568604e7f05dfa5d8005442f bytes=7508
+  aggregate_all=c5263d3337bfd3bbce2bc2a089144e0a3660865e77e1a56e203954204cd6de4b
+  aggregate_inputs=ec6fa22239c492c620a6d7dba9191b1d7f07b041ff4c27976b2de2a8f6998e77
+   target/debug/mjwarp-rs.exe                                 bytes=85041741   sha=c5014d833d24e089 pending_freeze=False stash_ok=True
+   target/debug/deps/render_flex_validate-30bd8d889931ab2f.exe bytes=107854859  sha=e48c72684047a154 pending_freeze=False stash_ok=True
+  claimed P4: {"test_exe": {"sha256": "e48c72684047a1545163890d3e3eed437f65f22cc62f5de831bb0945985d37d4", "bytes": 107854859, "built_at": "2026-11-04T23:03:33.9091015+08:00"}, "product_bin": {"sha256": "c5014d833d24e08968ccf7dcab8bbd5df016335c1a5a13378a6af3a5d8e902f8", "bytes": 85041741}, "guards": {"attempt": 2, "status": "frozen", "entries": 16, "exes": 2, "inputs": 14, "guards_sha256": "c72caea095a87929e5df2
+  recomputed aggregate_inputs: ec6fa22239c492c620a6d7dba9191b1d7f07b041ff4c27976b2de2a8f6998e77 matches: True
+  recomputed aggregate_all   : c5263d3337bfd3bbce2bc2a089144e0a3660865e77e1a56e203954204cd6de4b matches: True
+
+== 5. attempt6 entity PASS + two-run sha + zero compile after freeze ==
+  log encoding: UTF-16LE
+  running 1 test: True
+  result lines: ['test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 1.41s']
+  Compiling lines: 0
+  Finished lines: ['cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s', '+ CategoryInfo          : NotSpecified: (    Finished `t...get(s) in 0.30s:String) [], RemoteException']
+  two-run-sha.txt first lines: ['\ufeff# attempt6 entity run: two-run sha256 (printed by the test, identical between runs)', 'rgb=d84ecaedfa839eadb47a7cb21fc0156805b6602ec0c52b1c69455936e287a4f9', 'depth=9829215335d2cb2fd22b02a4d4a8354cc1a5db80c806b94a8888ef632c717326', 'seg=c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185']
+  two-run values: rgb d84ecaed: True | depth 98292153: True | seg c4be9853: True
+
+== 6. attempt6 monitor 60/60 clean vs floor ==
+  rows: 60 columns: ['ts', 'used_mib', 'free_mib', 'util_percent', 'temp_c', 'compute_raw', 'compute_filtered', 'build', 'clean', 'streak']
+  all clean: True | util min/max: 2.0 7.0 | free_min: 14414.0
+
+== 7. cross-round chain a) src diff empty between r2 and assert impl ==
+  git diff d35cab68..8c15ad75 -- src/ output: ''
+  empty: True
+
+== 8. cross-round chain b) two-run sha identical to r2 ==
+  r2 two_run_sha: {"rgb": "d84ecaedfa839eadb47a7cb21fc0156805b6602ec0c52b1c69455936e287a4f9", "depth": "9829215335d2cb2fd22b02a4d4a8354cc1a5db80c806b94a8888ef632c717326", "seg": "c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185"}
+  r2 two_run_sha_equal: True
+  attempt6 values match r2: True
+
+== 9. cross-round chain c) r2 pixel detail recompute ==
+  pixel flat=41094 prod_bits=0x400015ba ref_bits=0x400015b7 ulp=3 beyond4=False
+  seg product=[0, 9] reference=[0, 9] | flexid=0 type=9
+  cam2 flex px=654 (flex0=403 flex1=251)
+  mismatch count on full cam2: 1
+
+== 10. non-claims + index resolution ==
+  README contains 上游等价     True
+  README contains parity pass True
+  README contains 对外发布     True
+  README contains 内部验收     True
+  index attempt6                 7a48205d   exists=True
+  index f32_fix_r2               d35cab68   exists=True
+  index allowlist_assert_impl    8c15ad75   exists=True
+  index allowlist_assert_qa      1927d62e   exists=True
+  index signature_card           3406f1ca   exists=True
+  index attempt5_material        ecc93b56   exists=True
+  index d8                       a1cc22ae   exists=True
+  index tie_negative             9a1f102b   exists=True
+  index attempt5_failed_round    6e9aa585   exists=True
+  index attempt6_plan            0a176abf   exists=True
+  index stats_print_backlog      5dc62d66   exists=True
+  index items=11 unresolved=0
+
+== 11. verdict inputs ==
+  closure README index rows(§7) count: 10
