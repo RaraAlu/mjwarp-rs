@@ -14,7 +14,7 @@ R05（高度场地形）、R09（光照与阴影）、R10（多世界）三族�
 | 片 / 卡 | 内容 | 提交 | 证据 |
 | --- | --- | --- | --- |
 | R05-S1 `2026-10-28-render-bvh-r05-s1-hfield-params` | 主机参数校验/解析 + `VolumeModelInput` 薄适配器（含 hardening 与 channel 两片） | `c2a098aa`、`6f9f82e8`、`9a6fd66e` 等 | `……/r05-s1-hfield-params/` |
-| R05-S2 `2026-10-28-render-bvh-r05-s2-hfield-intersect`（r2） | 两次零行为拆分 → 三角化移植 + 场景/网格 BVH + 设备派发；f32 阈值修 `1b876391` | `5d4d23d0`、`72a7de66`、`0656bd6e`、`1b876391` | `……/r05-s2-hfield-intersect/` |
+| R05-S2 `2026-10-28-render-bvh-r05-s2-hfield-intersect-r2`（r2） | 两次零行为拆分 → 三角化移植 + 场景/网格 BVH + 设备派发；f32 阈值修 `1b876391` | `5d4d23d0`、`72a7de66`、`0656bd6e`、`1b876391` | `……/r05-s2-hfield-intersect/` |
 | R05-S3a `2026-10-28-render-bvh-r05-s3a-hfield-capture` | 采集 authoring（转置可变夹具）+ 采集窗口 | `18c17d3a`、`e5f498d4`、`8741e8e4` | `……/r05-s3a-hfield-capture/` |
 | R05-S3b `2026-10-28-render-bvh-r05-s3b-hfield-validate` | 验证窗 **attempt=2**：9/9 实体 exit 0、sha_guards 73/73、post 9/9、零编译、floor 10,233 未破、samples 171、两组 hfield 全零偏差、两跑 sha 相同 | `2c56cc1a` 等（见 plan rows） | `……/r05-s3b-hfield-validate/` |
 | 产品修复 | 零 mesh 家族槽占位 `dce78b1f`；主机相机位姿 FMA 收缩序 `6f246b46` | — | 同上 |
