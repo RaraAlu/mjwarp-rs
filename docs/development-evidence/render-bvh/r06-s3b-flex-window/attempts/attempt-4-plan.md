@@ -43,10 +43,14 @@ D5 后用例侧已改读参考 data 位姿，CPU 前置断言逐 f32 位型相�
 1. **开窗前卫生**：`normalize-evidence-eol.ps1 -DryRun` → 实跑；`check-evidence-bom.ps1`（基线 128 non-.ps1 WARN + 4 manifest 违规，新增即停）；`git status --porcelain --untracked-files=no` 空；build 进程 0。
 2. **三点基线（5 分钟内）**：`nvidia-smi --query-gpu=memory.free,utilization.gpu,temperature.gpu` ×3 + `--query-compute-apps` 无 CUDA 计算任务；逐点 free ≥ floor 且 util < 40。
    `floor = max(11,688, min(free) − 3,072)`（11,688 为 attempt 3 生效值/Chief 留痕 11,618 之上取严；以本窗现场三点现算为准）。
+   **逐点手核 free ≥ floor**；`run-window.ps1` 的 `-OpenFreeMiB` 默认 10,240 与 monitor 内硬编码的 10,240 都只是下界（比本窗 floor 松 1,448 MiB），**不得**以「runner 没 abort」当作 floor 未破；开窗时显式传 `-OpenFreeMiB 11688` 并逐样本人工核对。
 3. **monitor**：`monitor-until-clean.ps1 -Required 60 -MaxMinutes 30`（默认 `MaxUtil=40`，不带 `-OpenUtilLimit`）；任一点 util ≥ 40 或 free < floor → 停。
 4. **真冻结**：`freeze-guards-r06-s3b-flex.ps1 -Attempt 1` → 期望 16/16。
 5. **guards 断言**：`-GuardsOnly` 静态自检（inputs=14）+ 等价独立核验。
-6. **实体**（零放宽）：`render_flex_dim1_camflex` → `_cam_persp` → `_cam_track` → `render_regression_suite`。
+6. **实体**（零放宽）：三台相机比对组（cam-flex / cam-persp / cam-track）+ `render_regression_suite`。
+   - **真实执行命令（唯一合法入口，不得用相机名当过滤器）**：
+     `cargo test --locked --features cuda-probe --test render_flex_validate -- --ignored --nocapture`
+     三台相机是**同一个 ignored 用例** `flex_renders_match_captured_reference` 内部的比对组；窗口日志必须出现 `running 1 test`。若出现 0 用例匹配、或 `filtered out 13` 却返回 0 的“假绿”，一律视为**未执行**，停手留档、不报通过/不通过。
    - rgb bit-first：`mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0`
    - depth bit-first：`mismatched=0 / max_ulp<=4 / beyond_0_ulp=0`
    - seg 精确：0 差异像素，含 `(flexid,9)`（cam-flex 参考侧 654 像素 = (0,9)403 + (1,9)251）
