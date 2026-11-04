@@ -67,3 +67,12 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B "$ev\scripts\qa_closure_check.
 
 - `README.md`（本文）、`facts.json`、`manifest.txt`
 - `scripts/qa_closure_check.py`、`logs/closure-check.log`
+
+## 11. 闭合 addenda（O1/O3 已修，判定不变）
+
+Arch 于复核后按观察做最小治理（各自独立提交、未动其它证据）：
+
+- **O1（BOM 漂移）已修**：`ac18a4d1` 只剥 `r06-s3b-flex-attempt6/two-run-sha.txt` 的 UTF-8 BOM（**736 → 733 B**，去掉 BOM 后正文**逐字节相同**，新 sha `579ad3e6…`）；该提交非 `.normify` 文件**仅此 1 个**；attempt6 README 未动（blob `9b2bbde2…` 不变）。我复跑 `check-evidence-bom.ps1`：**`WARN (128 non-.ps1 BOM files, 4 manifest header violations)` —— BOM 基线已回 128+4**，对外汇总里的基线数字现在准确。
+- **O3（索引表 10 vs 11）已修**：`e836418c` 在收口 README §7 补入 `attempt6 统计打印 backlog | 5dc62d66` 一行（现 **11 行**，与 `facts.evidence_index` 11 项对齐）；README 现 6,428 B / `ddb88b06…`，`facts.json` 不变（`6ecc9e0a…`/4,557 B），`manifest.txt` 已重算且 **2/2 自核通过**。
+- **O2（UTF-16LE + PowerShell 噪声）/O4（明细缺口由跨轮闭环覆盖）**：按 Arch 决定**不修**，保留为已知观察（改编码会再动 attempt6 证据、收益低；O4 由 backlog `5dc62d66` 承载）——与我原意见一致。
+- **判定影响：无**。两笔只改 BOM 与索引行，不动任何数值/结论；收口六项复核结论与 `8aec9619` 的 **PASS-with-observations（0 阻断）** 保持不变。复核脚本 `scripts/verify_addenda.py`、日志 `logs/observation-closure.log`。
