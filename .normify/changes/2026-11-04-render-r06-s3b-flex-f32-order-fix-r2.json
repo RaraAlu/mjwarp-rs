@@ -5,7 +5,7 @@
     "zh": "R06-S3b 修复 r2：1D flex 命中链 f32 收缩序位级对齐（`src/render/bvh/cuda/scene.cu::mat_t_vec/mat_vec` 显式舍入中间项 fma 链；U4 sphere RCA 法）",
     "en": "Fix r2: bit-level f32 contraction order alignment for the 1D flex hit chain (explicit rounding-intermediate fma chains in scene.cu mat_t_vec/mat_vec)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "D8 诊断（`a1cc22ae`）给出干净证据：H1 确认、H1b 被否（`flexid1` 251/251 depth 全 bit 不等、seg 位级全等、98.8% 与 CPU 回放敏感集重叠）。f32-order 定位（Chief 批的 U4 sphere RCA 法）把分叉收敛到 **`src/render/bvh/cuda/scene.cu::mat_t_vec` 的 `lvec = Mᵀ·dir` 分量收缩序**：产品在 flex 内联上下文中把首项收缩成舍入项，而参考侧要求「三项点积/两项点积/`mat×vec` 全部舍入中间项」。修复 = 把这三条表达式改写成显式「舍入中间项」fma 链；`dot()`/`det` 形态/`warp_length3`/`flex_quat_z2vec` **不动**（枚举已排除）。验证短跑已把 cam2 depth 从 **(321, 297)** 降到 **(1, 0)**，rigid（cam0/cam1）位级零漂移、seg 全等。**不改判据/容差/参考**；剩余 1 像素按 Chief 指令第 2 次短跑定位，**不自行放宽**。",
     "en": "Apply the Chief-approved expression fix in scene.cu (explicit rounding-intermediate fma chains); verification run reduced cam2 depth violations from (321,297) to (1,0) with rigid zero drift."
@@ -40,7 +40,8 @@
     "after": null
   },
   "created_at": "2026-11-04T19:12:00.000Z",
-  "updated_at": "2026-11-04T11:24:50.541Z",
+  "updated_at": "2026-11-04T14:17:59.601Z",
+  "closed_at": "2026-11-04T14:17:59.601Z",
   "checks": [
     {
       "kind": "gate",

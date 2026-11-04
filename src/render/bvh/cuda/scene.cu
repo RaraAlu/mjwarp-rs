@@ -48,16 +48,20 @@ __device__ __forceinline__ V3 normalize3(V3 a) { return scale(a, 1.0f / length3(
 __device__ __forceinline__ float safe_div(float x, float y) { return x / (y != 0.0f ? y : 1.0e-15f); }
 
 // Row-major 3x3 matrix helpers: world = M * local, local = M^T * (world - pos).
+// 矩阵×向量（行主序）：显式固定冻结上游的 `fma` 收缩序——三项和里「中间项」单独舍入为
+// `mul`，首项/末项分别融入 `fma`（`fmaf(m2,z, fmaf(m0,x, m1*y))`）。依据：冻结上游 flex
+// 副本 PTX 与本卡 warp GPU 回放 oracle（251/251 像素逐位复现参考 depth）；不显式固定时
+// NVRTC 会按内联上下文选成「舍入首项」，flex 路径因此与参考差 1 ULP（D8：cam2 depth 321 px）。
 __device__ __forceinline__ V3 mat_vec(const float* m, V3 a) {
-    return v3(m[0] * a.x + m[1] * a.y + m[2] * a.z,
-              m[3] * a.x + m[4] * a.y + m[5] * a.z,
-              m[6] * a.x + m[7] * a.y + m[8] * a.z);
+    return v3(fmaf(m[2], a.z, fmaf(m[0], a.x, m[1] * a.y)),
+              fmaf(m[5], a.z, fmaf(m[3], a.x, m[4] * a.y)),
+              fmaf(m[8], a.z, fmaf(m[6], a.x, m[7] * a.y)));
 }
 
 __device__ __forceinline__ V3 mat_t_vec(const float* m, V3 a) {
-    return v3(m[0] * a.x + m[3] * a.y + m[6] * a.z,
-              m[1] * a.x + m[4] * a.y + m[7] * a.z,
-              m[2] * a.x + m[5] * a.y + m[8] * a.z);
+    return v3(fmaf(m[6], a.z, fmaf(m[0], a.x, m[3] * a.y)),
+              fmaf(m[7], a.z, fmaf(m[1], a.x, m[4] * a.y)),
+              fmaf(m[8], a.z, fmaf(m[2], a.x, m[5] * a.y)));
 }
 
 // _ray_map: map world ray into the local geom frame.
