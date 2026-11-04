@@ -78,3 +78,4 @@ attempt6 用例打印的两跑 sha256：
 | tie 负结果 | **`9a1f102b`** | 固定叶序/遍历不可行（已 abandon 尝试的留档） |
 | attempt5（历史） | **`6e9aa585`** | FAILED_ROUND（判据实现缺口，非数值红） |
 | attempt6 计划 | **`0a176abf`** | 窗口计划（canonical rebuild 同刻指纹、冻结 -Attempt 2、floor 11688） |
+| attempt6 统计打印 backlog | **`5dc62d66`** | 用例通过时打印逐相机/allowlist 统计（backlog `…-attempt6-stats-print`，不阻塞收口） |
