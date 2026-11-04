@@ -1,0 +1,16 @@
+# repo-evidence-gitattributes-rule 复跑命令（主工作树 D:\Rust\mjwarp-rs；target/ 被 .gitignore）
+
+# 1) 主工作树属性前后对照（HEAD 48bc2840e0af7d505951a93226aae86cbbdbf06a；修复为工作树未提交内容）
+git check-attr text diff -- docs/development-evidence/g10-p5-summary/receipt.json docs/development-evidence/g10-p5-summary/manifest.txt docs/development-evidence/np01-e-criterion-a2/manifest.txt docs/development-evidence/write-lock/manifest.txt docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/manifest.txt fixtures/render-bvh/scene-a/model-312.json src/lib.rs
+
+# 2) 改动 diff（只 1 行新增）
+git diff --stat -- .gitattributes
+git diff -- .gitattributes
+
+# 3) fresh checkout 验证（脚本内执行 before/after 两次 clone + 逐 sha256 对比）
+target/mjwarp-parallel/venv/Scripts/python.exe docs/development-evidence/repo-evidence-gitattributes-rule/verify/verify_fresh_checkout.py
+
+# 结果摘要（2026-11-05 00:2x，HEAD 48bc2840e0af7d505951a93226aae86cbbdbf06a）：
+#   clone-before  : 17/18 一致（未覆盖目录被 autocrlf 改写）
+#   clone-after   : 18/18 一致、0 缺失、0 漂移
+#   clone-after git status --porcelain = 空；check-attr 样例 = text: unset / diff: unset
