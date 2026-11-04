@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-attempt5-criteria-check",
+  "title": {
+    "zh": "R06-S3b attempt5 判据口径独立复核（用户签名 allowlist 落点：最小范围、其余 bit-first、与 D8 分开、冻结清单不含判据）",
+    "en": "Independent check of the attempt5 criteria landing (user-signed allowlist scope, everything else bit-first, D8 separation, criteria not in frozen inputs)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "复核 attempt5 判据落点是否**逐字**符合用户 2026-11-04 22:14 签名：`materials/attempt5-criteria.md` + README §9（提交 `ecc93b56`）+ 签名卡 `…-allowlist-signature`（`3406f1ca`）vs QA 决策支持 `a3f690df`。**只读复核**：不执行窗口、不改判据文本、零 GPU。",
+    "en": "Read-only check that the attempt5 criteria land exactly as the user signed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**最小范围逐字核对**：allowlist 仅 `cam2 / (x=134,y=128) / flexid0 / ULP≤4 且 beyond4=0`；**beyond4 必须为 0** 的条款在材料/签名卡/QA 决策支持三处一致，无任何扩大（不得出现「≤4 ULP 即可」「邻近像素」等措辞）。",
+    "**其余 bit-first 完整性**：cam0/cam1、cam2 除该像素外全部像素、所有 seg、所有 rgb 均明确 bit-first，且有逐条判据阈值；不允许留白或被 allowlist 措辞覆盖。",
+    "**D8 分开**：材料明确 D8 的 321 px（`a1cc22ae`）为修复前历史、f32 修复（`d35cab68`）后为 1 px，两者不混算、不重解释。",
+    "**冻结清单回答**：材料明确「guards 14 条输入不含判据文件」，并给出开窗前记录材料 sha256 的要求（receipt 已含 4 个文件 sha256，核对是否与当前文件一致）。",
+    "**不宣称**：材料/签名卡均写死不宣称上游等价、parity pass、flex 渲染通过；失败即停、不二次放宽。",
+    "**结论三态**：PASS / PASS-with-observations / FAIL（阻断项点名文件与行），写入 `docs/development-evidence/render-bvh/r06-s3b-flex-attempt5-criteria-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-allowlist-signature"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-attempt5-criteria-check/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：窗口等材料 + QA 齐）。**attempt5 开窗前必须 verified**；只读、零 GPU、不执行窗口。对象：`ecc93b56`（材料）+ `3406f1ca`（签名卡）。",
+  "revision": { "before": "fabc290331307494b3c8bd574a6139855e8cdf53", "after": null },
+  "created_at": "2026-11-04T22:23:00.000Z",
+  "updated_at": "2026-11-04T22:23:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+  ]
+}
