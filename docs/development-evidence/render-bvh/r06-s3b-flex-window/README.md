@@ -97,6 +97,31 @@ Chief 2026-11-04 08:00 前发 **GO attempt 2（有条件）**：逐点 free ≥ 
 2. **D4b（流程，owner Backend）**：把 **CPU 自证** 延伸覆盖 `RenderContext` 构造 + 发射前校验（即 `render_with_flex` 之前的全部 `Unsupported/InputError` 分支），使「只编译不执行」不再能把此类缺陷带到 GPU 窗口。**该要求并入 `2026-11-04-render-r06-s3b-flex-harness-schema-fix` 的后续修复（或该卡重开）**。
 3. 修复后 exe 重建 ⇒ 必须再次真冻结；attempt 3 仍需 Chief GO。
 
+## 7ter. attempt 3（S3b⑥b 修复后，**VALID_ROUND：首次到达判据，判据性红**）
+
+Chief 2026-11-04 08:09 GO（条件同前：逐点 free ≥11,618、build 0、无外部计算负载）。
+
+| 步骤 | 结果 |
+| --- | --- |
+| 三点基线（08:09:11） | free **14764 / 14765 / 14760**（逐点 ≥11618 ✓）、util 2–3%、temp 28°C、build 0、树 clean、HEAD `3a2ce18b` |
+| monitor | **60/60 连续干净**，util 2–4%，free_min **14766** ≥ floor 11682 |
+| 重新真冻结（S3b⑥b 修复后 exe 哈希再变） | `GUARDS_OK=15/15 exes=2 inputs=13`，aggregate_all `710228a8…`、guards_sha `91000770…` |
+| 等价 guards 核验 | live==guard **2/2**、stash==guard **2/2**、inputs **13/13** |
+| 实体体 | **进入判据并失败**：`panicked at tests/render_flex_validate.rs:332` → **`cam1 rgb max_byte_diff=255`** |
+
+**结果解读（只陈述观测，不给根因结论）**：
+- `cam0` 的 rgb 判据先于 cam1 被检查并通过（`max_byte_diff ≤ 1`、`beyond_1_lsb = 0`）；
+- `cam1` rgb **`max_byte_diff = 255`**（单字节最大差 = 255，即该像素完全不同），断言在 `beyond_one_lsb_pixels` 之前就因 `max_byte_diff <= 1` 失败；
+- 因断言顺序，**depth / seg / 两跑 sha 未被评估**；`cam2`（`cam-flex`，654 个 flex 像素）也**未被执行到**。
+- 事实注记：参考侧 `cam0`/`cam1` 的 flex 像素均为 0（`cam-flex` 才是 654），所以 cam1 的 255 差异**不指向 flex 数值本身**；可能是相机/输出映射或该相机渲染未写入。**这只是假设，不是结论**——根因需按下一节流程诊断，本记录不下判断。
+
+**处置（按 Chief 指令）**：判据性红 → **停手、留档、不请求第四次**；GPU 已释放；attempt 原文 `attempts/attempt-3-*`。本片**不宣称 flex 渲染通过，也不宣称不通过**（只记录「在 cam1 rgb 处判据性红」）。
+
+## 8bis. 两条要求如实入证
+
+1. **窗口材料漏列配方项**：`use_shadows`（默认 false vs recipe true）与 `use_fast_math`（默认 true vs recipe false）两处偏差是我在 S3b② 材料里**没有列出**的，属**窗口材料（Arch）的账**，不归 Backend；已由 S3b⑥b 的 `context_params()` 与 `assert_params_match_capture()` 补齐并纳入 CPU 自证负对照。
+2. **CPU 自证边界**：S3b⑥b 已把 CPU 自证前移到**发射前全部 host 路径**（28 参数与 `capture.json` 逐项、resolved 逐项、enabled geom 覆盖断言 + 负对照、`ModelRenderArrays`/`light_data_poses`/`CameraModel`/`world_*`/`SceneState`/`TextureRegistry`、1D flex 场景叶）；**未覆盖**：NVRTC 编译、设备分配/上传、设备打包、kernel 发射与三相机判据——这些只有开窗口能覆盖（本记录即其证据）。
+
 ## 8. 非声明
 
 不宣称 flex 渲染通过/不通过；不放宽任何判据/容差；不改参考、不改产品代码；`nbuffer` 版本差异（B 类，`b94698e5`）不参与本窗口判据。
