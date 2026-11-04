@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2",
+  "title": {
+    "zh": "R06-S3b attempt6 前置（r2）：GPU 用例实现签名 allowlist（仅 cam2/(134,128)/flexid0 允许 ULP≤4 且 beyond4=0，其余严格）+ CPU 自证（棘轮拆分：支持模块独立）",
+    "en": "attempt6 prerequisite (r2): encode the signed one-pixel allowlist in the GPU test, with the assertion/self-proof split into a support module to stay under the 500-line ratchet"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "沿用旧卡（已 abandon `2026-11-04-render-r06-s3b-flex-allowlist-assert-fix`）的实现与证据；唯一差异是 **500 行棘轮**：`tests/render_flex_validate.rs` 改动后必须 ≤500 行，因此断言实现与 4 条 CPU 自证拆到新增支持模块 `tests/support/render_bvh/allowlist.rs`（≈132 行），主用例保持 495 行。allowlist 范围逐字不变：仅 `cam2`、像素 `(x=134, y=128)`（idx 41094）、`flexid0` 允许 `ULP≤4 且 beyond4=0`；其余全部严格。零 GPU、不改判据文本/容差/参考/fixtures。",
+    "en": "Same deliverable as the abandoned card, but split into a support module so the main test stays under the 500-line ratchet; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实现（逐字范围）**：仅对 `cam2`、像素 `(x=134, y=128)`（idx 41094）、`flexid0` 放宽为 `ULP ≤ MAX_DEPTH_ULP(4)` **且** `beyond4 = 0`；**其余全部维持严格**（`mismatched = 0`、`beyond = 0`），包括 cam0/cam1 全部像素、cam2 其它所有像素、所有 rgb、所有 seg。**不得**写相机级/区域级/条件式放宽。",
+    "**实现方式要求**：allowlist 以**显式常量**（相机索引、像素坐标、flexid）在断言处判定，且断言失败信息须打印该像素的实际 `(mismatched, beyond, max_ulp, bits)`；不得用「先算出总数再减 1」这类隐式做法。",
+    "**行数棘轮**：`tests/render_flex_validate.rs` ≤500 行（改动后实测 495）；断言实现与 CPU 自证放 `tests/support/render_bvh/allowlist.rs`（新增文件，≈132 行），主用例只调用。",
+    "**CPU 自证（普通 `cargo test`，不碰 CUDA）**：对允许/拒绝三类输入各一条断言——① 该像素 `(1, 0)` 且 ULP≤4 → **PASS**；② 该像素 `beyond4 ≥ 1` → **FAIL**；③ 除该像素外任何像素 `mismatched=1` → **FAIL**（证明限定范围不被扩成相机级）。",
+    "**边界**：不改判据文本（签名 allowlist 不变）、不改容差/参考/`fixtures/`、不碰 r2 证据；**零 GPU、不开窗口**。",
+    "**attempt6 衔接**：修复后需 `cargo test --locked --features cuda-probe --no-run --test render_flex_validate` 重建 + **重新 freeze 16/16、exes=2、inputs=14** + **Chief 新 GO**；本卡不执行窗口。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/` 收 README（allowlist 实现位置/常量、拆分后主用例 diff、`artifacts/allowlist.rs`、三类 CPU 自证原始 log、与 attempt5 `6e9aa585` 的对应关系）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-allowlist-signature"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_validate.rs",
+      "tests/support/render_bvh/allowlist.rs",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Arch 2026-11-04 重登记（旧卡 verified 但 files 缺棘轮拆分后的新支持模块，verified 卡不能改 files；已回退 done 过渡后 abandon）。实现与证据沿用旧卡成果，不重做；WIP（测试文件、`tests/support/render_bvh/allowlist.rs`、证据目录）原样迁移到本卡。attempt6 需重建 + 重冻 + Chief 新 GO。",
+  "revision": { "before": "c20d8a80c629e74ae0f5d2d13fcc32e2c50dcc5a", "after": null },
+  "created_at": "2026-11-04T22:50:00.000Z",
+  "updated_at": "2026-11-04T22:50:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
