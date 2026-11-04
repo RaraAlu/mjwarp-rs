@@ -1,0 +1,88 @@
+== environment ==
+python: 3.12.13 | numpy: 2.5.4 | platform: Windows-11-10.0.26200-SP0
+inputs:
+  docs\development-evidence\render-bvh\r06-s3b-flex-cam2-depth-gap\artifacts\cam2-depth-seg.npz  bytes=34405  sha256=dc3f98e9dc115a40cb72c72f3e0a7fa4812788ea444c6d7b508a3b18ef4d5391
+  fixtures\render-bvh\scene-flex\reference\base\depth.npz  bytes=787918  sha256=c3ee4adca6cf9874f40ab87b7f72a16b17f26647e45758342895919b725d8deb
+  fixtures\render-bvh\scene-flex\reference\base\seg.npz  bytes=1575106  sha256=f3b00fa82df1e54d4c89309d820212d9808038e00ae25f25841f2b40a6277bef
+
+== headline (product cam2 depth vs reference, bitwise) ==
+mismatched=321 beyond4=297 max_ulp=259
+
+== ULP histogram: D8 committed inclusive-bounds reproduction vs QA disjoint ==
+D8 inclusive (labels 0,1,2-4,5-16,17-64,65-1024,>1024): [76484, 7, 19, 172, 109, 33, 0]
+   sum = 76824 (vs 76800, double-counted = 24 )
+QA disjoint [0,1,2,3-4,5-16,17-64,65-1024,>1024]: [76479, 5, 2, 17, 157, 107, 33, 0]
+   sum = 76800
+counts at shared endpoints 1/2/4/16/64: [5, 2, 15, 2, 0]
+
+== distribution by region ==
+flexid0: pixels=403 mismatched=70 beyond4=64 max_ulp=259
+flexid1: pixels=251 mismatched=251 beyond4=233 max_ulp=155
+non-flex mismatched=0 beyond4=0
+mismatch inside flex=321 / 321
+seg mismatched pixels=0 / 76800 | product==reference: True
+abs diff (m): median=2.384186e-06 p90=1.144409e-05 max=3.695488e-05
+
+== region semantics ==
+reference depth==0 pixels=47725 | all non-flex=True | flex depth all nonzero=True
+
+== distance of mismatched pixels to flex silhouette ==
+silhouette_px=196 mismatched_px=321 dist_median=1.41 <=2px=222/321 <=4px=300/321
+
+== D8 manifest self-check (sha256 + bytes of every listed file) ==
+manifest entries=16 | mismatches=0
+
+== D8 summary.json vs recomputed numbers ==
+  depth_mismatched                         summary=321    recompute=321    OK
+  depth_beyond4ulp                         summary=297    recompute=297    OK
+  depth_max_ulp                            summary=259    recompute=259    OK
+  non_flex_mismatched                      summary=0      recompute=0      OK
+  seg_mismatched_pixels_vs_reference       summary=0      recompute=0      OK
+  mismatch_inside_flex                     summary=321    recompute=321    OK
+  reference_cam2_depth_zero_pixels         summary=47725  recompute=47725  OK
+  per_flexid[0] OK
+  per_flexid[1] OK
+  dist_to_silhouette OK
+  ulp_histogram sum=76824 (expected 76800; known inclusive-bounds defect, see README section 4)
+  summary consistency: ALL OK
+
+== D8 dump files on disk + two-run hash identity (target-only, optional) ==
+  depth_all.f32le  OK
+  seg_all.i32le    OK
+  meta.json        OK
+  two_run_hashes identical=True (rgb=a4f29b09... depth=fa4cceaa... seg=c4be9853...)
+
+== D8 accounting quotes (verbatim, file:line) ==
+d8-pre-window-facts.txt:5: test_exe render_flex_validate-30bd8d889931ab2f.exe bytes=107660771 mtime=2026-11-04T12:52:36 sha256=49923e3e48ba63683862f93f227dcfdbc890000e993f59e8b85494180e7621a0
+d8-pre-window-facts.txt:6: test_exe render_flex_validate-0755fab08779d8e1.exe bytes=9496064 mtime=2026-11-04T12:14:12 sha256=198541765f9ad0117996fc45a2c2d63441e5fdc6b16c016c2b15aecc4186fb9a
+d8-pre-window-facts.txt:7: guards_sha256=70d4cbc698922c2b8e350c6b7d5f4764bf3a7342798cfd6f4906e26483f93152
+d8-pre-window-facts.txt:8: guards_status=frozen attempt=1 counts=frozen_exes:2,inputs:14,total:16 aggregate_inputs=ec6fa22239c492c620a6d7dba9191b1d7f07b041ff4c27976b2de2a8f6998e77
+d8-pre-window-facts.txt:9: guards_exe_mjwarp-rs sha256=96134eddc8e42f51 bytes=85054380
+d8-pre-window-facts.txt:10: guards_exe_render_flex_validate sha256=d9686515a952b9ba bytes=107672581
+d8-pre-window-facts.txt:52: wip_test_exe render_flex_validate-30bd8d889931ab2f.exe bytes=107982020 sha256=8a38fc6c4a5373da1c5fe51b4d99862e194983ce409321dfa2a79689ce8e12c2
+d8-pre-window-facts.txt:53: committed_test_exe(pre-WIP) bytes=107660771 sha256=49923e3e48ba63683862f93f227dcfdbc890000e993f59e8b85494180e7621a0 (guards frozen entry d9686515 bytes=107672581 -> live!=frozen, attempt5 must re-freeze)
+d8-pre-window-facts.txt:89: compute_filtered_count=0
+d8-pre-window-facts.txt:90: # fresh three-point baseline:
+d8-pre-window-facts.txt:96: run_exit=101 expected_judge_red wall_s=2.02 gpu_before=14318MiB/2%/29C gpu_after=14318MiB/8%/29C
+d8-pre-window-facts.txt:98: dump depth_all.f32le bytes=787200 sha256=fa4cceaaf7eeca70f3307ead99ad24f095727fdbb904d7de1c33e9eb9ffef20e
+d8-pre-window-facts.txt:99: dump seg_all.i32le bytes=1574400 sha256=c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185
+d8-pre-window-facts.txt:100: dump meta.json sha256=a347b64461bf93e4ac427fcf5beb16d001df6e8acd763cc529c6dd8564b10b2b
+d8-pre-window-facts.txt:101: wip_restored=true tree_after_restore_only_card_json=true
+dump-sha256.txt:1: # D8 dump + evidence artifact sha256 (LF, no BOM)
+dump-sha256.txt:2: 
+dump-sha256.txt:3: fa4cceaaf7eeca70f3307ead99ad24f095727fdbb904d7de1c33e9eb9ffef20e 787200 target/render-bvh/r06-s3b-flex-window/d8/depth_all.f32le
+dump-sha256.txt:4: c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185 1574400 target/render-bvh/r06-s3b-flex-window/d8/seg_all.i32le
+dump-sha256.txt:5: a347b64461bf93e4ac427fcf5beb16d001df6e8acd763cc529c6dd8564b10b2b 1080 target/render-bvh/r06-s3b-flex-window/d8/meta.json
+dump-sha256.txt:6: faa9d1356202880e9a9d088d711d3c6b8de023bbaca835086b227dbe6ff96d91 1657 target/render-bvh/r06-s3b-flex-window/d8/run.log
+dump-sha256.txt:7: dc3f98e9dc115a40cb72c72f3e0a7fa4812788ea444c6d7b508a3b18ef4d5391 34405 docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/artifacts/cam2-depth-seg.npz
+dump-sha256.txt:8: 0fc4f1587a14e0c1962fe512b4f627ecb58ebc98ced66051db04bfee01833912 24555 docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/artifacts/mismatch-cam2.tsv
+dump-sha256.txt:9: 92a9aae63800893c24841954b63910d2d6ab7256aa03a7dfd223973deb040c2b 1773 docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/artifacts/summary.json
+
+== CPU-warp replay cross-check (target-only artifact) ==
+replay artifact: target\s3b-verify\cpu-replay\cpu_cam2_depth.npz bytes=17580 sha256=75e5d5dd076a50bacf5ddf05c5506b11f0fb27035baca921d50bcf730025d646
+replay mismatched=9633 beyond4=597 | replay seg==reference: True
+product mismatched=321 | replay mismatched=9633 | intersection=317 -> 98.8%
+replay ULP at product-equal pixels: median=0.0 max=1049
+replay ULP at product-mismatch pixels: median=19.0 max=459
+product beyond4=297 | among them replay beyond4=256
+replay beyond4 in flex region=597/654

@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-04-render-r06-s3b-flex-d8-review",
+  "reviewer": "QA",
+  "verdict": "PASS-with-observations",
+  "object": {
+    "task_id": "2026-11-04-render-r06-s3b-flex-cam2-depth-gap",
+    "commit": "a1cc22ae3fd58d0c6cfb9d2bda642f7d734bf7ee",
+    "evidence_dir": "docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/",
+    "readme_lines": 120,
+    "manifest_entries": 16,
+    "manifest_self_check": "16/16 sha256+bytes OK (recomputed by QA from working tree)"
+  },
+  "scope": {
+    "read_only": true,
+    "gpu_used": false,
+    "reran_d8_window": false,
+    "src_fixtures_diff": "zero (unchanged check)",
+    "reused_d8_scripts": false,
+    "inputs": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/artifacts/cam2-depth-seg.npz",
+      "fixtures/render-bvh/scene-flex/reference/base/depth.npz",
+      "fixtures/render-bvh/scene-flex/reference/base/seg.npz",
+      "target/s3b-verify/cpu-replay/cpu_cam2_depth.npz (target-only, sha recorded)"
+    ]
+  },
+  "recompute": {
+    "pixels": 76800,
+    "mismatched": 321,
+    "beyond4ulp": 297,
+    "max_ulp": 259,
+    "non_flex_mismatched": 0,
+    "mismatch_inside_flex": 321,
+    "seg_mismatched_pixels": 0,
+    "seg_channel_identical": true,
+    "per_flexid": {
+      "0": { "pixels": 403, "mismatched": 70, "beyond4": 64, "max_ulp": 259 },
+      "1": { "pixels": 251, "mismatched": 251, "beyond4": 233, "max_ulp": 155 }
+    },
+    "abs_diff_m": { "median": 2.384185791015625e-06, "p90": 1.1444091796875e-05, "max": 3.6954879760742188e-05 },
+    "flex_silhouette_px": 196,
+    "dist_to_silhouette_px": { "median": 1.4142135623730951, "le2": 222, "le4": 300, "total": 321 },
+    "reference_depth_zero_pixels": 47725,
+    "reference_depth_zero_all_non_flex": true,
+    "reference_flex_depth_all_nonzero": true
+  },
+  "cpu_replay_cross_check": {
+    "artifact": "target/s3b-verify/cpu-replay/cpu_cam2_depth.npz",
+    "artifact_bytes": 17580,
+    "artifact_sha256": "75e5d5dd076a50bacf5ddf05c5506b11f0fb27035baca921d50bcf730025d646",
+    "artifact_committed": false,
+    "replay_mismatched": 9633,
+    "replay_beyond4ulp": 597,
+    "replay_seg_equals_reference": true,
+    "product_mismatch_captured_by_replay": { "intersection": 317, "of": 321, "percent": 98.8 },
+    "replay_ulp_at_product_equal": { "median": 0.0, "max": 1049 },
+    "replay_ulp_at_product_mismatch": { "median": 19.0, "max": 459 },
+    "product_beyond4_overlap_replay_beyond4": { "intersection": 256, "of": 297 },
+    "replay_beyond4_in_flex": { "pixels": 597, "of": 654 }
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "kind": "requires-fix",
+      "title": "ULP histogram buckets use inclusive [lo,hi] bounds on shared edges -> 7 buckets sum to 76824 != 76800; README labels present them as exclusive",
+      "evidence": {
+        "label": "docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/README.md:60",
+        "code": "docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/scripts/analyze_dump.py:62-63",
+        "code_pattern": "edges=[0,1,2,4,16,64,1024,1e9]; ((ulp>=lo)&(ulp<=hi))",
+        "machine_readable": "artifacts/summary.json .ulp_histogram keys 0-1/1-2/2-4/4-16/16-64/64-1024/1024-inf",
+        "reported_values": [76484, 7, 19, 172, 109, 33, 0],
+        "reported_sum": 76824,
+        "expected_sum": 76800,
+        "double_counted": 24,
+        "shared_edge_counts": { "ulp==1": 5, "ulp==2": 2, "ulp==4": 15, "ulp==16": 2, "ulp==64": 0 },
+        "qa_disjoint_8_buckets": { "labels": ["0", "1", "2", "3-4", "5-16", "17-64", "65-1024", ">1024"], "values": [76479, 5, 2, 17, 157, 107, 33, 0], "sum": 76800 },
+        "qa_disjoint_7_buckets_merged": [76479, 5, 19, 157, 107, 33, 0]
+      },
+      "impact": "none on headline (321/297/259), per-flexid, seg, distance, abs-diff, or the H1/H1b conclusion; distribution labeling only",
+      "disposition": "Chief 2026-11-04: Backend fixes to [lo,hi)/dedupe and adds replay key stats or sha in the next evidence submission; not blocking, no evidence-byte rewrite in this card"
+    },
+    {
+      "id": "F2",
+      "severity": "low",
+      "kind": "observation",
+      "title": "per-pixel CPU replay artifact is not committed, so the 98.8% overlap cannot be recomputed from repository files alone",
+      "evidence": {
+        "committed": ["logs/cpu-replay.log", "logs/cpu-replay-sensitivity.log", "artifacts/summary.json"],
+        "uncommitted": "target/s3b-verify/cpu-replay/cpu_cam2_depth.npz (17580 B, sha256 75e5d5dd076a50bacf5ddf05c5506b11f0fb27035baca921d50bcf730025d646)"
+      },
+      "mitigation_in_this_card": "artifact sha256/bytes recorded here and printed in logs/qa_recompute.log; suggest adding replay key stats or npz sha to D8 evidence later",
+      "blocks_conclusion": false
+    }
+  ],
+  "summary_json_consistency": {
+    "result": "ALL OK except ulp_histogram sum",
+    "fields_checked": [
+      "depth_mismatched", "depth_beyond4ulp", "depth_max_ulp", "non_flex_mismatched",
+      "seg_mismatched_pixels_vs_reference", "mismatch_inside_flex", "reference_cam2_depth_zero_pixels",
+      "per_flexid[0]", "per_flexid[1]", "mismatch_dist_to_flex_silhouette_px"
+    ],
+    "ulp_histogram_sum": 76824
+  },
+  "d8_accounting_spot_checks": {
+    "pre_window_facts_lines": {
+      "compute_filtered_count": "logs/d8-pre-window-facts.txt:89 = 0",
+      "baseline": "logs/d8-pre-window-facts.txt:90-93 = 14314 MiB/2% , 14314 MiB/4% , 14314 MiB/2% , 29 C",
+      "run": "logs/d8-pre-window-facts.txt:96 = run_exit=101 expected_judge_red wall_s=2.02 gpu_before=14318MiB/2%/29C gpu_after=14318MiB/8%/29C",
+      "dump_depth": "logs/d8-pre-window-facts.txt:98 = 787200 B fa4cceaaf7eeca70f3307ead99ad24f095727fdbb904d7de1c33e9eb9ffef20e",
+      "dump_seg": "logs/d8-pre-window-facts.txt:99 = 1574400 B c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185",
+      "dump_meta": "logs/d8-pre-window-facts.txt:100 = a347b64461bf93e4ac427fcf5beb16d001df6e8acd763cc529c6dd8564b10b2b",
+      "wip_restored": "logs/d8-pre-window-facts.txt:101 = wip_restored=true tree_after_restore_only_card_json=true",
+      "guards": "logs/d8-pre-window-facts.txt:7-10 = guards_sha256=70d4cbc6... ; frozen attempt=1 counts=frozen_exes:2,inputs:14,total:16 aggregate_inputs=ec6fa222... ; frozen render_flex_validate exe d9686515... bytes 107672581",
+      "live_vs_frozen": "logs/d8-pre-window-facts.txt:52-53 = committed exe 49923e3e... bytes 107660771 vs frozen d9686515... bytes 107672581 -> live != frozen (attempt5 must re-freeze)"
+    },
+    "two_run_hashes_identical": true,
+    "two_run_hash_prefixes": { "rgb": "a4f29b09", "depth": "fa4cceaa", "seg": "c4be9853" },
+    "target_dump_files_rehashed": {
+      "depth_all.f32le": "OK (787200 B, fa4cceaa...)",
+      "seg_all.i32le": "OK (1574400 B, c4be9853...)",
+      "meta.json": "OK (1080 B, a347b644...)"
+    }
+  },
+  "exclusion_spot_checks": [
+    { "hypothesis": "H2 D5 residual (camera poses)", "d8_verdict": "rejected", "qa_check": "logs/d8-run.log prints D5 pose assertions (cam0 angle=0.025deg max_abs=0.000000) and cam0/cam1 depth pass bit-level (0,0)" },
+    { "hypothesis": "H3 D7 residual (flex upload/geometry)", "d8_verdict": "rejected (geometry)", "qa_check": "seg bit-identical 0/76800 recomputed; D7 witness; CPU self-check in D8 logs" },
+    { "hypothesis": "H4 depth semantics/formula", "d8_verdict": "rejected", "qa_check": "render_megakernel.cu:243-245 equals upstream render.py:1285-1294 (D8 README §2); cam0/1 bit-level pass" },
+    { "hypothesis": "H5 reference/expectation", "d8_verdict": "rejected", "qa_check": "recomputed: reference depth==0 47725 px all non-flex; flex 654 px depth all non-zero continuous" },
+    { "hypothesis": "H6 BVH leaf AABB", "d8_verdict": "rejected (at hit level)", "qa_check": "seg bit-identical + non-flex mismatch 0" },
+    { "hypothesis": "H7 depth slot/camera mapping", "d8_verdict": "rejected", "qa_check": "meta.json depth_adr=[0,76800,120000] and cam_res consistent with reference shapes; cam2 rgb passes" }
+  ],
+  "classification": {
+    "claim_under_audit": "4 ULP on thin-capsule near-grazing pixels is approximately bit-level equality",
+    "class": "B",
+    "class_name": "reference-with-premises (参考-前提型)",
+    "use": "downgraded",
+    "not_class_A_reason": "cannot be derived from depth semantics; empirical, bound to this reference bit-level recipe/GPU",
+    "not_class_C_reason": "no integrity/hash ratchet involvement",
+    "premises": [
+      "P1 same reference bit-level basis: same reference npz (depth c3ee4adc..., seg f3b00fa8...), same recipe, same GPU/toolchain (RTX 4070 Ti SUPER, driver 596.36, CUDA 12.8.1, warp 1.15.0 / mujoco_warp 3.15.0 pinned)",
+      "P2 differences confined to 1D thin-capsule (r=0.02/0.04) near-grazing silhouette subset: 321/321 in flex region, 300/321 within 4 px of silhouette (median 1.41 px), non-flex mismatch 0, seg bit-identical 0/76800, hit/miss unchanged",
+      "P3 error bounded and same-surface numeric tail: |delta| median 2.38e-6 m / p90 1.14e-5 / max 3.70e-5 m; ULP max 259, none >1024; CPU-warp codegen-sensitive overlap 98.8% (replay ULP median 19 at product-mismatch, 0 at product-equal)",
+      "P4 frozen criteria not relaxed: tests/render_flex_validate.rs:344/:347 still assert (mismatched,beyond)=(0,0), MAX_DEPTH_ULP=4 at src/render/kernel/output.rs:15; D8 changed no criteria/tolerance/reference; this review has zero src/fixtures diff",
+      "P5 scope limited to this scene/geometry/tolerance family: scene-flex, 1D flex thin capsule, R05/R02 family depth <=4 ULP; not extensible to other scenes/geometry or rgb/seg"
+    ],
+    "downgrade_meaning": [
+      "registered only as a known codegen-level ULP tail on the near-grazing thin-capsule subset, counted at <=4 ULP",
+      "must not be used alone as a pass basis",
+      "must not be rewritten as bit-level equivalence",
+      "must not be used to declare attempt5 / flex rendering passing"
+    ],
+    "signature_level_rule": "Using this class-B premise to replace the frozen bit-first criterion is a criteria relaxation (signature level): requires the user's signature; cannot be absorbed internally by QA/Chief. attempt5 still runs under the frozen criteria.",
+    "invalidation_conditions": [
+      "differences escape the flex silhouette subset",
+      "seg or hit-surface changes",
+      "absolute difference exceeds the 0.04 mm order",
+      "any ULP >1024 appears",
+      "reference or recipe/GPU changes",
+      "scene or geometry changes"
+    ]
+  },
+  "ruling": {
+    "authority": "Chief",
+    "date": "2026-11-04",
+    "quote": "判据归类：B 类采纳（五前提 + 降级含义 + 失效条件按你写的落）。写死一条：不得用这条 B 类前提替代冻结的 bit-first 判据；若要用它替代 → 属放宽判据（签名级），必须用户签，不能内部消化。attempt5 仍按冻结判据跑。",
+    "source": "Chief 2026-11-04 reply to the QA D8 review (chat message)",
+    "arch_suggestion": {
+      "status": "suggestion only, NOT a ruling",
+      "text": "Arch suggested treating it as class-A-kept (judge unchanged, recorded in known_difference, not used in window criteria); this is advice only and is not part of the ruling"
+    },
+    "audit_standard": "machine criteria adjudication standard v1 (机器判据裁定标准 v1)"
+  },
+  "z2vec_card": {
+    "card_id": "2026-11-04-render-r06-s3b-flex-z2vec-parallel-branch",
+    "card_commit": "047933458ee67140a52fcd612b480cf3293943ed",
+    "status": "backlog",
+    "owner": "Backend",
+    "priority": 40,
+    "verdict": "registered per the agreed criteria (PASS)",
+    "judge_basis": "acceptance item 2: judge by matrices, not by field order; three required matrix assertions -- vec=(0,0,-1) -> identity; vec=(0,0,1) -> diag(-1,-1,1); vec=(0,1,0) -> [[1,0,0],[0,0,1],[0,-1,0]]",
+    "boundaries": [
+      "does not change criteria/tolerance/reference, does not touch fixtures/, does not change scene-flex",
+      "zero GPU (pure host/static)",
+      "no dependency relationship with attempt5; must not be used as an attempt5 prerequisite",
+      "unrelated to the cam2 depth gap (D8) and the attempt4 CUDA 700"
+    ],
+    "observation": "intent uses field order (1,0,0,1) vs (1,0,0,0) only to describe the phenomenon; acceptance judges by matrices -- consistent, no card change needed"
+  },
+  "non_claims": [
+    "does not claim H1 fix completion, attempt5 pass, or flex rendering pass/fail",
+    "does not relax any criteria/tolerance/reference/guards; does not re-freeze",
+    "does not rewrite D8 evidence bytes (histogram fix is handed to Backend's next evidence submission)"
+  ],
+  "environment": {
+    "os": "Windows 11 10.0.26200",
+    "python": "3.12.13",
+    "numpy": "2.5.4",
+    "venv": "target/mjwarp-parallel/venv"
+  },
+  "artifacts": {
+    "sha256_source": "manifest.txt",
+    "files": [
+      "README.md",
+      "facts.json",
+      "scripts/qa_recompute.py",
+      "logs/qa_recompute.log"
+    ]
+  }
+}
