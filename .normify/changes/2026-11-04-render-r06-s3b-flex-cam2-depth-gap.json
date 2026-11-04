@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-cam2-depth-gap",
+  "title": {
+    "zh": "R06-S3b cam2 深度缺口诊断：D7 修复后才可观测的 cam2 depth (321,297) vs (0,0)（先诊断，不改判据）",
+    "en": "Diagnose the cam2 depth gap first observable after the D7 fix: pixel (321,297) actual vs reference (0,0); no criteria changes"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "D7 修复（`01082958`）后授权短跑首次进入判据面：三相机 RGB（≤1 LSB）、cam0/cam1 depth+seg 全过，随后在 `tests/render_flex_validate.rs:347` 红——**cam2 depth 像素 `(321,297)` 实际 vs 参考 `(0,0)`**。本卡只做诊断，定位该缺口性质与来源，不修、不改判据/容差/参考/guards；结论决定 attempt5 前是否需要修复或改参考口径（后者须按治理走用户签）。",
+    "en": "Diagnose the cam2 depth gap at (321,297) first observable after the D7 fix; decide whether it is a product defect, a reference/expectation semantics issue, or a draw-order issue."
+  },
+  "modules": {},
+  "acceptance": [
+    "**像素事实**：给出 `(321,297)` 的实际深度值/位型与参考侧值/位型（含 f32 位），并说明参考侧为 0 的来源（npz 位型、采集口径、是否 `first sample only` / 无命中约定）。",
+    "**范围刻画**：统计 cam2 depth 差异像素总数与分布（是否只落在 flex 区：参考 seg `(flexid,9)` 654 像素；是否只在该像素邻近区块），并按 ULP/绝对差分类。",
+    "**归因**：分析该像素是否 flex 命中、深度测试/绘制顺序、D5 位姿（cam2 用 data 位姿后首次正确命中 flex）与参考采集时的差异；给出「产品缺陷 / 参考或期望口径问题 / harness 用法」的候选判定与证据。",
+    "**边界**：不改判据/容差/参考/guards；不改产品代码（诊断阶段 `src/` 零 diff）；需要 GPU 微窗口时单独向 Chief 申请（本卡不预授权窗口）。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/`（README：假设、命令、原始输出、像素表、范围统计、结论、边界、attempt5 前置建议）。",
+    "**闸门**：fmt / clippy / clippy-cuda / unit 全过（仅收口时）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-d7-transfer-wait"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/",
+      "tests/render_flex_validate.rs"
+    ],
+    "resources": [],
+    "priority": 83
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指派）。诊断阶段只读 + 证据；**13:40 前给初判**（差多少像素、是否只在 flex 区），13:50 停写。attempt5 前提顺序：本卡根因结论（修好，或证明参考/期望口径问题并按治理处理）→ 重新真冻结 16/16（D7 后 live exe 已变）→ QA pass → Chief 窗口 token；时段最早 18:00–24:00，赶不进顺延 00:00–09:00。",
+  "revision": { "before": "a306eb2257c0bcb61376ccac94c72d70f742dc59", "after": null },
+  "created_at": "2026-11-04T12:59:00.000Z",
+  "updated_at": "2026-11-04T12:59:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] }
+  ]
+}
