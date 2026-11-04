@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-criteria",
+  "title": {
+    "zh": "R06 多帧判据设计草案：多帧位姿→渲染变化的可判形态 + 采集方案 + 影响面（CPU-only，不采集不实现）",
+    "en": "R06 multi-frame criteria design draft: judgeable pose-change-to-render form, capture plan and impact (CPU-only; no capture, no implementation)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R06 家族当前只证明**单帧**位级成立（closure `2026-11-04-render-r06-flex-closeout`，证据 `1de0321a`；attempt6 `7a48205d`），「相邻时钟步位姿变化 → 渲染随之变化」**无判据、无参考**。本卡只出**设计草案**（CPU-only、零采集、零窗口、零 `src/`/`tests/`/`fixtures/` 改动）：① 定义多帧最小可判形态（帧集、帧内判据、跨帧响应判据、退化保护、失败条件）；② 三个候选方案对比并给推荐；③ 采集方案（离线 authoring、pinned editable、脚本扩展点、产物布局与体积估算、provenance）；④ 影响面（tests 新实体、guards/窗口重冻、既有单帧证据不受影响、判据属新增需用户签）；⑤ 非宣称。**不实现、不采集、不开窗、不改判据/容差/参考。**",
+    "en": "Produce only a design draft for R06 multi-frame criteria: define the minimal judgeable form, compare three candidate schemes, specify the offline capture plan (pinned editable env, script extension points, artifact layout and size), and state the impact (new test entity, guard re-freeze, existing single-frame evidence unaffected, new criteria need user signature). No capture, no implementation, no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/render-bvh/r06-flex-multiframe-criteria/`：`README.md`（现状缺口 + 三候选对比 + 推荐方案细则 + 采集方案 + 影响面 + 风险 + 非宣称）、`receipt.json`（`task_id` 指向本卡）、`manifest.txt`；LF、无 BOM、首行 `#`。",
+    "**现状与缺口写死**：单帧证据面（同 GPU/同配方/同编译形态，rgb ≤1 LSB、depth ≤4 ULP 且 beyond4=0、seg 精确、签名 allowlist 仅 `cam2/(134,128)/flexid0` 且仅对 base 帧参考生效）；多帧**无判据、无参考、无实体**。",
+    "**三候选对比**：A 强（每帧独立位级参考，成本/体积最高）、B 中（**推荐**：帧内沿用单帧判据 + 跨帧「变化可见性」断言 + 产品=参考逐帧位级）、C 弱（仅方向/单调性，不作数值判据）；给出取舍理由。",
+    "**推荐方案细则（可判口径）**：帧集 = 3 帧（base + 2 个时钟步，flex 位姿单调演化）；帧内判据沿用已签单帧口径；**跨帧判据** = 相邻帧该相机 depth/seg 发生变化的像素数 ≥ 阈值（候选 0.5% 该相机像素，**待用户签**）且产品与参考**逐帧位级相等**、两跑 sha 相同；**退化保护** = 若参考帧间位级无变化则判「无判别力、拒绝通过」；**失败条件** = 任帧位级超界、变化像素数不足、两跑 sha 不同。",
+    "**allowlist 不继承写死**：签名 allowlist（`3406f1ca`）仅对 base 帧参考生效；新帧一律 bit-first，若新帧复现同一像素差**必须报用户**，不得自动扩 range。",
+    "**采集方案**：离线 authoring（pinned venv / editable mujoco-warp `71da24d9`，`use_fast_math=false`，同一 GPU）；脚本扩展点 `scripts/authoring/capture_render_flex.py` 增加帧循环（步进 flex 状态 → 记录 `flexvert_xpos` + rgb/depth/seg）；产物布局 `fixtures/render-bvh/scene-flex/multiframe/{frames-000,001,002}/{rgb,depth,seg}.npz + capture.json + cam-poses.json + state.npz`；体积估算约 **4.73 MB/帧 → 3 帧 ≈ 14 MB**；provenance 记 pin/recipe/GPU。",
+    "**影响面**：`src/` 零改动；`tests/` 新增 1 个实体（`render_flex_multiframe`）→ 新验证窗需 `freeze -Attempt` 重冻（guards 由 16 增到 17 量级）；**既有单帧 R06 证据不受影响**（渲染源未动）；判据属**新增**→ 需用户签；窗口需求 = 1 个 authoring 采集窗 + 1 个验证窗。",
+    "**非宣称**：不声称动画一致性、不宣称多帧已覆盖、不承诺时间、不替用户决定是否要做；`fixtures/`/`src/`/`tests/` 零改动（`unchanged` 检查覆盖）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-flex-closeout",
+      "2026-11-04-render-r06-s3b-closure"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-criteria/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-05 登记（Chief 指派：R07 S0 之后做 R06 多帧判据设计草案，CPU-only、零采集、零窗口；写完连同 R07 材料给用户做方向决策）。上游跟踪卡 `2026-11-04-render-r06-flex-multiframe`（backlog，只跟踪、不 start）保持不动。本卡不动 `plan.json`（渲染线 plan 已由 A/B/C 收口刷新，多帧属未批准的新增判据，未定稿前不入 plan）。",
+  "revision": {
+    "before": "c66b8bbf6e4beb5be2d596be9221efea4a790381",
+    "after": null
+  },
+  "created_at": "2026-11-05T00:30:00.000Z",
+  "updated_at": "2026-11-04T16:02:23.137Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criteria/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-criteria"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "多帧位级判据已定稿",
+        "可宣称动画一致",
+        "上游等价"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    }
+  ]
+}
