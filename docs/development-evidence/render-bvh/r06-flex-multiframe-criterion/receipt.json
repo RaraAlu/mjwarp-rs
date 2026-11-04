@@ -1,0 +1,107 @@
+{
+  "task_id": "2026-11-05-render-r06-flex-multiframe-criterion-spec",
+  "owner": "Arch",
+  "date": "2026-11-05",
+  "status": "pending-user-signature",
+  "gpu_used": false,
+  "capture_run": false,
+  "window_opened": false,
+  "fixtures_changed": false,
+  "product_code_changed": false,
+  "signature_object": {
+    "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md",
+    "sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "bytes": 10506,
+    "note": "this sha256+bytes is what the user signs; any edit needs a new signature"
+  },
+  "option": "B (per-frame signed criteria + cross-frame change visibility assertion)",
+  "frames": [
+    {"index": 0, "name": "frame-000", "anchor_body_pos_z_offset_m": 0.0, "note": "equals base frame; shares the signed single-frame criteria"},
+    {"index": 1, "name": "frame-001", "anchor_body_pos_z_offset_m": 0.1},
+    {"index": 2, "name": "frame-002", "anchor_body_pos_z_offset_m": 0.2}
+  ],
+  "pose_step": {"dz_m": 0.1, "steps": 2, "mechanism": "add k*dz to body_pos.z of flex-anchor0/1/2 in the model layer (reference: pinned mjwarp before put_model; product: in-memory model arrays before context creation); no physics stepping, no time integration", "reproducible": true},
+  "cameras": {
+    "cam0": {"name": "cam-persp", "resolution": "320x240", "pixels": 76800},
+    "cam1": {"name": "cam-track", "resolution": "240x180", "pixels": 43200},
+    "cam2": {"name": "cam-flex", "resolution": "320x240", "pixels": 76800, "criterion_camera": true}
+  },
+  "per_frame_criteria": {
+    "rgb": "<=1 LSB with beyond_1_lsb=0 (all three cameras)",
+    "depth": "<=4 ULP with beyond4=0 (all three cameras)",
+    "seg": "exact equality (id,type) pairs",
+    "determinism": "two runs identical sha256 per frame per camera"
+  },
+  "cross_frame_criteria": {
+    "camera": "cam2",
+    "adjacent_pairs": ["000->001", "001->002"],
+    "depth_changed_pixels_min": 384,
+    "seg_changed_pixels_min": 384,
+    "threshold_derivation": "0.5% x 76,800 px = 384 px; frozen, never adjusted on site",
+    "capture_gate_min_pixels": 576,
+    "capture_gate_derivation": "1.5 x 384 = 576 px (margin)",
+    "measurement_side": "reference frames (avoids circularity); product must equal reference bit-level per frame"
+  },
+  "degenerate_protection": {
+    "below_384": "non-discriminating -> rejected (not a pass)",
+    "in_384_to_576": "insufficient margin -> capture fails, stop and report to user; thresholds unchanged",
+    "changing_step_parameters": "requires a new spec sha and a new user signature; the 0.5% threshold itself never changes"
+  },
+  "allowlist": {
+    "card": "3406f1ca",
+    "scope": "cam2/(134,128)/flexid0, ULP<=4 and beyond4=0",
+    "applies_to": "frame-000 (base) only",
+    "new_frames": "bit-first, no inheritance; a recurring same-pixel difference must be reported to the user instead of extending the allowance"
+  },
+  "failure_conditions": [
+    "any frame/camera outside the per-frame criteria",
+    "cam2 adjacent-frame depth or seg changed pixels < 384",
+    "two-run sha mismatch",
+    "reference inter-frame change < 384 (non-discriminating) or in [384,576) (insufficient margin)",
+    "capture determinism failure (two captures not bit-identical)",
+    "any undeclared tolerance widening (including allowlist extension)"
+  ],
+  "fail_stop": "any failure stops the round; no retry, no relaxation, no on-site threshold change",
+  "capture_plan": {
+    "env": {"venv": "target/mjwarp-parallel/venv (Python 3.12.13)", "mujoco_warp": "editable pinned 71da24d9 (3.15.0), no PyPI wheel", "warp": "1.15.0", "mujoco": "3.15.0", "recipe": "use_fast_math=false, other parameters identical to reference/base/capture.json", "gpu": "same device as base reference (RTX 4070 Ti SUPER / driver 596.36 / SM89)"},
+    "script_extension": "scripts/authoring/capture_render_flex.py gains a frame loop (e.g. --frames 3 --frame-dz 0.1): apply anchor body_pos.z offset per frame, put_model, forward, render; single-frame path unchanged byte-for-byte",
+    "artifact_layout": "fixtures/render-bvh/scene-flex/multiframe/frame-000..002/{rgb,depth,seg,state}.npz + capture.json + cam-poses.json + README.md",
+    "size_estimate_mb": 14.2,
+    "determinism": "capture twice, per-frame file sha256 identical, otherwise capture fails",
+    "provenance_fields": ["python", "warp", "mujoco", "mujoco_warp", "pinned_commit 71da24d9", "gpu", "driver", "use_fast_math", "frame_dz", "per_frame_sha256", "two_capture_identical", "captured_at", "command"]
+  },
+  "implementation_requirements": [
+    "new test entity (e.g. render_flex_multiframe) reading the three frames: per-frame criteria then cam2 cross-frame criteria then two-run sha",
+    "product-side pose injection: in-memory body_pos.z offset for the three anchor bodies before context creation (fixture files untouched)",
+    "window material: new entity invalidates the current guard set (about 16 entries); freeze -Attempt re-freeze with new exe + three frame inputs",
+    "criterion implementation needs a read-only QA review (pixel-count direction, threshold derivation, allowlist boundary, degenerate protection)"
+  ],
+  "signature_list": [
+    {"id": "S-1", "item": "this criterion spec (spec.md sha256+bytes)", "level": "user", "status": "pending"},
+    {"id": "S-2", "item": "authoring exception pre-approval for the capture window (authoring-only util<60) if normal util<40 is not met", "level": "user", "status": "pending"},
+    {"id": "S-3", "item": "validation window double-signature (material + criteria)", "level": "user", "status": "pending"}
+  ],
+  "go_list": [
+    {"id": "G-1", "window": "capture window (authoring, one)", "prerequisites": ["S-1 signed", "this spec + receipt + manifest landed", "capture script frame loop implemented (implementation card verified)", "QA read-only review of the script", "pre-window 5-minute three-point baseline and strict floor", "material posted to the dev group"], "owner": "Chief GO"},
+    {"id": "G-2", "window": "validation window (one)", "prerequisites": ["capture evidence verified (3 frames + two-capture bit identity + changed pixels >= 576)", "criteria implemented in the test (implementation card verified)", "QA review PASS", "window material frozen (guards with new exe + 3 frame inputs)", "baseline and floor"], "owner": "Chief GO"}
+  ],
+  "risks": [
+    "pose-change magnitude is camera-geometry dependent; if cam2 change < 576 the capture stops and reports (no step increase, no threshold change)",
+    "three frames prove two pose steps only; no continuous animation coverage claim",
+    "pose injection is authored (model-layer anchor offset), not physics evolution; the criterion tests render correctness vs pose, not physics/animation",
+    "artifact size about 14.2 MB and grows linearly with frame count",
+    "the new entity invalidates the current guard set until re-frozen"
+  ],
+  "non_claims": [
+    "no animation-consistency claim",
+    "no multi-frame coverage claim beyond the three authored frames",
+    "no equivalence-to-upstream claim",
+    "not a basis for external release",
+    "no capture, no window, no fixtures or product-code change in this card"
+  ],
+  "deliverable_check": {
+    "spec_md_utf8_lf_no_bom": true,
+    "manifest_header_hash": true,
+    "unchanged_src_tests_fixtures": true
+  }
+}
