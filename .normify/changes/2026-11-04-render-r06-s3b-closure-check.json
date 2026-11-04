@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-closure-check",
+  "title": {
+    "zh": "R06-S3b 验收收口证据独立复核（B 类前提、签名 allowlist、D8 分开、跨轮闭环、非声明、索引）",
+    "en": "Independent check of the R06-S3b closure evidence (premises, signed allowlist, D8 separation, cross-round closure, non-claims, index)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "复核收口证据卡 `2026-11-04-render-r06-s3b-closure`：六项必含内容是否齐全、跨轮闭环三条链是否**可独立验证**（`git diff d35cab68..8c15ad75 -- src/` 为空、两跑 sha 与 r2/D8 逐位相同、r2 明细数值一致）、B 类前提是否逐条声明、签名 allowlist 是否逐字不扩大、D8 分开是否不混算、非声明是否在场、证据索引是否指向已验证提交。**只读复核，零 GPU，不执行窗口。**",
+    "en": "Read-only check of the closure evidence; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① 前提**：冻结参考 6 文件 sha、同 GPU/驱动、同 recipe、同编译形态（attempt6 窗口内 canonical rebuild 产物 `e48c7268…`）逐条在证；缺项或与事实不符即 FAIL。",
+    "**② 签名 allowlist**：`3406f1ca` 的最小范围（仅 `cam2/(134,128)/flexid0`，`ULP≤4 且 beyond4=0`）逐字一致、无扩大；「其余 bit-first」明确。",
+    "**③ D8 分开**：321 px（`a1cc22ae`）与 1 px（`d35cab68`）分开登记、数字不混算。",
+    "**④ 跨轮闭环（必须可验）**：复核方能独立执行/核对——a) `git diff d35cab68..8c15ad75 -- src/` 输出为空；b) attempt6 两跑 sha 与 r2/D8 采集轮逐位相同；c) r2 证据中该像素 bits/ULP/beyond4/seg/flexid 数值与收口证据一致。",
+    "**⑤ 非声明**：不宣称上游等价/parity pass/flex 整体可用/对外发布依据。",
+    "**⑥ 索引**：attempt6 `7a48205d`、r2 `d35cab68`、D8 `a1cc22ae`、tie 负结果 `9a1f102b`、criteria/QA `1927d62e`、签名卡 `3406f1ca`、材料 `ecc93b56`、attempt5 `6e9aa585`（FAILED_ROUND 历史）——逐一可点，且指向 verified/已提交对象。",
+    "**结论三态**：PASS / PASS-with-observations / FAIL（阻断项点名），写入 `docs/development-evidence/render-bvh/r06-s3b-closure-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-closure"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-closure-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：收口证据需 QA 复核 PASS 后由 Chief 汇总给用户）。只读、零 GPU、不执行窗口、不改收口证据。",
+  "revision": { "before": "b5592c20f68346443214aa06b3fcfdaac91dc6ca", "after": null },
+  "created_at": "2026-11-04T23:16:00.000Z",
+  "updated_at": "2026-11-04T23:16:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
