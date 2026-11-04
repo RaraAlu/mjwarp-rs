@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-repo-evidence-gitattributes-rule",
+  "title": {
+    "zh": "治理：`.gitattributes` 追加 `docs/development-evidence/** -text -diff`（防 fresh checkout 行尾漂移；一行规则、不 renormalize）",
+    "en": "Governance: add `docs/development-evidence/** -text -diff` to .gitattributes (prevents fresh-checkout EOL drift; one line, no renormalize)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 复核发现：`docs/development-evidence/` **顶层**目录（如 `g10-p5-summary/`、`np01-e-criterion-a2/`、各家族 summary 与 `*-check/`）没有属性规则，而 `render-bvh/**`、`docs/evidence/**` 已有 `-text -diff`。这些目录的 `manifest.txt` 以 **sha256+字节数**自证，在 `core.autocrlf=true` 的 fresh checkout 下会被当成文本做 LF→CRLF 转换 → manifest 逐条漂移。本卡在 `.gitattributes` **末尾追加一行** `docs/development-evidence/** -text -diff`，只改后续 checkout/diff 行为，**不 renormalize、不改任何既有 blob**。执行交 Backend，复核交 QA（Arch 只登记）。",
+    "en": "Evidence directories directly under docs/development-evidence/ have no attribute rule while render-bvh/** and docs/evidence/** already do; their manifests self-verify by sha256+bytes, so an autocrlf fresh checkout would corrupt the byte match. Append one line `docs/development-evidence/** -text -diff` to .gitattributes: checkout/diff behaviour only, no renormalize, no blob rewrite. Backend executes, QA reviews."
+  },
+  "modules": {},
+  "acceptance": [
+    "**只加一行**：在 `.gitattributes` **末尾**追加 `docs/development-evidence/** -text -diff`；不改动任何既有行、不动 `.ps1` 相关规则、不动 `.git/info/attributes`（本地机器属性）；`git diff --stat` 只有 `.gitattributes`（1 行新增）。",
+    "**属性前后对照**：`git check-attr text diff -- <样例>` 对至少 3 个顶层证据目录取样（如 `g10-p5-summary/receipt.json`、`np01-e-criterion-a2/manifest.txt`、`r01-p8-summary/README.md`）——改动前为 `unspecified`、改动后为 `text: unset` / `diff: unset`；样例命令与输出原文入证据。",
+    "**fresh checkout 验证（不得只看工作树）**：`git clone` 仓库到 `target/` 下临时目录，对 clone 内 `docs/development-evidence/` 下 **≥10 个 `manifest.txt`**（覆盖 render-bvh 与顶层目录）逐一 sha256 与原工作树对比 **100% 一致**；证据贴 clone 命令、文件清单、sha 与结论；任一不一致即未修好、不得提交。",
+    "**不得 renormalize**：不运行 `git add --renormalize`；不触发任何 blob 重写；提交后 `git status --porcelain` 只出现 `.gitattributes`（若出现批量文件翻动说明误触重写，必须回退）。",
+    "**证据目录** `docs/development-evidence/repo-evidence-gitattributes-rule/`（README + receipt.json + manifest.txt，LF/无 BOM）：写清 ①效果范围（`docs/development-evidence/**` 全部文件不再做 EOL 转换、diff 按二进制；**不影响** `src/`、`tests/`、`fixtures/`、`docs/evidence/`（后者已有同效规则）、`.ps1` 的 BOM 有意保留规则）；②为何不 renormalize（避免批量改写既有 blob、避免制造噪声提交与证据 sha 漂移；规则只影响后续 checkout/diff）；③回滚方法（删掉该行提交即可，无 blob 变更；若已发生 checkout 漂移，用 `git checkout -- <paths>` 从 blob 恢复）；④既有 blob 未变（`git ls-files -s` 抽样前后一致）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（无代码改动，基线 unit 数应不变）；`unchanged src/, tests/, fixtures/, docs/evidence/`；不改判据/容差/参考/任何已 verified 证据内容。",
+    "**注册与复核**：本卡 owner Backend（执行），QA 复核卡 `2026-11-05-repo-evidence-gitattributes-rule-check` 依赖本卡；Arch 只登记卡面、不执行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-g10-p5-family-closeout",
+      "2026-11-05-precision-np01-e-criterion-a2"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Backend",
+    "files": [
+      ".gitattributes",
+      "docs/development-evidence/repo-evidence-gitattributes-rule/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-05 登记（Chief 采纳 QA 建议、指派 Backend 执行 / QA 复核；Arch 因锁纪律第四次违规本卡不写实现，只登记卡面，登记提交按 status→acquire→确认 owner 三步）。先例：`2026-10-25-evidence-bin-eol-hygiene`（同一文件、同 `-text -diff` 规则、含临时 clone 逐文件 sha 验证）。本卡不动 `.git/info/attributes`（本机本地例外，不随仓分发）。",
+  "revision": { "before": "1e6b97340fe7c092656598c71351ce8515e80a42", "after": null },
+  "created_at": "2026-11-05T00:45:00.000Z",
+  "updated_at": "2026-11-05T00:45:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/repo-evidence-gitattributes-rule/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-repo-evidence-gitattributes-rule"
+    },
+    {
+      "kind": "unchanged",
+      "paths": ["src/", "tests/", "fixtures/", "docs/evidence/"]
+    }
+  ]
+}

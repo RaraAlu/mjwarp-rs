@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-repo-evidence-gitattributes-rule-check",
+  "title": {
+    "zh": "QA 独立复核：`.gitattributes` 证据目录 `-text -diff` 规则（一行、不 renormalize、fresh clone 逐 sha 一致、回滚可逆）",
+    "en": "QA independent review: .gitattributes evidence-directory `-text -diff` rule (one line, no renormalize, fresh-clone sha equality, reversible)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-05-repo-evidence-gitattributes-rule` 做独立复核：① `.gitattributes` 只新增一行且在末尾；② `git check-attr` 前后对照成立；③ **独立复跑 fresh clone** 的 ≥10 个 manifest sha256 对照（不采信提交者的拷贝）；④ 确认没有 `--renormalize`、没有 blob 重写（`git ls-files -s` 抽样与提交前一致、`git status` 无批量翻动）；⑤ 证据 README 写清效果范围/不 renormalize 理由/回滚方法；⑥ `src/`/`tests/`/`fixtures/`/`docs/evidence/` 未被改动。**只读复核 + 写自己的证据目录；零 GPU。**",
+    "en": "Independently review the gitattributes rule: exactly one appended line; before/after check-attr; an independent fresh clone with sha256 equality on at least ten manifests; no renormalize and no blob rewrite; effect scope, no-renormalize rationale and rollback documented; src/tests/fixtures/docs/evidence untouched. Read-only; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**一行且末尾**：`git diff <rule-commit>^..<rule-commit> -- .gitattributes` 显示仅 1 行新增、位于文件末尾；无删除行、无既有行修改。",
+    "**属性对照**：QA 自己在改动提交前后各跑一次 `git check-attr text diff --` 取样（≥3 个顶层证据目录文件），确认 `unspecified → unset/unset`。",
+    "**fresh clone 独立复跑**：QA 自己 `git clone` 到 `target/` 并对照 ≥10 个 `manifest.txt` 的 sha256，结论必须与提交者证据一致；不一致即 needs-fix。",
+    "**无重写**：`git ls-files -s` 抽样（≥10 个证据文件 blob id）与规则提交前后一致；`git status --porcelain` 在规则提交后无批量翻动；无 `--renormalize` 痕迹（提交里只含 `.gitattributes` + 证据目录）。",
+    "**证据完整**：README 写清效果范围、不 renormalize 的理由、回滚方法（删行即可；漂移时 `git checkout --` 恢复）、既有 blob 未变。",
+    "**边界**：`src/`、`tests/`、`fixtures/`、`docs/evidence/` 未变；`.git/info/attributes` 未被提交；判据/容差/参考/已 verified 证据零改动。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix`；证据落 `docs/development-evidence/repo-evidence-gitattributes-rule-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-repo-evidence-gitattributes-rule"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/repo-evidence-gitattributes-rule-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-11-05 登记（Chief 指派 QA 复核）。只读复核：不得回改 `.gitattributes`、执行卡证据或任何已 verified 证据；问题以 addenda/needs-fix 记录。零 GPU。",
+  "revision": { "before": "1e6b97340fe7c092656598c71351ce8515e80a42", "after": null },
+  "created_at": "2026-11-05T00:45:00.000Z",
+  "updated_at": "2026-11-05T00:45:00.000Z",
+  "checks": []
+}
