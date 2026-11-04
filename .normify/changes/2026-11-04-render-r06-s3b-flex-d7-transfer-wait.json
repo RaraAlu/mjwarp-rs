@@ -5,7 +5,7 @@
     "zh": "D7 诊断：attempt4 render 发射 transfer-wait CUDA 700（设备侧非法访问）运行期定位与修法方向",
     "en": "D7 diagnosis: locate the CUDA 700 (device-side illegal access) behind attempt4's render-launch transfer-wait, and decide the fix direction"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "attempt4 实体首步 `render_with(...)`（`tests/render_flex_validate.rs:327:79`）在 session 清理同步点报 `CUDA失败：transfer-wait；错误码700`（illegal address），rgb/depth/seg 判据未进入。D7 用**运行期实验**定位根因：先 `CUDA_LAUNCH_BLOCKING=1` 阻塞式复现确认 fault 落在 megakernel launch，再用 env-gate 的相机 mask 诊断补丁分别短跑 cam0/cam1/cam2，判断触发路径是 flex 命中、网格还是纹理，并给出「产品 API 缺输入校验/设备越界」还是「harness 用法问题」的结论与下一步修法方向。",
     "en": "Runtime-locate the CUDA 700 in the megakernel launch via a blocking rerun plus env-gated per-camera mask runs; decide whether it is a product-side validation/device bug or a harness-usage issue."
@@ -37,12 +37,12 @@
   },
   "note": "Arch 2026-11-04 登记（Chief 指派，owner Backend）。**不 start**，等 Backend 用完诊断微窗口再收口。QA 澄清口径已采纳：「射线与位姿不同源」只是 attempt3→attempt4 的触发条件描述，射线是相机空间、位姿只在 kernel 内做世界变换，不一致本身不构成越界根因。attempt5 前提 = 本卡根因修复 verified + QA pass + 因 exe 变化重新真冻结 16/16 + Chief token；时段优先 18:00–24:00。",
   "revision": {
-    "before": "d6587f6c8be3e7ec5afb4d9d48a81a87d6758835",
+    "before": "de539a6388aac5e27a24efc0ff5dfe99703c2c89",
     "after": null
   },
   "created_at": "2026-11-04T12:38:00.000Z",
-  "updated_at": "2026-11-04T04:50:37.798Z",
-  "checks": [
+  "updated_at": "2026-11-04T04:55:35.226Z",
+    "checks": [
     {
       "kind": "gate",
       "gate": "fmt"
