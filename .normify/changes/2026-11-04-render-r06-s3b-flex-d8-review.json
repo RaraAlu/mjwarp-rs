@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-d8-review",
+  "title": {
+    "zh": "QA 复核：R06-S3b D8 cam2 depth 缺口诊断（独立复算、直方图需修-低、B 类判据归类落库）",
+    "en": "QA audit: R06-S3b D8 cam2 depth gap diagnosis (independent recompute, low-severity histogram fix, class-B criteria ruling recorded)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 D8 诊断片（`2026-11-04-render-r06-s3b-flex-cam2-depth-gap`，提交 `a1cc22ae`，证据 `docs/development-evidence/render-bvh/r06-s3b-flex-cam2-depth-gap/`）做只读 QA 复核：①独立复算 headline（321/297/259、per-flexid、seg 0/76,800、轮廓距离、绝对差）与 CPU-replay 敏感集重叠 98.8%，不复用 D8 脚本；②抽核微窗口记账、dump sha/bytes、两跑 hash、WIP 还原与 guards live≠frozen（attempt5 须重冻）；③登记 1 条需修-低（ULP 直方图桶双端闭区间→7 桶和 76,824≠76,800、24 个共享端点重复计数；不影响结论）；④把「4 ULP 在薄胶囊近掠射像素上近似等价位级」按《机器判据裁定标准 v1》归 **B 类（参考-前提型）、降级使用**，五前提/降级含义/签名级边界/失效条件与 Chief 裁定原话一并落库（引原话、不代裁）；⑤核对 z2vec 卡 `04793345` 卡面口径（矩阵判、不用字段序；不得作 attempt5 前置）。零 GPU、零窗口、零参考/判据改动。",
+    "en": "Read-only QA audit of the D8 diagnosis: independent recompute, micro-window/dump/guards spot checks, one low-severity histogram fix, class-B criteria classification with the Chief's ruling quote, and a criteria check of the z2vec card."
+  },
+  "modules": {},
+  "acceptance": [
+    "**结论三态**：PASS / PASS-with-observations / FAIL 写进证据 README；逐条给出「复核面 → 方法 → 结果」。",
+    "**独立复算**：用已入库输入（D8 `artifacts/cam2-depth-seg.npz` + `fixtures/.../reference/base/{depth,seg}.npz`）与独立脚本复现 `mismatched/beyond4/maxULP = 321/297/259`、flexid0 `403/70/64/259`、flexid1 `251/251/233/155`、非 flex 0、seg 0/76,800、轮廓距离中位 1.41 px / ≤4 px 300/321、绝对差中位 2.384e-6 / max 3.695e-5 m、CPU-replay 重叠 317/321=98.8%；脚本与原始日志入库，且不 import/不执行 D8 分析脚本。",
+    "**记账与 guards 抽核**：微窗口前置（compute_filtered_count=0、三点基线、util/temp）、`wall_s=2.02`、dump sha+bytes、两跑 hash 相同、WIP 已还原、`guards frozen attempt=1 16/16 exes=2 inputs=14 aggregate` 与 `live exe 49923e3e ≠ frozen d9686515`（attempt5 必须重冻）逐条引 D8 日志 file:line。",
+    "**需修-低（直方图）**：点名 `README.md:60` 与 `scripts/analyze_dump.py:62-63`（`(ulp>=lo)&(ulp<=hi)` 双端闭、edges `[0,1,2,4,16,64,1024,1e9]`），量化 7 桶和 76,824 vs 76,800、共享端点 1/2/4/16/64 重复计数合计 24，给互斥复算值，并说明对 headline/结论无影响；**不改 D8 证据字节**（历史证据改写不在本卡范围）。",
+    "**观察-低（replay 产物）**：说明 per-pixel CPU replay 产物未入库、只能从日志复读；把该产物 sha256/bytes 记入本证据，建议后续补统计或 sha。",
+    "**判据归类**：按《机器判据裁定标准 v1》归 **B 类（参考-前提型）、降级使用**；给出不是 A/不是 C 的理由、五条前提与结论同声明、降级含义（单独不得作通过依据 / 不得改写为位级等价 / 不得据此宣布 attempt5 通过）、**签名级边界（替代冻结 bit-first 判据 = 放宽判据 = 用户签）**、失效条件；裁定归属写 **Chief** 并引其原话，Arch 的 A 类建议须标「建议、不构成裁定」。",
+    "**z2vec 卡口径核**：核 `04793345` 卡面（矩阵判、不用字段序、三条矩阵断言、边界「不得作 attempt5 前置/与 D8、attempt4 700 无关、零 GPU、不改判据/参考/fixtures」）。",
+    "**机器可读 + 清单**：`facts.json` 与 README 同源（含 recompute 值、findings、classification、ruling.quote、non_claims），`manifest.txt` 给 sha256+bytes 且不自列。",
+    "**边界与门禁**：只读复核——`src/`、`fixtures/` 零 diff（unchanged）；零 GPU/零窗口；不改判据/容差/参考/guards、不重冻；fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-cam2-depth-gap"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-d8-review/"
+    ],
+    "resources": [],
+    "priority": 76
+  },
+  "note": "QA 2026-11-04 自登记（Chief 指示：「你自己登记 QA 卡（owner QA）落 docs/development-evidence/render-bvh/r06-s3b-flex-d8-review/，空闲块做完报号；别等 Arch」）。只读复核：不改任何判据/容差/参考/源码/fixtures，不改 D8 证据字节；直方图需修-低按 Chief 指示交 Backend 下次证据提交处置。判据归类只落 Chief 裁定（引原话），不含任何 Bot 自裁。",
+  "revision": {
+    "before": "a1fc9726967e2d74323d4375a38fa5adbeb7b63e",
+    "after": null
+  },
+  "created_at": "2026-11-04T10:40:00.000Z",
+  "updated_at": "2026-11-04T10:40:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    }
+  ]
+}
