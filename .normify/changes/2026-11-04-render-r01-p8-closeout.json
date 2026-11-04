@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r01-p8-closeout",
+  "title": {
+    "zh": "R01@P8 渲染上下文收口：10 项映射刷新 + NP01/NP02 核对 + NP03/NP04 适用性 + 已知限制（Windows 范围；不含 R07 泼溅）",
+    "en": "R01@P8 render-context closeout: refresh the ten-item mapping, record NP01/NP02 checks and NP03/NP04 applicability, and register the known limits (Windows scope; R07 splats out of scope)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R01@P8（渲染上下文：世界/相机/资产/BVH/默认参数/生命周期/RGB/depth/seg/资源与拒绝面）的切片 S0a→S8 + 渲染 perf 全部 verified（QA 独立复核 0 阻断），此后 R02/R05/R06/R08/R09/R10 家族也已交付。`2026-10-25` 的 precheck 结论是「r01-p8 聚合任务不标完成」，当时剩余缺口为 NP03 双平台与 `mjwarp.render.kernel` 模块治理；模块治理已 verified（`2026-10-25-render-bvh-module-split`），NP03 由用户 2026-10-24 裁决 Linux 终止。本卡做**聚合收口证据**：① `plan.json` 的 `r01_p8_mapping` 十项逐项刷新（补证据指针、更新过时注记，尤其 shadows/skybox/splats/flex/hfield 项与 R07 未做的显式说明）；② 追加 `delivery_tracking` 的 R01-P8 收口行 + `N15` 调度注记 + `updated_at`；③ 新建 `docs/development-evidence/render-bvh/r01-p8-summary/`（10 项映射表 + NP01/NP02 核对表 + NP03/NP04 适用性 + 已知限制 + 非声明 + 证据索引）；④ precheck `README.md` §7 追加 2026-11-04 addendum（**不改 2026-10-25 原结论文字**）。**零 GPU、零 `src/`/`tests/`/`fixtures/`、不改判据/容差/参考。**",
+    "en": "Close out R01@P8 at the evidence level: refresh the ten-item mapping in plan.json, add a delivery row and scheduling note, write the family summary with NP checks and known limits, and append an addendum to the precheck README section 7 without editing the original conclusion. Zero GPU; no product code, criteria or reference change."
+  },
+  "modules": {},
+  "acceptance": [
+    "`plan.json` `r01_p8_mapping` 十项逐项刷新：每项给 `status`（`delivered` / `partial` / `deferred`）+ 证据指针；`worlds` 补 R10-S2、`bvh` 补 S2/S3 已验证、`rgb_output`/`depth_output`/`segmentation_output` 补 S7b/S8 已验证、`shadows_skybox_splats_flex_hfield` 更新为「R09/R02/R05/R06 已交付、R07 高斯泼溅未做」、`multicamera_heterogeneous`/`multi_world` 保持 delivered。",
+    "`plan.json` `delivery_tracking.rows` 追加 R01-P8 收口行（slice=R01-P8、task_id=本卡、owner=Arch、normify_status=verified、execution=evidence-only closeout、evidence=`docs/development-evidence/render-bvh/r01-p8-summary/`、note 含 S0a–S8 + perf + R02/R05/R06/R08/R09/R10 引用与缺口）；`scheduling_notes` 追加 `N15`；`updated_at` 推进到 2026-11-04。",
+    "`docs/development-evidence/render-bvh/r01-p8-summary/`：`README.md`（10 项映射表逐项证据指针；NP 核对表；NP03/NP04 适用性；已知限制；非声明；证据索引）+ `receipt.json`（`task_id` 指向本卡）+ `manifest.txt`；LF、无 BOM、manifest 首行 `#`。",
+    "**NP 核对措辞写死**：NP01 =「已核对：类型门/字段表 B1–B3/host-device/E 重算全 verified，**E 指标口径 1 项待用户签（A2）**」，不得写成 100% 满足；NP02 =「满足（frozen inventory / evidence gate / receipt rehash / new kernel evidence / ptx entity restore 全 verified）」；NP03 =「不适用、不宣称（用户 2026-10-24 裁决 Linux 终止）」；NP04 =「适用项满足（Windows perf + 渲染 perf verified，相对基准）」。",
+    "**已知限制写死**：release 全量构建未跑（发版/对外声明时由用户点名）；R07 高斯泼溅不在 R01 范围；更高 spp、Linux/T4、上游完全一致均未覆盖；`mjwarp.render.kernel` 模块治理已由 `2026-10-25-render-bvh-module-split` 处理。",
+    "precheck `README.md` §7 追加 2026-11-04 addendum（引用本卡与 `r01-p8-summary/`，说明后续家族交付使原「未满足项」中的 R05–R10 部分已消、NP03 不适用），**不改 2026-10-25 原结论段落文字**。",
+    "非声明写死：不声明完整 R01 通过、不声明双平台、不声明与上游一致、不声明 release 全量、不声明 R07；不改判据/容差/参考；`git diff` 只含 plan.json、precheck README、`r01-p8-summary/` 与本卡记录，零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s8-e2e",
+      "2026-10-25-render-bvh-s8-independent-check",
+      "2026-10-25-render-bvh-perf-independent-check",
+      "2026-11-04-render-r06-flex-closeout",
+      "2026-10-30-render-r08-rgb-hetero-closeout",
+      "2026-10-29-render-bvh-r02-skybox-closeout"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh-precheck/README.md",
+      "docs/development-evidence/render-bvh/r01-p8-summary/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-11-04 登记（Chief 裁决 A→B→C 串行；B 引 A 用 `1de0321a`）。plan.json 是热点文件：B 与 A/C 不同时段写，单写者。用户决策边界：NP01 E 指标待签属用户级（A2），本卡只记录「已核对、1 项待签」，不代签、不宣称。precheck README §7 只追加 addendum，不改原结论。roadmap-r01-p8 节点本卡不 start/done（roadmap 节点不承载实现，等待 C 系列收口后统一处理）。",
+  "revision": { "before": "767bbd6d5a4a4b123ddb607d6f5d3f03b2c9c94e", "after": null },
+  "created_at": "2026-11-04T15:40:00.000Z",
+  "updated_at": "2026-11-04T15:40:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r01-p8-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-04-render-r01-p8-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["上游等价", "双平台通过", "产品渲染验收通过", "动画一致性"]
+    }
+  ]
+}
