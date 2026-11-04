@@ -59,7 +59,7 @@ G10@P5（地形、体积 SDF 与用户距离梯度钩子；验收「地形接触
 
 | 项 | 结论 |
 | --- | --- |
-| NP01 | **已核对；E 指标口径 1 项待用户签（A2）** —— 本卡不代签、不宣称满足 |
+| NP01 | **已核对；E 指标用户 2026-11-05 已签（同码跨后端核对，A2 `b9cb2993`）** —— 判据为「实测 worst ≤ 已签 atol」，不用 E 比值；不宣称 native 口径（A2 落库后按新措辞更新，卡面 acceptance 保留当时指令快照） |
 | NP02 | 满足（frozen inventory / evidence gate / receipt rehash / new kernel evidence / ptx entity restore 全 verified） |
 | NP03 | 不适用、不宣称（用户 2026-10-24 Linux 终止） |
 | NP04 | 适用项满足（相对基准；性能窗 G6-2.2 已独占采集） |
