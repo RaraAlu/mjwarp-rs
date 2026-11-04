@@ -26,6 +26,12 @@ while ($sw.Elapsed.TotalSeconds -lt ($MaxMinutes * 60)) {
 $lines = @('ts,used_mib,free_mib,util_percent,temp_c,compute_raw,compute_filtered,build,clean,streak') +
     @($rows | ForEach-Object { "$($_.ts),$($_.used),$($_.free),$($_.util),$($_.temp),$($_.cuda_raw),$($_.cuda_filtered),$($_.build),$($_.clean),$($_.streak)" })
 $path = Join-Path (Get-Location).Path $OutCsv
+$dir = Split-Path -Parent $path
+if ([string]::IsNullOrWhiteSpace($dir)) { throw "monitor: invalid -OutCsv '$OutCsv' (no parent directory)" }
+if (-not (Test-Path -LiteralPath $dir)) {
+    try { [IO.Directory]::CreateDirectory($dir) | Out-Null }
+    catch { throw "monitor: cannot create output directory '$dir': $($_.Exception.Message)" }
+}
 [IO.File]::WriteAllText($path, (($lines -join "`n") + "`n"), $utf8)
 $best = 0; $cur = 0
 foreach ($r in $rows) { if ($r.clean) { $cur++; if ($cur -gt $best) { $best = $cur } } else { $cur = 0 } }
