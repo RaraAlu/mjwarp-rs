@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-allowlist-signature",
+  "title": {
+    "zh": "R06-S3b attempt5 判据 allowlist 签名治理（用户 2026-11-04 22:14 签；最小范围 cam2/(134,128)/flexid0/ULP≤4 且 beyond4=0）",
+    "en": "R06-S3b attempt5 criteria allowlist signature governance (user-signed 2026-11-04 22:14)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-11-04 22:14 **签名级**裁定：在 R06-S3b attempt5 验收中放宽**唯一一个像素**的判据——`cam2 / (x=134,y=128) / flexid0 / ULP≤4 且 beyond4=0`（**beyond4 必须为 0 才放行**）；其余一律保持 bit-first。本卡是该签名的**治理与审计记录**：写死签名事实、最小范围、不扩权条款、与 D8 321 px codegen 尾差分开登记、失败即停不二次放宽、**仅限本次 attempt5**、**不对外宣称上游等价 / parity pass**，并引用 QA 的决策支持文档（`a3f690df`）。本卡**不写实现、不碰 r2 证据、不改冻结判据文本其它内容、不动 `fixtures/`**。",
+    "en": "Governance and audit record for the user-signed one-pixel allowlist in R06-S3b attempt5; no implementation, no r2 evidence edits."
+  },
+  "modules": {},
+  "acceptance": [
+    "**签名事实（写在证据首节）**：`user_signed_at=2026-11-04 22:14`、`signature_level=criterion relaxation (signature required)`、`decision=签判据 allowlist`、选项原文：「最小范围：cam2/(134,128)/flexid0/ULP≤4 且 beyond4=0；证据与前提写死」。",
+    "**最小范围（逐字，不得扩大）**：仅 `cam2`、仅像素 `(x=134, y=128)`、仅 `flexid0`、判定 `ULP≤4` **且** `beyond4=0`；**beyond4 不为 0 即失败**（不得以「仍在 4 ULP 内」为由放行）。",
+    "**其余保持 bit-first**：cam0 / cam1 / 所有 seg / 所有 rgb / cam2 除 `(134,128)` 外**全部**仍按既有 bit-first 判据（rgb `mismatched=0,max_byte_diff=0,beyond_1_lsb=0`；depth `mismatched=0,max_ulp≤4,beyond_0_ulp=0`；seg 全等）。",
+    "**与 D8 分开登记**：D8 的 **321 px codegen 尾差**（`a1cc22ae`）与本 allowlist（**1 px**）**分开记录、不混算**；本 allowlist 不覆盖 D8 已修复的 321 px。",
+    "**不扩权 / 不二次放宽**：失败即停、不重试、不再放宽；**仅限 R06-S3b 本次 attempt5 验收**；不得据此对外宣称上游等价、parity pass 或 flex 渲染通过。",
+    "**引用**：QA 决策支持 `docs/development-evidence/render-bvh/r06-s3b-flex-f32-order-check/DECISION-SUPPORT-user-signature.md`（`a3f690df`）。",
+    "**边界**：不写实现；不碰 r2 路径（`docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/`、`src/render/bvh/cuda/scene.cu`、`src/render/kernel/cuda/render_flex.cu`）；不改冻结判据其它文本；不动 `fixtures/`。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-allowlist/README.md`（签名事实 + 最小范围 + 不扩权 + D8 分开 + 引用）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`unchanged`：`src/`、`fixtures/`、`docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-f32-order-fix-r2"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-allowlist/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Arch 2026-11-04 登记（Chief 2026-11-04 22:16 指令；用户 22:14 签名级裁定）。**本卡只承载签名治理与审计**；attempt5 验收口径同时写入窗口材料 `r06-s3b-flex-validate`（走该卡 `normify fix`）。不写实现、不碰 r2 证据。",
+  "revision": { "before": "696d6b646cec8a423d18cfd12f5e1a7961015dc2", "after": null },
+  "created_at": "2026-11-04T22:20:00.000Z",
+  "updated_at": "2026-11-04T22:20:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/", "fixtures/", "docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/"] }
+  ]
+}
