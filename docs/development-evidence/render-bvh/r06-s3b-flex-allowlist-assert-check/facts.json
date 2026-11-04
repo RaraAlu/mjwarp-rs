@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-04-render-r06-s3b-flex-allowlist-assert-check",
+  "reviewer": "QA",
+  "verdict": "PASS-with-observations",
+  "blocking_items": 0,
+  "objects": {
+    "attempt5_evidence": {
+      "commit": "6e9aa585",
+      "dir": "docs/development-evidence/render-bvh/r06-s3b-flex-attempt5/",
+      "classification": "FAILED_ROUND (test implementation gap), not a numeric red / regression"
+    },
+    "allowlist_assert_fix": {
+      "card": "2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2",
+      "commit": "8c15ad75",
+      "status": "verified",
+      "files": ["tests/render_flex_validate.rs", "tests/support/render_bvh/allowlist.rs",
+                "docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/"],
+      "evidence_manifest": { "bytes": 495, "entries": 4, "self_check": "4/4 OK", "first_byte": "#" }
+    }
+  },
+  "attempt5_review": {
+    "running_1_test": true,
+    "wall_seconds": 1.44,
+    "failure_site": "tests/render_flex_validate.rs:347",
+    "observed": { "mismatched": 1, "beyond4": 0, "max_ulp_le": 4 },
+    "frozen_assert": "(mismatched, beyond4) == (0, 0)",
+    "allowlist_state_matched": "counts (1,0) fall inside the signed allowlist (ULP<=4 and beyond4=0); pixel identity inferred from r2 evidence (same source, unique mismatch (134,128)/ULP=3)",
+    "partial_assertions": "rgb all cameras pass; cam0/cam1 depth (0,0) and seg pass; cam2 seg and two-run sha not evaluated (assertion order)",
+    "frozen_guards": {
+      "bytes": 7508,
+      "sha256": "9b6a35351a724a5d83d772acc734560b950a776c464bef7c83a31dbb46502753",
+      "counts": { "frozen_exes": 2, "guard_inputs": 14, "total": 16 },
+      "aggregate_all": "8091ab5ac2987c58bb9447ad80592580ef59bdc840e395d3ccca087ca5ee987b",
+      "aggregate_inputs": "ec6fa22239c492c620a6d7dba9191b1d7f07b041ff4c27976b2de2a8f6998e77",
+      "aggregate_recomputed": "2/2 match",
+      "guard_inputs_vs_current_files": "14/14 match",
+      "stash_equals_recorded": "2/2",
+      "frozen_exes": [
+        { "path": "target/debug/mjwarp-rs.exe", "bytes": 85041741, "sha256": "6dafc24c9837d3e5a22ecf4874f76ce62742dccf2710dc78c623cb88afdce74b" },
+        { "path": "target/debug/deps/render_flex_validate-30bd8d889931ab2f.exe", "bytes": 107661795, "sha256": "b92e1bed02adaab66b44132085f088688b77c0c4c80a8c5df4174eda71ad7302" }
+      ]
+    },
+    "window_rule_v2": {
+      "canonical_rebuild": "one build, 14.04 s, 1 Compiling line",
+      "post_freeze_zero_compile": "entity run Finished in 0.16 s, no Compiling lines",
+      "single_run_no_retry": true
+    },
+    "monitor": {
+      "samples": 105,
+      "first_ts": "2026-11-04T22:31:08.270+08:00",
+      "last_ts": "2026-11-04T22:39:57.405+08:00",
+      "final_clean_streak": 60,
+      "longest_clean_streak": 60,
+      "external_load_spike": { "rows": 8, "ts": "2026-04-04T22:31:59..22:34:52", "free_min_mib": 4419, "util_max_percent": 98 },
+      "compute_filtered_all_zero": true,
+      "build_all_zero": true,
+      "floor_mib": 11688
+    }
+  },
+  "assert_impl_review": {
+    "split": { "tests/render_flex_validate.rs": 495, "tests/support/render_bvh/allowlist.rs": 156, "limit": 500 },
+    "explicit_constants": { "ALLOWLIST_CAMERA": 2, "ALLOWLIST_PIXEL_X": 134, "ALLOWLIST_PIXEL_Y": 128, "ALLOWLIST_FLEXID": 0, "ALLOWLIST_SEG_TYPE": 9 },
+    "only_pixel_relaxed": true,
+    "camera_scoped": true,
+    "seg_guard": "reference seg at allowlist pixel asserted == [flexid0, 9]",
+    "strict_region_excludes_allowlist_pixel": true,
+    "no_implicit_subtraction": true,
+    "failure_prints": "strict: mismatched/beyond/max_ulp/bits + flat/x/y; allowlist: bits/expected/ulp",
+    "cpu_self_tests": [
+      "allowlist_pixel_within_4_ulp_passes_cpu",
+      "allowlist_pixel_beyond_4_ulp_fails_cpu",
+      "non_allowlisted_pixel_mismatch_fails_cpu",
+      "allowlist_is_camera_scoped_cpu"
+    ],
+    "qa_independent_run": { "command": "cargo test --locked --features cuda-probe --test render_flex_validate", "result": "running 18 tests -> 17 passed / 0 failed / 1 ignored" },
+    "gates_in_commit": { "fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "pass 1320/0 (+4)" },
+    "artifacts_check": {
+      "evidence_manifest": "4/4 OK",
+      "artifacts/allowlist.rs == committed source": true,
+      "diff_covers_both_files": true
+    }
+  },
+  "observations": [
+    { "id": "O-A1", "severity": "low", "title": "attempt5 README attributes exe sha/bytes to attempt/canonical-rebuild.log, but that log has no sha256; values are in guards-frozen.json frozen_exes" },
+    { "id": "O-A2", "severity": "low", "title": "attempt5 evidence has no manifest.txt and 3 attempt logs are UTF-16LE+BOM (PowerShell redirect), inconsistent with repo UTF-8/LF convention; suggest normalizing and adding manifest in archive" },
+    { "id": "O-A3", "severity": "low", "title": "attempt5 'live==guard 2/2' is only a freeze-time tool assertion (GUARDS_OK); json persists stash==recorded (2/2) and inputs 14/14, live sha not persisted" },
+    { "id": "O-A4", "severity": "low", "title": "attempt5 floor 'signed 11688' wording imprecise: 11688 is the stricter carried/formula value (signed precedent 9795, formula 11538); using stricter value is not a violation" },
+    { "id": "O-A5", "severity": "low", "title": "attempt5 log prints only counts (1,0), not pixel coords/bits; allowlist attribution relies on r2 evidence (same source, unique mismatch)" },
+    { "id": "O-B1", "severity": "low", "title": "support module doc comment cites the abandoned fix card id instead of the r2 card (documentation only)" }
+  ],
+  "attempt6_prerequisites": [
+    "this QA card verified",
+    "fresh canonical rebuild for r2 source",
+    "fresh freeze 16/16 (exes=2, inputs=14); attempt5 fingerprints (b92e1bed/9b6a3535) must NOT be reused",
+    "Chief GO"
+  ],
+  "non_claims": [
+    "does not claim attempt5/attempt6 pass", "does not claim flex rendering pass",
+    "does not change criteria/tolerance/reference/fixtures", "no GPU used"
+  ],
+  "artifacts": {
+    "sha256_source": "manifest.txt",
+    "files": ["README.md", "facts.json", "scripts/qa_attempt5_check.py", "scripts/qa_assert_check.py",
+              "logs/attempt5-check.log", "logs/assert-check.log", "logs/cpu-selftest-qa.log"]
+  }
+}

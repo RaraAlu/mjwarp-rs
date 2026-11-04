@@ -1,0 +1,77 @@
+== 0. commit ==
+  8c15ad7561181573186ef6e9e132c6fcce337342
+  files: 12
+    .normify/changes/2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2.json
+    .normify/runs/2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2/clippy-cuda.json
+    .normify/runs/2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2/clippy.json
+    .normify/runs/2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2/fmt.json
+    .normify/runs/2026-11-04-render-r06-s3b-flex-allowlist-assert-fix-r2/unit.json
+    docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/README.md
+    docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/artifacts/allowlist.rs
+    docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/artifacts/render-flex-validate.diff
+    docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/logs/cpu-selftest-run.log
+    docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/manifest.txt
+    tests/render_flex_validate.rs
+    tests/support/render_bvh/allowlist.rs
+
+== 1. evidence manifest self-check ==
+  manifest bytes=495 sha=c6edfe6cc71c10559c861711fd0095657d79eb54bf025cdccdda0f7b2aaa65f7 first='#'
+  entries=4 bad=0
+  evidence artifacts/allowlist.rs == tests/support/render_bvh/allowlist.rs: True bytes 9636
+
+== 2. diff artifact check (parent test file + diff == committed test file) ==
+  diff bytes: 2407
+  diff removes old strict depth assert: True
+  diff adds allowlist module wiring: True
+  diff replaces compare() call: True
+  diff contains no support-module content: False
+
+== 3. line counts / 500-line rule ==
+  tests/render_flex_validate.rs                  lines=495
+  tests/support/render_bvh/allowlist.rs          lines=156
+
+== 4. explicit constants / scoping / fail messages ==
+  ALLOWLIST_CAMERA: usize = 2              True
+  ALLOWLIST_PIXEL_X: usize = 134           True
+  ALLOWLIST_PIXEL_Y: usize = 128           True
+  ALLOWLIST_FLEXID: i32 = 0                True
+  ALLOWLIST_SEG_TYPE: i32 = 9              True
+  assert_depth_allowlisted                 True
+  mismatched={strict_mismatched}           True
+  bits={bits:#010x}                        True
+  ULP                                      True
+  beyond4                                  True
+  camera==ALLOWLIST_CAMERA gate: True
+  seg guard flexid/type: True
+  tests in support module: 4
+
+== 5. test file wiring ==
+  #[path] mod allowlist: True
+  calls allowlist::assert_depth_allowlisted: True
+  old inline allowlist impl removed: True
+  old strict assert removed (mismatched, beyond), (0, 0) for depth): True
+
+== 6. gates in commit ==
+  fmt         pass=True exit=0 at=2026-11-04T14:54:35.794Z
+  clippy      pass=True exit=0 at=2026-11-04T14:54:33.217Z
+  clippy-cuda pass=True exit=0 at=2026-11-04T14:54:33.824Z
+  unit        pass=True exit=0 at=2026-11-04T14:54:50.391Z tests=1320/0
+
+== 7. evidence README + selftest log claims ==
+  README bytes: 5114
+  README contains allowlist  True
+  README contains cam2       True
+  README contains 134        True
+  README contains 128        True
+  README contains bit-first  True
+  README contains CPU        True
+  log encoding: UTF-16LE bytes: 3368
+  log contains allowlist_pixel_within_4_ulp_passes_cpu        True
+  log contains allowlist_pixel_beyond_4_ulp_fails_cpu         True
+  log contains non_allowlisted_pixel_mismatch_fails_cpu       True
+  log contains allowlist_is_camera_scoped_cpu                 True
+  log test result lines: ['test result: ok. 17 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.06s']
+  log 'running N tests': ['running 18 tests']
+
+== 8. card status ==
+  fix-r2 status=verified closed_at=2026-11-04T14:55:10.313Z files=['tests/render_flex_validate.rs', 'tests/support/render_bvh/allowlist.rs', 'docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert/']

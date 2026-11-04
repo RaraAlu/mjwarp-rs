@@ -1,0 +1,74 @@
+== 0. evidence files (encoding/bytes/sha) ==
+  README.md                             4997 bytes enc=UTF-8      sha256=7d41b6c3481778fe
+  attempt/canonical-rebuild.log         1156 bytes enc=UTF-16LE   sha256=0898accdee13282a
+  attempt/entity-flex.log               3468 bytes enc=UTF-16LE   sha256=ae8f20e561c2a8e3
+  attempt/freeze.log                     578 bytes enc=UTF-16LE   sha256=3cd21a96b0e12844
+  attempt/guards-frozen.json            7508 bytes enc=UTF-8      sha256=9b6a35351a724a5d
+  attempt/monitor-pre-window.csv        6498 bytes enc=UTF-8      sha256=85ce3adaa9212927
+
+== 1. frozen guards json ==
+  bytes=7508 sha256=9b6a35351a724a5d83d772acc734560b950a776c464bef7c83a31dbb46502753 (freeze.log claims 7508 / 9b6a3535...)
+  suite=render-r06-s3b-flex attempt=1 status=frozen counts={"frozen_exes": 2, "guard_inputs": 14, "total": 16}
+  aggregate_sha256=8091ab5ac2987c58bb9447ad80592580ef59bdc840e395d3ccca087ca5ee987b
+  aggregate_inputs_sha256=ec6fa22239c492c620a6d7dba9191b1d7f07b041ff4c27976b2de2a8f6998e77
+  aggregate_algorithm=sha256 over the sha256 hex strings of all 16 entries in repo-relative path-sorted order, concatenated with no separator
+  guard_inputs=14 frozen_exes=2 entity_order=["mjwarp-rs", "render_flex_validate"]
+   target/debug/mjwarp-rs.exe                                 bytes=85041741   sha=6dafc24c9837d3e5
+      entity='mjwarp-rs' pending_freeze=False resolve='bin' stash_sha='6dafc24c9837d3e5' stash_bytes=85041741
+      live==recorded: False | stash==recorded: True
+   target/debug/deps/render_flex_validate-30bd8d889931ab2f.exe bytes=107661795  sha=b92e1bed02adaab6
+      entity='render_flex_validate' pending_freeze=False resolve='test' stash_sha='b92e1bed02adaab6' stash_bytes=107661795
+      live==recorded: False | stash==recorded: True
+  recomputed aggregate_inputs (14 entries): ec6fa22239c492c620a6d7dba9191b1d7f07b041ff4c27976b2de2a8f6998e77 | matches=True
+  recomputed aggregate_all    (16 entries): 8091ab5ac2987c58bb9447ad80592580ef59bdc840e395d3ccca087ca5ee987b | matches=True
+  guard_inputs vs current files: bad=0/14
+  frozen exe entries == entity_order count: True
+
+== 2. freeze.log (UTF-16LE) ==
+  GUARDS_OK=16/16 suite=render-r06-s3b-flex exes=2 inputs=14 stash=target/render-bvh/r06-s3b-flex-window/frozen-exes aggregate_sha256=8091ab5ac2987c58bb9447ad80592580ef59bdc840e395d3ccca087ca5ee987b guards_sha256=9b6a35351a724a5d83d772acc734560b950a776c464bef7c83a31dbb46502753 bytes=7508
+
+== 3. canonical rebuild log ==
+  compile lines: 1
+  finished line: ['Finished `test` profile [unoptimized + debuginfo] target(s) in 14.04s']
+  executable line: ['Executable tests\\render_flex_validate.rs (target\\debug\\deps\\render_flex_validate-30bd8d889931ab2f.exe)']
+  contains 'sha256': False
+
+== 4. entity run log ==
+  'running 1 test': True
+  result line: ['test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 1.44s']
+  failure line: ["thread 'flex_renders_match_captured_reference' (80852) panicked at tests\\render_flex_validate.rs:347:9:"]
+  left/right: ['left: (1, 0)', 'right: (0, 0)']
+  'FAILED': True | 'Compiling': False
+  finished times: ['0.16s', '0.16s:String) [], RemoteException']
+  D5 lines: 2
+
+== 5. monitor csv ==
+  columns: ['ts', 'used_mib', 'free_mib', 'util_percent', 'temp_c', 'compute_raw', 'compute_filtered', 'build', 'clean', 'streak']
+  samples: 105
+  first/last ts: 2026-11-04T22:31:08.270+08:00 / 2026-11-04T22:39:57.405+08:00
+  keys: free=free_mib util=util_percent compute_filtered=compute_filtered build=build
+  final clean streak=60 (README says 60/60) | longest streak=60
+  dirty samples=8 rows 11..45 | free_min=4419.0 | util_max=98.0
+  dirty ts range: 2026-11-04T22:31:59.163+08:00 .. 2026-11-04T22:34:52.146+08:00
+  compute_filtered all zero: True
+  build all zero: True
+
+== 6. material signed floor ==
+  criteria material mentions 11688: False
+
+== 7. test assert state at attempt5 commit (6e9aa585) ==
+  340: let start = layout.output.depth_adr[camera.index] as usize;
+  341: let (mut mismatched, mut max_ulp, mut beyond) = (0usize, 0i64, 0usize);
+  342: for (value, expected) in rendered.1[start..start + camera.pixels].iter().zip(&camera.depth_bits) {
+  343: let (bits, ulp) = (value.to_bits(), ulp_distance(value.to_bits(), *expected));
+  344: mismatched += usize::from(bits != *expected); beyond += usize::from(ulp > MAX_DEPTH_ULP);
+  345: max_ulp = max_ulp.max(ulp);
+  346: }
+  347: assert_eq!((mismatched, beyond), (0, 0), "cam{} depth 位级/超 4 ULP", camera.index);
+  348: assert!(max_ulp <= MAX_DEPTH_ULP, "cam{} depth max_ulp={}", camera.index, max_ulp);
+  349: let seg_start = layout.output.seg_adr[camera.index] as usize;
+  350: let seg_mismatched = rendered.2[seg_start..seg_start + camera.pixels].iter().zip(&camera.seg_pairs).filter(|(a, e)| a != e).count();
+  351: assert_eq!(seg_mismatched, 0, "cam{} seg 逐像素全等", camera.index);
+  352: }
+  current worktree has allowlist implementation: True
+  support module present now: True
