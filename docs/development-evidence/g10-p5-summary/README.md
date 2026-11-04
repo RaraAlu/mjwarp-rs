@@ -5,7 +5,7 @@
 
 ## 1. 一句话结论
 
-G10@P5（地形、体积 SDF 与用户距离梯度钩子；验收「地形接触、梯度与越界」）**54 张子卡全部 verified**，
+G10@P5（地形、体积 SDF 与用户距离梯度钩子；验收「地形接触、梯度与越界」）**54 个 `g10-p5-*` 证据目录（逐目录可解析到 ≥1 张 verified 卡；目录数 ≠ 卡数，见 §9 addenda O1）**，
 依赖 `g07-p5`/`g08-p5` 均已 verified，渲染侧地形/SDF 资产管线已由 r01 + R05 hfield + SDF 线交付 →
 2026-10-23 顺延条所等的恢复条件**已满足**；本轮只做**家族级收口索引**。
 **计数如实（不美化）：12 条 requirement = met 8 / partial 4 / unmet 0；另有 6 项 uncovered。**
@@ -52,7 +52,7 @@ G10@P5（地形、体积 SDF 与用户距离梯度钩子；验收「地形接触
 ## 4. 设备 / host 证据分界（写死）
 
 - **设备数值**只引 `docs/development-evidence/g10-p5-gpu-kernels/gpu-window/`（cases：`hfield-capsule`、`hfield-sphere`、`sdf-box`、`mesh-mesh` 等）与其独立复核；
-- **host 数值**只引 `g10-p5-hfield-host`、`g10-p5-sdf-host-r2`、`g10-p5-sdf-relmat-fix`、`g10-p5-host-ccd-overflow-bit-fix` 的 CPU 位级结果；
+- **host 数值**只引 `g10-p5-hfield-host`、`g10-p5-sdf-host`（目录；卡 `2026-10-25-g10-p5-sdf-host-r2`）、`g10-p5-sdf-relmat-fix`、`g10-p5-host-ccd-overflow-bit-fix` 的 CPU 位级结果；
 - **没有窗口记录的行为**（`HFIELD(32)` overflow=32、容量截断 case）明确标注「仅 QA 独立复核记录」，**不冒充交付片实测、不冒充设备位级**。
 
 ## 5. NP 核对
@@ -85,3 +85,26 @@ G10@P5（地形、体积 SDF 与用户距离梯度钩子；验收「地形接触
 - **G10@P5 不挂 `docs/development-evidence/render-bvh-precheck/plan.json`**（那是渲染/BVH 线；G10 属碰撞线），仓库内也没有第二份 `plan.json`；验收映射以已 verified 的 `g10-p5-acceptance-map/map.json` 为唯一依据，本卡不改它。
 - `roadmap-g10-p5` 节点：**本卡不动**；等你确认后按 P8 同款方式（加一条 `json` 检查 → `start→done` 纯状态）处理。
 - 本卡提交只含本目录与本卡/QA 卡记录。
+
+## 9. QA 复核 addenda（2026-11-05，QA `ea4ab6ea` PASS/0 阻断）
+
+### O1 「54 子卡」口径写死
+
+- **54 = 证据目录数**：本卡落库时 `docs/development-evidence/g10-p5-*` 目录共 54 个（现为 55，因 QA 随后新建 `g10-p5-summary-check/`），逐目录均有内容（`empty=0`），可解析到 ≥1 张 verified 卡。
+- **卡片口径快照不是 54**：QA 复核时为 58 张 = 52 verified + 4 abandoned + 2 proposed；本 addenda 实测（2026-11-05，按 `.normify` 当前状态）为 59 张 = 54 verified + 4 abandoned + 1 proposed（`2026-10-11-roadmap-g10-p5` 节点本身）。差异来自统计时点与筛选口径。
+- **计数规则写死**：abandoned 与 proposed **一律不计入 verified**；「54」只作证据目录口径，不得写成「54 张 verified 子卡」。
+- 54 个目录（本次实测，供复核）：
+
+g10-p5-acceptance-map、g10-p5-acceptance-perf-native-independent-check、g10-p5-branch-closure-capture、g10-p5-branch-closure-validation、g10-p5-ccd-overflow-bit-fix、g10-p5-cuda-default-pipeline、g10-p5-cuda-default-pipeline-independent-check、g10-p5-cuda-default-pipeline-stage2、g10-p5-cuda-default-pipeline-stage2-independent-check、g10-p5-deep-epa-witness-sampling、g10-p5-deep-epa-witness-sampling-independent-check、g10-p5-faithful-fma-fix-independent-check、g10-p5-fixtures、g10-p5-fixtures-independent-check、g10-p5-g2-gpu-reference-capture、g10-p5-g2-gpu-reference-capture-independent-check、g10-p5-gjk-epa、g10-p5-gjk-epa-api、g10-p5-gjk-epa-independent-check、g10-p5-gpu-kernels、g10-p5-gpu-kernels-independent-check、g10-p5-hfield-host、g10-p5-hfield-host-independent-check、g10-p5-host-ccd-overflow-bit-fix、g10-p5-mesh-cap20、g10-p5-mesh-cap20-check、g10-p5-model-fields、g10-p5-model-fields-independent-check、g10-p5-multicontact-cuda、g10-p5-multicontact-cuda-independent-check、g10-p5-nvrtc-product-launcher、g10-p5-nvrtc-product-launcher-independent-check、g10-p5-precheck、g10-p5-primitive-branch-coverage、g10-p5-primitive-branch-coverage-independent-check、g10-p5-primitive-capture、g10-p5-primitive-capture-independent-check、g10-p5-primitive-narrowphase-cuda、g10-p5-primitive-narrowphase-cuda-independent-check、g10-p5-primitive-plane-cuda、g10-p5-primitive-plane-cuda-independent-check、g10-p5-primitive-sphere-capsule-cuda、g10-p5-primitive-sphere-capsule-cuda-independent-check、g10-p5-sdf-descent-sign-branch-test、g10-p5-sdf-host、g10-p5-sdf-primitives-sign、g10-p5-sdf-primitives-sign-independent-check、g10-p5-sdf-relmat-fix、g10-p5-summary、g10-p5-unc1-ledger-governance、g10-p5-unc1-ledger-governance-r2、g10-p5-unc3-governance、g10-p5-unc3-ledger-closure-s5-independent-check、g10-p5-unc3-ledger-governance
+
+### O2 receipt 字段指针更正
+
+- 本卡 summary receipt 的计数来源是 `requirement_counts` 与 `mapping_source` 两个字段；**不存在** `verification.map_summary` 字段（该字段只存在于 `g10-p5-acceptance-map/receipt.json`）。此前 QA 复核卡里「对 `receipt.json.verification.map_summary`」的指法有误，以本节更正为准。
+
+### O3 目录名更正
+
+- §4 的 host 证据目录应为 `docs/development-evidence/g10-p5-sdf-host/`（已改）；`2026-10-25-g10-p5-sdf-host-r2` 是**卡 id**，两者不混用。
+
+### 不变项
+
+- 12 条 requirement 的 met 8 / partial 4 / unmet 0 与 uncovered 6 **全部不变**；partial 边界、设备/host 证据分界与非声明不变。
