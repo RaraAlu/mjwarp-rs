@@ -17,17 +17,21 @@ use mjwarp_rs::model::flex::{
 };
 use mjwarp_rs::model::render::{FieldData, RENDER_FIELDS, RenderFieldKind, RenderFields};
 use mjwarp_rs::render::bvh::{
-    FlexMeshAssembly, FlexMeshChannel, mesh_half_extents, vertices_from_f64,
+    FlexMeshAssembly, FlexMeshChannel, OneDimensionalLeafInput, mesh_half_extents,
+    one_dimensional_scene_leaves, vertices_from_f64,
 };
 use mjwarp_rs::render::context::flex_host::{FlexHostAssembly, FlexHostData};
 use mjwarp_rs::render::context::owner::MeshState;
 use mjwarp_rs::render::context::{RenderFlagSpec, ResolvedContext};
-use mjwarp_rs::render::kernel::MegakernelRenderer;
-use mjwarp_rs::render::kernel::cast::CameraPose;
+use mjwarp_rs::render::kernel::cast::{CameraPose, ModelRenderArrays};
 use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, RefCamera, ulp_distance};
+use mjwarp_rs::render::kernel::world_camera::{
+    world_active_camera_arrays, world_camera_pose_arrays,
+};
+use mjwarp_rs::render::kernel::{MegakernelRenderer, light_data_poses};
 use mjwarp_rs::render::{
-    CameraModel, ContextParams, LeafPose, RayBuffer, RenderContext, SceneLeaf, SceneState,
-    TextureRegistry, resolve_context,
+    CameraActive, CameraModel, ContextParams, LeafPose, RayBuffer, RayBuilder, RayMode,
+    RenderContext, SceneLeaf, SceneState, TextureRegistry, planned_ray_count, resolve_context,
 };
 use serde_json::Value;
 
@@ -40,6 +44,16 @@ const STATE_NPZ: &[u8] =
     include_bytes!("../fixtures/render-bvh/scene-flex/reference/base/state.npz");
 const CAPTURE_JSON: &str =
     include_str!("../fixtures/render-bvh/scene-flex/reference/base/capture.json");
+/// 采集 recipe 的 `enabled_geom_groups`：场景 4 个 geom 的 `geom_group = [1,2,3,1]`，
+/// 必须四组全开才是「全 geom」（上游默认 `[0,1,2]` 会漏 group 3 的 1 个 geom）。
+const GEOM_GROUPS: [i32; 4] = [0, 1, 2, 3];
+
+#[rustfmt::skip]
+fn capture() -> Value { serde_json::from_str(CAPTURE_JSON).expect("capture.json") }
+#[rustfmt::skip]
+fn value_ints(value: &Value) -> Vec<i32> { value.as_array().expect("数组").iter().map(|v| v.as_i64().expect("i32") as i32).collect() }
+#[rustfmt::skip]
+fn value_numbers(value: &Value) -> Vec<f64> { value.as_array().expect("数组").iter().map(|v| v.as_f64().expect("f64")).collect() }
 
 #[rustfmt::skip]
 fn model() -> Value { serde_json::from_str(MODEL).expect("scene-flex/model-312.json") }
@@ -90,7 +104,7 @@ type RefData = (Vec<s7b2::RgbCamera>, Vec<RefCamera>, Vec<usize>);
 
 #[rustfmt::skip]
 fn build_reference() -> RefData {
-    let capture: Value = serde_json::from_str(CAPTURE_JSON).expect("capture.json");
+    let capture = capture();
     assert_eq!(capture["two_captures_bitwise_identical"], true);
     assert_eq!(capture["legacy_reference_untouched"], true);
     let (rgb_m, depth_m, seg_m) = (shadow::read_npz(RGB_NPZ), shadow::read_npz(DEPTH_NPZ), shadow::read_npz(SEG_NPZ));
@@ -238,6 +252,59 @@ fn camera_poses(model: &Value) -> Vec<CameraPose> {
     }).collect()
 }
 
+/// 采集 recipe 的 context 28 参数（`capture.json.parameters` 逐项一致）。三处相对默认值的关键差异：
+/// ① `enabled_geom_groups` 必须拉满 4/4（默认 `[0,1,2]` 漏 group 3 的 geom → 产品 launcher 在
+/// `src/render/kernel/megakernel.rs:256` 发射前直接 `Unsupported`，attempt 2 = INVALID_ROUND）；
+/// ② `use_shadows=true`（参考在 2 盏 castshadow 灯下采集，默认 false 会丢阴影颜色）；
+/// ③ `use_fast_math=false`（与参考同配方；本移植不消费该字段，仍按 recipe 记录）。
+/// GPU 用例与本文件 CPU 前置校验共用本函数，杜绝「用例自己换配方」。
+#[rustfmt::skip]
+fn context_params() -> ContextParams<'static> {
+    ContextParams {
+        nworld: 1,
+        render_rgb: Some(RenderFlagSpec::Bool(true)),
+        render_depth: Some(RenderFlagSpec::Bool(true)),
+        render_seg: Some(RenderFlagSpec::Bool(true)),
+        use_fast_math: false,
+        use_shadows: true,
+        enabled_geom_groups: &GEOM_GROUPS,
+        ..Default::default()
+    }
+}
+
+/// `context_params()` 与 `capture.json.parameters` 逐参数比对（28 参数 + splat 六项为空）。
+#[rustfmt::skip]
+fn assert_params_match_capture(params: &ContextParams<'_>, recipe: &Value) {
+    let boolean = |name: &str| recipe[name].as_bool().unwrap_or_else(|| panic!("{name} 非布尔"));
+    assert_eq!(params.nworld, 1, "nworld");
+    for (name, spec, expected) in [
+        ("render_rgb", &params.render_rgb, boolean("render_rgb")),
+        ("render_depth", &params.render_depth, boolean("render_depth")),
+        ("render_seg", &params.render_seg, boolean("render_seg")),
+    ] {
+        assert_eq!(*spec, Some(RenderFlagSpec::Bool(expected)), "{name} 与 recipe 不一致");
+    }
+    for (name, value) in [
+        ("use_textures", params.use_textures), ("use_fast_math", params.use_fast_math),
+        ("use_shadows", params.use_shadows), ("use_ambient_lighting", params.use_ambient_lighting),
+        ("flex_render_smooth", params.flex_render_smooth), ("use_precomputed_rays", params.use_precomputed_rays),
+        ("render_skybox", params.render_skybox), ("enable_backface_culling", params.enable_backface_culling),
+        ("enable_vertex_normals", params.enable_vertex_normals), ("enable_specular", params.enable_specular),
+        ("enable_emission", params.enable_emission), ("enable_per_light_ambient", params.enable_per_light_ambient),
+    ] {
+        assert_eq!(value, boolean(name), "{name} 与 recipe 不一致");
+    }
+    assert_eq!(params.enabled_geom_groups, value_ints(&recipe["enabled_geom_groups"]).as_slice(), "enabled_geom_groups");
+    assert!(recipe["cam_active"].is_null() && matches!(params.cam_active, CameraActive::All), "cam_active");
+    assert_eq!(params.background_color.to_vec(), value_numbers(&recipe["background_color"]), "background_color");
+    assert_eq!(params.shadow_light_fraction, recipe["shadow_light_fraction"].as_f64().expect("f64"), "shadow_light_fraction");
+    assert_eq!(params.samples_per_pixel as u64, recipe["samples_per_pixel"].as_u64().expect("u32"), "samples_per_pixel");
+    for name in ["splat_position", "splat_rotation", "splat_scale", "splat_rgba", "splat_adr", "splat_group_id"] {
+        assert!(recipe[name].is_null(), "{name} recipe 必须为空");
+    }
+    assert!(!params.splat.any_present(), "splat 输入必须为空");
+}
+
 #[rustfmt::skip]
 type Output = (Vec<u32>, Vec<f32>, Vec<[i32; 2]>);
 
@@ -316,6 +383,15 @@ fn flex_model_dump_schema_self_check() {
         .expect("CPU 组装").expect("有 flex");
     let inputs = assembly.inputs();
     assert_eq!(inputs.flex_geom_edgeid, [0, 1, 2, 3]);
+    // 发射前 1D flex 场景叶构造（`render_impl` 在设备打包之前调用；FlexLeafError 分支的 CPU 覆盖）。
+    let leaf_input = OneDimensionalLeafInput {
+        worlds: 1, nflexvert, flex_vertadr: &positions.flex_vertadr, flex_edge: &edges.flex_edge,
+        flex_radius: &fields.flex_radius, flexvert_xpos: &flexvert,
+        geom_flexid: inputs.flex_geom_flexid, geom_edgeid: inputs.flex_geom_edgeid,
+    };
+    let flex_leaves = one_dimensional_scene_leaves(leaf_input).expect("1D flex 场景叶");
+    assert_eq!((flex_leaves.bounds.len(), flex_leaves.groups.len()), (4, 4), "nflexgeom 个胶囊叶");
+    assert_eq!(flex_leaves.groups, [0, 0, 0, 0], "单 world 全 group 0");
     let topology = flex_topology(&model);
     let channel = FlexMeshChannel {
         topology: &topology, flex_dim: &fields.flex_dim, flex_vertadr: &positions.flex_vertadr,
@@ -326,6 +402,70 @@ fn flex_model_dump_schema_self_check() {
     assert_eq!(mesh.mesh_count, 0, "1D 场景无 2D/3D mesh 段");
     assert_eq!(mesh.leaves.bounds.len(), 4, "nflexgeom 个胶囊叶");
     assert_eq!(mesh.bvh_ids, [u64::MAX; 2]);
+}
+
+/// CPU 自证（普通 `cargo test`，不碰 CUDA）：`RenderContext` 构造 + `render_with_flex` 发射前
+/// **全部 host 可判定**校验。attempt 2 的 D4a（enabled geom 3/4）本来在 CPU 就能抓到；本用例把
+/// 「recipe 28 参数 → resolve → 发射前校验链」在 CPU 逐段走完，setup 缺陷在普通 `cargo test`
+/// 即红，不再拖到 GPU 窗口才发现。不可覆盖（需 CUDA 会话）：NVRTC 编译、设备分配/上传、
+/// kernel 发射与读回——那些仍由开窗卡执行。
+#[test]
+#[rustfmt::skip]
+fn render_context_preflight_matches_capture_recipe() {
+    let (model, capture) = (model(), capture());
+    let fields = render_fields();
+    let params = context_params();
+    assert_params_match_capture(&params, &capture["parameters"]);
+    let resolved = resolve_context(&fields, &params).expect("context 解析");
+    let recorded = &capture["context"]["resolved"];
+    assert_eq!(resolved.nrender() as u64, recorded["nrender"].as_u64().expect("nrender"), "nrender");
+    assert_eq!(resolved.cam_id_map(), value_ints(&recorded["cam_id_map"]), "cam_id_map");
+    let cam_res: Vec<[u32; 2]> = recorded["cam_res"].as_array().expect("cam_res").iter().map(|res| { let pair = res.as_array().expect("cam_res 元素"); [pair[0].as_u64().expect("w") as u32, pair[1].as_u64().expect("h") as u32] }).collect();
+    assert_eq!(resolved.cam_res(), cam_res.as_slice(), "cam_res");
+    assert_eq!(resolved.use_shadows, recorded["use_shadows"].as_bool().expect("use_shadows"), "resolved.use_shadows");
+    assert_eq!(resolved.use_fast_math, recorded["use_fast_math"].as_bool().expect("use_fast_math"), "resolved.use_fast_math");
+    assert_eq!(resolved.shadow_light_fraction, recorded["shadow_light_fraction"].as_f64().expect("f64"), "shadow_light_fraction");
+    assert_eq!(resolved.flex_render_smooth, recorded["flex_render_smooth"].as_bool().expect("bool"), "flex_render_smooth");
+    assert_eq!(resolved.samples_per_pixel as u64, recorded["samples_per_pixel"].as_u64().expect("u32"), "samples_per_pixel");
+    assert_eq!(resolved.background_color_unpacked, value_numbers(&recorded["background_color_unpacked"]).as_slice(), "background_color_unpacked");
+    assert_eq!(resolved.znear, recorded["znear"].as_f64().expect("znear"), "znear");
+    assert_eq!(resolved.zfar, recorded["zfar"].as_f64().expect("zfar"), "zfar");
+    assert_eq!(resolved.nworld, 1, "nworld");
+    assert_eq!(planned_ray_count(&resolved.plan).expect("射线计划"), recorded["total_rays"].as_u64().expect("total_rays") as usize, "total_rays");
+    // D4a 根因：产品发射前置检查在 `src/render/kernel/megakernel.rs:256`（enabled_geom_ids 非空且覆盖全部 geom）。
+    let ngeom = count(&model, "ngeom");
+    let geom_group = ints(&model, "geom_group");
+    assert_eq!(geom_group.len(), ngeom, "geom_group 长度");
+    let expected_ids: Vec<i32> = (0..ngeom as i32).filter(|id| GEOM_GROUPS.contains(&geom_group[*id as usize])).collect();
+    assert_eq!(resolved.enabled_geom_ids, expected_ids, "recipe 全开（4 个 geom 的 group 都在 [0,1,2,3]）");
+    assert_eq!(resolved.enabled_geom_ids.len(), ngeom, "enabled geom 必须覆盖全部 geom（产品前置的 CPU 等价断言）");
+    // 负对照：默认参数（enabled_geom_groups=[0,1,2]）在 geom_group=[1,2,3,1] 下只有 3/4 → attempt 2 的
+    // Unsupported。若有人把 context_params() 退回默认，上面的断言会在普通 cargo test 立即红。
+    let default_resolved = resolve_context(&fields, &ContextParams::default()).expect("默认参数解析");
+    assert_eq!(default_resolved.enabled_geom_ids, [0, 1, 3], "负对照：默认参数 3/4（group 3 的 geom2 被漏）");
+    assert_ne!(default_resolved.enabled_geom_ids.len(), ngeom, "负对照：默认参数不覆盖全 geom");
+    // 发射前 host 校验链（render_impl 里这些调用都在碰设备之前）：逐段在 CPU 执行。
+    let arrays = ModelRenderArrays::from_fields(&fields).expect("geom 模型数组（LauncherError 分支）");
+    assert_eq!(arrays.geom_type.len(), ngeom, "geom_type 数");
+    let lights = light_data_poses(&fields).expect("灯光 data 位姿（PoseError 分支）");
+    assert_eq!(lights.len(), count(&model, "nlight"), "nlight");
+    let camera_model = CameraModel::from_fields(&fields).expect("相机模型");
+    assert_eq!(camera_model.ncam(), resolved.nrender(), "激活相机数 = 模型相机数");
+    let poses = camera_poses(&model);
+    world_camera_pose_arrays(&poses, resolved.nworld, camera_model.ncam()).expect("相机位姿数组（InvalidArray 分支）");
+    world_active_camera_arrays(&camera_model, &resolved, &poses).expect("激活相机位姿数组");
+    let state = shadow::read_npz(STATE_NPZ);
+    let (lshape, lxpos) = f32_values(&state, "light_xpos.npy");
+    let (ldshape, lxdir) = f32_values(&state, "light_xdir.npy");
+    assert_eq!((lshape, ldshape), (vec![1, lights.len(), 3], vec![1, lights.len(), 3]), "灯光 state 形状");
+    for (index, light) in lights.iter().enumerate() {
+        assert_eq!(light.xpos, [lxpos[3 * index], lxpos[3 * index + 1], lxpos[3 * index + 2]], "light{index} xpos 位型 == state.light_xpos");
+        assert_eq!(light.xdir, [lxdir[3 * index], lxdir[3 * index + 1], lxdir[3 * index + 2]], "light{index} xdir 位型 == state.light_xdir（warp normalize fma 序）");
+    }
+    let (leaves, leaf_poses, meshes) = scene_fixture(&model, &state);
+    let scene = SceneState::new(leaves, leaf_poses, resolved.nworld).expect("场景状态");
+    assert_eq!((scene.leaves().len(), meshes.len()), (ngeom, count(&model, "nmesh")), "场景叶/网格数");
+    TextureRegistry::from_fields(&fields, params.use_textures).expect("纹理注册表（TextureError 分支）");
 }
 
 #[test]
@@ -339,12 +479,13 @@ fn flex_renders_match_captured_reference() {
     let session = s7b1::session();
     let state = shadow::read_npz(STATE_NPZ);
     let (leaves, leaf_poses, meshes) = scene_fixture(&model, &state);
-    let params = ContextParams { nworld: 1, ..Default::default() }.with_render_targets(Some(RenderFlagSpec::Bool(true)), Some(RenderFlagSpec::Bool(true)), Some(RenderFlagSpec::Bool(true)));
+    let params = context_params();
     let resolved = resolve_context(&fields, &params).expect("context 解析");
-    let context = RenderContext::create(&session, resolved, SceneState::new(leaves, leaf_poses, 1).expect("场景状态"), meshes, &TextureRegistry::from_fields(&fields, true).expect("纹理")).expect("context 创建");
     let camera_model = CameraModel::from_fields(&fields).expect("相机模型");
     let poses = camera_poses(&model);
-    let rays = s7b1::precomputed_rays(&session, &fields);
+    // 射线计划同源于本用例 recipe 的 resolved（不再走默认参数据算，避免隐藏配方）。
+    let rays = RayBuilder::new(&session).expect("build_rays 编译").build(&camera_model, &resolved.plan, RayMode::Precomputed).expect("S5 预计算射线");
+    let context = RenderContext::create(&session, resolved, SceneState::new(leaves, leaf_poses, 1).expect("场景状态"), meshes, &TextureRegistry::from_fields(&fields, params.use_textures).expect("纹理")).expect("context 创建");
     let renderer = MegakernelRenderer::new(&session).expect("megakernel 编译");
     let (_, flexvert) = f32_values(&state, "flexvert_xpos.npy");
     let (positions, edges, flex_fields) = (flex_positions(&model), flex_edges(&model), flex_model(&model));

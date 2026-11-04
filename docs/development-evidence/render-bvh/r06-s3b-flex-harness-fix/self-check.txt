@@ -1,14 +1,51 @@
-cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
-所在位置 行:1 字符: 151
-+ ... \mjwarp-rs; cargo test --locked --test render_flex_validate flex_mode ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (    Finished `t...get(s) in 0.13s:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
+# R06-S3b⑥b D4a/D4b CPU 前置自证（零 GPU、零窗口、无真冻结）
+# command: cargo test --locked --test render_flex_validate -- --nocapture
+# 期望：13 passed / 0 failed / 1 ignored（ignored = 需 GPU + NVRTC 的开窗用例）
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
      Running tests\render_flex_validate.rs (target\debug\deps\render_flex_validate-30bd8d889931ab2f.exe)
 
-running 1 test
+running 14 tests
+test flex_renders_match_captured_reference ... ignored, 需要 GPU + NVRTC（开窗卡执行）
+
+thread 's7b1::outline::tests::rejects_missing_json_metadata' (75968) panicked at tests\support\render_bvh\outline.rs:161:5:
+assertion `left == right` failed: C:\Users\zhang\AppData\Local\Temp\outline-lists.json: criterion_version is not render-sdf-criterion-v2.2
+  left: None
+ right: Some("render-sdf-criterion-v2.2")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test s7b1::outline::tests::ulp_distance_matches_f32_ordering ... 
+thread 's7b1::outline::tests::rejects_exact_max_over_bound' (59588) panicked at tests\support\render_bvh\outline.rs:199:5:
+C:\Users\zhang\AppData\Local\Temp\outline-lists.json: arm recipe exact_max_ulp 512 exceeds the signed bound 128
+ok
+
+thread 's7b1::outline::tests::rejects_wrong_bound' (66204) panicked at tests\support\render_bvh\outline.rs:168:5:
+assertion `left == right` failed: C:\Users\zhang\AppData\Local\Temp\outline-lists.json: bound_ulp 512 is not the signed 128
+  left: 512
+ right: 128
+test s7b1::outline::tests::parses_prototype_list_with_json_metadata ... ok
+
+thread 's7b1::outline::tests::rejects_json_rows_mismatch' (61704) panicked at tests\support\render_bvh\outline.rs:185:5:
+assertion `left == right` failed: C:\Users\zhang\AppData\Local\Temp\outline-lists.json: arm recipe rows 2 != 3 data rows (fail-closed)
+  left: 2
+ right: 3
+test s7b1::outline::tests::rejects_missing_json_metadata - should panic ... ok
+
+thread 's7b1::outline::tests::rejects_duplicate_pixel_rows' (74360) panicked at tests\support\render_bvh\outline.rs:192:5:
+assertion `left == right` failed: C:\Users\zhang\AppData\Local\Temp\outline-lists.json: 3 data rows contain duplicate pixel indices (2 unique, fail-closed)
+  left: 2
+ right: 3
+test s7b1::outline::tests::parses_committed_prototype_list_recipe ... ok
+test s7b1::outline::tests::rejects_exact_max_over_bound - should panic ... ok
+test s7b1::outline::tests::rejects_wrong_bound - should panic ... ok
+test s7b1::outline::tests::rejects_json_rows_mismatch - should panic ... ok
+test s7b1::outline::tests::rejects_duplicate_pixel_rows - should panic ... ok
 test flex_model_dump_schema_self_check ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+thread 's7b1::outline::tests::env_enabled_missing_json_panics' (85356) panicked at tests\support\render_bvh\outline.rs:253:9:
+outline criterion is enabled but outline-lists.json is missing/unreadable at C:\Users\zhang\AppData\Local\Temp\mjwarp-outline-env-missing-56192\outline-lists.json: 系统找不到指定的文件。 (os error 2)
+test s7b1::outline::tests::env_enabled_missing_json_panics - should panic ... ok
+test render_context_preflight_matches_capture_recipe ... ok
+test s7b1::outline::tests::env_enabled_loads_prototype_list_and_json ... ok
+test s7b1::outline::tests::bare_depth_diff_call_sites_are_allowlisted ... ok
+
+test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
 
