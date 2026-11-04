@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r03-r04-output-closeout",
+  "title": {
+    "zh": "R03/R04 输出族收口：深度输出与分割输出（S7b1/S8/R08/R10 家族证据汇总）",
+    "en": "R03/R04 output-family closeout: depth and segmentation outputs (S7b1/S8/R08/R10 evidence summary)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R03@P8（深度输出：原始深度、缩放公式、无命中值）与 R04@P8（分割输出：对象 ID 与像素映射、遮挡、背景、ID 稳定性）的交付面已由 S7b1（深度/分割内核与 120,000/120,000 位级相等）、S8（端到端）、R08（逐相机输出视图与选择矩阵）、R10（多 world 输出分区）覆盖并 verified。本卡做**家族级收口证据**：① 家族 summary（逐片→实现卡→提交→证据索引、判据与达成值、已知限制、非声明）；② `plan.json` 记账（`delivery_tracking.rows` 追加 R03/R04 行 + `N16` 注记，`updated_at` 保持 2026-11-04）；③ 同批登记 QA 复核卡。**零 GPU、零 `src/`/`tests/`/`fixtures/`、不改判据/容差/参考、不重复声明其他家族的能力。**",
+    "en": "Close out R03/R04 at the family level: depth and segmentation output delivery is already covered by S7b1, S8, R08 and R10. This card writes the family summary, adds plan.json rows and a scheduling note, and registers a QA review card. Zero GPU; no product code, criteria or reference change."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/render-bvh/r03-r04-summary/`：README（R03 与 R04 各自的交付面、逐片证据索引到实现卡、判据与达成值、已知限制、非声明）+ `receipt.json`（`task_id` 指向本卡）+ `manifest.txt`；LF、无 BOM、manifest 首行 `#`。",
+    "`plan.json` `delivery_tracking.rows` 追加 R03 与 R04 两行（task_id 指向本卡、evidence 指向 summary、note 含关键数字与实现卡）；`scheduling_notes` 追加 `N16`；`updated_at` 保持 2026-11-04。",
+    "**判据写死（不重议）**：深度 ≤4 ULP 且 beyond4=0（位级优先，实测 120,000/120,000 位等、max 0 ULP）；分割精确相等（背景 `(-1,-1)`、`(id,type)` 对）；同输入两次运行 sha 相同。",
+    "**已知限制写死**：AA（`nsamples>1`）下深度/分割只取第一趟（S7b3 已记录的语义）；更高 spp 未覆盖；上游 nworld>1 无数值参考；无性能声明；新族（skybox/hfield/flex/SDF）的深度/分割属各自家族证据，本卡不重复声明。",
+    "**非声明**：不声明完整 R03/R04 之外的渲染能力、不与上游等价、不声明对外发布依据、不替其他家族背书；每族证据索引到实现卡，不重复声明。",
+    "roadmap 节点 `roadmap-r03-p8` / `roadmap-r04-p8` **不在本卡 start/done**（roadmap 节点不承载实现，等 C 全绿后统一收口）。",
+    "`git diff` 只含 `plan.json`、`r03-r04-summary/`、本卡与 QA 卡记录；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s7b1-independent-check",
+      "2026-10-25-render-bvh-s8-independent-check",
+      "2026-10-30-render-r08-rgb-hetero-closeout",
+      "2026-11-04-render-r01-p8-closeout"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh/r03-r04-summary/"
+    ],
+    "resources": [],
+    "priority": 65
+  },
+  "note": "Arch 2026-11-04 登记（Chief C 系列第 1 张：C1 = R03+R04 输出族）。plan.json 单写者：C1/C2/C3 串行，不并行。roadmap 节点不承载实现。",
+  "revision": {
+    "before": "9871ffb8f9da246fdf9728828f34994579115029",
+    "after": null
+  },
+  "created_at": "2026-11-04T15:45:00.000Z",
+  "updated_at": "2026-11-04T15:40:33.495Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r03-r04-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-04-render-r03-r04-output-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "双平台通过",
+        "产品渲染验收通过",
+        "动画一致性"
+      ]
+    }
+  ]
+}
