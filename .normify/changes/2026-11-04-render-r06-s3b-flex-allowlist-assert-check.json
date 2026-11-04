@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-allowlist-assert-check",
+  "title": {
+    "zh": "allowlist 断言实现的独立复核（仅 cam2/(134,128)/flexid0 放宽、其余严格、CPU 三类自证）",
+    "en": "Independent check that the allowlist assertion is implemented exactly (single pixel relaxed, everything else strict, CPU self-proof)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "复核 assert-fix 卡（`2e5301b4`）对签名 allowlist 的**实现**是否逐字精确：范围只在 `cam2/(x=134,y=128)/flexid0`、判定 `ULP≤4 且 beyond4=0`、其余全部严格；并核 CPU 三类自证（允许→PASS、`beyond4≥1`→FAIL、其它像素不等→FAIL）。**只读复核，不执行窗口、不改用例、零 GPU。**",
+    "en": "Read-only check of the allowlist assertion implementation; no window, no GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围精确性**：allowlist 以显式常量（相机索引 `cam2` / 坐标 `(134,128)` / `flexid0`）判定，**无**相机级/区域级/条件式放宽（不得出现「附近像素」「≤4 ULP 即可」「全部 depth 放宽」等）；失败信息打印该像素 `(mismatched,beyond,max_ulp,bits)`。",
+    "**其余严格**：cam0/cam1 全部像素、cam2 除该像素外全部像素、所有 rgb、所有 seg 仍要求 `mismatched=0` / `beyond=0` / 精确相等。",
+    "**CPU 三类自证**：① 该像素 `(1,0)` 且 ULP≤4 → PASS；② 该像素 `beyond4≥1` → FAIL；③ 除该像素外任一像素 `mismatched=1` → FAIL；三条在普通 `cargo test`（不碰 CUDA）可跑且实测符合预期。",
+    "**断言顺序**：确认用例不会在 cam2 depth 断言处提前 panic 导致 cam2 seg / 两跑 sha 未评估（若仍需中途 panic，必须指出并判 FAIL）。",
+    "**边界**：判据文本（签名 allowlist）不得被改动；不改容差/参考/`fixtures/`、不碰 r2 证据；零 GPU。",
+    "**结论三态**：PASS / PASS-with-observations / FAIL（阻断项点名文件与行），写入 `docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-allowlist-assert-fix"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-allowlist-assert-check/"
+    ],
+    "resources": [],
+    "priority": 81
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：attempt6 GO 前需 QA 实现复核 PASS）。只在 assert-fix verified 后复核；零 GPU、不执行窗口、不改用例。",
+  "revision": { "before": "b9022a009103fd0a92211869d6e9191ba9f31b6c", "after": null },
+  "created_at": "2026-11-04T22:45:30.000Z",
+  "updated_at": "2026-11-04T22:45:30.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
