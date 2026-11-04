@@ -5,7 +5,7 @@
     "zh": "D7 诊断：attempt4 render 发射 transfer-wait CUDA 700（设备侧非法访问）运行期定位与修法方向",
     "en": "D7 diagnosis: locate the CUDA 700 (device-side illegal access) behind attempt4's render-launch transfer-wait, and decide the fix direction"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "attempt4 实体首步 `render_with(...)`（`tests/render_flex_validate.rs:327:79`）在 session 清理同步点报 `CUDA失败：transfer-wait；错误码700`（illegal address），rgb/depth/seg 判据未进入。D7 用**运行期实验**定位根因：先 `CUDA_LAUNCH_BLOCKING=1` 阻塞式复现确认 fault 落在 megakernel launch，再用 env-gate 的相机 mask 诊断补丁分别短跑 cam0/cam1/cam2，判断触发路径是 flex 命中、网格还是纹理，并给出「产品 API 缺输入校验/设备越界」还是「harness 用法问题」的结论与下一步修法方向。",
     "en": "Runtime-locate the CUDA 700 in the megakernel launch via a blocking rerun plus env-gated per-camera mask runs; decide whether it is a product-side validation/device bug or a harness-usage issue."
@@ -42,7 +42,8 @@
   },
   "created_at": "2026-11-04T12:38:00.000Z",
   "updated_at": "2026-11-04T04:55:35.226Z",
-    "checks": [
+  "closed_at": "2026-11-04T04:55:35.226Z",
+  "checks": [
     {
       "kind": "gate",
       "gate": "fmt"
