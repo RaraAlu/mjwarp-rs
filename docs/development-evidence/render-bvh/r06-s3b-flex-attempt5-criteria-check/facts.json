@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-04-render-r06-s3b-flex-attempt5-criteria-check",
+  "reviewer": "QA",
+  "verdict": "PASS-with-observations",
+  "blocking_items": 0,
+  "window_go_ready": true,
+  "objects": {
+    "material_commit": "ecc93b56",
+    "material_dir": "docs/development-evidence/render-bvh/r06-s3b-flex-validate/",
+    "signature_card": {
+      "id": "2026-11-04-render-r06-s3b-flex-allowlist-signature",
+      "commit": "3406f1ca",
+      "status": "verified",
+      "owner": "Arch"
+    },
+    "qa_decision_support": {
+      "path": "docs/development-evidence/render-bvh/r06-s3b-flex-f32-order-check/DECISION-SUPPORT-user-signature.md",
+      "commit": "a3f690df",
+      "bytes": 3871,
+      "sha256": "ab35859d1b61065e34fa609bcfffbadb2c204026e4f72dcee2b5ce78b6bfc928",
+      "unchanged_by_this_check": true
+    }
+  },
+  "signature": {
+    "user_signed_at": "2026-11-04 22:14",
+    "option": "allowlist (criterion relaxation, signature level)",
+    "recorded_by": "Chief (relayed), signature card 3406f1ca"
+  },
+  "allowlist_minimal_scope": {
+    "camera": "cam2",
+    "pixel": [134, 128],
+    "flat_index": 41094,
+    "flexid": 0,
+    "rule": "ULP<=4 AND beyond4==0",
+    "beyond4_must_be_zero": true,
+    "material_wording": "cam2 / (x=134,y=128) / flexid0，ULP ≤ 4 且 beyond4 = 0；beyond4 ≠ 0 即失败（不得以「仍在 4 ULP 内」放行）",
+    "signature_card_wording": "cam2 / (x=134, y=128)（idx 41094）/ flexid0；ULP ≤ 4 且 beyond4 = 0（beyond4 不为 0 即失败）",
+    "consistent_between_material_and_signature_card": true
+  },
+  "everything_else_bit_first": {
+    "verified_present_with_thresholds": true,
+    "rgb": "mismatched=0, max_byte_diff=0, beyond_1_lsb=0 (all cameras)",
+    "depth_cam0_cam1": "mismatched=0, max_ulp<=4, beyond_0_ulp=0",
+    "depth_cam2_except_allowlist_pixel": "mismatched=0, max_ulp<=4, beyond_0_ulp=0",
+    "seg": "exact equality, 0 diff px, including (flexid,9) samples",
+    "two_run": "sha256 equal",
+    "regression_entities": "existing render entity set / scene-a bit-level zero drift"
+  },
+  "no_expansion_phrase_scan": {
+    "patterns": ["4 ULP 即可", "≤4 ULP 即可", "邻近像素", "相邻像素", "adjacent", "neighbor"],
+    "material": "0 hits",
+    "material_readme": "0 hits",
+    "signature_readme": "0 hits"
+  },
+  "d8_separation": {
+    "d8_commit": "a1cc22ae",
+    "d8_px_before_fix": 321,
+    "d8_beyond4_before_fix": 297,
+    "d8_max_ulp_before_fix": 259,
+    "fix_commit": "d35cab68",
+    "px_after_fix": 1,
+    "declared_not_mixed": true,
+    "allowlist_covers": "the single residual pixel only"
+  },
+  "freeze_input_list": {
+    "includes_criteria_file": false,
+    "guard_inputs_count": 14,
+    "answer_in_material": "explicit '不含' section",
+    "pre_window_requirement": "record sha256 of attempt5-criteria.md and README; text change -> attempt5 invalid",
+    "receipt_flag_consistent": true
+  },
+  "receipt_material_hashes_checked": {
+    "result": "4/4 OK",
+    "materials/entity-table.json": { "bytes": 6988, "sha256": "575d049a137ef78bc93abdb36a80c1cf7f552227a14c1aab3b139c279b412e3e" },
+    "README.md": { "bytes": 11208, "sha256": "a32010509edb29070776c01316223310dab8dc6eb84338caa870b55147b0e763" },
+    "materials/attempt5-criteria.md": { "bytes": 3934, "sha256": "1ae0c97bbede170d2750f72f8db46046ffc500de05c2acfabac6f35b81663747" },
+    "materials/window-plan.txt": { "bytes": 6195, "sha256": "849bb959597a989ab3911ef4652c70a6da6d5c02ec8ed8c0c7539bae8b5c5cec" }
+  },
+  "non_claims_verified": {
+    "no_upstream_equivalence": true,
+    "no_parity_pass": true,
+    "no_flex_render_pass": true,
+    "no_r06_overall_pass": true,
+    "fail_stop_no_second_relaxation": true,
+    "attempt5_only": true
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "low",
+      "title": "QA decision-support is the pre-signature proposal: minor wording differences and two conditional alternatives",
+      "detail": "doc uses flexid=0 vs material flexid0, beyond4ULP=0 vs material beyond4=0, and keeps conditional alternatives ('族口径', '或该子集'); material/signature card adopt strict 1-px + explicit beyond4=0 hard clause, no expansion",
+      "action": "do NOT edit the cited doc (material section 5: changing the cited chain invalidates attempt5); record signed state here and in the signature card; post-attempt5 governance revision recommended (not a window prerequisite)"
+    },
+    {
+      "id": "O2",
+      "severity": "low",
+      "title": "signature original quote is relayed by Chief; no independent user-message snapshot in repo",
+      "action": "recorded as-is for audit; consistent with prior signature governance practice"
+    },
+    {
+      "id": "O3",
+      "severity": "low",
+      "title": "material repeats max_ulp <= 4 for cam0/cam1 and cam2-except-pixel",
+      "detail": "consistent with frozen MAX_DEPTH_ULP=4 (src/render/kernel/output.rs:15); redundant under mismatched=0 but harmless, not an expansion"
+    }
+  ],
+  "notes": [
+    "material does not cite the tie root-cause card; if GO text cites it, cite the negative-result commit 9a1f102b (verified), not the abandoned 3e3f363d"
+  ],
+  "reproduction": {
+    "script": "scripts/qa_criteria_check.py",
+    "log": "logs/qa_criteria_check.log",
+    "command": "python -B docs/development-evidence/render-bvh/r06-s3b-flex-attempt5-criteria-check/scripts/qa_criteria_check.py --out <log>"
+  },
+  "artifacts": {
+    "sha256_source": "manifest.txt",
+    "files": ["README.md", "facts.json", "scripts/qa_criteria_check.py", "logs/qa_criteria_check.log"]
+  }
+}
