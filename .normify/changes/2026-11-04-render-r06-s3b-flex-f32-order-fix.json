@@ -5,7 +5,7 @@
     "zh": "R06-S3b 修复：1D flex 命中链 f32 运算次序位级对齐（`render_flex.cu` length/quat + `scene.cu` dot/ray_map/ray_quad；U4 sphere RCA 法）",
     "en": "Fix the 1D flex hit-chain f32 operation order for bit-level alignment (render_flex.cu length/quat + scene.cu dot/ray_map/ray_quad; U4-style RCA)"
   },
-  "status": "in_progress",
+  "status": "abandoned",
   "intent": {
     "zh": "D8 dump 诊断（`a1cc22ae`）给出干净判据性证据：**H1 确认、H1b 被否**——`flexid1` 单边 **251/251** 像素 `depth` 全 bit 不等、**seg 位级全等**、与 CPU 回放敏感集重叠 **98.8%**。即 1D flex 命中链的 **f32 运算次序**未与上游位级对齐（不是 D5/D7/映射/语义残留）。本卡按 **U4 sphere RCA 法**枚举命中链 f32 次序并与上游逐式对照，用 D8 dump 的 product/参考 bits 逐像素对拍定位首次分歧，再做位级对齐修复。**不改判据/容差/参考**；修复目标是把 f32 次序对齐到上游，不是放宽判据。",
     "en": "Bit-level 1D flex hit-chain f32 order alignment, localized by the D8 dump; no criteria changes."
@@ -35,13 +35,14 @@
     "resources": [],
     "priority": 82
   },
-  "note": "Arch 2026-11-04 登记（Chief 指令；来源 D8 诊断 `a1cc22ae`：flexid1 单边 251/251 depth 全 bit 不等、seg 位级全等、98.8% 与 CPU 回放敏感集重叠 → H1 确认、H1b 否）。**「4 ULP 在薄胶囊近掠射像素上近似等价位级」按 B 类判据前提候选处理**：QA 复核后交 Chief 裁定，**本卡不改判据、不放宽**。第二次微窗口须 Chief 单独 go。attempt5 前置见验收第 6 条。",
+  "note": "Arch 2026-11-04 登记（Chief 指令；来源 D8 诊断 `a1cc22ae`：flexid1 单边 251/251 depth 全 bit 不等、seg 位级全等、98.8% 与 CPU 回放敏感集重叠 → H1 确认、H1b 否）。**「4 ULP 在薄胶囊近掠射像素上近似等价位级」按 B 类判据前提候选处理**：QA 复核后交 Chief 裁定，**本卡不改判据、不放宽**。第二次微窗口须 Chief 单独 go。attempt5 前置见验收第 6 条。\n放弃：Arch 2026-11-04 重登记：schedule.files 把 scene.cu 写成不存在的 src/render/kernel/cuda/scene.cu（真实 src/render/bvh/cuda/scene.cu），in_progress 冻结声明无法原地改；经 Chief 同意 abandon + 登记 r2，内容/定位/验证不重做，WIP 迁移",
   "revision": {
     "before": "ecaccde3a34ee08ef0600fb1e15baff547213486",
     "after": null
   },
   "created_at": "2026-11-04T18:10:00.000Z",
-  "updated_at": "2026-11-04T10:08:34.568Z",
+  "updated_at": "2026-11-04T11:23:51.722Z",
+  "closed_at": "2026-11-04T11:23:51.722Z",
   "checks": [
     {
       "kind": "gate",
