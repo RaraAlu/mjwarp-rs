@@ -5,7 +5,7 @@
     "zh": "R06-S3b guards 扩条目：位姿 provenance（`cam-poses.json`）与 `capture_render_flex.py` 新 sha 纳入冻结（13→14 / 15→16，aggregate 重算）",
     "en": "Extend S3b guards with the cam-pose provenance entry and the new capture script sha (inputs 13→14 / total 15→16, aggregate recomputed)"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "D5 修复卡（`2026-11-04-render-r06-s3b-cam-pose-source-fix`）会新增 `fixtures/render-bvh/scene-flex/reference/base/cam-poses.json`（相机 data 位姿 f32 位型 provenance）并修改 `scripts/authoring/capture_render_flex.py`，但该卡 files 不含 guards 文件。本卡只做 guards 侧收口：把新文件纳入 `guard_inputs`、更新 capture 脚本条目 sha/bytes、重算 `aggregate_inputs_sha256`，**必须在 attempt 4 开窗前完成**（否则开窗时的真冻结会绑在旧的 15 条上，位姿 provenance 不受守卫）。",
     "en": "Bring the new cam-poses provenance file and the changed capture script into the guards file, recompute the aggregate, before attempt 4."
@@ -31,15 +31,36 @@
     "resources": [],
     "priority": 78
   },
-  "note": "Arch 2026-11-04 登记（Chief 指出 D5 卡的 scope 缺口：位姿 provenance 与 capture 脚本变更不在 guards 侧收口）。**attempt 4 开窗前必须 verified**；时段纪律：现在–09:00 可写，09:00–12:00 只读，12:00–13:50 空闲块执行。位姿补录的短 CUDA 已由 Chief 预授权给 Backend（短 CUDA 规则内），不再是闸门。",
-  "revision": { "before": "513a1540e515a2cbba999997b7c5a5c7ff601407", "after": null },
+  "note": "Arch 2026-11-04 登记（Chief 指出 D5 卡的 scope 缺口：位姿 provenance 与 capture 脚本变更不在 guards 侧收口）。**attempt 4 开窗前必须 verified**；时段纪律：现在–09:00 可写，09:00–12:00 只读，12:00–13:50 空闲块执行。位姿补录的短 CUDA 已由 Chief 预授权给 Backend（短 CUDA 规则内），不再是闸门。\n放弃：Arch 2026-11-04 重登记：files 漏冻结器 scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1（其 \\ 13 条 + 两处 Count -ne 13 断言 + aggregate 文案，只改 JSON 会在 attempt4 现场重生成 guards 时静默丢 cam-poses.json 条目），proposed 卡不可原地改 scope，故重登记 …-guards-pose-entry-r2",
+  "revision": {
+    "before": "513a1540e515a2cbba999997b7c5a5c7ff601407",
+    "after": null
+  },
   "created_at": "2026-11-04T08:26:00.000Z",
-  "updated_at": "2026-11-04T08:26:00.000Z",
+  "updated_at": "2026-11-04T00:26:07.093Z",
+  "closed_at": "2026-11-04T00:26:07.093Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    }
   ]
 }
