@@ -63,6 +63,35 @@ pub(crate) fn assert_depth_allowlisted(camera: usize, width: usize, rendered: &[
     }
 }
 
+/// 只读统计行（成功路径打印；不改变任何断言/阈值）：逐相机 `(mismatched, beyond4, max_ulp)`，
+/// cam2 额外返回 allowlist 像素明细行（bits/expected/ULP/beyond4/flexid）。
+#[rustfmt::skip]
+pub(crate) fn format_depth_stats(camera: usize, width: usize, rendered: &[f32], expected_bits: &[u32]) -> (String, Option<String>) {
+    let (mut mismatched, mut beyond, mut max_ulp) = (0usize, 0usize, 0i64);
+    for (value, expected) in rendered.iter().zip(expected_bits) {
+        let ulp = ulp_distance(value.to_bits(), *expected);
+        mismatched += usize::from(value.to_bits() != *expected);
+        beyond += usize::from(ulp > MAX_DEPTH_ULP);
+        max_ulp = max_ulp.max(ulp);
+    }
+    let line = format!("R06-S3b depth cam{camera}: mismatched={mismatched} beyond4={beyond} max_ulp={max_ulp}");
+    let flat = ALLOWLIST_PIXEL_Y * width + ALLOWLIST_PIXEL_X;
+    let allow = if camera == ALLOWLIST_CAMERA && flat < expected_bits.len() {
+        let (bits, expected) = (rendered[flat].to_bits(), expected_bits[flat]);
+        let ulp = ulp_distance(bits, expected);
+        Some(format!("R06-S3b allowlist cam{camera} ({},{}): bits={bits:#010x} expected={expected:#010x} ulp={ulp} beyond4={} flexid={ALLOWLIST_FLEXID}", ALLOWLIST_PIXEL_X, ALLOWLIST_PIXEL_Y, usize::from(ulp > MAX_DEPTH_ULP)))
+    } else { None };
+    (line, allow)
+}
+
+/// 打印统计行（GPU 成功路径调用；CPU 自证用 `format_depth_stats` 断言格式）。
+#[rustfmt::skip]
+pub(crate) fn print_depth_stats(camera: usize, width: usize, rendered: &[f32], expected_bits: &[u32]) {
+    let (line, allow) = format_depth_stats(camera, width, rendered, expected_bits);
+    println!("{line}");
+    if let Some(allow) = allow { println!("{allow}"); }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,5 +181,16 @@ mod tests {
             let message = catch_assert_failure(|| assert_depth_allowlisted(camera, 320, &rendered, &expected, &reference_seg));
             assert!(message.contains(&format!("cam{camera} depth 严格区失配")), "cam{camera} 不应受 allowlist 放宽：{message}");
         }
+    }
+    /// 自证 ④：统计打印格式在 CPU 合成输入上可断言（成功路径只读打印，不改变断言）。
+    #[test]
+    #[rustfmt::skip]
+    fn depth_stats_lines_format_cpu() {
+        let (rendered, expected, _reference_seg) = cpu_depth_case(&[(CPU_ALLOWLIST_FLAT, 3)]);
+        let (line, allow) = format_depth_stats(ALLOWLIST_CAMERA, 320, &rendered, &expected);
+        assert!(line.contains("R06-S3b depth cam2: mismatched=1 beyond4=0 max_ulp=3"), "{line}");
+        let allow = allow.expect("cam2 应有 allowlist 明细行");
+        assert!(allow.contains("bits=0x") && allow.contains("ulp=3") && allow.contains("beyond4=0") && allow.contains("flexid=0"), "{allow}");
+        assert!(format_depth_stats(0, 320, &rendered, &expected).1.is_none(), "cam0 不应打印 allowlist 行");
     }
 }

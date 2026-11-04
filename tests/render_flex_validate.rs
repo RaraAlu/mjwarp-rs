@@ -332,6 +332,7 @@ fn render_once(renderer: &MegakernelRenderer, context: &RenderContext, fields: &
 
 #[rustfmt::skip]
 fn compare(reference: &RefData, layout: &ResolvedContext, rendered: &Output) {
+    println!("R06-S3b reference flex px per cam: {:?}", reference.2);
     for camera in &reference.0 {
         let start = layout.output.rgb_adr[camera.index] as usize;
         let stats = s7b2::diff_rgb(&rendered.0[start..start + camera.pixels], camera);
@@ -340,10 +341,12 @@ fn compare(reference: &RefData, layout: &ResolvedContext, rendered: &Output) {
     }
     for camera in &reference.1 {
         let start = layout.output.depth_adr[camera.index] as usize;
+        allowlist::print_depth_stats(camera.index, camera.width, &rendered.1[start..start + camera.pixels], &camera.depth_bits);
         allowlist::assert_depth_allowlisted(camera.index, camera.width, &rendered.1[start..start + camera.pixels], &camera.depth_bits, &camera.seg_pairs);
         let seg_start = layout.output.seg_adr[camera.index] as usize;
         let seg_mismatched = rendered.2[seg_start..seg_start + camera.pixels].iter().zip(&camera.seg_pairs).filter(|(a, e)| a != e).count();
         assert_eq!(seg_mismatched, 0, "cam{} seg 逐像素全等", camera.index);
+        println!("R06-S3b seg cam{}: mismatch={seg_mismatched}", camera.index);
     }
 }
 
