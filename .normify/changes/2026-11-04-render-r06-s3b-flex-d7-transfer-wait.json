@@ -15,7 +15,8 @@
     "**阻塞复现**：`CUDA_LAUNCH_BLOCKING=1` 重跑同一 ignored 用例，确认 fault 落在 `render_megakernel` 的 launch（而非上传/分配/清理阶段），日志贴群并留档。",
     "**相机 mask 定位**：用 env-gate 诊断补丁（仅测试侧、WIP 不提交、跑完还原）对 cam0 / cam1 / cam2 分别短跑，明确 700 由哪条图元路径触发（flex 命中 / 网格 / 纹理），各跑结果与日志留档。",
     "**结论口径**：给出「产品 API 缺输入校验 或 设备侧越界 或 harness 用法问题」的判定与证据，并给下一步修法方向；若两次实验仍不能定位，明确写「需 compute-sanitizer / 其他工具，本机不具备」。",
-    "**边界**：不碰 `guards-r06-s3b-flex.json`、冻结产物、attempt 窗口证据、判据/容差/参考；不改产品代码（`src/` 零 diff）；诊断补丁只允许测试侧且默认不提交。",
+    "**边界（Chief 2026-11-04 GO 口径）**：不碰 `guards-r06-s3b-flex.json`、冻结产物、attempt 窗口证据、判据/容差/参考；产品代码**仅允许** `src/render/kernel/megakernel.rs` 的两处：① L403 单行上传修复 `flex: adjusted_flex.as_ref().or(flex),`（不增行数）；② 「场景含负 `leaf_geom` ⇒ `bvh_nflexgeom>0`」不变量守卫（守卫判断**最终上传实参**）。其余 `src/` 零 diff；诊断补丁只允许测试侧且默认不提交。",
+    "**修复有效性（授权短跑支撑，不是判据验收）**：修复后同命令不再出现 CUDA 700，且 `mesh=None`（1D-only）路径出现 `(flexid,9)` seg 像素；回归断言直接在 `tests/render_flex_validate.rs` 现有 ignored GPU 用例内加一条（`first.2` 必须含 `pair[1]==9`），不新增测试文件。证据须写明：该回归用例带 `#[ignore]`，四项门禁不执行它，`unit 1316/0` 不代表本回归已覆盖；「修复有效」只由授权短跑日志（`running 1 test`、无 700、`seg_pairs` 含 `(flexid,9)`）支撑。守卫若无法在 13:30 前安全抽成纯函数供 unit 覆盖，则记 backlog 并在证据写明「结构性未覆盖，待抽象纯函数覆盖」。",
     "**纪律**：Chief 诊断微窗口 token（1 次、≤5 分钟、13:45 硬停）内完成；GPU 前后各记 free/util；日志先落 `target/render-bvh/r06-s3b-flex-window/attempt4-d7/`，正式证据入库本卡目录。",
     "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-d7/`（README：假设、实验命令与输出、命中路径、结论、边界、下一步）；诊断补丁若最终保留，须在本卡 files 内并说明保留理由。",
     "**闸门**：fmt / clippy / clippy-cuda / unit 全过。"
@@ -35,14 +36,40 @@
     "priority": 82
   },
   "note": "Arch 2026-11-04 登记（Chief 指派，owner Backend）。**不 start**，等 Backend 用完诊断微窗口再收口。QA 澄清口径已采纳：「射线与位姿不同源」只是 attempt3→attempt4 的触发条件描述，射线是相机空间、位姿只在 kernel 内做世界变换，不一致本身不构成越界根因。attempt5 前提 = 本卡根因修复 verified + QA pass + 因 exe 变化重新真冻结 16/16 + Chief token；时段优先 18:00–24:00。",
-  "revision": { "before": "d6587f6c8be3e7ec5afb4d9d48a81a87d6758835", "after": null },
+  "revision": {
+    "before": "d6587f6c8be3e7ec5afb4d9d48a81a87d6758835",
+    "after": null
+  },
   "created_at": "2026-11-04T12:38:00.000Z",
-  "updated_at": "2026-11-04T12:38:00.000Z",
+  "updated_at": "2026-11-04T04:50:37.798Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    }
+  ],
+  "waivers": [
+    {
+      "at": "2026-11-04T04:50:37.798Z",
+      "check": {
+        "kind": "unchanged",
+        "paths": [
+          "src/"
+        ]
+      },
+      "reason": "Chief 2026-11-04 GO：单行修复 src/render/kernel/megakernel.rs，原 unchanged src/ 检查与 GO 冲突，删除并登记豁免"
+    }
   ]
 }
