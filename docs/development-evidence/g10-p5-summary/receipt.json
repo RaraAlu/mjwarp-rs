@@ -1,0 +1,73 @@
+{
+  "task_id": "2026-11-04-g10-p5-family-closeout",
+  "owner": "Arch",
+  "date": "2026-11-04",
+  "status": "closeout-evidence-only",
+  "gpu_used": false,
+  "product_code_changed": false,
+  "criteria_changed": false,
+  "reference_changed": false,
+  "family": "G10@P5 terrain and SDF collision",
+  "subcards_verified": 54,
+  "roadmap_deps": {"g07-p5": "verified", "g08-p5": "verified"},
+  "mapping_source": {
+    "file": "docs/development-evidence/g10-p5-acceptance-map/map.json",
+    "card": "2026-10-25-g10-p5-acceptance-perf-native",
+    "status": "verified",
+    "modified_by_this_card": false
+  },
+  "requirement_counts": {"total": 12, "met": 8, "partial": 4, "unmet": 0, "uncovered_extra": 6},
+  "requirements": [
+    {"id": "G6-1.1", "item": "terrain contact (host)", "status": "met", "card": "2026-10-25-g10-p5-hfield-host", "numbers": "count 8/8, 8/8, 7/7; dist bit-equal 0 ULP; pos 0.00 ULP@scale; frame 72/72, 72/72, 63/63"},
+    {"id": "G6-1.2", "item": "terrain contact (device)", "status": "partial", "card": "2026-10-25-g10-p5-gpu-kernels", "numbers": "hfield-sphere 8/8, hfield-capsule 7/7 bit-level on all fields (G5 delivery); HFIELD(32) overflow=32 measured only in the QA independent review, not in the delivery README", "device_window": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/hfield-capsule, hfield-sphere"},
+    {"id": "G6-1.3", "item": "gradient (host)", "status": "met", "card": "2026-10-25-g10-p5-sdf-host-r2 + -sdf-relmat-fix", "numbers": "80/80; dist 80/80 bit-equal; pos 0.00 ULP@scale; frame 720/720"},
+    {"id": "G6-1.4", "item": "gradient (device)", "status": "met", "card": "2026-10-25-g10-p5-gpu-kernels", "numbers": "sdf-box dist 80/80 bit-equal; pos 203/240 bit-equal (1.0 ULP@scale 0.09834); frame 675/720 (max_abs 2.384e-7)", "device_window": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/sdf-box"},
+    {"id": "G6-1.5", "item": "overflow (device)", "status": "met", "card": "2026-10-25-g10-p5-ccd-overflow-bit-fix", "commit": "99c91469", "numbers": "forced horizon 3 cases 5/6 worlds 272 -> 256, bit-equal to upstream"},
+    {"id": "G6-1.6", "item": "overflow (host)", "status": "met", "card": "2026-10-25-g10-p5-host-ccd-overflow-bit-fix", "commit": "5a176fee", "numbers": "ccd()/ccd_pair 272 -> 256; capacity truncation still CCD(16); G2-G5 regressions unchanged"},
+    {"id": "G6-1.7", "item": "overflow (capacity truncation naconmax/naccdmax)", "status": "partial", "numbers": "truncation covered only by the QA independent review self-made cases (sdf-box-naconmax40, ellipsoid-box-naccdmax1); not in the G5 delivery card"},
+    {"id": "G6-2.1", "item": "module and write-range completion", "status": "partial", "numbers": "G2-G5 verified; device gap slices filled (multicontact 9a282074, convex-vs-mesh 16214a22, NVRTC launcher dfcc1bdc); primitive combos 13/13; mesh multicontact M0a-M3 (M3 f1e5cda1); mesh cap20 verified 2026-10-31; still open: default product pipeline wiring, primitive branch layer partial, mesh edge/vertex branches static only, mesh polygon>16 device count gap"},
+    {"id": "G6-2.2", "item": "performance needs an exclusive GPU window", "status": "met", "numbers": "window HEAD 9c0a0480, wall 5.5 s, peak 4834 MiB (+1171), guards 3072 MiB/50% not triggered, 0.5 s sampling, 7 points, zero compute processes before/after"},
+    {"id": "G6-2.3", "item": "record real tests and untested items", "status": "met"},
+    {"id": "G6-2.4", "item": "check NP01/NP02 then accept applicable NP03/NP04", "status": "partial", "numbers": "NP01/NP02 checked; NP03 upstream-f32 side done while native contact fields stay diagnostic per user decision B (5% redline not applicable); other-field 5% redline not fully covered; NP04 applicable items satisfied by the exclusive performance window (relative baseline)"},
+    {"id": "G6-3.1", "item": "native contact fields per user decision B: diagnostic only", "status": "met", "evidence": "docs/development-evidence/native-contact-tolerance-decision-b/"}
+  ],
+  "uncovered": [
+    {"id": "UNC-1", "state": "partial", "detail": "multicontact: box/cylinder covered (cylinder-box 314/314, box-box-margin 391/392); convex-vs-mesh covered (16214a22); mesh-mesh covered (M3 f1e5cda1); nmesh>1 one case (S4 U6); degree>10 / polygon>16 limitation-only, U8 device count=1 vs upstream 4 recorded as a real gap and NOT counted in the denominator; backlog 2026-10-27-mesh-polygon-gt16-device-gap (not started)"},
+    {"id": "UNC-2", "state": "closed with qualifier", "detail": "NVRTC product launcher usable via cuda-probe; default build / default product pipeline NOT wired (cuda-default-pipeline-stage2 section 7.1)"},
+    {"id": "UNC-3", "state": "partial", "detail": "primitive narrowphase combos 13/13 with upstream GPU cases; branch layer partial (U1/U3/U4/U5/U6/U9 covered in-window, U2 unreachable, U7/U8 limitation-only); mesh edge/vertex branches static-check only; no full-path/full-branch claim"},
+    {"id": "UNC-4", "detail": "Linux/T4 not covered (user decision 2026-10-24: centralized retest)"},
+    {"id": "UNC-5", "detail": "G5 per-second peak sampling missed (script defect fixed); G6 performance window used 0.5 s sampling"},
+    {"id": "UNC-6", "detail": "deep-penetration extra sampling: cylinder-box 4/24 single-field beyond 4*ULP@scale (x1 1/24 max 8.926e-7 = 29.95x, x2 3/24 max 1.527e-7 = 10.25x); user decision 2026-10-25 option A: do not fix, list as uncovered; attributed to derived-normal difference (mechanism undetermined, not systematic, n=24)"}
+  ],
+  "evidence_boundary": {
+    "device_numbers_only_from": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/ (cases hfield-capsule, hfield-sphere, sdf-box, mesh-mesh)",
+    "host_numbers_only_from": ["g10-p5-hfield-host", "g10-p5-sdf-host-r2", "g10-p5-sdf-relmat-fix", "g10-p5-host-ccd-overflow-bit-fix"],
+    "without_window_record": "HFIELD(32) overflow=32 and capacity-truncation cases are QA-review-only records; they are never presented as delivery-card measurements or device bit-level"
+  },
+  "np_check": {
+    "NP01": "checked; E metric criteria awaiting user signature (A2)",
+    "NP02": "satisfied",
+    "NP03": "not applicable / not claimed (user terminated Linux 2026-10-24)",
+    "NP04": "applicable items satisfied on a relative baseline (exclusive performance window)"
+  },
+  "known_limits": [
+    "4 of 12 requirements are partial (G6-1.2, G6-1.7, G6-2.1, G6-2.4) and must not be counted as met",
+    "default product pipeline is not wired (UNC-2 qualifier)",
+    "no full-path / full-branch claim (UNC-1 / UNC-3)",
+    "mesh polygon>16 device count gap (backlog, not started); deep-penetration 4/24 out-of-band per user decision A",
+    "Linux/T4 not covered; performance is a relative baseline only",
+    "native contact fields are diagnostic only (decision B), no pass signal"
+  ],
+  "non_claims": [
+    "no full-family G10 pass claim",
+    "no device full-path / full-branch coverage claim",
+    "no equivalence-to-upstream claim",
+    "not a basis for external release",
+    "no endorsement of the render line or other physics stages"
+  ],
+  "accounting": {
+    "plan_json": "not applicable: the only plan.json in the repo is the render/BVH plan; G10 belongs to the collision line, so the verified g10-p5-acceptance-map/map.json is the single mapping source and is not modified",
+    "roadmap_node": "roadmap-g10-p5 is not touched by this card; asked Chief to confirm before a pure-status start->done, same style as the P8 batch"
+  },
+  "qa_card": "2026-11-04-g10-p5-family-closeout-check"
+}
