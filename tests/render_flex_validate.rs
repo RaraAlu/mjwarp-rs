@@ -44,6 +44,9 @@ const STATE_NPZ: &[u8] =
     include_bytes!("../fixtures/render-bvh/scene-flex/reference/base/state.npz");
 const CAPTURE_JSON: &str =
     include_str!("../fixtures/render-bvh/scene-flex/reference/base/capture.json");
+/// D5：参考 data 相机位姿（f32 位型 provenance；同一次 forward 与 `state.npz` 同源）。
+const CAM_POSES_JSON: &str =
+    include_str!("../fixtures/render-bvh/scene-flex/reference/base/cam-poses.json");
 /// 采集 recipe 的 `enabled_geom_groups`：场景 4 个 geom 的 `geom_group = [1,2,3,1]`，
 /// 必须四组全开才是「全 geom」（上游默认 `[0,1,2]` 会漏 group 3 的 1 个 geom）。
 const GEOM_GROUPS: [i32; 4] = [0, 1, 2, 3];
@@ -105,8 +108,7 @@ type RefData = (Vec<s7b2::RgbCamera>, Vec<RefCamera>, Vec<usize>);
 #[rustfmt::skip]
 fn build_reference() -> RefData {
     let capture = capture();
-    assert_eq!(capture["two_captures_bitwise_identical"], true);
-    assert_eq!(capture["legacy_reference_untouched"], true);
+    assert_eq!((capture["two_captures_bitwise_identical"].as_bool(), capture["legacy_reference_untouched"].as_bool()), (Some(true), Some(true)));
     let (rgb_m, depth_m, seg_m) = (shadow::read_npz(RGB_NPZ), shadow::read_npz(DEPTH_NPZ), shadow::read_npz(SEG_NPZ));
     let cameras = rgb_m.len();
     assert_eq!((depth_m.len(), seg_m.len()), (cameras, cameras));
@@ -165,8 +167,7 @@ fn scene_fixture(model: &Value, state: &[(String, Vec<u8>)]) -> (Vec<SceneLeaf>,
     let (mat_shape, xmat) = f32_values(state, "geom_xmat.npy");
     let ngeom = geom_type.len();
     assert_eq!((shape, mat_shape), (vec![1, ngeom, 3], vec![1, ngeom, 3, 3]));
-    let mut leaves = Vec::with_capacity(ngeom);
-    let mut poses = Vec::with_capacity(ngeom);
+    let (mut leaves, mut poses) = (Vec::with_capacity(ngeom), Vec::with_capacity(ngeom));
     for geom in 0..ngeom {
         let mut size = [geom_size[3 * geom] as f32, geom_size[3 * geom + 1] as f32, geom_size[3 * geom + 2] as f32];
         if matches!(geom_type[geom], 7 | 8) { size = mesh_half[geom_dataid[geom] as usize]; }
@@ -232,23 +233,37 @@ fn flex_edges(model: &Value) -> FlexEdgeFields {
 #[rustfmt::skip]
 fn flex_topology(model: &Value) -> FlexTopologyFields {
     FlexTopologyFields {
-        nflex: count(model, "nflex"),
-        nflexelem: count(model, "nflexelem"), nflexelemdata: count(model, "nflexelemdata"),
+        nflex: count(model, "nflex"), nflexelem: count(model, "nflexelem"), nflexelemdata: count(model, "nflexelemdata"),
         nflexshelldata: count(model, "nflexshelldata"),
-        flex_elemadr: ints(model, "flex_elemadr"), flex_elemnum: ints(model, "flex_elemnum"),
-        flex_elemdataadr: ints(model, "flex_elemdataadr"), flex_elem: ints(model, "flex_elem"),
-        flex_shellnum: ints(model, "flex_shellnum"), flex_shelldataadr: ints(model, "flex_shelldataadr"),
-        flex_shell: ints(model, "flex_shell")
+        flex_elemadr: ints(model, "flex_elemadr"), flex_elemnum: ints(model, "flex_elemnum"), flex_elemdataadr: ints(model, "flex_elemdataadr"), flex_elem: ints(model, "flex_elem"),
+        flex_shellnum: ints(model, "flex_shellnum"), flex_shelldataadr: ints(model, "flex_shelldataadr"), flex_shell: ints(model, "flex_shell")
     }
 }
 
+/// D5：消费参考 data 位姿（f32 位型）；mode-3 TARGETBODY（cam-track/cam-flex）的 look-at 只在 data。
 #[rustfmt::skip]
-fn camera_poses(model: &Value) -> Vec<CameraPose> {
-    let (pos, mat) = (numbers(model, "cam_pos0"), numbers(model, "cam_mat0"));
-    (0..pos.len() / 3).map(|c| {
-        let mut xmat = [0.0f32; 9];
-        for (i, slot) in xmat.iter_mut().enumerate() { *slot = mat[9 * c + i] as f32; }
-        CameraPose { xpos: [pos[3 * c] as f32, pos[3 * c + 1] as f32, pos[3 * c + 2] as f32], xmat }
+fn camera_poses() -> Vec<CameraPose> {
+    let refp = serde_json::from_str::<Value>(CAM_POSES_JSON).expect("cam-poses.json")["poses"].clone();
+    let bits = |name: &str| -> Vec<u32> { refp[name].as_array().expect(name).iter().map(|v| v.as_u64().expect("u32") as u32).collect() };
+    let dec = |name: &str| -> Vec<f32> { refp[name].as_array().expect(name).iter().map(|v| v.as_f64().expect("f64") as f32).collect() };
+    let (pos, mat, dpos, dmat) = (bits("cam_xpos_bits"), bits("cam_xmat_bits"), dec("cam_xpos"), dec("cam_xmat"));
+    let model = model();
+    let (model_pos, model_mat) = (numbers(&model, "cam_pos0"), numbers(&model, "cam_mat0"));
+    let ncam = pos.len() / 3;
+    assert!(ncam > 0 && pos.len() % 3 == 0, "D5 位姿 provenance xpos 形状");
+    assert_eq!((mat.len(), dpos.len(), dmat.len(), model_pos.len(), model_mat.len()), (9 * ncam, 3 * ncam, 9 * ncam, 3 * ncam, 9 * ncam), "D5 位姿 provenance 形状");
+    (0..ncam).map(|c| {
+        let xpos = [f32::from_bits(pos[3 * c]), f32::from_bits(pos[3 * c + 1]), f32::from_bits(pos[3 * c + 2])];
+        let xmat: [f32; 9] = std::array::from_fn(|i| f32::from_bits(mat[9 * c + i]));
+        assert_eq!(xpos, [dpos[3 * c], dpos[3 * c + 1], dpos[3 * c + 2]], "cam{c} xpos 位型/十进制");
+        assert_eq!(xmat, std::array::from_fn(|i| dmat[9 * c + i]), "cam{c} xmat 位型/十进制");
+        let old: [f32; 9] = std::array::from_fn(|i| model_mat[9 * c + i] as f32);
+        let fwd = |m: &[f32; 9]| [-(m[2] as f64), -(m[5] as f64), -(m[8] as f64)];
+        let (f, o) = (fwd(&xmat), fwd(&old));
+        let angle = (f[0] * o[0] + f[1] * o[1] + f[2] * o[2]).clamp(-1.0, 1.0).acos().to_degrees();
+        let max = xmat.iter().zip(old.iter()).map(|(a, b)| (*a as f64 - *b as f64).abs()).fold(0.0f64, f64::max);
+        println!("D5 cam{c}: data={xpos:?} xmat={xmat:?} model-static=({}, {}, {}) angle={angle:.3}deg max_abs={max:.6}", model_pos[3 * c], model_pos[3 * c + 1], model_pos[3 * c + 2]);
+        CameraPose { xpos, xmat }
     }).collect()
 }
 
@@ -260,16 +275,8 @@ fn camera_poses(model: &Value) -> Vec<CameraPose> {
 /// GPU 用例与本文件 CPU 前置校验共用本函数，杜绝「用例自己换配方」。
 #[rustfmt::skip]
 fn context_params() -> ContextParams<'static> {
-    ContextParams {
-        nworld: 1,
-        render_rgb: Some(RenderFlagSpec::Bool(true)),
-        render_depth: Some(RenderFlagSpec::Bool(true)),
-        render_seg: Some(RenderFlagSpec::Bool(true)),
-        use_fast_math: false,
-        use_shadows: true,
-        enabled_geom_groups: &GEOM_GROUPS,
-        ..Default::default()
-    }
+    ContextParams { nworld: 1, render_rgb: Some(RenderFlagSpec::Bool(true)), render_depth: Some(RenderFlagSpec::Bool(true)), render_seg: Some(RenderFlagSpec::Bool(true)),
+        use_fast_math: false, use_shadows: true, enabled_geom_groups: &GEOM_GROUPS, ..Default::default() }
 }
 
 /// `context_params()` 与 `capture.json.parameters` 逐参数比对（28 参数 + splat 六项为空）。
@@ -285,12 +292,9 @@ fn assert_params_match_capture(params: &ContextParams<'_>, recipe: &Value) {
         assert_eq!(*spec, Some(RenderFlagSpec::Bool(expected)), "{name} 与 recipe 不一致");
     }
     for (name, value) in [
-        ("use_textures", params.use_textures), ("use_fast_math", params.use_fast_math),
-        ("use_shadows", params.use_shadows), ("use_ambient_lighting", params.use_ambient_lighting),
-        ("flex_render_smooth", params.flex_render_smooth), ("use_precomputed_rays", params.use_precomputed_rays),
-        ("render_skybox", params.render_skybox), ("enable_backface_culling", params.enable_backface_culling),
-        ("enable_vertex_normals", params.enable_vertex_normals), ("enable_specular", params.enable_specular),
-        ("enable_emission", params.enable_emission), ("enable_per_light_ambient", params.enable_per_light_ambient),
+        ("use_textures", params.use_textures), ("use_fast_math", params.use_fast_math), ("use_shadows", params.use_shadows), ("use_ambient_lighting", params.use_ambient_lighting),
+        ("flex_render_smooth", params.flex_render_smooth), ("use_precomputed_rays", params.use_precomputed_rays), ("render_skybox", params.render_skybox), ("enable_backface_culling", params.enable_backface_culling),
+        ("enable_vertex_normals", params.enable_vertex_normals), ("enable_specular", params.enable_specular), ("enable_emission", params.enable_emission), ("enable_per_light_ambient", params.enable_per_light_ambient),
     ] {
         assert_eq!(value, boolean(name), "{name} 与 recipe 不一致");
     }
@@ -336,11 +340,9 @@ fn compare(reference: &RefData, layout: &ResolvedContext, rendered: &Output) {
         let start = layout.output.depth_adr[camera.index] as usize;
         let (mut mismatched, mut max_ulp, mut beyond) = (0usize, 0i64, 0usize);
         for (value, expected) in rendered.1[start..start + camera.pixels].iter().zip(&camera.depth_bits) {
-            let bits = value.to_bits();
-            mismatched += usize::from(bits != *expected);
-            let ulp = ulp_distance(bits, *expected);
+            let (bits, ulp) = (value.to_bits(), ulp_distance(value.to_bits(), *expected));
+            mismatched += usize::from(bits != *expected); beyond += usize::from(ulp > MAX_DEPTH_ULP);
             max_ulp = max_ulp.max(ulp);
-            beyond += usize::from(ulp > MAX_DEPTH_ULP);
         }
         assert_eq!((mismatched, beyond), (0, 0), "cam{} depth 位级/超 4 ULP", camera.index);
         assert!(max_ulp <= MAX_DEPTH_ULP, "cam{} depth max_ulp={}", camera.index, max_ulp);
@@ -359,11 +361,9 @@ fn flex_model_dump_schema_self_check() {
     let expectations: [(&str, usize, &str); 17] = [
         ("flex_dim", nflex, "int32"), ("flex_radius", nflex, "float64"), ("flex_rgba", 4 * nflex, "float32"),
         ("flex_vertadr", nflex, "int32"), ("flex_vertnum", nflex, "int32"), ("flex_vertbodyid", nflexvert, "int32"),
-        ("flex_edgeadr", nflex, "int32"), ("flex_edgenum", nflex, "int32"),
-        ("flex_elem", count(&model, "nflexelemdata"), "int32"),
+        ("flex_edgeadr", nflex, "int32"), ("flex_edgenum", nflex, "int32"), ("flex_elem", count(&model, "nflexelemdata"), "int32"),
         ("flex_elemadr", nflex, "int32"), ("flex_elemnum", nflex, "int32"), ("flex_elemdataadr", nflex, "int32"),
-        ("flex_shellnum", nflex, "int32"), ("flex_shelldataadr", nflex, "int32"),
-        ("flex_shell", count(&model, "nflexshelldata"), "int32"),
+        ("flex_shellnum", nflex, "int32"), ("flex_shelldataadr", nflex, "int32"), ("flex_shell", count(&model, "nflexshelldata"), "int32"),
         ("flex_vert", 3 * nflexvert, "float64"), ("flex_vert0", 3 * nflexvert, "float64"),
     ];
     for (name, expected, kind) in expectations {
@@ -451,7 +451,7 @@ fn render_context_preflight_matches_capture_recipe() {
     assert_eq!(lights.len(), count(&model, "nlight"), "nlight");
     let camera_model = CameraModel::from_fields(&fields).expect("相机模型");
     assert_eq!(camera_model.ncam(), resolved.nrender(), "激活相机数 = 模型相机数");
-    let poses = camera_poses(&model);
+    let poses = camera_poses();
     world_camera_pose_arrays(&poses, resolved.nworld, camera_model.ncam()).expect("相机位姿数组（InvalidArray 分支）");
     world_active_camera_arrays(&camera_model, &resolved, &poses).expect("激活相机位姿数组");
     let state = shadow::read_npz(STATE_NPZ);
@@ -482,7 +482,7 @@ fn flex_renders_match_captured_reference() {
     let params = context_params();
     let resolved = resolve_context(&fields, &params).expect("context 解析");
     let camera_model = CameraModel::from_fields(&fields).expect("相机模型");
-    let poses = camera_poses(&model);
+    let poses = camera_poses();
     // 射线计划同源于本用例 recipe 的 resolved（不再走默认参数据算，避免隐藏配方）。
     let rays = RayBuilder::new(&session).expect("build_rays 编译").build(&camera_model, &resolved.plan, RayMode::Precomputed).expect("S5 预计算射线");
     let context = RenderContext::create(&session, resolved, SceneState::new(leaves, leaf_poses, 1).expect("场景状态"), meshes, &TextureRegistry::from_fields(&fields, params.use_textures).expect("纹理")).expect("context 创建");

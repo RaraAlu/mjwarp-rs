@@ -9,8 +9,10 @@ depth = dist * -ray_dir_local_cam[2], color = flex_rgba[mesh_id]).
 Recipe: pinned editable upstream (PyPI wheels rejected: 5 .py files differ); product-same
 recipe = use_fast_math false + use_shadows true. `--repeat 2` requires byte-identical runs.
 Outputs: rgb.npz / depth.npz / seg.npz / state.npz (qpos/geom_xpos/geom_xmat/light_xpos/
-light_xdir/flexvert_xpos) / capture.json. Legacy fixtures sha-snapshotted before/after.
+light_xdir/flexvert_xpos) / capture.json / cam-poses.json (data camera poses, f32 bit provenance).
+Legacy fixtures sha-snapshotted before/after.
 Usage: <pinned-python> -B scripts/authoring/capture_render_flex.py --dry-run | --group base
+       <pinned-python> -B scripts/authoring/capture_render_flex.py --cam-poses-only
 Env: MJWARP_CAPTURE_AT (ISO8601; fixes capture.json provenance)
 """
 
@@ -53,32 +55,13 @@ FLEX_FIELDS = [
 ]
 
 PARAMS = {
-    "render_rgb": True,
-    "render_depth": True,
-    "render_seg": True,
-    "use_textures": True,
-    "use_fast_math": False,
-    "use_shadows": True,
-    "use_ambient_lighting": True,
-    "enabled_geom_groups": [0, 1, 2, 3],
-    "cam_active": None,
-    "background_color": [0.0, 0.0, 0.0, 1.0],
-    "flex_render_smooth": True,
-    "use_precomputed_rays": True,
-    "render_skybox": False,
-    "enable_backface_culling": True,
-    "shadow_light_fraction": 0.3,
-    "samples_per_pixel": 1,
-    "enable_vertex_normals": True,
-    "enable_specular": True,
-    "enable_emission": True,
-    "enable_per_light_ambient": True,
-    "splat_position": None,
-    "splat_rotation": None,
-    "splat_scale": None,
-    "splat_rgba": None,
-    "splat_adr": None,
-    "splat_group_id": None,
+    "render_rgb": True, "render_depth": True, "render_seg": True, "use_textures": True,
+    "use_fast_math": False, "use_shadows": True, "use_ambient_lighting": True, "enabled_geom_groups": [0, 1, 2, 3],
+    "cam_active": None, "background_color": [0.0, 0.0, 0.0, 1.0], "flex_render_smooth": True, "use_precomputed_rays": True,
+    "render_skybox": False, "enable_backface_culling": True, "shadow_light_fraction": 0.3, "samples_per_pixel": 1,
+    "enable_vertex_normals": True, "enable_specular": True, "enable_emission": True, "enable_per_light_ambient": True,
+    "splat_position": None, "splat_rotation": None, "splat_scale": None, "splat_rgba": None,
+    "splat_adr": None, "splat_group_id": None,
 }
 
 
@@ -174,33 +157,20 @@ def check_environment(*, want_cuda_device: bool) -> dict:
         fail("; ".join(problems))
     import mujoco as mjc
 
-    report = {
-        "versions": versions,
-        "python_executable": sys.executable,
-        "python_executable_sha256": digest(pathlib.Path(sys.executable)),
-        "python_prefix": sys.prefix,
-        "platform": platform.platform(),
-        "upstream_revision": REVISION,
-        "upstream_clean": True,
-        "upstream_module": module_path.as_posix(),
-        "mujoco_package": pathlib.Path(mjc.__file__).resolve().as_posix(),
-        "scene_xml": {"path": SCENE_XML.relative_to(ROOT).as_posix(), "sha256": digest(SCENE_XML)},
-    }
+    report = {"versions": versions, "python_executable": sys.executable, "python_prefix": sys.prefix,
+              "python_executable_sha256": digest(pathlib.Path(sys.executable)), "platform": platform.platform(),
+              "upstream_revision": REVISION, "upstream_clean": True, "upstream_module": module_path.as_posix(),
+              "mujoco_package": pathlib.Path(mjc.__file__).resolve().as_posix(),
+              "scene_xml": {"path": SCENE_XML.relative_to(ROOT).as_posix(), "sha256": digest(SCENE_XML)}}
     if want_cuda_device:
         device = wp.get_device("cuda:0")
         if int(device.arch) != GPU_ARCH:
             fail(f"gpu arch {device.arch} != {GPU_ARCH}")
         if GPU_NAME not in device.name:
             fail(f"gpu name {device.name} != {GPU_NAME}")
-        report["gpu"] = {
-            "name": device.name,
-            "arch": int(device.arch),
-            "driver": run(
-                ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"]
-            ).splitlines()[0].strip(),
-            "cuda_toolkit": list(wp.get_cuda_toolkit_version()),
-            "cuda_driver": list(wp.get_cuda_driver_version()),
-        }
+        report["gpu"] = {"name": device.name, "arch": int(device.arch), "cuda_toolkit": list(wp.get_cuda_toolkit_version()),
+                         "cuda_driver": list(wp.get_cuda_driver_version()),
+                         "driver": run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"]).splitlines()[0].strip()}
     return report
 
 
@@ -269,6 +239,53 @@ def state_arrays(d) -> dict:
     }
 
 
+CAM_POSES = "cam-poses.json"
+EXISTING_REFERENCE_FILES = ("rgb.npz", "depth.npz", "seg.npz", "state.npz", "capture.json")
+
+
+def flex_cam_pose_record(d) -> dict:
+    """Data poses (`d.cam_xpos`/`d.cam_xmat`) as f32 bit patterns; same forward as the npz outputs."""
+    import numpy as np
+
+    pos = np.asarray(d.cam_xpos.numpy(), dtype=np.float32)
+    mat = np.asarray(d.cam_xmat.numpy(), dtype=np.float32)
+    if pos.ndim != 3 or pos.shape[0] != 1:
+        fail(f"camera pose world layout {pos.shape}")
+    bits = lambda a: [int(v) for v in np.ascontiguousarray(a).view(np.uint32).reshape(-1)]
+    return {"nworld": int(pos.shape[0]), "ncam": int(pos.shape[1]), "cam_xpos_bits": bits(pos[0]),
+            "cam_xmat_bits": bits(mat[0]), "cam_xpos": [float(v) for v in pos[0].reshape(-1)],
+            "cam_xmat": [float(v) for v in mat[0].reshape(-1)]}
+
+
+def state_bitwise_equal(live: dict, saved_path: pathlib.Path) -> dict:
+    """Six state arrays vs state.npz, f32 bit for f32 bit (same-frame self-proof)."""
+    import numpy as np
+
+    def bits(a):
+        return np.ascontiguousarray(np.asarray(a, dtype=np.float32)).view(np.uint32)
+
+    with np.load(saved_path) as archive:
+        saved = {name: archive[name] for name in archive.files}
+    return {name: bool(bits(live[name]).shape == bits(saved[name]).shape
+                       and np.array_equal(bits(live[name]), bits(saved[name]))) for name in sorted(live)}
+
+
+def write_cam_poses(out_dir, mjm, poses: dict, environment: dict, state_equal: dict):
+    import mujoco
+
+    path = out_dir / CAM_POSES
+    record = {"schema": SCHEMA, "task_id": "2026-11-04-render-r06-s3b-cam-pose-source-fix",
+              "kind": "render-flex-camera-pose-provenance", "captured_at": os.environ.get("MJWARP_CAPTURE_AT", ""),
+              "command": [sys.executable, "-B"] + sys.argv, "environment": environment,
+              "cameras": {"names": [mujoco.mj_id2name(mjm, mujoco.mjtObj.mjOBJ_CAMERA, i) or "" for i in range(int(mjm.ncam))],
+                          "cam_mode": [int(v) for v in mjm.cam_mode], "cam_targetbodyid": [int(v) for v in mjm.cam_targetbodyid]},
+              "poses": poses, "state_matches_saved_npz": state_equal}
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
+
 def cpu_preflight(scene: pathlib.Path) -> dict:
     """CPU-only preflight for the flex report/state paths that failed on GPU runs (no CUDA)."""
     import mujoco
@@ -328,56 +345,36 @@ def capture_once(mjm, m, d, rc) -> dict:
 
 def context_receipt(mjm, rc, files_sha256: dict, capture: dict, run_index: int) -> dict:
     background = int(rc.background_color)
-    return {
-        "schema": SCHEMA,
-        "task_id": TASK_ID,
-        "kind": "render-flex-context",
-        "run_index": run_index,
-        "parameters": dict(PARAMS),
-        "resolved": {
-            "nrender": int(rc.nrender), "total_rays": int(rc.total_rays),
-            "cam_id_map": [int(v) for v in rc.cam_id_map.numpy()],
-            "cam_res": [[int(w), int(h)] for w, h in rc.cam_res.numpy()],
-            "use_shadows": bool(rc.use_shadows), "use_fast_math": bool(rc.use_fast_math),
-            "shadow_light_fraction": float(rc.shadow_light_fraction),
-            "flex_render_smooth": bool(rc.flex_render_smooth),
-            "samples_per_pixel": int(rc.samples_per_pixel),
-            "background_color_unpacked": [float((background >> 16) & 0xFF), float((background >> 8) & 0xFF),
-                                          float(background & 0xFF), float((background >> 24) & 0xFF)],
-            "znear": float(rc.znear), "zfar": float(rc.zfar),
-        },
-        "lights": {"type": [int(v) for v in mjm.light_type],
-                   "castshadow": [int(v) for v in mjm.light_castshadow],
-                   "active": [int(v) for v in mjm.light_active]},
-        "flex": flex_model_report(mjm, rc),
-        "outputs": {
-            "files_sha256": files_sha256,
-            "rgb_shape": [list(a.shape) for k, a in capture["arrays"].items() if k.startswith("rgb_")],
-            "depth_shape": [list(a.shape) for k, a in capture["arrays"].items() if k.startswith("depth_")],
-            "seg_shape": [list(a.shape) for k, a in capture["arrays"].items() if k.startswith("seg_")],
-            "state_shape": {k: list(v.shape) for k, v in capture["state"].items()},
-            "image_meta": capture["image_meta"],
-        },
-        "render_seconds": capture["render_seconds"],
-    }
+    resolved = {"nrender": int(rc.nrender), "total_rays": int(rc.total_rays), "cam_id_map": [int(v) for v in rc.cam_id_map.numpy()],
+                "cam_res": [[int(w), int(h)] for w, h in rc.cam_res.numpy()], "use_shadows": bool(rc.use_shadows),
+                "use_fast_math": bool(rc.use_fast_math), "shadow_light_fraction": float(rc.shadow_light_fraction),
+                "flex_render_smooth": bool(rc.flex_render_smooth), "samples_per_pixel": int(rc.samples_per_pixel),
+                "background_color_unpacked": [float((background >> 16) & 0xFF), float((background >> 8) & 0xFF), float(background & 0xFF), float((background >> 24) & 0xFF)],
+                "znear": float(rc.znear), "zfar": float(rc.zfar)}
+    shapes = lambda prefix: [list(a.shape) for k, a in capture["arrays"].items() if k.startswith(prefix)]
+    return {"schema": SCHEMA, "task_id": TASK_ID, "kind": "render-flex-context", "run_index": run_index,
+            "parameters": dict(PARAMS), "resolved": resolved,
+            "lights": {"type": [int(v) for v in mjm.light_type], "castshadow": [int(v) for v in mjm.light_castshadow],
+                       "active": [int(v) for v in mjm.light_active]},
+            "flex": flex_model_report(mjm, rc),
+            "outputs": {"files_sha256": files_sha256, "rgb_shape": shapes("rgb_"), "depth_shape": shapes("depth_"), "seg_shape": shapes("seg_"),
+                        "state_shape": {k: list(v.shape) for k, v in capture["state"].items()}, "image_meta": capture["image_meta"]},
+            "render_seconds": capture["render_seconds"]}
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="R06-S3b authoring-only 1D flex render reference capture (pinned MJWarp 3.15).",
-        epilog="Outputs rgb/depth/seg/state.npz + capture.json under --out-dir; legacy references are sha-snapshotted and must stay untouched.",
-    )
+    parser = argparse.ArgumentParser(description="R06-S3b authoring-only 1D flex render reference capture (pinned MJWarp 3.15).",
+        epilog="Outputs rgb/depth/seg/state.npz + capture.json under --out-dir; legacy references are sha-snapshotted and must stay untouched.")
     parser.add_argument("--group", default="base", help="output group name (default base)")
     parser.add_argument("--use-fast-math", choices=("true", "false"), default="false")
     parser.add_argument("--use-shadows", choices=("true", "false"), default="true")
-    parser.add_argument("--out-dir", type=pathlib.Path, default=None,
-                        help="output directory (default: fixtures/render-bvh/scene-flex/reference/<group>)")
+    parser.add_argument("--out-dir", type=pathlib.Path, default=None, help="output directory (default: fixtures/render-bvh/scene-flex/reference/<group>)")
     parser.add_argument("--seed", type=int, default=20261104, help="recorded capture seed")
-    parser.add_argument("--repeat", type=int, choices=(1, 2), default=2,
-                        help="independent capture repeats (2 requires byte-identical raw outputs)")
+    parser.add_argument("--repeat", type=int, choices=(1, 2), default=2, help="independent capture repeats (2 requires byte-identical raw outputs)")
     parser.add_argument("--scene", type=pathlib.Path, default=SCENE_XML, help="scene XML (default scene-flex)")
     parser.add_argument("--warp-cache", type=pathlib.Path, default=DEFAULT_CACHE, help="warp kernel cache dir")
     parser.add_argument("--dry-run", action="store_true", help="environment + plan check only; no rendering")
+    parser.add_argument("--cam-poses-only", action="store_true", help="forward-only data camera-pose provenance (writes cam-poses.json, nothing else)")
     return parser.parse_args()
 
 
@@ -391,6 +388,8 @@ def main() -> int:
     import warp as wp
 
     wp.config.kernel_cache_dir = str(args.warp_cache)
+    if args.cam_poses_only and args.dry_run:
+        fail("--cam-poses-only 不能与 --dry-run 同用")
     if args.dry_run:
         environment = check_environment(want_cuda_device=False)
         preflight = cpu_preflight(args.scene.resolve())
@@ -410,6 +409,7 @@ def main() -> int:
     environment = check_environment(want_cuda_device=True)
     environment["cpu_preflight"] = preflight
     legacy_before = legacy_manifest()
+    pose_before = {name: digest(out_dir / name) for name in EXISTING_REFERENCE_FILES if (out_dir / name).is_file()}
     import mujoco
     import mujoco_warp as mjw
     import numpy as np
@@ -422,6 +422,17 @@ def main() -> int:
     d = mjw.put_data(mjm, mjd, nworld=1)
     mjw.forward(m, d)
     wp.synchronize()
+    poses = flex_cam_pose_record(d)
+    if args.cam_poses_only:
+        state_equal = state_bitwise_equal(state_arrays(d), out_dir / "state.npz")
+        if not all(state_equal.values()): fail(f"state arrays differ from state.npz: {state_equal}")
+        path = write_cam_poses(out_dir, mjm, poses, environment, state_equal)
+        after = {name: digest(out_dir / name) for name in EXISTING_REFERENCE_FILES if (out_dir / name).is_file()}
+        if pose_before != after: fail(f"existing reference files changed during pose dump: {pose_before} vs {after}")
+        print(json.dumps({"task_id": "2026-11-04-render-r06-s3b-cam-pose-source-fix", "mode": "cam-poses-only", "cam_poses": path.as_posix(),
+                          "cam_poses_sha256": digest(path), "ncam": poses["ncam"], "state_bitwise_equal": state_equal,
+                          "existing_files_sha256": after, "existing_files_unchanged": True}, indent=2, ensure_ascii=False))
+        return 0
     rc = mjw.create_render_context(mjm, **PARAMS)
     first = capture_once(mjm, m, d, rc)
     second = capture_once(mjm, m, d, rc) if args.repeat == 2 else first
@@ -431,17 +442,11 @@ def main() -> int:
     for name in sorted(first["state"]):
         if not np.array_equal(first["state"][name], second["state"][name]):
             fail(f"two captures differ in state {name}")
-    first_files: dict[str, dict] = {}
-    second_files: dict[str, dict] = {}
-    for kind in ("rgb", "depth", "seg"):
-        first_files[f"{kind}.npz"] = {
-            k: v for k, v in first["arrays"].items() if k.startswith(f"{kind}_")
-        }
-        second_files[f"{kind}.npz"] = {
-            k: v for k, v in second["arrays"].items() if k.startswith(f"{kind}_")
-        }
-    first_files["state.npz"] = first["state"]
-    second_files["state.npz"] = second["state"]
+    first_files: dict[str, dict] = {f"{kind}.npz": {k: v for k, v in first["arrays"].items() if k.startswith(f"{kind}_")}
+                                    for kind in ("rgb", "depth", "seg")}
+    second_files = {f"{kind}.npz": {k: v for k, v in second["arrays"].items() if k.startswith(f"{kind}_")}
+                    for kind in ("rgb", "depth", "seg")}
+    first_files["state.npz"], second_files["state.npz"] = first["state"], second["state"]
     out_dir.mkdir(parents=True, exist_ok=True)
     first_hashes = {name: save_npz_deterministic(out_dir / name, data) for name, data in first_files.items()}
     tmp_second = out_dir / ".second"
@@ -452,40 +457,29 @@ def main() -> int:
 
     shutil.rmtree(tmp_second, ignore_errors=True)
     flex = flex_model_report(mjm, rc)
-    capture = {
-        "schema": SCHEMA,
-        "task_id": TASK_ID,
-        "kind": "render-flex-capture",
-        "group": args.group,
-        "parameters": dict(PARAMS),
-        "seed": args.seed,
-        "repeat": args.repeat,
-        "two_captures_bitwise_identical": first_hashes == second_hashes,
-        "files_sha256": first_hashes,
-        "captured_at": os.environ.get("MJWARP_CAPTURE_AT", ""),
-        "command": [sys.executable, "-B"] + sys.argv,
-        "environment": environment,
-        "flex": flex,
-        "reference_semantics": {
-            "flex_hit": "geom_id=-2, mesh_id=flexid, seg=(flexid, 9) first sample only",
-            "depth": "dist * -ray_dir_local_cam[2] (same as geom hits)",
-            "color": "flex_rgba[mesh_id]",
-        },
-        "context": context_receipt(mjm, rc, first_hashes, first, 1),
-        "context_repeat": context_receipt(mjm, rc, first_hashes, second, 2),
-        "legacy_reference_untouched": legacy_manifest() == legacy_before,
-        "legacy_reference_files": len(legacy_before),
-        "reads_product_tree": False,
-        "authoring_only": True,
-        "product_python_dependency": False,
-    }
+    capture = {"schema": SCHEMA, "task_id": TASK_ID, "kind": "render-flex-capture", "group": args.group,
+               "parameters": dict(PARAMS), "seed": args.seed, "repeat": args.repeat,
+               "two_captures_bitwise_identical": first_hashes == second_hashes, "files_sha256": first_hashes,
+               "captured_at": os.environ.get("MJWARP_CAPTURE_AT", ""), "command": [sys.executable, "-B"] + sys.argv,
+               "environment": environment, "flex": flex,
+               "reference_semantics": {"flex_hit": "geom_id=-2, mesh_id=flexid, seg=(flexid, 9) first sample only",
+                                       "depth": "dist * -ray_dir_local_cam[2] (same as geom hits)", "color": "flex_rgba[mesh_id]"},
+               "context": context_receipt(mjm, rc, first_hashes, first, 1),
+               "context_repeat": context_receipt(mjm, rc, first_hashes, second, 2),
+               "legacy_reference_untouched": legacy_manifest() == legacy_before, "legacy_reference_files": len(legacy_before),
+               "reads_product_tree": False, "authoring_only": True, "product_python_dependency": False}
     if not capture["legacy_reference_untouched"]:
         fail("legacy references changed during capture")
     (out_dir / "capture.json").write_text(
         json.dumps(capture, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )
+    # D5：同一次 forward 的 data 相机位姿 provenance（f32 位型），供 GPU 用例逐位消费。
+    state_equal = state_bitwise_equal(first["state"], out_dir / "state.npz")
+    cam_poses_path = write_cam_poses(out_dir, mjm, poses, environment, state_equal)
     summary = {"task_id": TASK_ID, "group": args.group, "out_dir": out_dir.as_posix(),
                "files_sha256": first_hashes, "capture_json_sha256": digest(out_dir / "capture.json"),
+               "cam_poses_sha256": digest(cam_poses_path),
+               "state_matches_saved_npz": state_equal,
                "two_captures_bitwise_identical": capture["two_captures_bitwise_identical"],
                "legacy_reference_untouched": capture["legacy_reference_untouched"],
                "flex": {"nflex": flex["nflex"], "bvh_nflexgeom": flex["resolved"]["bvh_nflexgeom"]}}
