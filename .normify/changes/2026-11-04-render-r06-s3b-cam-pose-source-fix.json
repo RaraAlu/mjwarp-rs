@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-cam-pose-source-fix",
+  "title": {
+    "zh": "R06-S3b D5 修复：GPU 用例改读参考 data 相机位姿 + 补 `cam_xpos/cam_xmat` f32 位型 provenance + CPU 位级断言",
+    "en": "Fix D5: GPU test reads reference data camera poses; add cam_xpos/cam_xmat f32-bit provenance; CPU bitwise pose assertion"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "诊断（`348da9fd`）判定 attempt 3 的 `cam1 rgb max_byte_diff=255` **不是产品 red、不是映射缺陷**，而是用例相机位姿来源缺陷（D5）：本场景 `cam_mode=[0,3,3]`，`cam-track`/`cam-flex` 是 mode-3 TARGETBODY 相机，其 **data** `cam_xmat` 是 look-at 乘积（上游 `smooth.py:829-886`），而用例从 model `cam_pos0/cam_mat0`（单位阵）派生（`tests/render_flex_validate.rs:246-252`），朝向差 **85.517°/75.562°**；cam0 是固定相机（mode 0）故位姿正确、rgb 通过。本卡按 **A 类修法**落地：用例改读参考 data 位姿 + 参考侧补 `cam_xpos/cam_xmat` f32 位型 provenance + CPU 前置断言「传入 poses == 参考位姿（f32 位级）」。**参考 npz（rgb/depth/seg/state）字节一个都不改**；只做增量 provenance 与用例输入修正。",
+    "en": "Apply fix A: test consumes reference data camera poses; reference gains additive f32-bit cam pose provenance; CPU pre-launch bitwise pose assertion. Reference npz bytes untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "**用例输入修正**：`tests/render_flex_validate.rs::camera_poses()` 改读参考 **data** 位姿（`cam_xpos`/`cam_xmat`，f32 位型），不再从 `model-312.json` 的 `cam_pos0/cam_mat0` 派生；`cam_mode`/`cam_targetbodyid` 语义在注释中写明。",
+    "**参考侧增量 provenance**：`capture_render_flex.py` 在上游渲染前 dump 当前 `d.cam_xpos`/`d.cam_xmat` 的 **f32 位型**（与 npz 同一次 forward 同源），落到参考目录的增量文件（`reference/base/cam-poses.json` 或 `capture.json` 新增段，二者择一并说明）；**`rgb/depth/seg/state.npz` 与既有 `capture.json` 已有字段字节不变**（给出 sha 前后对照）。",
+    "**位姿补录**：秒级 **forward-only 短 CUDA**（非验收窗口）：Chief 发 go、≤2 分钟、前后群内报、跑完立即释放；不产参考图像、不改判据。",
+    "**CPU 前置断言（新增硬要求）**：普通 `cargo test` 可跑的用例里断言「用例将要传入的 poses == 参考位姿」——逐 f32 位型相等（不是 ULP/近似），并打印三方位姿（参考 data / 用例输入 / 诊断复算）对照表。",
+    "**guards 与重冻**：`reference/` 输入条目按新文件更新（条目数变化要记录），随后**重新真冻结**；attempt 4 需 Chief GO，四前提照旧。",
+    "**边界**：不改判据/容差、不改 `rgb/depth/seg/state.npz`、不改产品代码（`src/` 零 diff）；不宣称 flex 通过；attempt 3 对 cam1/cam2 判据无效已在证据中写明。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-cam1-rgb-diagnosis"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_validate.rs",
+      "scripts/authoring/capture_render_flex.py",
+      "fixtures/render-bvh/scene-flex/reference/base/",
+      "docs/development-evidence/render-bvh/r06-s3b-cam-pose-fix/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Arch 2026-11-04 登记（Chief 认可诊断结论 D5 后按 A 类修法）。**时段纪律**：09:00–12:00 北京高峰只读（不写仓不提交），12:00–13:50 空闲块执行实现 + 门禁；位姿补录的秒级短 CUDA 需 Chief 单独 go（≤2 分钟、前后群报、跑完立即释放）。**不是改参考**：参考 npz 与数据位姿同源，只补 provenance + 改用例输入；参考数组字节零变化需以 sha 对照自证。attempt 4 需 Chief GO。",
+  "revision": { "before": "d5372a567d5c032d4617d2d313fcd9ede1d22ce1", "after": null },
+  "created_at": "2026-11-04T08:24:00.000Z",
+  "updated_at": "2026-11-04T08:24:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] }
+  ]
+}
