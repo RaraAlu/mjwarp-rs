@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-validate-attempt4",
+  "title": {
+    "zh": "R06-S3b④ attempt4：flex 渲染验证窗（D5 位姿来源修复后重验；guards 16/16、inputs=14，需 Chief GO）",
+    "en": "R06-S3b(4) attempt 4: flex render validation window after D5 camera pose source fix (guards 16/16, inputs=14, Chief GO required)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在 D5（`2026-11-04-render-r06-s3b-cam-pose-source-fix`，提交 `ab8da091`）与 guards 扩条目（`...-guards-pose-entry-r2`，提交 `733037c5`）均 verified 后，按既有窗口卡口径重开一次 flex 渲染验证窗（attempt 4）：唯一执行会话 = arch-group；monitor 60/60 → 现场 `-Attempt 1` 真冻结（期望 `GUARDS_OK=16/16 exes=2 inputs=14`）→ `-GuardsOnly` 自检 → 实体（cam-flex / cam-persp / cam-track / regression）比对 `fixtures/render-bvh/scene-flex/reference/base/`（6 文件，含 `cam-poses.json`）。判据与容差零放宽；失败即停、不重试、不重冻到过。",
+    "en": "Re-run the flex validation window as attempt 4 after D5 + guards r2, with live freeze expecting 16/16 entries and inputs=14; zero relaxation, stop on first failure."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置（缺一不开）**：D5 `ab8da091` verified、guards r2 `733037c5` verified；本材料 QA 只读复核 pass；Chief 单独 GO（四前提：实现材料收口 + 开窗前 5 分钟内三点基线达标/floor 取严 + 失败即停不重试不放宽 + 开窗前把计划/基线/floor 贴群留痕）。",
+    "**开窗前现场**：EOL 规范化 + BOM 审计（基线 128 non-.ps1 WARN + 4 manifest 违规，新增即停）；HEAD 树干净、build 进程 0、无外部 CUDA 计算任务；三点 `free/util/temp` 采样间隔 ≤5 分钟，逐点 free ≥ floor 且 util < 40。",
+    "**冻结**：`freeze-guards-r06-s3b-flex.ps1 -Attempt 1` 期望 `GUARDS_OK=16/16 exes=2 inputs=14`；随后 `-GuardsOnly` 静态自检 `GUARDS_STRUCTURE_OK ... inputs=14`；等价独立核验 live exe sha == guards 2/2、输入 sha/bytes 14/14。任何不一致 = 停手。",
+    "**实体与判据（零放宽）**：`render_flex_dim1_camflex` → `_cam_persp` → `_cam_track` → `render_regression_suite`；rgb bit-first（mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0）、depth bit-first（max_ulp≤4 / beyond_0_ulp=0）、seg 精确相等（含 `(flexid,9)`；cam-flex 参考 654 像素）、两跑 sha256 相等。",
+    "**失败政策**：任一红 / monitor 不达标 / 冻结不符 / guards 不符 → 停手、原文归档 `attempts/attempt-4-*`（含 monitor csv、guards body、entity log、manifest）、报 Chief；不重试、不重冻到过、不改判据/容差/参考。",
+    "**边界**：只做窗口执行与证据；不写 `src/`、不改判据/容差/参考 npz、不改 `fixtures/`；不得宣称 R06/NP01/NP02 验收通过。",
+    "**闸门**：fmt / clippy / clippy-cuda / unit 全过（done 前）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-cam-pose-source-fix",
+      "2026-11-04-render-r06-s3b-flex-guards-pose-entry-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/validate/render-bvh/freeze-guards-r06-s3b-flex.ps1",
+      "scripts/validate/render-bvh/guards-r06-s3b-flex.json",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-window/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Arch 2026-11-04 登记（Backend 两张修复卡收口后）。attempt3 = VALID_ROUND 判据性红，判据面被 D5 污染，不作产品结论（errata `82307565`/`3d5f841b`）；本窗为其重验轮。**窗口须 Chief 单独 GO**，唯一执行会话 arch-group。时段纪律：12:00–13:50 空闲块可执行；13:50 前未开窗即顺延到 18:00 后，不挤 14:00–18:00 峰值。",
+  "revision": { "before": "ed3d7c02503a7d6e0493790d11aff09026b8dd0a", "after": null },
+  "created_at": "2026-11-04T12:18:00.000Z",
+  "updated_at": "2026-11-04T12:18:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] }
+  ]
+}
