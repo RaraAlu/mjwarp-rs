@@ -5,7 +5,7 @@
     "zh": "R06-S3b tie 语义可行性结论：固定叶序/遍历规则（LIFO vs 入口距离最小堆）不可行——证据留档（真实树 dump、LIFO 负结果、`fused_mul_add` 更正）",
     "en": "R06-S3b tie-semantics feasibility record: fixed leaf order / traversal rule (LIFO vs entry-distance heap) is NOT feasible (real-tree dump, LIFO negative result, fused_mul_add correction)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "Chief 2026-11-04 裁 A（停）。r3 的 LIFO 改动实测**中性**：产品真实场景 BVH 树上，该 ray 在 LIFO 与入口距离最小堆下的候选访问序**相同**（edge1 后访问胜），故**只改遍历顺序无法**把 `(134,128)` 翻回参考位。Backend 已回滚 `render_common.cu`（`git diff` 无改动）。**此前「产品树+LIFO→edge0」的可行性结论已撤回**：离线复刻 `builder.rs` 时 geom 叶 bounds 用了普通乘加，而产品 `src/render/bvh/aabb.rs` 对 box/mesh 用 `fused_mul_add`（对齐 GPU FMA）→ 叶末位不同 → SAH 树不同。本卡只做**证据留档与结论固化**，不改代码、不宣称修复。",
     "en": "Record the negative feasibility result and its evidence; no code changes, no fix claim."
@@ -34,7 +34,8 @@
     "after": null
   },
   "created_at": "2026-11-04T20:00:00.000Z",
-  "updated_at": "2026-11-04T11:54:10.912Z",
+  "updated_at": "2026-11-04T11:57:21.706Z",
+  "closed_at": "2026-11-04T11:57:21.706Z",
   "checks": [
     {
       "kind": "gate",

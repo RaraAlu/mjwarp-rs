@@ -1,0 +1,39 @@
+// 临时 CPU-only test（曾追加在 tests/render_flex_validate.rs 末尾，跑后已 git checkout -- 还原）。
+// 作用：用产品自身代码路径 dump 场景 BVH 结构 + 叶 bounds 位型，供 §真实树 复算。
+#[test]
+#[rustfmt::skip]
+fn dump_flex_scene_bvh_for_rca() {
+    let model = model();
+    let state = shadow::read_npz(STATE_NPZ);
+    let (leaves, poses, _meshes) = scene_fixture(&model, &state);
+    let scene = SceneState::new(leaves, poses, 1).expect("scene");
+    let mut bounds = scene.bounds().expect("bounds");
+    let mut groups: Vec<u32> = scene.leaves().iter().map(|leaf| leaf.group).collect();
+    let mut geom_ids: Vec<i32> = scene.leaves().iter().map(|leaf| leaf.geom_id).collect();
+    let (_, flexvert) = f32_values(&state, "flexvert_xpos.npy");
+    let (positions, edges, flex_fields) = (flex_positions(&model), flex_edges(&model), flex_model(&model));
+    let assembly = FlexHostAssembly::build(1, &positions, &edges, &flex_fields, FlexHostData { flexvert_xpos: &flexvert, flex_bvh_ids: &[u64::MAX; 2], flex_group_root: &[-1i32; 2] }).expect("组装").expect("有 flex");
+    let inputs = assembly.inputs();
+    let flex_leaves = one_dimensional_scene_leaves(OneDimensionalLeafInput {
+        worlds: 1, nflexvert: count(&model, "nflexvert"),
+        flex_vertadr: &positions.flex_vertadr, flex_edge: &edges.flex_edge,
+        flex_radius: &flex_fields.flex_radius, flexvert_xpos: &flexvert,
+        geom_flexid: inputs.flex_geom_flexid, geom_edgeid: inputs.flex_geom_edgeid,
+    }).expect("flex leaves");
+    for (local, leaf_bounds) in flex_leaves.bounds.iter().enumerate() {
+        bounds.push(*leaf_bounds);
+        groups.push(flex_leaves.groups[local]);
+        geom_ids.push(-(local as i32) - 1);
+    }
+    let bvh = build_scene_bvh(SceneBvhInput { bounds: &bounds, groups: &groups, geom_ids: &geom_ids, worlds: 1 }).expect("bvh");
+    println!("RCA nodes={} leaf_count={}", bvh.nodes().len(), bvh.leaf_count());
+    for (index, node) in bvh.nodes().iter().enumerate() {
+        match node.kind {
+            mjwarp_rs::render::bvh::NodeKind::Internal { left, right } => println!("RCA {index} internal left={left} right={right}"),
+            mjwarp_rs::render::bvh::NodeKind::Leaf { leaf } => println!("RCA {index} leaf={leaf} geom_id={:?}", bvh.leaf_geom_id(leaf)),
+        }
+    }
+    for (leaf, b) in bvh.leaf_bounds().iter().enumerate() {
+        println!("RCA bound {leaf} lo={:?} hi={:?}", b.lower.map(|v| v.to_bits()), b.upper.map(|v| v.to_bits()));
+    }
+}

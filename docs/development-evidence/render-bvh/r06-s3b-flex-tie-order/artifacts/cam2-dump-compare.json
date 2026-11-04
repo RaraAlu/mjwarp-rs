@@ -1,0 +1,102 @@
+{
+  "kind": "lifo-diagnostic-dump-vs-reference",
+  "warning": "LIFO experiment output; product kernel had the LIFO traversal change active during this run. Recorded here because it is bit-identical to the heap-version f32-fix output (depth sha 9829.../seg sha c4be...), proving the traversal change is a no-op on this fixture.",
+  "dump": {
+    "depth": {
+      "file": "artifacts/dump-depth-all.f32le",
+      "bytes": 787200,
+      "sha256": "9829215335d2cb2fd22b02a4d4a8354cc1a5db80c806b94a8888ef632c717326",
+      "layout": "3 cameras concatenated, f32 bits LE; adr [0, 76800, 120000]"
+    },
+    "seg": {
+      "file": "artifacts/dump-seg-all.i32le",
+      "bytes": 1574400,
+      "sha256": "c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185",
+      "layout": "3 cameras concatenated, [i32;2] LE; adr [0, 76800, 120000]"
+    }
+  },
+  "reference": {
+    "depth": "fixtures/render-bvh/scene-flex/reference/base/depth.npz",
+    "seg": "fixtures/render-bvh/scene-flex/reference/base/seg.npz",
+    "cam_res": [
+      [
+        320,
+        240
+      ],
+      [
+        240,
+        180
+      ],
+      [
+        320,
+        240
+      ]
+    ]
+  },
+  "compare": {
+    "cam0": {
+      "depth_mismatched": 0,
+      "seg_mismatched": 0
+    },
+    "cam1": {
+      "depth_mismatched": 0,
+      "seg_mismatched": 0
+    },
+    "cam2": {
+      "depth_mismatched": 1,
+      "seg_mismatched": 0
+    }
+  },
+  "cam2_mismatch": {
+    "pixel_flat": 41094,
+    "x": 134,
+    "y": 128,
+    "flexid": 0,
+    "product_bits": "0x400015ba",
+    "reference_bits": "0x400015b7",
+    "ulp": 3,
+    "beyond4ulp": 0,
+    "reference_seg": [
+      0,
+      9
+    ],
+    "note": "identical to the pre-LIFO (heap) output; LIFO traversal did not change any winner"
+  },
+  "bit_identity_with_heap_version": {
+    "f32_fix_two_run_depth_sha256": "9829215335d2cb2fd22b02a4d4a8354cc1a5db80c806b94a8888ef632c717326",
+    "f32_fix_two_run_seg_sha256": "c4be985324b883abcbaa63fa44888b016fd28d2d266858aaa493877b49a64185",
+    "conclusion": "LIFO diagnostic dump depth/seg sha == heap-version f32-fix two-run sha -> traversal change is output-bit-identical (zero regression, zero benefit)"
+  },
+  "offline_replay_on_real_tree": {
+    "script": "scripts/actual_tree_replay.py",
+    "pixel_41094": {
+      "lifo_order": [
+        4,
+        5,
+        0
+      ],
+      "heap_order": [
+        4,
+        5,
+        0
+      ],
+      "last_visit_winner_bits": "0x400015ba",
+      "min_d_winner_bits": "0x400015b7",
+      "reference_bits": "0x400015b7"
+    },
+    "pixel_31814": {
+      "lifo_order": [
+        6,
+        5
+      ],
+      "heap_order": [
+        6,
+        5
+      ],
+      "last_visit_winner_bits": "0x3ffa9d67",
+      "min_d_winner_bits": "0x3ffa9d67",
+      "reference_bits": "0x3ffa9d67"
+    },
+    "conclusion": "on the real product tree both traversal disciplines visit edge0 before edge1 -> edge1 wins the tolerance tie; only an order-independent tie rule (min-d) would select edge0 (not implemented, user decision pending)"
+  }
+}
