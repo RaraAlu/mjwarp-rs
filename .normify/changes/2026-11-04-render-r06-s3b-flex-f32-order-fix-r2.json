@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-f32-order-fix-r2",
+  "title": {
+    "zh": "R06-S3b 修复 r2：1D flex 命中链 f32 收缩序位级对齐（`src/render/bvh/cuda/scene.cu::mat_t_vec/mat_vec` 显式舍入中间项 fma 链；U4 sphere RCA 法）",
+    "en": "Fix r2: bit-level f32 contraction order alignment for the 1D flex hit chain (explicit rounding-intermediate fma chains in scene.cu mat_t_vec/mat_vec)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "D8 诊断（`a1cc22ae`）给出干净证据：H1 确认、H1b 被否（`flexid1` 251/251 depth 全 bit 不等、seg 位级全等、98.8% 与 CPU 回放敏感集重叠）。f32-order 定位（Chief 批的 U4 sphere RCA 法）把分叉收敛到 **`src/render/bvh/cuda/scene.cu::mat_t_vec` 的 `lvec = Mᵀ·dir` 分量收缩序**：产品在 flex 内联上下文中把首项收缩成舍入项，而参考侧要求「三项点积/两项点积/`mat×vec` 全部舍入中间项」。修复 = 把这三条表达式改写成显式「舍入中间项」fma 链；`dot()`/`det` 形态/`warp_length3`/`flex_quat_z2vec` **不动**（枚举已排除）。验证短跑已把 cam2 depth 从 **(321, 297)** 降到 **(1, 0)**，rigid（cam0/cam1）位级零漂移、seg 全等。**不改判据/容差/参考**；剩余 1 像素按 Chief 指令第 2 次短跑定位，**不自行放宽**。",
+    "en": "Apply the Chief-approved expression fix in scene.cu (explicit rounding-intermediate fma chains); verification run reduced cam2 depth violations from (321,297) to (1,0) with rigid zero drift."
+  },
+  "modules": {},
+  "acceptance": [
+    "**原卡路径笔误修正（本卡重登记的唯一原因）**：scope 用真实路径 `src/render/bvh/cuda/scene.cu`（原卡误写 `src/render/kernel/cuda/scene.cu`，该文件不存在）；`src/render/kernel/cuda/render_flex.cu` 与证据目录一并保留。**实现内容与已完成的定位/修复不重做。**",
+    "**修复范围（Chief 条件）**：只动 `scene.cu` 的三条表达式（`mat_t_vec`/`mat_vec` 的显式舍入中间项 fma 链）；`dot()`、`det` 形态、`warp_length3`、`flex_quat_z2vec` 不动；**rigid 路径出现任何位差即停**（以 cam0/cam1 与 cam2 非 flex 区 depth 逐位不变为回归证据）。",
+    "**内核身份**：`scene.cu` 变更产生新 PTX/exe 指纹，提交必须在证据里记录**新指纹**（test exe sha+bytes、PTX sha+bytes、编译配方）；attempt5 前**必须重冻**（期望 `16/16`、exes=2、inputs=14）。",
+    "**修复有效性**：以 D8 dump 的 251 像素为样本，`cam2 depth` 与参考逐 bit 相等；验证短跑实测 `(321,297) → (1,0)`，剩余 1 像素由 Chief 批的第 2 次短跑（≤3 分钟、只 dump 该 px、不改 .cu/不重编/不重冻）定位：**可修则继续修，不可修则停手报 Chief，由 Chief 决定是否按 B 类前提把该子集按 ≤4 ULP 处理（签名级需用户）**——本卡**不自行放宽**。",
+    "**attempt5 前置（写死）**：① 本卡 verified；② QA pass（含「4 ULP 在薄胶囊近掠射像素上近似等价位级」的 B 类判据前提复核意见）；③ 重新真冻结 `16/16`、exes=2、inputs=14（旧 `70d4cbc6…` 已过期）；④ **Chief GO**。缺一不开窗、不宣称。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/` 收 README（U4 次序枚举表、逐像素定位、oracle 数据 sha、修复前后 bits、回归零漂移、新指纹、两次短跑记录）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；零 GPU（除 Chief 批的短跑）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-cam2-depth-gap"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/bvh/cuda/scene.cu",
+      "src/render/kernel/cuda/render_flex.cu",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Arch 2026-11-04 重登记（原卡 `2026-11-04-render-r06-s3b-flex-f32-order-fix` 的 files 把 scene.cu 写成不存在的 `src/render/kernel/cuda/scene.cu`；in_progress 冻结声明无法原地改，经 Chief 同意走 abandon + r2）。**实现与证据沿用原卡成果，不重做**；WIP（scene.cu、gates runs、证据）直接迁移到本卡。attempt5 前置见验收第 5 条。",
+  "revision": { "before": "34499f44f40801dd823fbbb92b169bac90bf5796", "after": null },
+  "created_at": "2026-11-04T19:12:00.000Z",
+  "updated_at": "2026-11-04T19:12:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
