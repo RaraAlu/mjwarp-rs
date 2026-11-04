@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-validate-attempt5",
+  "title": {
+    "zh": "R06-S3b attempt5 窗口执行（用户签名 allowlist 1 px；窗口规则 v2：canonical rebuild → 记录 sha → freeze 16/16 → 冻结后零编译；需 Chief GO）",
+    "en": "R06-S3b attempt5 window execution (user-signed 1-px allowlist; window rule v2; Chief GO required)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按窗口材料（`ecc93b56`）与签名卡（`3406f1ca`）执行 attempt5：窗口内**一次** canonical rebuild（`cargo test --locked --features cuda-probe --no-run --test render_flex_validate`）→ 确认无构建进程 → **立即记录该次 exe sha256+bytes（+ 离线 PTX sha/bytes）** → 随即 `freeze -Attempt 1`（期望 `GUARDS_OK=16/16 exes=2 inputs=14`）→ **冻结后零编译**跑 monitor 与实体体；判据 = 除签名 allowlist（`cam2/(134,128)/flexid0/ULP≤4 且 beyond4=0`）外全部 bit-first。**窗口开启权在 Chief**；唯一执行会话。",
+    "en": "Execute attempt5 per the signed allowlist material and window rule v2; Chief GO, single executor."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置（缺一不开）**：① f32 修复 verified（`d35cab68`）；② 材料 attempt5 口径 verified（`ecc93b56`）；③ 签名卡 verified（`3406f1ca`）；④ **QA 复核 verified**（`…-attempt5-criteria-check`）；⑤ **Chief GO** + 开窗前 5 分钟三点基线达标、floor 取严。",
+    "**窗口规则 v2（Chief 批准）**：开窗第一步**一次** canonical rebuild → 记录该次 exe sha256+bytes（PTX 由离线 precheck 记录）→ 立即 `freeze -Attempt 1`（16/16、exes=2、inputs=14、aggregate 重算、exe 不再 pending）→ **冻结后零编译**；**冻结后任何编译/relink 即判 INVALID_ROUND**（停手留档）。",
+    "**判据（逐字，用户签名）**：rgb 3 相机 bit-first；depth cam0/cam1 bit-first；depth cam2 除 `(134,128)` 外 bit-first；**唯一例外** `cam2/(134,128)/flexid0`：`ULP≤4` **且 `beyond4=0`**（beyond4≠0 即失败）；seg 全等；两跑 sha 相等；回归实体（既有 render + scene-a）位级零漂移。",
+    "**执行记录**：monitor（util<40 60/60、人工逐点核 free≥floor）→ 冻结 → 等价 guards 核验（live/stash/inputs）→ 实体体（三相机同用例，日志必须 `running 1 test`；0 tests/filtered 一律 INVALID）→ 结果。",
+    "**失败即停**：不重试、不重冻「跑到过」、不放宽、不二次放宽；attempt 原文（facts/logs/guards body/manifest）逐字留档。",
+    "**非声明**：不得宣称上游等价、parity pass、flex 渲染通过或 R06-S3b 整体通过；签名 allowlist 仅限本次。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-attempt5/` 收窗口记录 + 冻结/守卫日志 + 实体结果 + 判据逐条对照（含 allowlist 像素明细）+ manifest。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-allowlist-signature"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-attempt5/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Arch 2026-11-04 登记（窗口材料 P5）。**需 Chief GO**（四前提照旧）；开窗权在 Chief，唯一执行会话。窗口规则 v2 与签名 allowlist 均写死在材料 `materials/attempt5-criteria.md`。",
+  "revision": { "before": "fabc290331307494b3c8bd574a6139855e8cdf53", "after": null },
+  "created_at": "2026-11-04T22:23:30.000Z",
+  "updated_at": "2026-11-04T22:23:30.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" }
+  ]
+}
