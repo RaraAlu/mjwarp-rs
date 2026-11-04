@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-validate-attempt6",
+  "title": {
+    "zh": "R06-S3b attempt6 窗口执行（签名 allowlist 已实现进用例；窗口规则 v2；只跑 1 个 ignored 用例；需 Chief GO）",
+    "en": "R06-S3b attempt6 window execution (allowlist encoded in the test; window rule v2; single ignored case; Chief GO required)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "attempt5（`6e9aa585`）= FAILED_ROUND（判据实现缺口：用例断言 `(0,0)` 严于签名 allowlist，实测 `(1,0)` 正是允许状态）。assert-fix 卡（`2e5301b4`）把签名 allowlist **精确实现**进用例断言并加 CPU 三类自证。本卡是**新的 attempt6 执行卡（不复用 attempt5）**：前置齐全后按窗口规则 v2 重跑同一 ignored 用例，取得可用于验收的完整结果（三相机 rgb/depth/seg + allowlist 像素明细 + 两跑 sha + 冻结指纹）。",
+    "en": "New attempt6 window card (attempt5 card stays closed for audit): rerun the single ignored case under window rule v2 once the allowlist assertion is implemented and reviewed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置（缺一不开）**：① assert-fix 卡 `2026-11-04-render-r06-s3b-flex-allowlist-assert-fix`（`2e5301b4`）**verified**；② **QA 实现复核 PASS**（`…-allowlist-assert-check`）；③ 签名 allowlist 卡 `3406f1ca` 与 attempt5 材料 `ecc93b56` 未变；④ **Chief 新 GO** + 开窗前 5 分钟三点基线达标、floor 取严。",
+    "**窗口规则 v2（不变）**：`FREE → acquire → start` 本卡 → 窗口内**一次** canonical rebuild（`cargo test --locked --features cuda-probe --no-run --test render_flex_validate`）→ 确认构建进程 0 → **立即记录该次 exe sha256+bytes（+ 离线 PTX sha/bytes）** → 随即 `freeze -Attempt 1`（期望 `GUARDS_OK=16/16 exes=2 inputs=14`、aggregate 重算、exe 不再 pending）→ **冻结后零编译/零 relink**；冻结后任何编译即 **INVALID_ROUND**（记录不采用）。",
+    "**执行**：monitor（util<40 60/60、人工逐点核 free≥floor）→ 等价 guards 核验（live/stash/inputs）→ **只跑 1 个 ignored 用例**（三相机同用例，日志必须 `running 1 test`；`0 tests`/`filtered` 一律 INVALID）。",
+    "**判据（逐字同签名 allowlist）**：rgb 3 相机 bit-first（`mismatched=0/max_byte_diff=0/beyond_1_lsb=0`）；depth cam0/cam1 与 cam2 除 `(134,128)` 外 `mismatched=0/beyond=0`；**唯一例外** `cam2/(x=134,y=128)/flexid0`：`ULP≤4` **且 `beyond4=0`**（beyond4≠0 即失败）；seg 全等；两跑 sha256 相等。",
+    "**结果完整性（本卡相对 attempt5 的关键差异）**：必须取得 **allowlist 像素明细**（实际 `(mismatched,beyond,max_ulp,bits)`）**与 cam2 seg、两跑 sha** 的明确结论；断言顺序不得导致 seg/sha 未评估（若用例仍在中途 panic，判 FAILED 并在证据里列出未评估项）。",
+    "**失败即停**：不重试、不放宽、不换数、不做二次微跑；现场/日志/冻结指纹全留档；立刻报 Chief。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-attempt6/`（计划、基线、canonical rebuild 与指纹、冻结/守卫日志、monitor、实体结果、allowlist 像素明细、两跑 sha、回执）。",
+    "**非声明**：不宣称上游等价、parity pass、flex 渲染通过或 R06-S3b 整体通过；签名 allowlist 仅限本次 attempt6。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-allowlist-assert-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-attempt6/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：attempt6 用新卡、不复用 attempt5）。前置 = assert-fix verified + QA 实现复核 PASS + Chief GO；GO 前不动窗口、不重建、不冻结。窗口规则 v2 与签名 allowlist 沿用。",
+  "revision": { "before": "b9022a009103fd0a92211869d6e9191ba9f31b6c", "after": null },
+  "created_at": "2026-11-04T22:45:00.000Z",
+  "updated_at": "2026-11-04T22:45:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" }
+  ]
+}
