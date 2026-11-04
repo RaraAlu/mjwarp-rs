@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-f32-order-fix",
+  "title": {
+    "zh": "R06-S3b 修复：1D flex 命中链 f32 运算次序位级对齐（`render_flex.cu` length/quat + `scene.cu` dot/ray_map/ray_quad；U4 sphere RCA 法）",
+    "en": "Fix the 1D flex hit-chain f32 operation order for bit-level alignment (render_flex.cu length/quat + scene.cu dot/ray_map/ray_quad; U4-style RCA)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "D8 dump 诊断（`a1cc22ae`）给出干净判据性证据：**H1 确认、H1b 被否**——`flexid1` 单边 **251/251** 像素 `depth` 全 bit 不等、**seg 位级全等**、与 CPU 回放敏感集重叠 **98.8%**。即 1D flex 命中链的 **f32 运算次序**未与上游位级对齐（不是 D5/D7/映射/语义残留）。本卡按 **U4 sphere RCA 法**枚举命中链 f32 次序并与上游逐式对照，用 D8 dump 的 product/参考 bits 逐像素对拍定位首次分歧，再做位级对齐修复。**不改判据/容差/参考**；修复目标是把 f32 次序对齐到上游，不是放宽判据。",
+    "en": "Bit-level 1D flex hit-chain f32 order alignment, localized by the D8 dump; no criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**次序枚举**：逐式列出 1D flex 命中链的 f32 运算次序并标注与上游的对应表达式——`render_flex.cu` 的 `warp_length3`/`flex_quat_z2vec`（atan2/sin/cos/half-angle 链）与 `scene.cu` 的 `dot`/`ray_map`/`ray_quad`（含 FMA 收缩点）；每一项写「上游表达式 → 产品表达式 → 是否可能差 ULP」，形成可复核表。",
+    "**逐像素定位**：用 D8 dump 的 product/参考 `depth` bits（`flexid1` 单边 251 像素）逐像素对拍，指出**首次分歧的运算点**及该点前后的 bits 演化；seg 位级全等作为旁证（命中判定一致、只有深度值差）。",
+    "**允许第二次微窗口（可选）**：若以上不足以定位，可在 **Chief 单独 go** 下再开一次微窗口（同短窗口规则：≤3 分钟、单次、只 dump `cam2` 的**每像素 ray/输入字段**（含 flex 顶点/边/四元数中间值）、跑后还原 WIP、不重冻不跑验收）；dump 落点与 sha 入证。**未获 go 不得自跑**。",
+    "**修复范围**：只调整 1D flex 命中链的 f32 次序（及必要的 FMA/舍入形式）以对齐上游；**非 flex 路径必须位级零漂移**（给出既有 render 回归的位级证据）；不改判据/容差/参考、不动 `fixtures/`。",
+    "**修复有效性**：以 D8 dump 的 251 像素为验收样本，修复后 `cam2 depth` 与参考**逐 bit 相等**（或明确列出仍不等的像素与差值，交由 Chief 裁定，不得自行放宽 4 ULP）。",
+    "**attempt5 前置（写死）**：① 本卡 verified；② **QA pass**（含「4 ULP 在薄胶囊近掠射像素上近似等价位级」是否作为 **B 类判据前提候选**的复核意见）；③ **重新真冻结**（当前 guards `70d4cbc6…` 已因 D7/后续改动过期，必须重冻，期望 `16/16`、exes=2、inputs=14）；④ **Chief GO**。缺一不开窗。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/` 收 README（次序对照表、逐像素定位、修复前后 bits、回归零漂移、微窗口记录）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-cam2-depth-gap"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_flex.cu",
+      "src/render/kernel/cuda/scene.cu",
+      "docs/development-evidence/render-bvh/r06-s3b-flex-f32-order/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令；来源 D8 诊断 `a1cc22ae`：flexid1 单边 251/251 depth 全 bit 不等、seg 位级全等、98.8% 与 CPU 回放敏感集重叠 → H1 确认、H1b 否）。**「4 ULP 在薄胶囊近掠射像素上近似等价位级」按 B 类判据前提候选处理**：QA 复核后交 Chief 裁定，**本卡不改判据、不放宽**。第二次微窗口须 Chief 单独 go。attempt5 前置见验收第 6 条。",
+  "revision": { "before": "12ef73d682baa1049b6e8fb4128da694b49437a6", "after": null },
+  "created_at": "2026-11-04T18:10:00.000Z",
+  "updated_at": "2026-11-04T18:10:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
