@@ -27,7 +27,7 @@
 ## 3. 上游语义（判据设计依据，逐条写死）
 
 - **`ray_splat`**：`inverse_rotation` 把点/方向变换到 splat 局部并除以 `scale`；求射线与高斯中心平面交点 `distance = -dot(lpnt,lvec)/dot(lvec,lvec)`；`distance` 必须落在 `(min_distance, max_distance)`（否则返回 `-1,0`）；`delta = lpnt + lvec*distance`；`response = exp(-0.5*dot(delta,delta))`；`alpha = min(response*opacity, 1)`；`alpha < max(SPLAT_MIN_RESPONSE=0.01, 1/255)` 丢弃。
-- **`shade_splats`**：BVH ray query 逐趟取命中 → **按距离插入排序**（bounded `_MAX_SPLAT_HITS=32`，含 `-1` 空槽）→ front-to-back 合成：`color += rgb*alpha*transmittance`、`transmittance *= 1-alpha`；`transmittance < 0.005` 停止；命中数达 32 时以 `min_distance = last_distance + 1e-6` 再开一趟（最多 32 趟）。
+- **`shade_splats`**：BVH ray query 逐趟取命中 → **按距离插入排序**（bounded `_MAX_SPLAT_HITS=32`，含 `-1` 空槽）→ front-to-back 合成：`color += rgb*alpha*transmittance`、`transmittance *= 1-alpha`；`transmittance < 0.005` 停止；命中数达 32 时以 `min_distance = last_distance + 1e-6` 再开一趟（**无趟数上限**：`_MAX_SPLAT_HITS=32` 只限**每趟**命中数；循环在 `transmittance ≤ 0.005` 或单趟命中数 < 32 时终止）。
 - **输出合成**：几何命中时 `rgb = splat_color + shade_color * splat_transmittance`；未命中时 `rgb = splat_color + (skybox 或 background) * splat_transmittance`；**`depth` 被 `splat_depth` 覆盖**（`splat_depth > 0` 时，且几何命中时也覆盖），最后乘 `-ray_dir_local_cam[2]`；**`seg` 只由几何决定，splat 不写 seg**。
 - **splat BVH**（`bvh.py`）：`_compute_splat_bounds` 由 position/rotation/scale/opacity 反解 bounds——`response = clamp(SPLAT_MIN_RESPONSE/opacity, 1e-6, 0.97)`、按 `scale*response` 取 AABB；`wp.Bvh(..., groups=splat_group, constructor='sah')`；`compute_bvh_group_roots` 得每 world 根；`refit_splat_bvh` 重算 bounds 后 `refit()`。
 
@@ -75,3 +75,7 @@
 - 本卡**不宣称 splat 已实现**、**未获开族批准**、不宣称与上游一致、不宣称通过任何验收、不作为对外发布依据；
 - `src/`/`tests/`/`fixtures/` 零改动；不改判据/容差/参考；
 - 上游语义只作**判据设计输入**，不构成「我们已对齐」的结论。
+
+## 10. addenda（2026-11-05，QA 抽查更正）
+
+- §3 原写「最多 32 趟」有误：上游 shade_splats **没有趟数上限**；_MAX_SPLAT_HITS=32 只约束**每趟**命中数，循环以 	ransmittance ≤ 0.005 或单趟命中数 < 32（含 0）终止，每次新趟把 min_distance 推进到上一趟最远命中 +1e-6。eceipt.json 原文正确，无需改。
