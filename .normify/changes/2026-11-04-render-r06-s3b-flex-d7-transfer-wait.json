@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s3b-flex-d7-transfer-wait",
+  "title": {
+    "zh": "D7 诊断：attempt4 render 发射 transfer-wait CUDA 700（设备侧非法访问）运行期定位与修法方向",
+    "en": "D7 diagnosis: locate the CUDA 700 (device-side illegal access) behind attempt4's render-launch transfer-wait, and decide the fix direction"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "attempt4 实体首步 `render_with(...)`（`tests/render_flex_validate.rs:327:79`）在 session 清理同步点报 `CUDA失败：transfer-wait；错误码700`（illegal address），rgb/depth/seg 判据未进入。D7 用**运行期实验**定位根因：先 `CUDA_LAUNCH_BLOCKING=1` 阻塞式复现确认 fault 落在 megakernel launch，再用 env-gate 的相机 mask 诊断补丁分别短跑 cam0/cam1/cam2，判断触发路径是 flex 命中、网格还是纹理，并给出「产品 API 缺输入校验/设备越界」还是「harness 用法问题」的结论与下一步修法方向。",
+    "en": "Runtime-locate the CUDA 700 in the megakernel launch via a blocking rerun plus env-gated per-camera mask runs; decide whether it is a product-side validation/device bug or a harness-usage issue."
+  },
+  "modules": {},
+  "acceptance": [
+    "**阻塞复现**：`CUDA_LAUNCH_BLOCKING=1` 重跑同一 ignored 用例，确认 fault 落在 `render_megakernel` 的 launch（而非上传/分配/清理阶段），日志贴群并留档。",
+    "**相机 mask 定位**：用 env-gate 诊断补丁（仅测试侧、WIP 不提交、跑完还原）对 cam0 / cam1 / cam2 分别短跑，明确 700 由哪条图元路径触发（flex 命中 / 网格 / 纹理），各跑结果与日志留档。",
+    "**结论口径**：给出「产品 API 缺输入校验 或 设备侧越界 或 harness 用法问题」的判定与证据，并给下一步修法方向；若两次实验仍不能定位，明确写「需 compute-sanitizer / 其他工具，本机不具备」。",
+    "**边界**：不碰 `guards-r06-s3b-flex.json`、冻结产物、attempt 窗口证据、判据/容差/参考；不改产品代码（`src/` 零 diff）；诊断补丁只允许测试侧且默认不提交。",
+    "**纪律**：Chief 诊断微窗口 token（1 次、≤5 分钟、13:45 硬停）内完成；GPU 前后各记 free/util；日志先落 `target/render-bvh/r06-s3b-flex-window/attempt4-d7/`，正式证据入库本卡目录。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s3b-flex-d7/`（README：假设、实验命令与输出、命中路径、结论、边界、下一步）；诊断补丁若最终保留，须在本卡 files 内并说明保留理由。",
+    "**闸门**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s3b-flex-validate-attempt4"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-d7/",
+      "tests/render_flex_validate.rs"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指派，owner Backend）。**不 start**，等 Backend 用完诊断微窗口再收口。QA 澄清口径已采纳：「射线与位姿不同源」只是 attempt3→attempt4 的触发条件描述，射线是相机空间、位姿只在 kernel 内做世界变换，不一致本身不构成越界根因。attempt5 前提 = 本卡根因修复 verified + QA pass + 因 exe 变化重新真冻结 16/16 + Chief token；时段优先 18:00–24:00。",
+  "revision": { "before": "d6587f6c8be3e7ec5afb4d9d48a81a87d6758835", "after": null },
+  "created_at": "2026-11-04T12:38:00.000Z",
+  "updated_at": "2026-11-04T12:38:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] }
+  ]
+}
