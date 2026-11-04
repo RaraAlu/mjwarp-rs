@@ -4,6 +4,8 @@
   "date": "2026-11-05",
   "verdict": "PASS-with-observations",
   "blocking_issues": 0,
+  "observations_open": 2,
+  "observations_closed": 5,
   "gpu_used": false,
   "capture_executed": false,
   "reviewed": {
@@ -12,10 +14,22 @@
     "commit": "5a99047f",
     "frozen_spec": {"path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md", "sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6", "bytes": 10506}
   },
+  "closure": {
+    "review_card": "2026-11-05-render-r06-flex-multiframe-capture-script-fix-check",
+    "review_commit": "dccb00ce",
+    "fix_commits": {"O2_O3": "3e5fc677", "O1_O4_O5": "1678545e"},
+    "o3": "capture path now forces _delta_report, verdict in capture.json.delta_selfcheck, warning + exit 3 on non-pass-margin; unconditional return 0 removed; --check-deltas standalone still 0/3/3",
+    "o2": "dispatch only accepts --frames 1|3; 0/-1/2 exit 1",
+    "o1": "old dry-run-multiframe.json is pure JSON (2188 B), stderr split into dry-run-multiframe.stderr.txt",
+    "o4": "old README artifact row now '+7 行 / 0 删除' (old '+5 行' only in revision-record quote)",
+    "o5": "implementation receipt status=verified with closeout commit 5a99047f",
+    "invariants": "main script byte-identical to baseline e1d93aca at 498 lines; module 446->479; frozen spec unchanged; commit scopes disjoint (single Normify-Task / single Normify-Fixes); no src/tests/fixtures/Cargo; zero capture"
+  },
   "line_count_convention": {
     "authoritative": "git show <commit>:<path> | wc -l == git blob newline count == [IO.File]::ReadAllLines().Count",
     "capture_render_flex.py": 498,
-    "capture_render_flex_multiframe.py": 446,
+    "capture_render_flex_multiframe.py_before_fix": 446,
+    "capture_render_flex_multiframe.py_after_fix": 479,
     "arch_get_content_default": [496, 432],
     "measure_object_line": [431, 374],
     "cause": "PowerShell 5.1 Get-Content default ANSI (cp936) decoding undercounts UTF-8 files; -Encoding UTF8 gives 498/446",
@@ -42,13 +56,13 @@
     }
   },
   "observations": [
-    {"id": "O3", "severity": "low-medium", "topic": "capture path returns 0 and prints no 'do not commit' warning when delta verdict is not pass-margin (stream=False); evidence README section 2/8.5 claims the warning is printed", "recommendation": "print warning + non-zero on non-pass in capture path (or correct README); capture window must run --check-deltas explicitly", "blocking": false},
-    {"id": "O1", "severity": "low", "topic": "logs/dry-run-multiframe.json carries a 12-line PowerShell ErrorRecord preamble; file is not valid JSON (body parses from first '{')", "blocking": false},
-    {"id": "O2", "severity": "low", "topic": "--frames 0/negative silently falls back to the single-frame path with exit 0 (no explicit (1,3) validation)", "blocking": false},
-    {"id": "O4", "severity": "low", "topic": "evidence README section 6 says capture-script.diff is '+5 lines'; actual +7/-0", "blocking": false},
-    {"id": "O5", "severity": "low", "topic": "implementation receipt status is still 'implemented_pending_commit' (card verified/committed)", "blocking": false},
-    {"id": "O6", "severity": "low", "topic": "spec 8.3 fixtures path vs --out-dir parameterisation (declared in evidence); capture window must pass the spec path", "blocking": false},
-    {"id": "O7", "severity": "low", "topic": "single-frame byte-identity is a static judgement (+7/-0); dynamic frame-000 vs base sha check deferred to capture window (disclosed)", "blocking": false}
+    {"id": "O3", "severity": "low-medium", "status": "closed", "closed_by": "3e5fc677", "closed_review": "dccb00ce", "topic": "capture path now prints 'do not commit' warning and exits 3 on any non-pass-margin verdict; verdict recorded in capture.json.delta_selfcheck; unconditional return 0 removed", "blocking": false},
+    {"id": "O1", "severity": "low", "status": "closed", "closed_by": "1678545e", "closed_review": "dccb00ce", "topic": "old dry-run-multiframe.json is pure JSON (2188 B) with stderr split into a separate file", "blocking": false},
+    {"id": "O2", "severity": "low", "status": "closed", "closed_by": "3e5fc677", "closed_review": "dccb00ce", "topic": "--frames 0/-1/2 now exit 1; --frames 1 keeps the original single-frame path", "blocking": false},
+    {"id": "O4", "severity": "low", "status": "closed", "closed_by": "1678545e", "closed_review": "dccb00ce", "topic": "old evidence README artifact row now '+7 行 / 0 删除'; old '+5 行' only remains as a revision-record quote", "blocking": false},
+    {"id": "O5", "severity": "low", "status": "closed", "closed_by": "1678545e", "closed_review": "dccb00ce", "topic": "implementation receipt status=verified with closeout commit 5a99047f", "blocking": false},
+    {"id": "O6", "severity": "low", "status": "recorded-known", "topic": "spec 8.3 fixtures path vs --out-dir parameterisation (declared in evidence); capture window must pass the spec path", "blocking": false},
+    {"id": "O7", "severity": "low", "status": "recorded-known", "topic": "single-frame byte-identity is a static judgement (+7/-0); dynamic frame-000 vs base sha check deferred to capture window (disclosed)", "blocking": false}
   ],
   "evidence_dir": "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-script-check/",
   "qa_card": "2026-11-05-render-r06-flex-multiframe-capture-script-check"

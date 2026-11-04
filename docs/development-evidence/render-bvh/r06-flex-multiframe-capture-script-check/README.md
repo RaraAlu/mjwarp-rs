@@ -6,7 +6,7 @@
 ## 1. 结论
 
 **PASS-with-observations（0 阻断）。** 卡面 7 项（spec 对应性、单帧路径不变、阈值/帧数不可改、确定性自检、零采集、证据完整、非声明）全部成立；我独立复跑 CPU 用例（`--help` / `--dry-run` / 6 个参数错误 / 2 个 check-deltas 无数据 / 3 组合成数据）全部与实现证据一致，脚本 `RESULT: PASS`（0 fails）。
-7 条低观察（O1–O7），其中 **O3 建议在采集窗开窗前确认/修**（采集路径非 pass-margin 时仍 exit 0 且未打印「不得落库」，与证据 README §8.5 表述不符）；其余为证据格式/文档笔误/参数边界，均不改变本卡「脚本实现完成」的结论。
+7 条低观察（O1–O7）：**O1–O5 已闭合**——**O2/O3 由 `3e5fc677` 修正、O1/O4/O5 由 `1678545e` 修正**，并均经最小复核 **`dccb00ce`** 确认（见 §6）；O6/O7 仍按已知记录。闭合不改变本卡「脚本实现完成」的 PASS 结论。
 
 ## 2. 逐项核对
 
@@ -53,11 +53,11 @@
 
 | # | 级别 | 内容 | 建议 |
 | --- | --- | --- | --- |
-| O3 | 低-中（建议采集窗前处理） | `capture_multiframe` 用 `_delta_report(stream=False)` 且固定 `return 0`：采集后 verdict 为 insufficient/non-discriminating 时**不打印「不得落库」、也不非零退出**；证据 README §2 §8.5 行称「非 pass-margin 时打印提示」与实现不符 | 采集路径打印警告并返回非零（或至少打印同款提示），同时修正 README 表述；采集窗落库前必须显式跑 `--check-deltas` |
-| O1 | 低 | `logs/dry-run-multiframe.json` 前 12 行是 PowerShell ErrorRecord 前导（因 `2>&1` 捕获），文件本身不是合法 JSON（从第一个 `{` 起正文可解析） | 改名 `.txt` 或分离 stdout/stderr；正文结论我已独立复跑验证 |
-| O2 | 低 | `--frames 0`/负数静默落入单帧路径、exit 0，未按「其它值 exit1」拒绝（无放宽判据/帧数入口，仅是参数校验边界） | 显式校验 `--frames in (1,3)`；`frames<=1` 语义写清 |
-| O4 | 低 | 证据 README §6 写 `capture-script.diff`「（+5 行）」，实际 +7/−0（artifact 内容正确） | 改文档数字 |
-| O5 | 低 | 实现 receipt `status` 仍为 `implemented_pending_commit`（卡已 verified/committed） | 状态字符串更新 |
+| O3 | 低-中（**已闭合 `3e5fc677`**） | `capture_multiframe` 用 `_delta_report(stream=False)` 且固定 `return 0`：采集后 verdict 为 insufficient/non-discriminating 时**不打印「不得落库」、也不非零退出**；证据 README §2 §8.5 行称「非 pass-margin 时打印提示」与实现不符 | 已修：采集路径强制 `_delta_report`、verdict 入 `capture.json.delta_selfcheck`、非 pass-margin 打印警告并 **exit 3**（见 §6） |
+| O1 | 低（**已闭合 `1678545e`**） | `logs/dry-run-multiframe.json` 前 12 行是 PowerShell ErrorRecord 前导（因 `2>&1` 捕获），文件本身不是合法 JSON（从第一个 `{` 起正文可解析） | 已修：重导为纯 JSON（2188 B），stderr 另存 `dry-run-multiframe.stderr.txt`（见 §6） |
+| O2 | 低（**已闭合 `3e5fc677`**） | `--frames 0`/负数静默落入单帧路径、exit 0，未按「其它值 exit1」拒绝（无放宽判据/帧数入口，仅是参数校验边界） | 已修：`dispatch()` 只接受 1/3，0/负数/2 均 exit 1（见 §6） |
+| O4 | 低（**已闭合 `1678545e`**） | 证据 README §6 写 `capture-script.diff`「（+5 行）」，实际 +7/−0（artifact 内容正确） | 已修：改为「+7 行 / 0 删除」；旧「+5」仅存于修订记录引用（见 §6） |
+| O5 | 低（**已闭合 `1678545e`**） | 实现 receipt `status` 仍为 `implemented_pending_commit`（卡已 verified/committed） | 已修：`status=verified` 并记录收口 `5a99047f`（见 §6） |
 | O6 | 低 | spec §8.3 落点 `fixtures/render-bvh/scene-flex/multiframe/` 与脚本 `--out-dir` 参数化的偏差（已在证据 §5 声明） | 采集窗须传 spec 路径，并在窗口材料里核对路径与体积估算（≈14.2 MB） |
 | O7 | 低 | 「单帧逐字节不变」为静态判定（+7/−0），动态 frame-000 vs base 同 sha 留采集窗 | 已在证据如实声明；采集窗首帧必须做该对照（spec §2/G-2） |
 
@@ -66,4 +66,14 @@
 - `scripts/verify_capture_script.py`：脚本身份/行数/sha、+7/−0 diff、spec 常量与运行时校验一致性、提交范围/零采集边界、实现证据 manifest 16/16、证据编码、CPU 复跑（help / dry-run / 6 参数错误 / 2 无数据 / 3 合成数据）与合成像素计数、500 行扫描范围核对。
 - `logs/verify.log`：`RESULT: PASS`（0 FAIL；8 条 OBS，对应上表）。
 - `logs/qa-cpu-rerun.json`：本次独立复跑的机器可读结果（dry-run 字段、各用例 exit、合成计数、行数口径）。
-- 复跑临时目录 `target/qa-multiframe-rerun/`（gitignored，不落库）；`manifest.txt` 5 条，LF、无 BOM。
+- 复跑临时目录 `target/qa-multiframe-rerun/`（gitignored，不落库）；`manifest.txt` 5 条，LF、无 BOM（闭合 addenda 后重算，5/5 自核）。
+
+## 6. 观察闭合 addenda（2026-11-05，复核 `dccb00ce`）
+
+Chief 派单后 Backend 落两笔修正，我做了最小复核（复核卡 `2026-11-05-render-r06-flex-multiframe-capture-script-fix-check`，提交 **`dccb00ce`**，PASS / 0 阻断 / 0 观察）：
+
+- **O2/O3（`3e5fc677`）**：`dispatch()` 只接受 `--frames 1|3`，0/-1/2 均 exit 1；`capture_multiframe` 末尾强制 `_delta_report` → verdict 入 `capture.json.delta_selfcheck{thresholds,cam2_pixels,report,overall}` → `_print_delta_report` → `return delta_exit_code(...)`，无条件 `return 0` 已删除；合成数据演示 pass-margin→0、insufficient-margin / non-discriminating→**3 + 「不得落库」警告**；`--check-deltas` 独立模式仍 **0/3/3**；无跳过自检入口。
+- **O1/O4/O5（`1678545e`）**：旧证据 `dry-run-multiframe.json` 改为**纯 JSON**（2188 B，`json.load` 通过），stderr 另存 `dry-run-multiframe.stderr.txt`；README artifact 行改「**+7 行 / 0 删除**」；receipt `status=verified` 并记录收口 `5a99047f`。
+- **不变项**：主脚本 `capture_render_flex.py` 与基线 `e1d93aca` **逐字节相同**（权威 498 行，`git show … | wc -l`）；扩展模块 446→**479** 行；冻结 spec `1d9fa5ce…`/**10,506 B** 未变；两笔提交 scope 不重叠（`Normify-Task` / `Normify-Fixes` 各一）、无 `src/tests/fixtures/Cargo`、零采集、无 fixtures 产物。
+- **证据处理**：本目录 README/facts 的观察状态更新为闭合并同步重算 manifest；历史 `logs/verify.log`（当时 OBS 记录）不回改，作为复核时点快照保留。
+- **O6/O7**：不在修卡范围，仍按已知记录（spec §8.3 落点 vs `--out-dir`；单帧不变为静态判定、采集窗内用 frame-000 vs base 动态对照补）。
