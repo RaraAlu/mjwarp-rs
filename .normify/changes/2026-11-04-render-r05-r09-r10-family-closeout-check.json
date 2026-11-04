@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r05-r09-r10-family-closeout-check",
+  "title": {
+    "zh": "QA 独立复核：R05/R09/R10 家族收口（hfield/光照阴影/多世界证据索引、例外与失败轮留痕、非声明）",
+    "en": "QA independent review: R05/R09/R10 family closeout (hfield / lighting-shadow / multi-world evidence index, exception and failed-round retention, non-claims)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-11-04-render-r05-r09-r10-family-closeout` 做独立复核：三族逐片指针是否指向 verified 卡、判据达成值是否可复算、窗口例外（authoring-only / validation-only util<60）与 INVALID_ROUND/失败轮是否原样保留且未被当作常规通过、已知限制与非声明是否齐全、plan.json 记账是否一致。**只读 + 写自己的证据目录；零 GPU。**",
+    "en": "Independent review of the R05/R09/R10 closeout: pointers reach verified cards, achieved criteria are recomputable, window exceptions and INVALID_ROUND/failed rounds are retained and not reported as normal passes, known limits and non-claims are present, and plan.json bookkeeping matches. Read-only; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**R05 hfield**：S1/S2/S3a/S3b 逐条指针可核；S3b attempt=2 的 9/9 exit 0、sha_guards 73/73、post 9/9、零编译、floor 10,233 未破、两组 hfield 全零偏差、两跑 sha 相同可复算；两个产品修复（零 mesh 占位 `dce78b1f`、相机位姿 FMA `6f246b46`）在案；attempt1 INVALID_ROUND 保留。",
+    "**R09 shadows**：S1/S2/S2b/S3a/S3b 指针可核；S2 时代「主机仍拒绝 use_shadows」的披露未被抹掉，S2b 解锁后产品路径可用；S3b 阴影验证窗结果与二次射线修复在案。",
+    "**R10 multi-world**：S1/S2 指针可核；attempt2-run 8/8 exit 0、guards 46/46、post 8/8、零 Rust 重编、floor 9,708 未破、两跑 sha 相同可复算；上游 nworld>1 无数值参考的限界在场。",
+    "**例外与失败轮**：R05-S3a authoring-only util<60、R05-S3b validation-only util<60、R02/R09 相关例外均标为「非常规阈值通过」；所有 INVALID_ROUND/失败轮原样保留。",
+    "**非声明与限制**：per-world 灯位姿/AA+perworld/单发射 backlog、更高 spp、Linux/T4、上游一致未覆盖——逐条在场；不与上游等价、不出对外发布依据。",
+    "**记账**：`plan.json` 新增 R05/R09/R10 三行 + `N18`，与 summary 一致；roadmap-r05/r09/r10 未被改动。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix`；证据落 `docs/development-evidence/render-bvh/r05-r09-r10-summary-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r05-r09-r10-family-closeout"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-r09-r10-summary-check/"
+    ],
+    "resources": [],
+    "priority": 81
+  },
+  "note": "Arch 2026-11-04 登记（C3 同批）。只读复核：不得回改 summary、plan.json 或已 verified 证据；问题以 addenda/needs-fix 记录。零 GPU。卡 id 说明：原登记 id `2026-11-04-render-r05-r09-r10-closeout` 在本机 normify start 时报 os error 5（重试 5 次、清 tmp、git 重建 JSON 均无效；同内容换 id 可正常 start），按等价记录改登记为当前 id，原 id 文件未入库。",
+  "revision": { "before": "1a0845ff6d9175bf9422a62572c4be6885d333c8", "after": null },
+  "created_at": "2026-11-04T15:52:00.000Z",
+  "updated_at": "2026-11-04T16:05:00.000Z",
+  "checks": []
+}

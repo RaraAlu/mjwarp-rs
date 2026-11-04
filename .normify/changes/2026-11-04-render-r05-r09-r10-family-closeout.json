@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r05-r09-r10-family-closeout",
+  "title": {
+    "zh": "R05/R09/R10 家族收口：高度场地形、光照与阴影、多世界（C3）",
+    "en": "R05/R09/R10 family closeout: hfield terrain, lighting and shadows, multi-world (C3)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "C 系列第 3 张：R05@P8（网格与地形：高度场三角化+BVH+渲染）、R09@P8（光照与阴影：主机参数/设备分支/主机解锁/精确采集/阴影验证）、R10@P8（多世界：状态布局 + nworld=2 端到端）三族均已 verified（含各自 QA 复核与窗口证据）。本卡做**家族级收口证据**：① 三族 summary（逐片证据索引到实现卡、判据与达成值、窗口六项与例外留痕、已知限制、非声明）；② `plan.json` 记账（rows 追加 R05/R09/R10 三行 + `N18`，`updated_at` 保持 2026-11-04）；③ 同批登记 QA 复核卡。**零 GPU、零 `src/`/`tests/`/`fixtures/`、不改判据/容差/参考、不重复声明其他家族。**",
+    "en": "C3: close out R05 (hfield terrain), R09 (lighting and shadows) and R10 (multi-world) at the family level. Each family is already verified with its own QA review and window evidence. Write the family summary, add three plan.json rows and a scheduling note, and register a QA review card. Zero GPU; no product code, criteria or reference change."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/render-bvh/r05-r09-r10-summary/`：README（三族分段：逐片证据索引到实现卡、判据与达成值、窗口与例外留痕、已知限制、非声明）+ `receipt.json`（`task_id` 指向本卡）+ `manifest.txt`；LF、无 BOM、manifest 首行 `#`。",
+    "`plan.json` `delivery_tracking.rows` 追加 **R05 / R09 / R10** 三行（task_id 指向本卡、evidence 指向 summary、note 含关键数字与实现卡）；`scheduling_notes` 追加 `N18`；`updated_at` 保持 2026-11-04。",
+    "**判据写死（不重议）**：三族各自沿用已签口径——hfield/shadow 验证窗按各自材料（RGB ≤1 LSB 位级优先、depth ≤4 ULP 且 beyond4=0、seg 精确、两跑 sha 相同）；多 world 按 R10-S2 窗口材料（8/8 实体 exit 0、guards 46/46、floor 9,708）。",
+    "**例外与失败留痕写死**：R05-S3a 的 authoring-only util<60 例外、R05-S3b 的 validation-only util<60 例外、R02/R09 窗口例外均按各自证据记录，**不当作常规阈值通过**；INVALID_ROUND / 失败轮原样保留（R05-S3b attempt1 INVALID_ROUND、R09 相关轮次、R02-S3 attempt1）。",
+    "**已知限制写死**：上游 nworld>1 无数值参考（R10 只做内部一致性与隔离）；per-world 灯位姿/AA+perworld/上游式单发射进 backlog `2026-11-03-render-perworld-l-v2-k-backlog`（不执行）；shadows 产品路径由 R09-S2b 解锁后才可用，未解锁前的历史拒绝契约在旧证据中保留；更高 spp、Linux/T4、上游完全一致未覆盖。",
+    "**非声明**：不声明三族之外的渲染能力、不与上游等价、不声明对外发布依据、不替其他家族背书；每族证据索引到实现卡，不重复声明。",
+    "roadmap 节点 `roadmap-r05-p8` / `roadmap-r09-p8` / `roadmap-r10-p8` **不在本卡 start/done**（roadmap 节点不承载实现，C 全绿后统一收口）。",
+    "`git diff` 只含 `plan.json`、`r05-r09-r10-summary/`、本卡与 QA 卡记录；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s3b-hfield-validate",
+      "2026-10-28-render-bvh-r09-s3b-shadow-validation",
+      "2026-10-28-render-bvh-r10-s2-multi-world",
+      "2026-11-04-render-r01-p8-closeout"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh/r05-r09-r10-summary/"
+    ],
+    "resources": [],
+    "priority": 67
+  },
+  "note": "Arch 2026-11-04 登记（Chief C 系列第 3 张：C3 = R05+R09+R10）。plan.json 单写者：C1/C2/C3 串行。roadmap 节点不承载实现。三族历史证据含窗口例外与失败轮，本卡只归纳不重判。",
+  "revision": {
+    "before": "1a0845ff6d9175bf9422a62572c4be6885d333c8",
+    "after": null
+  },
+  "created_at": "2026-11-04T15:52:00.000Z",
+  "updated_at": "2026-11-04T15:44:11.505Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-r09-r10-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-04-render-r05-r09-r10-family-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "双平台通过",
+        "产品渲染验收通过",
+        "动画一致性"
+      ]
+    }
+  ]
+}
