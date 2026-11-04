@@ -5,7 +5,7 @@
     "zh": "R06-S3b attempt6 前置：GPU 用例实现签名 allowlist（仅 cam2/(134,128)/flexid0 允许 ULP≤4 且 beyond4=0，其余严格）+ CPU 自证",
     "en": "attempt6 prerequisite: encode the signed one-pixel allowlist in the GPU test (only cam2/(134,128)/flexid0 may be ULP<=4 with beyond4=0) plus a CPU self-proof"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "attempt5（`6e9aa585`）FAILED_ROUND 的原因是**判据实现缺口**：冻结用例 `tests/render_flex_validate.rs:347` 仍断言 cam2 depth `(mismatched, beyond4) == (0,0)`，而用户签名 allowlist 允许 `cam2/(134,128)/flexid0` 为 `ULP≤4 且 beyond4=0`。实测观测 `(1,0)` 恰好等于签名允许状态 → 不是数值红。本卡把 allowlist **精确实现**进用例判据（不扩大范围），并加 CPU 自证；**不改判据文本、不改容差/参考/fixtures**，零 GPU。",
     "en": "Implement the signed allowlist in the GPU test's assertion (exact pixel only) with a CPU self-proof; no criteria text change, zero GPU."
@@ -34,14 +34,34 @@
     "priority": 80
   },
   "note": "Arch 2026-11-04 登记（来源 attempt5 FAILED_ROUND `6e9aa585`：用例断言严于签名 allowlist，观测 `(1,0)` = 允许范围）。**只改判据实现、不改判据文本**；attempt6 需重建 + 重冻 + Chief 新 GO。",
-  "revision": { "before": "1068d52741a492698791bca9ce95b97a96303315", "after": null },
+  "revision": {
+    "before": "456133b9376fd0c0516db37ce27150e463acb048",
+    "after": null
+  },
   "created_at": "2026-11-04T22:43:00.000Z",
-  "updated_at": "2026-11-04T22:43:00.000Z",
+  "updated_at": "2026-11-04T14:43:46.642Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    }
   ]
 }
