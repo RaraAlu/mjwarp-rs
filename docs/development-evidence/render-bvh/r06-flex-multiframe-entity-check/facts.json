@@ -1,0 +1,242 @@
+{
+  "task_id": "2026-11-05-render-r06-flex-multiframe-entity-check",
+  "review_target": {
+    "entity_card": "2026-11-05-render-r06-flex-multiframe-entity",
+    "entity_status": "verified",
+    "entity_commits": {
+      "register": "3fa62181",
+      "start": "895c1aad",
+      "impl": "2a27c2fd",
+      "digit_fix": "241d702f"
+    },
+    "fix_card": "2026-11-05-render-r06-flex-multiframe-entity-fix",
+    "fix_status": "verified",
+    "fix_commits": {
+      "register": "ddcf78f8",
+      "start": "bb03af57",
+      "impl": "a2d7d4c5",
+      "ruling_addenda": "a175c7f8"
+    },
+    "final_head": "a175c7f8",
+    "qa_registration_commit": "b418cae0"
+  },
+  "line_counts": {
+    "tests/render_flex_multiframe.rs": 499,
+    "tests/support/render_bvh/multiframe.rs": 496,
+    "tests/support/render_bvh/allowlist.rs": 210,
+    "tests/render_flex_validate.rs": 498,
+    "freeze-guards-r06-multiframe.ps1": 205,
+    "guards-r06-multiframe.json": 198
+  },
+  "ratchet_ok": {
+    "both_new_rs_le_500": true,
+    "validate_unchanged": true,
+    "allowlist_change": "+14/-0"
+  },
+  "cam2_only": {
+    "criterion_function": "change_pixels_cam2(pair)",
+    "diagnostic_function": "change_pixels_all_cameras(pair)",
+    "assert_uses": [
+      "verify_change_pixels",
+      "CPU tests 5/6",
+      "GPU cross-frame section"
+    ],
+    "diagnostic_only": "all_cameras printed via println! in CPU test 7 and GPU cross-frame",
+    "per_camera_counts": {
+      "000->001": {
+        "cam0": [
+          0,
+          0
+        ],
+        "cam1": [
+          0,
+          0
+        ],
+        "cam2": [
+          1167,
+          1074
+        ]
+      },
+      "001->002": {
+        "cam0": [
+          0,
+          0
+        ],
+        "cam1": [
+          0,
+          0
+        ],
+        "cam2": [
+          1262,
+          1126
+        ]
+      }
+    },
+    "cam2_numbers": {
+      "000->001": [
+        1167,
+        1074
+      ],
+      "001->002": [
+        1262,
+        1126
+      ]
+    },
+    "threshold": {
+      "acceptance_min": 384,
+      "margin_576_role": "capture margin only, not acceptance"
+    },
+    "total_equals_cam2_on_fixture": true
+  },
+  "option_a": {
+    "no_boundary_body_pos_step": true,
+    "wording": "per-frame state rigid pose builds 3 contexts + rigid signature equality + same-context render comparison + refits()==0",
+    "chief_ruling_trace": {
+      "entity_addenda": true,
+      "fix_receipt_option_a": true,
+      "entity_readme_section_5": true,
+      "gpu_test_comment": true
+    },
+    "no_current_offset_model_build_phrase": {
+      "tests_docs_scripts": true,
+      "card_acceptance_immutable_note": "entity card intent/acceptance text still contains the old phrase; normify forbids rewriting verified acceptance; ruling recorded in addenda"
+    },
+    "refits_assert_line": 407,
+    "spec_section_2_mapping": "model body_pos offset inert for flex rendering (per-render merged BVH rebuilt from channel positions)"
+  },
+  "criteria": {
+    "per_frame": {
+      "rgb": "max_byte_diff<=1 and beyond_1_lsb==0",
+      "depth_frame000": "cam2/(134,128)/flexid0/seg9 allowlist ULP<=4 beyond4=0",
+      "depth_frame001_002": "strict bit-first + allowlist-drift panic",
+      "seg": "pixel-equal",
+      "two_run": "whole multi-camera buffer sha equal"
+    },
+    "gpu_test": {
+      "name": "multiframe_renders_match_captured_reference",
+      "ignored": true,
+      "count": 1
+    },
+    "cpu_self_proof_tests": 22,
+    "reference_integrity": {
+      "files": 15,
+      "npz_against_capture_files_sha256": 12,
+      "text_anchor": 3,
+      "independent_ok": true
+    },
+    "provenance": {
+      "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+      "spec_bytes": 10506,
+      "refit_calls": 6,
+      "actual_sequence": [
+        0,
+        1,
+        2,
+        0,
+        1,
+        2
+      ],
+      "refit_policy": "every-frame"
+    }
+  },
+  "guards": {
+    "exes": 2,
+    "inputs": 26,
+    "total": 28,
+    "status": "pending_freeze",
+    "aggregate_inputs_sha256": "b8110cee547a6a6a12dbc4b8201f1571bebb31f7450e2d252f0a4015484afb7f",
+    "classification": {
+      "input": 25,
+      "guard_script": 1
+    },
+    "freeze_executed": false,
+    "guard_files_untouched_by_fix": true
+  },
+  "regression": {
+    "render_flex_validate_498_zero_diff": true,
+    "allowlist_210_plus14": true,
+    "new_rs_499_496_le_500": true,
+    "src_fixtures_spec_unchanged": true,
+    "gates": {
+      "fmt": true,
+      "clippy": true,
+      "clippy-cuda": true,
+      "unit": {
+        "passed": 1359,
+        "failed": 0,
+        "ignored": 400
+      }
+    }
+  },
+  "reproduction": {
+    "cpu_tests": {
+      "command": "cargo test --locked --features cuda-probe --test render_flex_multiframe -- --nocapture",
+      "exit_code": 0,
+      "result": "38 passed / 0 failed / 1 ignored",
+      "cam2_diagnostics": [
+        "pair 0: cam2=(1167, 1074) all=(1167, 1074)",
+        "pair 1: cam2=(1262, 1126) all=(1262, 1126)"
+      ]
+    },
+    "guards_only": {
+      "exit_code": 0,
+      "output": "GUARDS_STRUCTURE_OK suite=render-r06-multiframe exes_pending=2 inputs=26 inputs_sha256_ok=true aggregate_inputs_sha256=b8110cee… classification=input=25,guard_script=1"
+    }
+  },
+  "qa_verify": {
+    "result": "PASS",
+    "passed": 41,
+    "total": 41,
+    "fails": []
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "low",
+      "area": "claim nuance",
+      "summary": "change_pixels_all_cameras 在 CPU 自证⑦参与同输入两次相等的确定性断言（非 ≥384 判据断言），与「只作诊断打印、不参与断言」字面略有出入"
+    },
+    {
+      "id": "O2",
+      "severity": "low",
+      "area": "traceability path",
+      "summary": "裁决留痕路径写 receipt.json.criteria.option_a.chief_ruling；实际修复卡 receipt 为顶层 option_a（实体卡 receipt 才是 criteria.option_a）"
+    },
+    {
+      "id": "O3",
+      "severity": "low",
+      "area": "diagnostics",
+      "summary": "allowlist 漂移 panic 打印 x/y/bits/expected/ulp/seg 但缺 flat（卡面要求 flat/x/y/...）；strict 路径仍有 flat 信息"
+    },
+    {
+      "id": "O4",
+      "severity": "low",
+      "area": "verification strength",
+      "summary": "refits()==0 仅在每帧渲染前断言，渲染后仅 println；未真正证明 render 不 refit"
+    },
+    {
+      "id": "O5",
+      "severity": "low",
+      "area": "copy",
+      "summary": "freeze 脚本预算抛错文案写 expected 16 frozen entries（实际检查 28），仅文案"
+    },
+    {
+      "id": "O6",
+      "severity": "low",
+      "area": "copy",
+      "summary": "实体 receipt 非声明句含 exact 禁词「上游等价」（否定式），建议改为「与上游实现的等价性」"
+    },
+    {
+      "id": "O7",
+      "severity": "low",
+      "area": "immutable card text",
+      "summary": "实体卡 intent/acceptance 原文仍含「偏移模型建 3 个 context」（verified 卡不可改写，规范禁止）；裁决已在 addenda/README §5/receipt.option_a/GPU 注释留痕，实现与证据无该现行表述"
+    }
+  ],
+  "conclusion": "PASS-with-observations (0 blocking)",
+  "non_claims": [
+    "不产生验证窗结论",
+    "不写 R06 整族通过/动画通用/上游等价",
+    "GPU #[ignore] 用例结论留验证窗"
+  ]
+}
