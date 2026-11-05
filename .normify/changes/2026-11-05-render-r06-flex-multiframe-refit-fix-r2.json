@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2",
+  "title": {
+    "zh": "R06 多帧修复 r2：采集脚本每帧强制 refit + 三条硬自查（base 幂等 / 位移 k×0.100 / 两段变化≥576）+ provenance（authoring-only，零 GPU）",
+    "en": "R06 multiframe fix r2: mandatory per-frame refit_bvh + three hard self-checks (base identity / k*0.100 displacement / both segments >=576) + provenance (authoring-only, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "诊断卡 `2026-11-05-render-r06-flex-multiframe-pose-diag`（`77aeb6da`）H1 定论：`capture_render_flex_multiframe.py` 帧循环缺 `mjw.refit_bvh(m, d, rc)`——`create_render_context` 用创建时刻 `mjd=MjData+forward` 把场景 BVH（含 1D flex capsule bounds）固化于 base，`render()` 全文件 0 处 refit；A 组 flex 像素 654→246→69 / 计数 697→244（exit3），B 组每帧 refit 后 654→718→798 / 1167、1262（pass-margin）。本卡把 refit 变默认且强制（删除 `--refit-bvh` 默认关路径，两遍采集逐帧都 refit），把三条硬自查内建到采集路径（不达标 exit3 停手），补 provenance（spec sha / 脚本 sha / refit 标记）与 spec 漂移审计说明；拆分自查模块守 500 行棘轮。不改判据/阈值/帧设计/相机/spec。",
+    "en": "Make per-frame refit_bvh mandatory (both capture passes, no skip path), embed three hard capture-time self-checks (base bit-identity, k*0.100 m displacement, both delta segments >=576; failure => exit 3), add provenance (spec sha / script sha / refit flag), document why spec is unchanged, and split check logic into a new module for the 500-line ratchet. No criteria/threshold/frame/spec changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**每帧强制 refit（含两遍采集）**：帧循环里在每帧 `put_model`/`mj_forward` 之后、`mjw.render(...)` 之前**无条件**调用 `mjw.refit_bvh(m, d, rc)`；**删除** `--refit-bvh` 诊断开关及其「默认关」路径（不留任何跳过路径，未知参数按 argparse 拒绝）。**`--repeat 2` 的第二遍采集也逐帧 refit**（第二遍同样是「新 state → 新 bounds」，漏掉会变成假通过）——CPU 自检用计次断言 refit 次数 == `frames × repeat`。",
+    "**base 幂等是停手条件（不是文案）**：采集路径内置检查 `frame-000` 的 rgb/depth/seg/state 与 `fixtures/render-bvh/scene-flex/reference/base/` **数组级位级全等**，任一不等 → 打印原因并 **exit 3** 停手（顺带补上 G-1 QA O7「frame-000 vs base 动态证据」缺口）。",
+    "**位姿断言读设备端/采集侧**：断言数据源为 `d.flexvert_xpos` 回读（或落盘后的采集侧 `state.npz`），**不得用 CPU 的 `mjd.flexvert_xpos`**；附着到非 world body 的顶点相对 base 帧平均位移 = `k × 0.100 m`（±1e-6），不达标 → **exit 3**。",
+    "**两段变化像素均 ≥576**：`000→001` 与 `001→002` 的 depth 与 seg 变化像素数必须都 ≥ margin 阈值 576（= pass-margin 口径），否则 **exit 3**（阈值仍为脚本硬编码常量 384/576，不新增改值入口）。",
+    "**provenance 增补**：`capture.json` 记录 `spec_sha256`（`1d9fa5ce…`/10,506 B）与 `authoring_script_sha256`（修复后脚本，至少含主脚本与扩展模块/自查模块），并保留 refit 标记（无条件 true）；供 QA 区分采集轮次、证明同一签名对象。",
+    "**spec 漂移审计说明**（写进卡面与证据 README）：判据 spec §8.2 只写 `put_model → forward → 渲染`、未提 BVH；本修复是补齐隐含前提「渲染必须消费当前 state」，**spec sha 未变（`1d9fa5ce…`/10,506 B）、不触发用户重签**；G-2 采集窗沿用 S-1 签名。",
+    "**500 行棘轮 / 新文件**：三条自查逻辑拆到新文件 `scripts/authoring/capture_render_flex_multiframe_checks.py`（主模块只调用；主模块 ≤500 行、自查模块 ≤500 行；`.py` 不在扫描扩展名内但自加口径仍守）。",
+    "**CPU 自检（零 GPU、不采集、不写 fixtures）**：`--dry-run` exit 0 且不写产物；`--refit-bvh` 已移除（未知参数 exit 2）；合成数据验证三条自查的 PASS/FAIL（FAIL 一律 exit 3，含 base 位差 1 bit、位移偏差 >1e-6、变化像素 <576 三种反例）；`--check-deltas` 三态仍为 pass-margin exit0 / insufficient exit3 / non-discriminating exit3；refit 计次断言 = frames × repeat。",
+    "**边界**：不改 `r06-flex-multiframe-criterion/spec.md`（sha `1d9fa5ce…`/10,506 B 必须不变）、不改判据/阈值/帧设计/相机、不碰 `src/`、`tests/`、`fixtures/`；**零 GPU、不开窗口、不执行采集**。",
+    "**证据** `docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM）：H1 根因与 A/B 数字引用、改动 diff、上游依据（`record.py:110`、`contrib/render.py:110/452`）、三条自查的规则/阈值/失败语义、CPU 自检原始输出、spec sha 前后对照、与 G-1 负结果的 supersede 关系预告。",
+    "**非声明**：本卡只声明「采集基础设施修复完成」；G-2 重采通过后只能声明「采集有效 → 可进入验证窗 G-2」，**不得声明**多帧判据已通过 / 动画一致性已覆盖 / 与上游一致 / 发布依据。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-pose-diag"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/capture_render_flex_multiframe.py",
+      "scripts/authoring/capture_render_flex_multiframe_checks.py",
+      "scripts/authoring/README.md",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "Chief 2026-11-05 夜指令（Arch 已转只读，修复卡由 Backend 执行）。r1 `2026-11-05-render-r06-flex-multiframe-refit-fix`（登记 `251d2c5b`、start `0ee85384`）因卡面缺 Chief 定下的 4 条硬性要求与 spec 漂移审计说明，已 abandon（`b95c33b6`）并重登记本 r2 一次写对。G-2 采集窗口前置：本卡 verified + QA 复核 PASS 后由 Chief 发 token，**执行会话 backend（arch-chat 不再执行窗口）**；沿用 S-1 签名（spec 未变、帧设计未变、阈值不变，不需重签）。G-2 窗口硬要求沿用：三点基线 ≥ floor 11,688、monitor 60/60、dry-run 通过、`--repeat 2` 逐位一致、采集路径三条自查全过（verdict pass-margin）、frame-000 vs base 位级全等、CSV/日志/sha 全归档、失败即停不重试；G-1 负结果留档不删，G-2 证据写 supersede。",
+  "revision": { "before": "08434b519d4dd763db1cff8460baf845aa987f56", "after": null },
+  "created_at": "2026-11-05T21:26:00.000Z",
+  "updated_at": "2026-11-05T21:26:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["tests/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["多帧已通过", "动画一致性已覆盖", "上游等价", "对外发布依据"]
+    }
+  ]
+}
