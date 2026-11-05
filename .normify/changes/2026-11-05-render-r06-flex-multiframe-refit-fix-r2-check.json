@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2-check",
+  "title": {
+    "zh": "QA 只读复核：R06 多帧 refit 修复 r2（每帧强制 refit 无分支 / 计次 3×2=6 与反例 / 三条硬自查 exit 3 / provenance 双 sha / 冻结面零改动 / 行数 498-427-296 / 文档引用修正 / 零 GPU 自证）",
+    "en": "QA read-only review: R06 multiframe refit fix r2 (unconditional per-frame refit, counter 3x2=6 with counterexamples, three hard self-checks exit 3, provenance dual sha, frozen surface unchanged, line counts, doc-ref correction, zero-GPU self-proof)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对修复卡 `2026-11-05-render-r06-flex-multiframe-refit-fix-r2`（verified；实现 `ff8135e5`、文档引用修正 `43295e49`）做**只读复核**（复核目标 = 修正后 HEAD `43295e49`）：① 调用点唯一无分支（forward 后 / capture_once 前无条件 `mjw.refit_bvh`，`--refit-bvh` 已删、无 skip 路径）；② 计次断言 = frames×passes = 6、顺序 [0,1,2,0,1,2]，且反例（只记一遍 / 乱序）真走断言路径 FAIL；③ 三条硬自查在采集路径（base 与 reference/base 数组级位级全等、位移 = k×0.100 m ±1e-6 读采集侧 state、两段变化 ≥576），任一失败 exit 3；④ provenance（spec sha `1d9fa5ce…`/10,506 B + 三脚本 sha + refit 标记 + refit_calls=6）；⑤ 冻结面未动（spec sha、帧数/Δz/锚点/阈值/`--repeat 2`/`--check-deltas` 语义、`77aeb6da..43295e49` 无 src/tests/fixtures/Cargo）；⑥ 行数 498/427/296（≤500）；⑦ 文档引用（`mujoco_warp/record.py:110-111`、`contrib/render.py:452-453`，无 `_src/record`、无 `contrib/render.py:110`）且上游行号内容核对；⑧ 零 GPU 自证、四门禁（unit 1321/0）、无 npz/fixtures 产物、树 clean。**只读 + 写自己的证据目录；零 GPU、不采集、不改 r2 证据/脚本/spec/fixtures。**",
+    "en": "Read-only review of the r2 refit fix card at corrected HEAD 43295e49: unconditional per-frame refit with no branch/skip path, refit counter 6 with counterexamples, three in-path hard self-checks exiting 3, provenance, frozen surface, line counts, corrected doc references with upstream line verification, zero-GPU self-proof and gates. No GPU, no capture, no edits outside the reviewer evidence directory."
+  },
+  "modules": {},
+  "acceptance": [
+    "**调用点唯一无分支**：AST 确认 `_render_frame` 内恰好 1 次 `mjw.refit_bvh`，位于 `mjw.forward` 之后、`api.capture_once` 之前，且不在任何 If/Try/For/While 守卫下；`record_refit` 紧随其后；无 `if refit`、无 refit 形参、无 `--refit-bvh`（传参 argparse exit 2）；`_capture_pass` 恰好 2 次（两遍采集逐帧都 refit）。",
+    "**计次断言**：`frames×passes=3×2=6`、顺序 `[0,1,2,0,1,2]` 才 PASS；只记一遍（3 次）FAIL、乱序 FAIL、多记（9 次）FAIL——反例必须走采集路径所用同一 `refit_summary` 判定（`run_capture_checks` 内联）。",
+    "**三条硬自查在采集路径且失败 exit 3**：base 幂等（真实 base 四类产物 15 数组位级全等 / 改 1 bit FAIL）、位移 = k×0.100 m ±1e-6（真实模型 flex_vertbodyid + 采集侧 state flexvert_xpos，非 CPU mjd / +2e-6 FAIL / +5e-7 PASS）、两段变化 depth+seg 均 ≥576（600 PASS / 500 FAIL / 300 FAIL）；`run_capture_checks.failures` 汇总后采集路径 return 3 并打印「不得落库」。",
+    "**provenance**：`provenance_block` 的 `spec_sha256`= `1d9fa5ce…`/10,506 B、三脚本 sha 与实际文件一致、`refit_bvh=true`、`refit_policy=every-frame`；`capture.json` 落 `provenance`/`refit_policy`/`refit_calls=frames×repeat=6`。",
+    "**冻结面**：`77aeb6da..43295e49` 无 `src/`、`tests/`、`fixtures/`、`Cargo.*`、spec 目录改动；spec sha/bytes 未变；帧数 3 / Δz 0.10 / 锚点 / 阈值 384/576 硬编码无改值入口；`--repeat 2` 冻结（repeat 1 exit 1）；`--check-deltas` 三态 0/3/3。",
+    "**行数与文件**：`capture_render_flex.py` 498（逐字节不变）、主模块 427、自查模块 296，均 ≤500；无 multiframe fixtures 目录、范围提交无 `.npz`。",
+    "**文档引用**：`mujoco_warp/record.py:110-111`（pinned 71da24d9 包根，非 `_src/`）与 `contrib/render.py:452-453` 均存在且行号内容为 refit→render；证据与脚本无 `_src/record`、无 `contrib/render.py:110`。",
+    "**零 GPU 与门禁**：CPU 自检零 GPU、不采集、未写 fixtures；四门禁 fmt/clippy/clippy-cuda/unit（unit 1321 过 0 败）记录齐全；证据 manifest 11/11；工作树 clean。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单（按严重级别）；证据落 `docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-refit-fix-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2-check/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "QA 自登记（Chief 2026-11-05 夜指派；Arch 只读旁证出第⑦条文档引用问题、Backend 已以 Normify-Fixes 修正到 HEAD 43295e49，Arch 已转只读）。复核目标 = 修正后 HEAD 43295e49；只读复核：不改 r2 证据/脚本/spec/fixtures；零 GPU、不执行采集。PASS 后由 Chief 发 G-2 采集窗 token。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T13:38:55Z",
+  "updated_at": "2026-11-05T13:38:55Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2-check"
+    }
+  ]
+}
