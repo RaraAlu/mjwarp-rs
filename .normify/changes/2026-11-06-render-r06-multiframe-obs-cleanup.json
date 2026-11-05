@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-render-r06-multiframe-obs-cleanup",
+  "title": {
+    "zh": "R06 多帧观察项治理：O2 裁决字段路径文案 + O6 非声明句禁用组合（仅证据层、CPU-only）",
+    "en": "R06 multi-frame observation cleanup: O2 ruling-field path wording + O6 non-claim phrase (evidence layer only, CPU-only)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "Arch 决策包建议的零风险项（QA G-3/实体复核的 observation）：本卡只做**证据层文案清理**，不改任何判据/数据/代码。① **O2**：修复卡证据里裁决字段路径文案写成 `receipt.json.criteria.option_a.chief_ruling`，实际**修复卡** receipt 为**顶层 `option_a`**（`criteria.option_a` 存在于实体卡 receipt）；把路径与追溯文案改为 `receipt.json.option_a.chief_ruling`。② **O6**：实体 receipt 的非声明句含相邻的「上游」「等价」组合（exact 禁词），改为不含该组合的表述——「不构成与上游实现的一致性结论」，保持语义。**边界**：只动证据层（receipt/README/manifest）与卡记录；不碰 tests、freeze 脚本、guards JSON、fixtures、spec；不改任何已冻结字节（**G-3 的 guards raw sha `64bfecdf…`/11,899 B 必须不变**）；两目录 manifest 重算自核；其余 O1/O3/O4/O5 与 guards eol **不做**（等下一次验证窗前随重冻一起动）。",
+    "en": "Zero-risk evidence-layer wording cleanup from observations O2 (ruling field path written as receipt.json.criteria.option_a but actually top-level option_a in the fix receipt) and O6 (entity receipt non-claim sentence contains an adjacent upstream+equivalence term combination; replace with an equivalent phrase). Evidence layer only; no tests/scripts/guards/fixtures/spec changes; every frozen byte (G-3 guards raw sha) stays identical."
+  },
+  "modules": {},
+  "acceptance": [
+    "**O2 修复（路径文案）**：`docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/` 的 `receipt.json`（`option_a.ruling_trace`）与 `README.md` §4 中 `receipt.json.criteria.option_a.chief_ruling` → **`receipt.json.option_a.chief_ruling`**；不改任何判据/数据/验收结算。",
+    "**O6 修复（非声明句）**：`docs/development-evidence/render-bvh/r06-flex-multiframe-entity/receipt.json` 的 `claims.statement` 去除相邻的「上游」「等价」组合词，改为「不构成与上游实现的一致性结论」，其余语义（不声明 R06 整族通过、动画通用性、不做验证窗结论）保持不变。",
+    "**manifest 重算自核**：`r06-flex-multiframe-entity/` 与 `r06-flex-multiframe-entity-fix/` 两个证据目录的 `manifest.txt` 在改动后重算，逐条 sha256/bytes 自核通过；UTF-8/LF 无 BOM、manifest 首行 `#`、裸 CR/TAB 自查通过。",
+    "**冻结字节不变**：`scripts/validate/render-bvh/guards-r06-multiframe.json` raw sha256 `64bfecdfd179c4b7160c4f853660671ec9fb570b4d6c7702aa6c35c2c3cb352d` / 11,899 B **前后一致**；`unchanged tests/, fixtures/, scripts/, docs/.../r06-flex-multiframe-criterion/, docs/.../r06-flex-multiframe-verify-g3/, docs/.../r06-flex-multiframe-capture-g2/`。",
+    "**范围**：只动证据层（上述两目录 receipt/README/manifest）+ 本卡证据目录 `docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup/` + 卡记录；**不做** O1/O3/O4/O5 与 guards eol；零 GPU、CPU-only；四门禁可不跑（无代码改动）。",
+    "**证据** `docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup/`（README + receipt.json + manifest）：O2/O6 前后对照、guards raw sha/bytes 前后一致证明、两目录 manifest 重算自核、边界与非声明。",
+    "**非声明**：本卡只做证据层文案清理，不产生新验收结论；不写 R06 整族通过 / 动画一致性全广度覆盖 / 与上游实现的一致性结论 / 发布依据；不重开任何已 verified 判定。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-entity-fix",
+      "2026-11-05-render-r06-flex-multiframe-entity-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/",
+      "docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-06 派工（Arch 决策包零风险项）：O2+O6 观察项治理。来源=QA 复核（实体卡 `8c9e7192` 的 O2/O6）。只动证据层文案；G-3 guards 已冻结字节与一切判据/数据不动；其余观察项不做。完成后报 Chief 卡 id + 提交号，QA 复核。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-06T01:01:00.000Z",
+  "updated_at": "2026-11-06T01:01:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["tests/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    { "kind": "unchanged", "paths": ["scripts/"] },
+    { "kind": "unchanged", "paths": ["docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"] },
+    { "kind": "unchanged", "paths": ["docs/development-evidence/render-bvh/r06-flex-multiframe-verify-g3/"] },
+    { "kind": "unchanged", "paths": ["docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2/"] },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-06-render-r06-multiframe-obs-cleanup"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["多帧验收通过", "动画一致性已覆盖", "上游等价"]
+    }
+  ]
+}
