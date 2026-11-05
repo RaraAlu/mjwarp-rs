@@ -5,7 +5,7 @@
     "zh": "R06 多帧诊断：渲染实际消费的位移增量衰减根因（0.058→0.020 m vs 名义 0.1）",
     "en": "R06 multiframe diagnostic: root cause of attenuated displacement increment consumed by rendering (0.058->0.020 m vs nominal 0.1)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "2026-11-05 多帧采集窗（`2026-11-05-render-r06-flex-multiframe-capture`，负结果 non-discriminating：000→001 697/616、001→002 244/183）显示第二步位姿步进在 cam2 上变化骤降。Chief 指派：定位「渲染实际消费的位移增量衰减」（0.058→0.020 m，名义 0.1 m/步）的根因。本卡为**诊断专用**：跑一次诊断采集（输出到 `target/`，非 fixtures），对每帧 `state.npz` 的 `flexvert_xpos` 做相对 base 的位移分布分析（逐顶点/逐 flex/逐附着 body），核 frame-000 与 base 的位级同一性、复现渲染变化计数，判断「位姿注入链是否完整、衰减发生在模型→状态还是状态→渲染」。**不写 fixtures、不改 spec/判据/脚本、不产验收材料**；修复动作另卡，等诊断结论由 Chief 决定。",
     "en": "The 2026-11-05 multiframe capture window returned a negative result (000->001 697/616, 001->002 244/183): the second pose step nearly vanishes on cam2. Chief assigns a diagnostic to locate the root cause of the attenuated displacement increment actually consumed by rendering (0.058->0.020 m vs nominal 0.1 m/step). Diagnostic only: one diagnostic capture to target/ (never fixtures); analyze per-frame state.npz flexvert_xpos displacement relative to base (per vertex / per flex / per attached body), verify frame-000 vs base bit-level identity, reproduce render change counts, and determine whether the attenuation happens in model->state or state->render. No fixtures writes, no spec/criteria/script changes, no acceptance material."
@@ -36,9 +36,12 @@
     "priority": 60
   },
   "note": "Chief 2026-11-05 夜指派（Arch 转只读，写任务交 Backend）：诊断卡 + 一次诊断采集 + 位移衰减根因分析；Chief GO 已发（仅诊断窗口，一次性、失败即停不重试）。S-2 authoring 例外（util<60）用户已预批。采集脚本/判据/spec 零改动；修复另卡。",
-  "revision": { "before": "7a24d54b03e1c5b63deb017d3ef7e5016f5fa2cd", "after": null },
+  "revision": {
+    "before": "079934cde80db477217416fb81193532557f07ad",
+    "after": null
+  },
   "created_at": "2026-11-05T21:06:00.000Z",
-  "updated_at": "2026-11-05T21:06:00.000Z",
+  "updated_at": "2026-11-05T13:03:12.782Z",
   "checks": [
     {
       "kind": "json",
@@ -48,11 +51,19 @@
     },
     {
       "kind": "unchanged",
-      "paths": ["src/", "tests/", "fixtures/"]
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
     },
     {
       "kind": "forbid_claim",
-      "terms": ["多帧已验收", "上游等价", "对外发布依据"]
+      "terms": [
+        "多帧已验收",
+        "上游等价",
+        "对外发布依据"
+      ]
     }
   ]
 }
