@@ -100,3 +100,21 @@
 - 11:59:25（**窗口正式开始前**）执行过一次 `acquire`（早于 12:00 边界，属我的时序失误）；**未做任何仓库内容写**（仅锁文件）。
 - 12:00:03 边界后：`release` → `acquire`（12:00:07，owner=arch-chat）→ `status` 确认后才开始写（卡 JSON 于 12:00 后落盘）。
 - 窗口内所有写均在锁持有下进行；12:06:44 采集结束后释放锁。
+
+## 11. 证据修订记录（2026-11-05，`normify fix`）
+
+QA 复核（`2026-11-05-render-r06-flex-multiframe-capture-check`，提交 `5dcc3597`，PASS-with-observations / 0 阻断）拎出 4 条低观察，处置如下（**结论、数值、停手与未落库判定均不变**）：
+
+- **O1（已修）**：4 个原始控制台输出转码为 **UTF-8 / LF / 无 BOM**（正文逐字符不变，仅编码与行尾变化），`manifest.txt` 重算：
+
+  | 文件 | 修订前 | 修订后 |
+  | --- | --- | --- |
+  | `capture.log` | ANSI/cp936 + 混合行尾（100 CRLF + 42 单 LF），9,265 B，`3b6030c7…` | UTF-8 / LF，9,199 B，`e24859cc…` |
+  | `dry-run.log` | ANSI/cp936 + 混合行尾（88 CRLF + 6 单 LF），2,537 B，`3f600052…` | UTF-8 / LF，2,470 B，`9cfee38a…` |
+  | `baseline-three-points.txt` | UTF-8 BOM + CRLF，93 B，`ab6206a9…` | UTF-8 / LF，87 B，`3e60cf2e…` |
+  | `post-window-gpu.txt` | UTF-8 BOM + CRLF，33 B，`b5a8f8af…` | UTF-8 / LF，29 B，`f522324e…` |
+
+- **O2（记已知，不返工）**：窗口卡 `created_at` 12:01 晚于基线 12:00:26 / monitor 12:00:44；卡与全部窗口证据同在 12:07:59 的 `484852ca`（标题「登记 + start」）落库，晚于采集结束 12:06:44 —— 记账时序瑕疵，**不影响**基线/数值/停手/不落库结论；锁时序见 §10。
+- **O3（记已知，不返工）**：`capture.log` 仅含脚本 stdout，无命令行与 exit code；命令与 `exit 3` 由 receipt/README + 已复核代码路径判定。**后续采集窗日志模板要求**：wrapper 输出首行写完整命令行、末行写 `exit_code`（本窗为回溯记录，不改写原始日志）。
+- **O4（记已知，不返工）**：卡验收第 5 条 `frame-000 vs base` 数组级位级对照**仅在自检 pass-margin 后执行**（与 spec §8.5 顺序一致）；本窗在自检处停手，故该对照 NOT RUN，不属于缺项。
+- 复核锚点：本次 fix 只改本证据目录（4 个原始文件转码 + 本 README + `manifest.txt` 重算）；不改帧产物（本窗未落库）、不改 `capture-diagnostic.json` / `cam-poses-diagnostic.json` / `monitor-capture.csv` / `receipt.json`；`src/`、`tests/`、`fixtures/`、`scripts/`、冻结 spec 零 diff。
