@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-multiframe-guards-eol-backlog",
+  "title": {
+    "zh": "R06 多帧 guards JSON 的 eol/raw-vs-blob sha 口径问题（O1）——低风险已知项，后置",
+    "en": "R06 multiframe guards JSON eol/raw-vs-blob sha discrepancy (O1) - low-risk known item, deferred"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "QA G-3 复核 O1：`scripts/validate/render-bvh/guards-r06-multiframe.json` 由冻结器用 `ConvertTo-Json` 生成，行内分隔为 CRLF；仓库 `.gitattributes` 未对该文件声明 `-text`/`eol`，导致 **raw 工作树 sha256/bytes**（冻结证据记录的 `64bfecdf…`/11,899 B）与 **HEAD blob sha256**（`bf4b9302…`/11,696 B）不一致。G-3 证据已用**LF 规范化快照**兜底（快照 sha 与 blob 口径一致），窗口判据与数值不受影响。本卡只登记已知项，**不排期、不 start**；**今晚不改 `.gitattributes`**。若后续需要 raw sha 全平台可复现，再评估：① 冻结器输出统一 LF；② 对该路径补 `-text`/`eol=lf`；③ 或在证据层同时记录 raw/blob 双口径。",
+    "en": "QA G-3 review O1: the guards JSON is generated with CRLF line separators and the repo does not pin -text/eol for it, so raw working-tree sha256/bytes differ from the HEAD blob. G-3 evidence already used an LF-normalized snapshot; no impact on criteria or numbers. Backlog only, no scheduling and no .gitattributes change tonight."
+  },
+  "modules": {},
+  "acceptance": [
+    "**不排期**：本卡只作为已知项记录，不启动、不产生验收结论；触发条件=后续窗口需要 raw sha 全平台可复现，或冻结器/证据口径审计要求统一 EOL。",
+    "**若修复（后续卡）**：冻结器输出统一 LF 或对 `scripts/validate/render-bvh/guards-r06-multiframe.json` 补 `-text`/`eol=lf` 规则；修复必须**不改已验证窗口的判据/数值**，并在新证据中同时记录 raw/blob 双口径；不得改写历史 guards 条目或已冻结 window 证据。",
+    "**边界**：本卡不排期、不 start、零 GPU；今晚不改 `.gitattributes`、不改已有 guards JSON、不改 G-3 证据。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [],
+    "resources": [],
+    "priority": 15
+  },
+  "note": "Chief 2026-11-05 派工（多帧收口治理第 3 条）：O1 先记 backlog 不修，今晚不改 `.gitattributes`。来源=QA G-3 复核 O1：guards JSON 无 -text/eol 规则，raw 工作树 sha/bytes 与 HEAD blob 不同（G-3 证据用 LF 快照 `bf4b9302…`/11,696 B 兜底，raw `64bfecdf…`/11,899 B 见 freeze-verify）。同轮 O2（禁词非声明否定句字面误报风险）、O3（窗口未留 repo-write-lock 原始输出）记已知，见收口证据 README。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T14:57:00.000Z",
+  "updated_at": "2026-11-05T14:57:00.000Z",
+  "checks": []
+}
