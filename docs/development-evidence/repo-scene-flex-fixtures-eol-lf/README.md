@@ -52,7 +52,12 @@ fixtures/render-bvh/scene-flex/** text eol=lf
    clone `git status --porcelain` **为空**；`check-attr` 见 §3。
 
 机器可读结果：`artifacts/clone-compare.json`（before/after 逐文件 sha/bytes/CRLF 计数 + verdict + clone-local 提交号）。
-落库后再以**真实最终提交**做一次 fresh clone 复核，日志见后续 `Normify-Fixes` addendum（`logs/clone-postcommit.json`）。
+
+**落库后真实 HEAD 复核（`Normify-Fixes` addendum）**：最终提交 **`cce3e2e3`** 落库后，以**真实提交**重做 fresh clone
+（`git -c core.longpaths=true -c core.autocrlf=true clone --no-local <repo> D:\eol-clone-postcommit`）：
+clone **干净**（`status` 0 行）、**15/15** 夹具 sha256/bytes 与 `files-sha256.json` 逐条一致、3 文本夹具
+**无 CRLF**（LF）、12 npz 仍 `text: unset / diff: unset`、clone 内 `.gitattributes` 含规则——verdict 全 true。
+证据：`artifacts/clone-postcommit.json`、`scripts/verify_postcommit_clone.py`、`logs/clone-postcommit.log`。
 
 ## 5. 边界与非声明
 
@@ -69,6 +74,9 @@ fixtures/render-bvh/scene-flex/** text eol=lf
 | `receipt.json` | 机器可读回执（`/task_id` 供 normify `json` 检查） |
 | `artifacts/gitattributes.diff` | `.gitattributes` 改动 diff（+4 行，raw bytes） |
 | `artifacts/clone-compare.json` | fresh clone before/after 逐文件 sha256/bytes/CRLF 与 verdict |
+| `artifacts/clone-postcommit.json` | 落库后真实 HEAD fresh clone 复核（clone 干净 / 15-15 匹配 / npz 二进制属性） |
+| `logs/clone-postcommit.log` | 落库后复核控制台输出（含 exit_code） |
+| `scripts/verify_postcommit_clone.py` | 落库后复核脚本（自包含可复跑） |
 | `logs/attr-before.txt` / `logs/attr-after.txt` | `git check-attr text eol diff` 前后对照（3 文本 + npz） |
 | `logs/clone-verify.log` | 验证脚本控制台输出（含 exit_code） |
 | `scripts/verify_clone.py` | 自包含 fresh clone 验证脚本（可复跑） |
