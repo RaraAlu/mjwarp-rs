@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-capture-g2-check",
+  "title": {
+    "zh": "QA 只读复核：R06 多帧采集窗 G-2（pass-margin 1,167/1,074 与 1,262/1,126、三条硬自查独立复算、15 文件落库 sha/bytes、provenance 三脚本 sha、窗口合规、fresh clone npz 字节安全）",
+    "en": "QA read-only review of the R06 multi-frame capture window G-2 (pass-margin pixel counts, three hard self-checks recomputed, 15 landed files sha/bytes, provenance script shas, window compliance, fresh-clone npz byte safety)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-2 采集窗卡 `2026-11-05-render-r06-flex-multiframe-capture-g2`（verified；提交 `5f2bd0bb` + 证据补充 `38a7767c`）做**只读复核**（HEAD = `38a7767c`），逐项独立复算不采信执行方结论：① 采集有效性（verdict pass-margin、cam2 两段 depth/seg = 1,167/1,074 与 1,262/1,126 均 ≥576、两次逐位一致、refit actual_sequence=[0,1,2,0,1,2]/refit_calls=6）；② 三条硬自查逐项（frame-000 vs base 15 数组位级全等真实数据、位移 k×0.100 m ±1e-6 读采集侧 state、两段 ≥576）；③ 落库物（fixtures/multiframe 15 文件 sha256/bytes 与证据核对、reference/ 与单帧参考未动）；④ provenance（spec sha `1d9fa5ce…`/10,506 B、三脚本 sha 原值 f50e150e/46d75002/ef77f38b 与窗口时点一致）；⑤ 窗口合规（基线 ≥floor 11,688、monitor 60/60、capture exit0 无残留、G-1 负结果保留且 supersede 叙事正确）；⑥ 编码/卫生（manifest 首行 `#`、UTF-8/LF/无 BOM、裸 CR/TAB 0 命中、**新 fixtures npz 的 .gitattributes 覆盖与 fresh clone 字节安全**）；⑦ 非声明（只写「采集有效 → 可进入验证窗」，禁词 0 命中）。**只读 + 写自己的证据目录；零 GPU、不采集、不改 G-2 证据/fixtures/spec/脚本。**",
+    "en": "Read-only review of the G-2 capture window card at HEAD 38a7767c, independently recomputing capture validity, the three hard self-checks, landed-file sha/bytes, provenance, window compliance, evidence hygiene and fresh-clone npz byte safety. No GPU, no capture, no edits outside the reviewer evidence directory."
+  },
+  "modules": {},
+  "acceptance": [
+    "**采集有效性**：`capture.json.delta_selfcheck.overall == pass-margin`；cam2 `000→001` depth/seg = **1,167/1,074**、`001→002` = **1,262/1,126**（均 ≥576，且由落库 depth/seg.npz 独立重算一致）；`two_captures_bitwise_identical=true`；`refit.actual_sequence == [0,1,2,0,1,2]`、`refit_calls=6`。",
+    "**三条硬自查逐项**：frame-000 的 rgb/depth/seg/state **15 个数组** 与 `reference/base/` 数组级位级全等（独立加载 npz 重算，mismatches=[]）；附着顶点（非 world body）相对 base 帧平均位移 = k×0.100 m（k=0,1,2；±1e-6，读采集侧 `state.npz.flexvert_xpos`）；两段变化像素均 ≥576。",
+    "**落库物**：`fixtures/render-bvh/scene-flex/multiframe/` 恰 15 个文件（3 帧×4 + capture.json/cam-poses.json/README.md），sha256/bytes 与证据 `artifacts/files-sha256.json` 15/15 一致、与 `capture.json.per_frame_files_sha256` 一致；`fixtures/render-bvh/scene-flex/reference/`（base + 单帧参考）相对窗口前提交零 diff。",
+    "**provenance**：`spec_sha256=1d9fa5ce…`/10,506 B；`authoring_script_sha256` 三脚本 = `f50e150e…`（capture_render_flex.py）/`46d75002…`（multiframe.py）/`ef77f38b…`（checks.py），= 窗口时点提交 blob = 当前文件；`refit_policy=every-frame`、`refit_bvh=true`。",
+    "**窗口合规**：基线三点 free ≥ floor 11,688（取严）且 util<40；monitor 60/60 clean（CSV 60 行进证据、free_min ≥ floor、compute_filtered/build 全 0、S-2 未启用）；dry-run exit0/out_dir_created=false；capture **exit 0**、无 `.repeat2`/残留；G-1 负结果证据与卡保留且相对窗口前零 diff、supersede 叙事与 G-1 数字一致。",
+    "**编码/卫生**：证据 manifest 首行 `#` 且 16/16 自核；证据与 fixtures 文本文件 UTF-8/LF/无 BOM、裸 CR/TAB 0 命中、无 U+FFFD；**fresh clone（core.autocrlf=true）后 12 个 npz 逐字节一致（`*.npz -text -diff` 覆盖）**、证据目录 manifest 在 clone 中 16/16 自洽；文本夹具（capture.json/cam-poses.json/README.md）字节稳定性单列观察。",
+    "**非声明**：只写「采集有效 → 可进入验证窗（G-2 判据门）」；`多帧验收通过`、`动画一致性已覆盖`、`上游等价` 0 命中；不声明发布依据。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单（按严重级别）；证据落 `docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-capture-g2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2-check/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "QA 自登记（Chief 2026-11-05 夜指派；Arch 已转只读）。复核目标 = HEAD 38a7767c（实现 5f2bd0bb + 证据补充 38a7767c）；只读复核：不改 G-2 证据/fixtures/spec/脚本；零 GPU、不执行采集。PASS 后进入「多帧测试实体实现 + 验证窗」设计阶段。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T13:57:37Z",
+  "updated_at": "2026-11-05T13:57:37Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "scripts/",
+        "fixtures/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-capture/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-capture-g2-check"
+    }
+  ]
+}
