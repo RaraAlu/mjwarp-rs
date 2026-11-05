@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-verify-g3",
+  "title": {
+    "zh": "R06 多帧验证窗 G-3：真冻结 28 条 + 基线/floor + monitor 60/60 + 零编译跑 GPU 多帧实体（G-3 判据门）",
+    "en": "R06 multi-frame validation window G-3: real 28-entry freeze + baseline/floor + monitor 60/60 + zero-compile GPU multiframe entity run (G-3 criteria gate)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "前置齐：实体卡 A `2026-11-05-render-r06-flex-multiframe-entity`（`2a27c2fd`/`241d702f`）verified + 小修卡 `…-entity-fix`（`a2d7d4c5`）verified + QA 复核 B PASS（`8c9e7192`，0 阻断、低项均 observation）+ Arch 旁证 PASS。Chief 验证窗 token 时间 **2026-11-05 22:36**，执行者/唯一写者 **Backend**（Arch 只读不执行）。本窗先在窗口前**真冻结 28 条**（2 exes + 26 inputs：aggregate 复算、exe 不再 pending、live==guard==stash 2/2、inputs 14/14 + 12 帧），窗口内**零编译/零 relink** 跑冻结 exe 的 GPU `#[ignore]` 用例 `render_flex_multiframe`（`--ignored --test-threads=1 --nocapture`，日志须 `running 1 test`）；开窗前 5 分钟内三点基线 + `floor=max(min_free−3072, 11,688)` 取严 + monitor 60/60 + 贴开发团队群留痕。**只判 G-3 判据门（该 3 帧集逐帧口径 + 跨帧可见性），不写 R06 整族/动画一致性/上游等价；失败即停不重试。**",
+    "en": "G-3 validation window for the multiframe entity: freeze the 28 guard entries before the window, keep zero Rust compile/relink inside the window, verify the three-point baseline/floor and a clean 60/60 GPU monitor, then run the frozen `render_flex_multiframe` GPU #[ignore] case once. Fail-stop; G-3 criteria gate only, no family/animation/upstream-equivalence claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**三事实 + 前置写死**：① QA 复核 B PASS = `8c9e7192`（0 阻断，低项均 observation）；② 批准时间 **2026-11-05 22:36**；③ 执行者/唯一写者 = **Backend**（Arch 只读不执行）。前置：实体卡 A verified + 小修卡 `2026-11-05-render-r06-flex-multiframe-entity-fix` verified + QA 复核 B PASS。",
+    "**历史原文说明**：实体卡 A 的 intent/acceptance #4 为**历史原文**（normify 冻结不可改写，原文仍写「按 spec §2 用偏移模型建 3 个 context」）；选项 A 的当前口径以实体卡 addenda **`a175c7f8`** + 小修卡 acceptance #2 + 两份 README（实体/小修）为准。窗口材料与证据须写明此点，避免未来审计把历史原文当现行口径。",
+    "**实体文件冻结**：窗口期间不得修改 `tests/render_flex_multiframe.rs`（**499** 行）、`tests/support/render_bvh/multiframe.rs`（**496**）、`tests/support/render_bvh/allowlist.rs`（**210**）；`unchanged tests/`；500 行棘轮只剩少量余量，要改先拆分再说。",
+    "**写范围 / 不可改对象**：仅 `scripts/validate/render-bvh/guards-r06-multiframe.json` + 证据目录 `docs/development-evidence/render-bvh/r06-flex-multiframe-verify-g3/` + 卡/runs；`unchanged src/, fixtures/, scripts/authoring/, docs/.../criterion/（spec `1d9fa5ce…`/10,506 B）, docs/.../r06-flex-multiframe-entity/, docs/.../r06-flex-multiframe-entity-fix/`；不改判据/阈值/allowlist/脚本、不重采、不返工数据。",
+    "**窗口纪律**：`repo-write-lock status→acquire→start` 分开执行、owner=Backend；起始树 clean；窗口内**一次性构建**：`cargo build --locked --features cuda-probe`（bin `mjwarp-rs`）+ `cargo test --locked --features cuda-probe --no-run --test render_flex_multiframe`（test exe），**同刻**记录两 exe 路径/bytes/sha256/LastWriteTime 与构建输出。",
+    "**真冻结（窗口前）**：`freeze-guards-r06-multiframe.ps1 -Attempt 1`；期望 `GUARDS_OK` 28/28（2 exes + 26 inputs）、`aggregate_sha256` 复算、exe 不再 `pending_freeze`、等价核验 **live==guard==stash 2/2**、inputs 14/14 + 12 帧等按脚本输出；freeze 后**零编译/零 relink**（窗口全程 build 进程 0，任何编译即 INVALID_ROUND、记录不采用）；证据分别记 **freeze 时刻**与**窗口时刻**，并写明「freeze 在窗口前完成、窗口内零编译」。",
+    "**开窗前基线（freeze 后 5 分钟内）**：三点 `memory.used/free/utilization/temperature`，逐点 free ≥ `floor = max(min_free − 3072, 11,688)`（取严）、util < 40、`--query-compute-apps` 无本任务 CUDA 任务、build=0、树 clean（窗口写前记录；freeze 后仅声明内 guards 变更）；**贴「开发团队」群留痕**（计划 + 基线 + floor）。任一不达标 → 停手报 Chief（本窗**无** S-2 util<60 例外，常规 util<40）。",
+    "**monitor**：显式 `-OutCsv target/r06-multiframe-verify-g3/monitor-g3.csv`、`-Required 60 -MaxMinutes 12 -MaxUtil 40`；需 **60/60** 连续干净；人工逐点核 free ≥ floor（脚本内置 10,240 仅为下限）；CSV 进证据（窗口后复制，不落仓）。未达标不跑实体。",
+    "**实体（单次，不重试）**：**零编译跑冻结 stash exe**（与 live exe 逐字节等价）：`render_flex_multiframe.exe --ignored --test-threads=1 --nocapture`，env `CUDA_PATH=target/toolchains/cuda-12.8.1` + `PATH` 前置；日志必须 `running 1 test` 且 `test result: ok. 1 passed`；运行前后核对 live/stash exe sha256 不变（无 relink）。采集：逐帧逐相机可得统计（frame-000 depth `mismatched/beyond4/max_ulp` 打印 + allowlist 明细行；frame-001/002 严格 bit-first 通过 ⇒ 全 0；rgb 断言 `max_byte_diff ≤1` 且 `beyond_1_lsb=0`）、逐帧两跑整块多相机缓冲 sha、跨帧 **cam2-only** 变化数（全相机合计仅诊断）、`refits()`、参考 15 文件校验结果（用同一冻结 exe 的 CPU 用例 `reference_integrity_15_files` 在窗口前/外跑一次并留证）。",
+    "**失败即停**：不重试、不改 allowlist/阈值/判据、不重采；**新帧复现同像素差 → 停手报用户**，不得自动扩 allowlist；任一前置/基线/monitor/实体失败 → 保留现场、停手报 Chief，不采用本轮。",
+    "**判定口径**：只写「G-3 判据门：该 3 帧集逐帧口径 + 跨帧可见性 pass/fail」；**不得写** R06 整族通过 / 动画一致性已覆盖 / 上游等价 / 发布依据；历史原文说明与实体文件冻结按第 2/3 条写入窗口材料。",
+    "**证据归档** `docs/development-evidence/render-bvh/r06-flex-multiframe-verify-g3/`（README + receipt.json + manifest.txt，UTF-8/LF 无 BOM；manifest 首行 `#` 表头 + 每文件 sha256+bytes 自核 + 裸 CR/TAB 自查）：三点基线原始输出、构建+冻结同刻指纹、guards 冻结快照（aggregate/guards sha/2 exe sha）、monitor CSV 复制件、实体日志（含 `running 1 test` 与逐帧打印）、参考 15 文件校验、post-GPU 状态、`git status` 留痕。",
+    "**收口**：`done` + 提交；释放写锁与 GPU 并记录 post-GPU；**23:50 停写前必须收口或停手**。完成后报 Chief：判定、冻结指纹（aggregate + guards sha + 2 exe sha）、逐帧逐相机结果、提交号。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-entity",
+      "2026-11-05-render-r06-flex-multiframe-entity-fix",
+      "2026-11-05-render-r06-flex-multiframe-entity-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/validate/render-bvh/guards-r06-multiframe.json",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-verify-g3/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "Chief 2026-11-05 22:36 发验证窗 token（执行者/唯一写者 Backend；Arch 只读）。本卡面按 token 清单一次写死：三事实、历史原文口径说明、实体文件 499 冻结、窗口前真冻结 28 条、窗口内零编译跑冻结 exe、三点基线 + floor 11,688 取严 + monitor 60/60 + 贴群留痕、失败即停不重试、证据归档与收口口径。前置：实体卡 A verified + 小修卡 verified + QA 复核 B PASS（`8c9e7192`）。本卡只判 G-3 判据门（3 帧集逐帧 + 跨帧），不写 R06 整族/动画一致性/上游等价。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T14:37:00.000Z",
+  "updated_at": "2026-11-05T14:37:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts/authoring/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-verify-g3/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-verify-g3"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "多帧验收通过",
+        "动画一致性已覆盖",
+        "上游等价"
+      ]
+    }
+  ]
+}
