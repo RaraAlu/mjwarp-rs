@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-capture",
+  "title": {
+    "zh": "R06 多帧采集窗（G-1）：3 帧固定位姿步进参考采集 + 自检 pass-margin + 两次逐位一致",
+    "en": "R06 multi-frame capture window (G-1): three-frame fixed pose-step reference capture with pass-margin self-check and two-capture bit identity"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "采集窗执行卡（唯一执行会话 arch-chat）：按已签判据规格（S-1，spec sha `1d9fa5ce…` / 10,506 B 冻结）在 `scene-flex` 上采集 3 帧多帧参考（frame-000/001/002，锚点 `body_pos.z` 每步 `+0.10 m`），走 G-1 材料：开窗前三点基线 + floor 取严、monitor 60/60（常规 util<40；不达标才启用已预批的 S-2 authoring-only util<60 例外并记录采样点）、dry-run、`--repeat 2` 两次采集逐位一致、脚本末自检必须 `pass-margin`（否则 exit3 停手不落库）、frame-000 与 base 数组级位级对照、证据归档（monitor/基线/日志/post-GPU/sha 清单/verdict）。**写范围严格限定：`fixtures/render-bvh/scene-flex/multiframe/` + `docs/development-evidence/render-bvh/r06-flex-multiframe-capture/` + 卡/runs；不改 `src/`、`tests/`、其它 `fixtures/`、现有单帧参考、冻结 spec、脚本。失败即停、不重试、不放宽。**",
+    "en": "Capture-window execution card: capture the three-frame multi-frame reference per the signed spec, following the G-1 material (baseline + strict floor, 60/60 monitor with the pre-approved S-2 authoring exception only if util<40 fails, dry-run, --repeat 2 bit identity, mandatory pass-margin self-check, array-level frame-000 vs base comparison, evidence archival). Write scope limited to the multiframe fixtures dir, the capture evidence dir and the card/runs. Fail-stop, no retry, no relaxation."
+  },
+  "modules": {},
+  "acceptance": [
+    "**签名与 GO 事实写死**：S-1 用户签名对象 = `docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md`，sha256 `1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6` / 10,506 B（2026-11-05 签，冻结）；S-2 已预批（常规 util<40 不达标时允许 authoring-only util<60）；Chief GO 时间 **2026-11-05 08:43**，窗口 12:00–14:00。",
+    "**开窗前基线**：5 分钟内三点 `memory.used/free/utilization/temperature`，`--query-compute-apps` 无 CUDA 任务、build=0、树 clean；**floor = max(min_free − 3072, 11,688)** 取严；逐点 free ≥ floor、util<40；任一不达标且 S-2 例外也不达标 → 停手。",
+    "**monitor**：`monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -OutCsv <显式路径>`，需 60/60 连续干净；人工逐点核 free ≥ floor；若启用 S-2，记录例外与**逐点** util 采样。",
+    "**dry-run**：显式 `--out-dir fixtures/render-bvh/scene-flex/multiframe`，输出计划（spec 校验、锚点、三帧布局），不写产物。",
+    "**采集**：`--frames 3 --frame-dz 0.1 --repeat 2 --out-dir fixtures/render-bvh/scene-flex/multiframe`；两次采集逐帧逐文件 sha256 一致；`capture.json.delta_selfcheck.overall == pass-margin`，否则脚本 exit3 → **停手、不落库为验收材料**；cam2 相邻帧 depth 与 seg 变化像素数均 ≥ 576（采集前置余量门槛）；[384,576) 或 <384 → 停手报 Chief。",
+    "**frame-000 vs base 数组级位级对照**：逐相机比较 rgb/depth/seg **数组逐元素位级**（不用 npz 文件 sha）；state 比较 `flexvert_xpos` 与相机位姿；不一致 → 停手报 Chief。",
+    "**证据归档**：`docs/development-evidence/render-bvh/r06-flex-multiframe-capture/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM）：含三点基线原始输出、monitor CSV（复制件）、dry-run 输出、采集日志、post-window GPU 状态、`capture.json` verdict、每文件 sha256/bytes、两次采集一致标记、frame-000 对照结果、与每帧变化像素数。",
+    "**产物布局**：`fixtures/render-bvh/scene-flex/multiframe/frame-{000,001,002}/{rgb.npz,depth.npz,seg.npz,state.npz}` + `capture.json` + `cam-poses.json` + `README.md`。",
+    "**边界**：不改 `src/`、`tests/`、其它 `fixtures/`、现有单帧参考、冻结 spec、`scripts/`；零编译；完成后释放写锁与 GPU；失败即停、不重试、不放宽。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-criterion-spec",
+      "2026-11-05-render-r06-flex-multiframe-capture-script",
+      "2026-11-05-render-r06-flex-multiframe-capture-script-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "fixtures/render-bvh/scene-flex/multiframe/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-11-05 登记（Chief GO 2026-11-05 08:43，限窗 12:00–14:00；唯一执行会话 arch-chat）。S-1 签名对象 sha 冻结；S-2 已预批；违规（先写后锁/scope 外写/跳过 status）即停窗交 Backend。本卡只产多帧参考与采集证据，不产验收结论。",
+  "revision": {
+    "before": "88ff0b606818cdb41daa8ed43121357790bd6e1c",
+    "after": null
+  },
+  "created_at": "2026-11-05T04:01:00.000Z",
+  "updated_at": "2026-11-05T04:07:47.776Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-capture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-capture"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "多帧验收通过",
+        "上游等价",
+        "超窗写"
+      ]
+    }
+  ]
+}
