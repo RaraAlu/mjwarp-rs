@@ -53,7 +53,7 @@
 - 裁决要点：「不补 `body_pos` 偏移步骤（产品路径不消费 body_pos，补一步是演戏）；把口径改成逐帧 state 刚性
   位姿建 3 个 context + 断言三者刚性签名一致 + 同一 context 渲染对照 + `refits()==0`」。
 - 落地位置：本卡 acceptance #2；实体证据 README §5（含裁决段与 spec §2 实现映射）；
-  GPU 用例选项 A 注释（`tests/render_flex_multiframe.rs`）；`receipt.json.criteria.option_a.chief_ruling`。
+  GPU 用例选项 A 注释（`tests/render_flex_multiframe.rs`）；`receipt.json.option_a.chief_ruling`（修复卡 receipt 为**顶层 `option_a`**）。
 - 实体 A 卡 acceptance #4 不可改写（normify 禁止改写已启动任务的验收）；裁决以本卡 acceptance +
   实体证据 README §5 为准，不返工既验证结论。
 - spec §2 实现映射（写进 README §5）：「模型 `body_pos` 偏移对 flex 渲染惰性（产品每次渲染用通道 positions
