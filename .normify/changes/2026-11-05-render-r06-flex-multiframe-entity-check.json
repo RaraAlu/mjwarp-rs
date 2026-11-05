@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-entity-check",
+  "title": {
+    "zh": "QA 只读复核：R06 多帧实体 A（含小修卡）——cam2-only 跨帧判据 / 选项 A 诚实口径与裁决留痕 / 逐帧判据 15 文件与 provenance / allowlist 边界 / guards 2+26=28 / 回归面 498-210-≤500 / 零 GPU 门禁",
+    "en": "QA read-only review of R06 multi-frame entity A (incl. fix card): cam2-only cross-frame criterion, honest option-A wording with ruling trace, per-frame criteria, allowlist boundary, guards 2+26=28, regression surface, GPU-free gates"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对实体卡 `2026-11-05-render-r06-flex-multiframe-entity`（verified；2a27c2fd/241d702f）与小修卡 `2026-11-05-render-r06-flex-multiframe-entity-fix`（verified；a2d7d4c5/a175c7f8）的**最终状态 HEAD a175c7f8** 做只读复核：① cam2-only 跨帧判据（断言与打印分离、cam0/1=0、cam2=(1167,1074)/(1262,1126) 逐值、384=验收阈）；② 选项 A 诚实口径（不补 body_pos 偏移步骤、Chief 裁决留痕在 addenda/README §5/receipt.option_a/GPU 注释、无「偏移模型建 context」现行表述、验收文本不可改写）；③ 判据实现（三相机×三帧帧内 rgb≤1LSB&beyond=0 / depth frame-000 allowlist + 001/002 严格 / seg 全等 / 两跑整块 sha；允许用同一用例的整块多相机缓冲 sha）；④ 参考完整性 15 文件与 provenance（spec/三脚本/refit_calls=6/actual_sequence）；⑤ guards 2 exes + 26 inputs = 28、aggregate b8110cee… 复算、未执行 freeze、既有 guards 未动；⑥ 回归面 render_flex_validate.rs 498 零 diff、allowlist.rs 210（+14）、两新 rs 499/496 ≤500、四门禁 unit 1359/0、unchanged src/fixtures/spec、非声明在案。**只读 + 写自己的证据目录；零 GPU、不采集、不执行 freeze。**",
+    "en": "Read-only review of the final state of entity card A and its fix card: cam2-only cross-frame criterion, honest option-A wording with the Chief ruling trace, per-frame criteria, reference integrity and provenance, guard-suite structure, regression surface, GPU-free gates and non-claims. No GPU, no capture, no freeze."
+  },
+  "modules": {},
+  "acceptance": [
+    "**cam2-only 跨帧判据**：`change_pixels_cam2()` 为唯一判据口径（`verify_change_pixels`、CPU 自证 ⑤⑥、GPU 用例跨帧断言）；`change_pixels_all_cameras()` 仅诊断打印/确定性检查、不参与 ≥384 判据；独立重算 cam0/cam1 帧间变化 = 0，cam2 = `(1167,1074)`、`(1262,1126)` 且均 ≥384；阈值仍 384（576 仅采集余量、不作验收阈）。",
+    "**选项 A 口径与裁决留痕**：实现/证据/代码中无「偏移模型建 context」现行表述；口径 = 逐帧 state 刚性位姿建 3 个 context + 刚性签名一致 + 同一 context 渲染对照 + `refits()==0`；Chief 2026-11-05 裁决（不补 body_pos 偏移步骤）留痕于实体卡 addenda、小修卡 acceptance/receipt.option_a、实体证据 README §5、GPU 用例注释；实体卡 acceptance 按规范不可改写。",
+    "**判据实现**：rgb 逐相机 `max_byte_diff<=1` 且 `beyond_1_lsb=0`；depth frame-000 仅 cam2 `(134,128)` flexid0/seg9 allowlist（ULP≤4、beyond4=0）、frame-001/002 严格 bit-first（漂移 panic 停手）；seg 逐像素全等；两跑整块多相机缓冲 sha 相等；GPU 用例 1 个且 `#[ignore]`、CPU 自证 22 项。",
+    "**参考完整性 / provenance**：12 npz sha 对齐 `capture.json.files_sha256` + 3 文本 sha 锚定 = 15 文件（独立重算）；spec `1d9fa5ce…`/10,506 B、三脚本 sha、`refit_calls=6`、`actual_sequence=[0,1,2,0,1,2]`、`refit_policy=every-frame`。",
+    "**guards 与回归面**：2 exes + 26 inputs = 28、每条 input sha/bytes 正确、aggregate 复算 = `b8110cee…`、分类 input=25/guard_script=1、仍 pending_freeze（未执行）、既有 guards 文件未动；`render_flex_validate.rs` 498 零 diff、`allowlist.rs` 210（+14/−0）、两新 rs 499/496 ≤500、四门禁全过（unit 1359/0）、`unchanged src/, fixtures/, criterion/`、树 clean。",
+    "**证据与低项定级**：实体/修卡证据 manifest 自核（8/8、6/6）、UTF-8/LF 无 BOM；证据 README 476 清零、两跑 sha 措辞为整块多相机缓冲、裁决路径/诊断项等低项按「只影响诊断/文案/验证强度、不影响判据与数值 → observation」定级并逐条列出。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单；证据落 `docs/development-evidence/render-bvh/r06-flex-multiframe-entity-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-entity",
+      "2026-11-05-render-r06-flex-multiframe-entity-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-check/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "QA 自登记（Chief 2026-11-05 夜指派：实体 A 复核卡 B，依赖 A + 小修卡）。复核目标 = 最终 HEAD a175c7f8（小修卡登记 ddcf78f8、start bb03af57、实现 a2d7d4c5、裁决 addenda a175c7f8）。只读复核：不改 tests/实体证据/修卡证据/spec/fixtures；零 GPU、不采集、不执行 freeze。PASS 后 Chief 发验证窗 token。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T14:32:57Z",
+  "updated_at": "2026-11-05T14:32:57Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-entity-check"
+    }
+  ]
+}
