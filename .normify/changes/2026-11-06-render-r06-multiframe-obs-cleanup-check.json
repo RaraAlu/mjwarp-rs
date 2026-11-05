@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-render-r06-multiframe-obs-cleanup-check",
+  "title": {
+    "zh": "QA 只读复核：R06 多帧观察项治理 O2/O6（路径文案生效面 / 禁词清零与语义 / 仅证据层改动 / guards 冻结字节不变 / manifest 重算自核 / 未动项确认）",
+    "en": "QA read-only review of the R06 multi-frame observation cleanup (O2/O6 wording scope, forbidden-term clearance and semantics, evidence-layer-only changes, frozen guards bytes, recomputed manifests, untouched items)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对观察项治理卡 `2026-11-06-render-r06-multiframe-obs-cleanup`（verified；登记 c6988afd、start c965e48f、实现 d1653111）做**只读复核**（复核目标 HEAD d1653111，基线=上一次 QA 收口复核 1c5ea060）：① O2 两处路径文案（`r06-flex-multiframe-entity-fix/receipt.json` 的 `option_a.ruling_trace` 与 `README.md` §4）由 `receipt.json.criteria.option_a.chief_ruling` 改为 `receipt.json.option_a.chief_ruling`，且两目录内 `criteria.option_a` 0 命中；② O6 `r06-flex-multiframe-entity/receipt.json` 的 `claims.statement` 不再含 exact 禁词「上游等价」或相邻「上游」「等价」组合，语义（不声明整族/动画通用性/上游一致性/验证窗结论）不变；③ 改动仅证据层，G-3 guards raw `64bfecdf…`/11,899 B 前后一致、HEAD blob 未动；④ 两目录 manifest 重算自核（实体 8/8、小修 6/6）与 obs-cleanup 4/4、UTF-8/LF/无 BOM/裸 CR/TAB 0；⑤ `unchanged tests/, fixtures/, scripts/, criterion/, verify-g3/, capture-g2/, .gitattributes`；⑥ O1/O3/O4/O5 与 guards eol 明确未做且状态一致。**只读 + 只写本卡证据目录；CPU-only、零 GPU。**",
+    "en": "Read-only review of the observation cleanup card at HEAD d1653111 baseline 1c5ea060: O2 path wording updated in the fix receipt and README, O6 non-claim sentence without the exact forbidden term while preserving semantics, evidence-layer-only scope, frozen G-3 guards raw sha/bytes unchanged, recomputed manifests, encoding hygiene, and confirmation that O1/O3/O4/O5 plus guards eol remain untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "**O2 生效面**：`r06-flex-multiframe-entity-fix/receipt.json` 的 `option_a.ruling_trace` 与 `README.md` §4 均写 `receipt.json.option_a.chief_ruling`，`criteria.option_a` 在两目录 0 命中；修复卡 receipt 的 `option_a` 为**顶层**且实体卡 receipt 的 `criteria.option_a` 存在（交叉核对 `artifacts/path-resolution.json`）。",
+    "**O6 禁词与语义**：`r06-flex-multiframe-entity/receipt.json` 的 `claims.statement` 无 exact「上游等价」、无相邻「上游」「等价」组合；四项否定语义（R06 整族通过 / 动画通用性 / 上游一致性 / 验证窗结论）逐一保留；前后句逐字对照入证据。",
+    "**仅证据层 + 冻结字节不变**：`git diff 1c5ea060..d1653111` 恰 11 个文件（卡 + 5 个证据文件 + obs-cleanup 新证据 5 个）；`scripts/validate/render-bvh/guards-r06-multiframe.json` raw sha256 `64bfecdfd179c4b7160c4f853660671ec9fb570b4d6c7702aa6c35c2c3cb352d`/11,899 B 与前一提交一致、HEAD blob 相同、`git diff`/`git status -- guards` 为空。",
+    "**manifest 重算自核**：实体 8/8、小修 6/6、obs-cleanup 4/4 逐条 sha256/bytes 独立重算通过、首行 `#`、不自列、UTF-8/LF/无 BOM/裸 CR/TAB 0。",
+    "**未动项与边界**：`unchanged tests/, fixtures/, scripts/, src/, .gitattributes/, docs/.../r06-flex-multiframe-criterion/, docs/.../r06-flex-multiframe-verify-g3/, docs/.../r06-flex-multiframe-capture-g2/`；O1/O3/O4/O5 与 guards eol 在 README/receipt/card 中明确「不做（等下一次验证窗前随重冻一起动）」，guards eol backlog 卡未被改动。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单（按严重级别）；证据落 `docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup-check/`；四门禁 fmt/clippy/clippy-cuda/unit 写入卡面。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-r06-multiframe-obs-cleanup"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "QA 自登记（Chief 2026-11-06 约 01:00：观察项治理卡落库后做只读复核）。复核目标 HEAD d1653111（登记 c6988afd、start c965e48f、实现 d1653111），基线=上一次 QA 收口复核 1c5ea060。只读复核：不改被复核卡/证据、既有证据、代码、fixtures、guards；CPU-only、零 GPU。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T17:10:00Z",
+  "updated_at": "2026-11-05T17:10:00Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        ".gitattributes",
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/",
+        "docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-verify-g3/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-multiframe-obs-cleanup-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-06-render-r06-multiframe-obs-cleanup-check"
+    }
+  ]
+}
