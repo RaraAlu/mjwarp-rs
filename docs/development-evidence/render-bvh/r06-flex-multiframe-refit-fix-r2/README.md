@@ -110,8 +110,8 @@ G-1 采集窗（`2026-11-05-render-r06-flex-multiframe-capture`，提交 `dbe8d2
 | --- | --- |
 | `README.md` | 本文件 |
 | `receipt.json` | 机器可读回执（`/task_id` 供 normify `json` 检查） |
-| `artifacts/refit-fix.diff` | `git diff HEAD -- scripts/authoring/`（含新增自查模块，intent-to-add 后生成） |
-| `artifacts/script-identity.json` | 三脚本行数/sha256（HEAD→now）与单帧主脚本 unchanged 标记 |
+| `artifacts/refit-fix.diff` | 本次 `Normify-Fixes` 修正提交的 `git diff HEAD -- scripts/authoring/`（纯文本路径修正；完整实现 diff 见提交 `ff8135e5`） |
+| `artifacts/script-identity.json` | 四脚本本次修正 HEAD→now 的行数/sha256（行数不变：498/427/296/99） |
 | `scripts/verify_refit_fix.py` | CPU 自检 28 项（可复跑） |
 | `logs/verify-refit-fix.json` | 28 项逐条结果（`RESULT: PASS`） |
 | `logs/line-counts.txt` | git blob 口径行数（498 / 427 / 296） |
@@ -127,3 +127,29 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/rend
 # 单点：dry-run 观察 refit_policy/refit_calls
 target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/capture_render_flex.py --frames 3 --frame-dz 0.1 --out-dir target/r06-multiframe-refit-fix-dry/plan --dry-run
 ```
+
+## 12. G-2 采集窗操作提醒（Arch 只读旁证 2026-11-05；登记 G-2 卡面时并入 acceptance）
+
+1. **exit 3 失败路径会先写出产物再判定**：采集路径的顺序是「逐帧落盘 npz → 写 capture.json/README →
+   跑三条硬自查 → 各自判定 → exit 0/3」。因此 `exit 3` 时 `--out-dir` 里**已有** npz/capture.json 残留。
+   G-2 窗口流程必须在判定失败后**立即删除该 out_dir 残留**，并在窗口证据里留痕（`git status`/目录不存在
+   的检查输出）；不得把失败轮残留误当参考材料（G-1 先例：窗口产物删除后 `git status fixtures/` 为空并记录）。
+2. **`check_frame000_vs_base` 只比对第一遍，不重复做两遍一致性**：该硬自查只拿第一遍的 frame-000 与
+   `reference/base/` 做位级对照；「`--repeat 2` 两遍采集逐帧逐文件 sha 一致」由既有 `first["files_sha256"]
+   != second["files_sha256"]` 比对负责（不一致直接 fail）。两者职责不同、**不要叠改或互相替代**；G-2 证据
+   分别记录两项结果即可。
+
+## 13. 证据修订记录（2026-11-05，`normify fix`）
+
+Arch 只读旁证第⑦条指出两处文档引用路径错误（**纯文本修正，不动行为/阈值/逻辑**；由本 `Normify-Fixes:` 提交落地）：
+
+| 文件 | 修订前 | 修订后 |
+| --- | --- | --- |
+| `scripts/authoring/README.md`（原 :64） | `mujoco_warp/_src/record.py:110-111` | **`mujoco_warp/record.py:110-111`** |
+| `scripts/authoring/capture_render_flex_multiframe_checks.py`（docstring） | `mujoco_warp/_src/record.py:110-111` | **`mujoco_warp/record.py:110-111`** |
+
+- pinned `71da24d9` 的 `mujoco_warp/` 包内无 `_src/record.py`（`record.py` 在包根）；`contrib/render.py:452-453`
+  一处原本正确、未改。
+- 同笔修正还新增本节 §12（G-2 操作提醒）；行数与行为不变（主模块 427 / 自查模块 296 / 单帧主脚本 498），
+  `manifest.txt` 与 `artifacts/script-identity.json`、`artifacts/refit-fix.diff` 已按修正后文本重算。
+

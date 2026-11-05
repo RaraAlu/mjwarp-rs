@@ -61,7 +61,7 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/capture_rend
 上游 `mujoco_warp` 的 `render()` 不会重建 BVH：`create_render_context` 在创建时刻用内部
 `mjd = MjData(mjm) + mj_forward(...)` 把场景 BVH（含 1D flex 的 capsule bounds）固化进 render context，
 之后 `render()` 全程不 refit。上游自己的多帧渲染路径每帧都是**先 refit 再 render**：
-`mujoco_warp/_src/record.py:110-111`（callback 内 `mjw.refit_bvh` → `mjw.render`）与
+`mujoco_warp/record.py:110-111`（callback 内 `mjw.refit_bvh` → `mjw.render`）与
 `upstream/contrib/render.py:452-453`（`contrib/` 在仓库根、不在 `mujoco_warp` 包内）。
 
 本仓库 `capture_render_flex_multiframe.py` 的帧循环每步改 `body_pos.z` 注入位姿；若不 refit，

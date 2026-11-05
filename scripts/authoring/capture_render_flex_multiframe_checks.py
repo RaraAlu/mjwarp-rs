@@ -11,7 +11,7 @@
 - **provenance**：`spec_sha256`（`1d9fa5ce…`/10,506 B）+ `authoring_script_sha256`（修复后三脚本）
   + refit 标记，供 QA 区分采集轮次、证明同一签名对象。
 
-上游依据：`mujoco_warp/_src/record.py:110-111`（callback 内 refit→render）与
+上游依据：`mujoco_warp/record.py:110-111`（callback 内 refit→render）与
 `upstream/contrib/render.py:452-453`（每帧 `mjw.refit_bvh`→`mjw.render`，`contrib/` 在仓库根、不在包内）；
 `render()` 自身不 refit（G-1 诊断卡 A/B 定论）。
 """
