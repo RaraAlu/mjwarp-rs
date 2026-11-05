@@ -1,0 +1,112 @@
+# 上游 render 路径的 BVH refit 语义（pinned checkout: target/mjwarp-parallel/upstream，HEAD 71da24d956378a87a703b6e1442b13aec0c4ac29）
+# 结论：create_render_context 在创建时刻用 mjd 建 BVH bounds；render() 不 refit；上游示例每次渲染前显式 refit。
+
+=== create_render_context 内部自建 mjd 并 forward（mujoco_warp/_src/render_util.py）===
+  403:   mjd = mujoco.MjData(mjm)
+  404:   mujoco.mj_forward(mjm, mjd)
+
+=== create_render_context 为各 flex 建 BVH（1D flex 走 scene BVH 的 capsule primitives）（mujoco_warp/_src/render_util.py）===
+  490:   # Flex BVHs
+  491:   nflex = mjm.nflex
+  492:   flex_registry = {}
+  493: 
+  494:   # Scene BVH flex primitives: 1D → one capsule per edge, 2D/3D → one box per flex
+  495:   flex_geom_flexid = []
+  496:   flex_geom_edgeid = []
+  497:   flex_bvh_id = np.full(nflex, 0, dtype=np.uint64)
+  498:   # Indexed later as [worldid, flexid].
+  499:   flex_group_root = np.full((nworld, nflex), -1, dtype=int)
+  500: 
+  501:   for f in range(nflex):
+  502:     if mjm.flex_dim[f] == 1:
+  503:       edge_adr = mjm.flex_edgeadr[f]
+  504:       flex_geom_flexid.extend([f] * mjm.flex_edgenum[f])
+  505:       flex_geom_edgeid.extend([edge_adr + e for e in range(mjm.flex_edgenum[f])])
+  506:     else:
+  507:       flex_geom_flexid.append(f)
+  508:       flex_geom_edgeid.append(-1)
+  509:       fmesh, group_root = bvh.build_flex_bvh(mjm, mjd, nworld, f)
+  510:       flex_registry[f] = fmesh
+  511:       flex_bvh_id[f] = fmesh.id
+  512:       flex_group_root[:, f] = group_root.numpy()
+
+=== build_scene_bvh 用创建时刻 mjd.geom_xpos / mjd.flexvert_xpos 计算 bounds（mujoco_warp/_src/bvh.py）===
+  314: def build_scene_bvh(mjm: mujoco.MjModel, mjd: mujoco.MjData, rc: RenderContext, nworld: int):
+  315:   """Build a global BVH for all geometries in all worlds."""
+  316:   total_bvh_size = rc.bvh_ngeom + rc.bvh_nflexgeom
+  317: 
+  318:   geom_type = wp.array(mjm.geom_type, dtype=int)
+  319:   geom_dataid = wp.array(np.tile(mjm.geom_dataid, (nworld, 1)), dtype=int)
+  320:   geom_size = wp.array(np.tile(mjm.geom_size[np.newaxis, :, :], (nworld, 1, 1)), dtype=wp.vec3)
+  321:   geom_xpos = wp.array(np.tile(mjd.geom_xpos[np.newaxis, :, :], (nworld, 1, 1)), dtype=wp.vec3)
+  322:   geom_xmat = wp.array(np.tile(mjd.geom_xmat.reshape(mjm.ngeom, 3, 3)[np.newaxis, :, :, :], (nworld, 1, 1, 1)), dtype=wp.mat33)
+
+  348:   flexvert_xpos = wp.array(np.tile(mjd.flexvert_xpos[np.newaxis, :, :], (nworld, 1, 1)), dtype=wp.vec3)
+  349:   wp.launch(
+  350:     kernel=_compute_flex_bvh_bounds,
+
+=== refit_bvh：按当前 m/d 重算场景 BVH（含 flex capsule bounds）（mujoco_warp/_src/bvh.py）===
+   39: def refit_bvh(m: Model, d: Data, rc: RenderContext):
+   40:   """Refit the dynamic BVH structures in the render context."""
+   41:   refit_scene_bvh(m, d, rc)
+   42:   if m.nflex:
+   43:     refit_flex_bvh(m, d, rc)
+   44: 
+
+=== build_scene_bvh 的 flex capsule bounds 同样取创建时刻 mjd.flexvert_xpos（mujoco_warp/_src/bvh.py）===
+  348:   flexvert_xpos = wp.array(np.tile(mjd.flexvert_xpos[np.newaxis, :, :], (nworld, 1, 1)), dtype=wp.vec3)
+  349:   wp.launch(
+  350:     kernel=_compute_flex_bvh_bounds,
+
+=== refit_scene_bvh：bounds 取自当前 d.geom_xpos / d.flexvert_xpos，随后 rc.bvh.refit()（mujoco_warp/_src/bvh.py）===
+  382: def refit_scene_bvh(m: Model, d: Data, rc: RenderContext):
+  383:   total_bvh_size = rc.bvh_ngeom + rc.bvh_nflexgeom
+  384: 
+  385:   wp.launch(
+  386:     kernel=_compute_bvh_bounds,
+
+  404:   if rc.bvh_nflexgeom > 0:
+  405:     wp.launch(
+  406:       kernel=_compute_flex_bvh_bounds,
+  407:       dim=(d.nworld, rc.bvh_nflexgeom),
+  408:       inputs=[
+  409:         m.flex_vertadr,
+  410:         m.flex_vertnum,
+  411:         m.flex_edge,
+  412:         m.flex_radius,
+  413:         d.flexvert_xpos,
+
+  424:   rc.bvh.refit()
+  425: 
+
+=== 上游 record 每帧：先 refit_bvh 再 render（mujoco_warp/record.py）===
+  109:     if _RENDER_MODE.value == "warp":
+  110:       mjw.refit_bvh(m, d, rc)
+  111:       mjw.render(m, d, rc)
+  112: 
+
+=== 上游 contrib/render 每帧：先 refit_bvh 再 render（contrib/render.py）===
+  451:       while step < total_steps:
+  452:         mjw.refit_bvh(m, d, rc)
+  453:         mjw.render(m, d, rc)
+  454: 
+
+=== render.py 中 refit 出现位置 ===
+render.py 全文件 refit 命中行: 无（0 命中）
+
+=== 本仓库采集脚本（工作树）refit 相关行 ===
+   71: "--refit-bvh",
+   74: "【仅诊断用，默认关】帧循环每帧 mjw.forward 之后、渲染之前调用 mjw.refit_bvh(m, d, rc)；"
+  144: def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], rc, refit: bool = False):
+  161: if refit:  # 诊断开关（--refit-bvh）：上游 render 不重建 BVH，几何变动后需显式 refit（record.py:110 同款）
+  162: mjw.refit_bvh(m, d, rc)
+  177: def _capture_pass(api, root: pathlib.Path, scene: pathlib.Path, anchor_ids: list[int], rc, refit: bool = False) -> dict:
+  185: mjm, d, capture = _render_frame(api, scene, frame, anchor_ids, rc, refit)
+  237: refit = bool(getattr(args, "refit_bvh", False))
+  238: first = _capture_pass(api, out_dir, scene, anchor_ids, rc, refit)
+  240: second = _capture_pass(api, repeat_dir, scene, anchor_ids, rc, refit)
+  278: "refit_bvh": refit,
+  478: "refit_bvh": bool(getattr(args, "refit_bvh", False)),
+
+=== HEAD blob（诊断开关前）refit 命中行: 无（0 命中） ===
+

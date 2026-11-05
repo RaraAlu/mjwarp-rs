@@ -1,0 +1,85 @@
+diff --git a/scripts/authoring/capture_render_flex_multiframe.py b/scripts/authoring/capture_render_flex_multiframe.py
+index b171e145..7814d784 100644
+--- a/scripts/authoring/capture_render_flex_multiframe.py
++++ b/scripts/authoring/capture_render_flex_multiframe.py
+@@ -67,6 +67,14 @@ def add_frame_args(parser: argparse.ArgumentParser) -> None:
+         action="store_true",
+         help="读取 --out-dir 的采集结果，打印 cam2 相邻帧 depth/seg 变化像素自检（常量 384/576）",
+     )
++    parser.add_argument(
++        "--refit-bvh",
++        action="store_true",
++        help=(
++            "【仅诊断用，默认关】帧循环每帧 mjw.forward 之后、渲染之前调用 mjw.refit_bvh(m, d, rc)；"
++            "用于验证「场景 BVH 停在 base → 渲染位移被剔除」假设，不改变生产默认行为"
++        ),
++    )
+ 
+ 
+ def dispatch(args: argparse.Namespace, out_dir: pathlib.Path, api) -> int | None:
+@@ -133,7 +141,7 @@ def _base_anchor_z(api, mjm, anchors: list[int]) -> list[float]:
+     return [float(pos[body, 2]) for body in anchors]
+ 
+ 
+-def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], rc):
++def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], rc, refit: bool = False):
+     """按 spec §2 注入偏移后执行 put_model → forward → 渲染，返回 capture_once 结果。"""
+     import mujoco
+     import mujoco_warp as mjw
+@@ -150,6 +158,9 @@ def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], r
+     d = mjw.put_data(mjm, mjd, nworld=1)
+     mjw.forward(m, d)
+     wp.synchronize()
++    if refit:  # 诊断开关（--refit-bvh）：上游 render 不重建 BVH，几何变动后需显式 refit（record.py:110 同款）
++        mjw.refit_bvh(m, d, rc)
++        wp.synchronize()
+     capture = api.capture_once(mjm, m, d, rc)
+     return mjm, d, capture
+ 
+@@ -163,7 +174,7 @@ def _frame_file_groups(capture: dict) -> dict[str, dict]:
+     return groups
+ 
+ 
+-def _capture_pass(api, root: pathlib.Path, scene: pathlib.Path, anchor_ids: list[int], rc) -> dict:
++def _capture_pass(api, root: pathlib.Path, scene: pathlib.Path, anchor_ids: list[int], rc, refit: bool = False) -> dict:
+     """一次完整帧循环采集，返回 files_sha256 / frame-000 的 state 与相机位姿。"""
+     hashes: dict[str, str] = {}
+     first_state: dict | None = None
+@@ -171,7 +182,7 @@ def _capture_pass(api, root: pathlib.Path, scene: pathlib.Path, anchor_ids: list
+     first_mjm = None
+     render_seconds = []
+     for frame in range(FRAMES):
+-        mjm, d, capture = _render_frame(api, scene, frame, anchor_ids, rc)
++        mjm, d, capture = _render_frame(api, scene, frame, anchor_ids, rc, refit)
+         frame_dir = root / f"frame-{frame:03d}"
+         for name, arrays in _frame_file_groups(capture).items():
+             hashes[f"frame-{frame:03d}/{name}.npz"] = api.save_npz_deterministic(frame_dir / f"{name}.npz", arrays)
+@@ -223,9 +234,10 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) ->
+     rc = mjw.create_render_context(mjm, **api.PARAMS)
+ 
+     started = time.perf_counter()
+-    first = _capture_pass(api, out_dir, scene, anchor_ids, rc)
++    refit = bool(getattr(args, "refit_bvh", False))
++    first = _capture_pass(api, out_dir, scene, anchor_ids, rc, refit)
+     repeat_dir = out_dir / ".repeat2"
+-    second = _capture_pass(api, repeat_dir, scene, anchor_ids, rc)
++    second = _capture_pass(api, repeat_dir, scene, anchor_ids, rc, refit)
+     import shutil
+ 
+     if first["files_sha256"] != second["files_sha256"]:
+@@ -263,6 +275,7 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) ->
+         "anchor_body_ids": anchor_ids,
+         "anchor_body_base_z": anchor_z,
+         "parameters": dict(api.PARAMS),
++        "refit_bvh": refit,
+         "seed": args.seed,
+         "repeat": args.repeat,
+         "two_captures_bitwise_identical": True,
+@@ -462,6 +475,7 @@ def dry_run_plan(args: argparse.Namespace, api) -> int:
+         "out_dir": pathlib.Path(args.out_dir).resolve().as_posix(),
+         "repeat": args.repeat,
+         "parameters": dict(api.PARAMS),
++        "refit_bvh": bool(getattr(args, "refit_bvh", False)),
+         "expected_layout": [
+             "frame-000/{rgb,depth,seg,state}.npz",
+             "frame-001/{rgb,depth,seg,state}.npz",

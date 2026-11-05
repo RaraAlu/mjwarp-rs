@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-pose-diag",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-05-render-r06-flex-multiframe-pose-diag",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "diagnostic-ab-experiment",
+  "window": {
+    "date": "2026-11-05",
+    "time_local": "21:02-21:12（Asia/Shanghai，空闲段）",
+    "go": "Chief GO 一次性（仅诊断窗，失败即停不重试）",
+    "s2_authoring_exception": "S-2 已预批（authoring-only util<60 例外），monitor 使用 -MaxUtil 60",
+    "baseline_three_points": {
+      "ts": ["21:03:52", "21:03:55", "21:03:57"],
+      "free_mib": [14518, 14518, 14518],
+      "util_percent": [4, 2, 2],
+      "temp_c": 29,
+      "floor_mib": 11688,
+      "floor_formula": "max(min_free-3072=11446, 11688)=11688（取严）",
+      "pass": true
+    },
+    "monitor": {
+      "samples": 60,
+      "longest_clean": 60,
+      "ready": true,
+      "start": "21:05:00",
+      "end": "21:10:00",
+      "util_min_max": [2, 4],
+      "free_min_mib": 14463,
+      "free_min_ge_floor": true
+    },
+    "post_window": {"gpu_used_mib": 1595, "gpu_free_mib": 14467, "util_percent": 2, "temp_c": 29, "build_processes": 0},
+    "write_lock": "REPO_WRITE_LOCK owner=Backend（21:02:44 取，窗口后释放）"
+  },
+  "authorization": {
+    "chief_go": "2026-11-05 夜（对话）",
+    "chief_scope_extension": "同卡同 GO 追加：仅诊断用 --refit-bvh 开关 + A/B 对照定 H1（写入卡 addenda）",
+    "script_change_boundary": "仅 scripts/authoring/capture_render_flex_multiframe.py 加默认关诊断开关；生产默认行为不变（A 组计数与上一窗口逐值一致）",
+    "no_fixtures_no_spec": "未写 fixtures/、未改冻结 spec/判据/阈值/帧数/Δz/相机"
+  },
+  "ab_experiment": {
+    "script_head_blob_refit_hits": 0,
+    "diagnostic_flag": "--refit-bvh（action=store_true，默认关）；帧循环 mjw.forward 后调用 mjw.refit_bvh(m, d, rc)",
+    "group_a_norefit": {
+      "command": "capture_render_flex.py --frames 3 --frame-dz 0.1 --out-dir target/r06-multiframe-diag/norefit --repeat 2",
+      "started": "21:11:39",
+      "exit_code": 3,
+      "delta_verdict": "non-discriminating",
+      "two_captures_bitwise_identical": true,
+      "cam2_pairs": {
+        "000->001": {"depth_changed": 697, "seg_changed": 616},
+        "001->002": {"depth_changed": 244, "seg_changed": 183}
+      },
+      "cam2_flex_pixels_by_frame": [654, 246, 69]
+    },
+    "group_b_refit": {
+      "command": "同上 + --refit-bvh",
+      "started": "21:11:46",
+      "exit_code": 0,
+      "delta_verdict": "pass-margin",
+      "two_captures_bitwise_identical": true,
+      "cam2_pairs": {
+        "000->001": {"depth_changed": 1167, "seg_changed": 1074},
+        "001->002": {"depth_changed": 1262, "seg_changed": 1126}
+      },
+      "cam2_flex_pixels_by_frame": [654, 718, 798]
+    },
+    "state_identical_between_groups": true,
+    "frame000_vs_base_bit_equal": {"A_norefit": true, "B_refit": true}
+  },
+  "findings": {
+    "injection_chain": "完整：flexvert_xpos 相对 frame-000 的附着顶点均值 = 0.100000 / 0.200000 m（名义 k*0.100 精确）；world 附着顶点恒 0；全顶点均值 0.0833/0.1667",
+    "consumption_chain": "A 组缺失：cam2 flex 命中像素随偏移崩塌 654→246→69、变化计数 697/616→244/183（复现上一窗口）；B 组每帧 refit 后 654→718→798、1167/1074 与 1262/1126（两段均 ≥576）",
+    "displacement_decay_correction": "状态层不存在 0.058→0.020 m 衰减；该现象是渲染消费端 BVH 陈旧导致的可见性丢失",
+    "base_reference_cam2_flex_pixels": 654,
+    "cam0_cam1_changes": "两组均 0（flex 不可见、刚性静态）"
+  },
+  "root_cause": {
+    "h1": true,
+    "statement": "采集脚本帧循环缺 mjw.refit_bvh(m, d, rc)：场景 BVH（含 1D flex capsule bounds）在 rc 创建时按 base mjd 固化，render() 不自动 refit，偏移越大被旧 bounds 错误剔除越多",
+    "source_facts": [
+      "render_util.py:403-404 create_render_context 内部自建 mjd=MjData(mjm)+mj_forward",
+      "bvh.py:314-322/348-350 build_scene_bvh bounds 取创建时刻 mjd.geom_xpos/mjd.flexvert_xpos",
+      "bvh.py:382-425 refit_scene_bvh 才用当前 d.geom_xpos/d.flexvert_xpos 重算并 rc.bvh.refit()",
+      "render.py 全文件 refit 命中 0（render() 不自动 refit）",
+      "record.py:110-111 与 contrib/render.py:452-453 上游均每帧先 refit_bvh 再 render",
+      "HEAD blob 采集脚本 refit 命中 0；rc 在帧循环外只创建一次（base 模型）"
+    ],
+    "fix_recommendation": "每帧 mjw.forward 后、capture_once 前调用 mjw.refit_bvh(m, d, rc)（B 组已验证 pass-margin）；或每帧重建 render context。修复另卡，生产默认不变"
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/authoring/capture_render_flex_multiframe.py（仅诊断开关 + 4 处接线，默认关）",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-pose-diag/",
+      ".normify/changes/2026-11-05-render-r06-flex-multiframe-pose-diag.json + .normify/runs/"
+    ],
+    "unchanged": ["fixtures/", "src/", "tests/", "Cargo.toml", "Cargo.lock", "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md"],
+    "no_fixtures_written": true,
+    "no_acceptance_material": true,
+    "script_lines": 493,
+    "spec_unchanged": {"sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6", "bytes": 10506}
+  },
+  "checks": {
+    "fmt_clippy_clippy_cuda_unit": "见 .normify/runs/2026-11-05-render-r06-flex-multiframe-pose-diag/",
+    "unchanged": ["src/", "tests/", "fixtures/"],
+    "forbid_claim": "按卡面 checks 三项禁用表述执行，本回执与 README 无命中",
+    "self_check": "scripts/verify_diag.py → 16/16 PASS（analysis/verify-diag.json）"
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "note": "诊断只定根因（H1），不产生判据/验收结论；三帧参考仍未落库；修复动作另卡，等 Chief 决定是否把 refit 转正。"
+  }
+}
