@@ -5,7 +5,7 @@
     "zh": "R06 多帧实体 A：新测试实体 render_flex_multiframe（3 帧逐帧口径 + 跨帧可见性 + 选项 A 三 context 审计；零 GPU 实现）",
     "en": "R06 multi-frame entity A: new test entity render_flex_multiframe (per-frame criteria + cross-frame visibility + option-A three-context audit; GPU-free implementation)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "G-2 采集窗（`2026-11-05-render-r06-flex-multiframe-capture-g2`，提交 `5f2bd0bb`，verdict pass-margin）已落库 3 帧参考（`fixtures/render-bvh/scene-flex/multiframe/`）。本卡登记**新测试实体** `render_flex_multiframe`：GPU `#[ignore]` 用例按逐帧口径（rgb ≤1 LSB 且 beyond=0、depth frame-000 仅 cam2/(134,128)/flexid0 allowlist 其余严格、001/002 严格 bit-first、seg 全等、逐帧两跑 sha）与跨帧可见性（实体自算 000→001、001→002 变化像素各 ≥384）验证；并用**选项 A**（按 spec §2 偏移模型建 3 个 context）把「模型偏移对 flex 渲染惰性」变成可审计证据，记录产品「每渲染重建合并 BVH」的架构事实（`refits()==0`）。配套：`tests/support/render_bvh/multiframe.rs`（夹具/自检）、`allowlist.rs` 增 `assert_depth_strict` 纯位等函数、冻结器 `freeze-guards-r06-multiframe.ps1`（`-Attempt 1`，2 exes + 26 inputs = 28）、`guards-r06-multiframe.json`（`-GuardsOnly` 结构自检）。**现有 `tests/render_flex_validate.rs` 498 行一行不动；零 GPU、不开窗、不执行 freeze。**",
     "en": "Register a new test entity render_flex_multiframe for the G-2 three-frame reference: GPU #[ignore] per-frame and cross-frame checks, option-A three-context audit, a shared multiframe support module, an assert_depth_strict helper, a new guard freezer and a guards JSON. No changes to the existing 498-line render_flex_validate.rs; GPU-free, no window, no freeze execution."
@@ -43,22 +43,54 @@
     "priority": 75
   },
   "note": "Chief 2026-11-05 夜派工（Arch 多帧设计方案 A 已批）：新实体实现卡；零 GPU、不跑窗口、不执行 freeze（冻结器只做 -GuardsOnly 结构自检）。现有 render_flex_validate.rs 498 行一行不动。设计要点：逐帧判据 + 跨帧变化 ≥384（验收阈值，非采集余量 576）+ 选项 A 三 context 刚性一致性审计 + refits()==0 架构事实。QA 复核 PASS 后 Chief 发验证窗 token（真冻结 16→28 条目 + 实体本卡用例）。",
-  "revision": { "before": "2ab631b096ce7445d885ee9ab70568d7a333711f", "after": null },
+  "revision": {
+    "before": "f768618db0894a2e86861b69440e4afe4a167dcd",
+    "after": null
+  },
   "created_at": "2026-11-05T22:20:00.000Z",
-  "updated_at": "2026-11-05T22:20:00.000Z",
+  "updated_at": "2026-11-05T14:10:47.764Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["src/"] },
-    { "kind": "unchanged", "paths": ["fixtures/"] },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/receipt.json",
       "pointer": "/task_id",
       "equals": "2026-11-05-render-r06-flex-multiframe-entity"
     },
-    { "kind": "forbid_claim", "terms": ["多帧验收通过", "动画一致性已覆盖", "上游等价"] }
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "多帧验收通过",
+        "动画一致性已覆盖",
+        "上游等价"
+      ]
+    }
   ]
 }
