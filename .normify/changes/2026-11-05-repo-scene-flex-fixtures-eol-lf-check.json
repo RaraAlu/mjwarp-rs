@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-repo-scene-flex-fixtures-eol-lf-check",
+  "title": {
+    "zh": "QA 只读复核：scene-flex 文本夹具 eol=lf 治理（规则在 npz 规则前 / 不 renormalize 不改 blob / fresh clone 3 文本夹具 sha-bytes 对齐 / 12 npz 字节不变 / G-2 证据 manifest 16-16）",
+    "en": "QA read-only review of the scene-flex text-fixture eol=lf governance change (rule ordering, no renormalize/blob rewrite, fresh-clone sha/bytes alignment, npz byte safety, G-2 evidence manifest)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对治理卡 `2026-11-05-repo-scene-flex-fixtures-eol-lf`（verified；落地 `cce3e2e3`、落库后 fresh clone 复核追加 `c7eb4737`）做**只读复核**：① `.gitattributes` 只新增目标规则（1 行规则 + 2 行注释 + 1 空行；无删除/修改既有行），规则在 `*.npz -text -diff` 之前；② 不 renormalize / 不改 blob（15 个夹具 blob id 父提交→HEAD 不变；提交范围不含 fixtures/src/tests/scripts/冻结 spec）；③ 属性生效（3 文本夹具 text=set/eol=lf；npz text=unset/diff=unset）；④ 本机工作树 15 个夹具 sha/bytes 与 G-2 `files-sha256.json` 一致；⑤ **fresh clone（core.autocrlf=true）**：3 文本夹具 sha/bytes 对齐（LF 8,948/3,805/1,729 B）、12 npz 字节不变、15/15 全对、clone 干净、G-2 证据 manifest 仍 16/16；⑥ 对照必要性（父提交在 autocrlf 下 3 文本 CRLF 复现 O1）；⑦ 治理证据 manifest 11/11、UTF-8/LF/无 BOM、diff 与 clone-postcommit verdict 一致。**只读 + 写自己的证据目录；零 GPU、不改 `.gitattributes`/fixtures/G-2 证据。**",
+    "en": "Read-only review of the eol=lf governance card: rule placement, no renormalize/blob rewrite, attribute effects, worktree and fresh-clone sha/bytes alignment, G-2 evidence manifest integrity, and the before-rule control reproducing O1. No GPU, no edits outside the reviewer evidence directory."
+  },
+  "modules": {},
+  "acceptance": [
+    "**规则与顺序**：`.gitattributes` diff 只新增 4 行（1 行 `fixtures/render-bvh/scene-flex/** text eol=lf` + 2 行中文依据注释 + 1 空行），无删除/修改既有行；规则行号在 `*.npz -text -diff` 之前；文件 UTF-8/无 BOM、无 TAB/裸 CR。",
+    "**不 renormalize / 不改 blob**：15 个落库夹具在改动父提交与 HEAD 的 blob id 逐一相同；改动提交范围 = `.gitattributes` + 卡/runs/证据（`docs/development-evidence/repo-scene-flex-fixtures-eol-lf/`），不含 `fixtures/`、`src/`、`tests/`、`scripts/`、冻结 spec。",
+    "**属性生效**：`git check-attr` 显示 3 个文本夹具 `text: set` / `eol: lf`；npz `text: unset` / `diff: unset`（行为与改动前一致）。",
+    "**本机工作树**：15 个夹具 sha256/bytes 与 G-2 `artifacts/files-sha256.json` **15/15** 一致。",
+    "**fresh clone（core.autocrlf=true，HEAD）**：3 个文本夹具 sha256/bytes 与证据一致（`capture.json` 8,948 B / `cam-poses.json` 3,805 B / `README.md` 1,729 B，无 CRLF）；12 个 npz 逐字节不变；合计 15/15；clone `status` 干净；G-2 证据目录 manifest 在 clone 中仍 16/16 自洽。",
+    "**对照必要性**：同一 clone checkout 改动父提交（autocrlf=true）后 3 个文本夹具变 CRLF、sha 不一致（复现 QA O1）；12 npz 仍一致。",
+    "**治理证据**：manifest 首行 `#`、11/11 自核；证据 UTF-8/LF/无 BOM、裸 CR/TAB 0 命中；`artifacts/gitattributes.diff` 与实际 diff 一致；`artifacts/clone-postcommit.json` verdict 全 true；卡与 addenda 记录落库后复核。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix`；证据落 `docs/development-evidence/repo-scene-flex-fixtures-eol-lf-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-repo-scene-flex-fixtures-eol-lf"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/repo-scene-flex-fixtures-eol-lf-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "QA 自登记（Chief 2026-11-05 夜指派：QA G-2 复核治理 O1，Backend 落库后 QA 只读复核）。复核目标 = HEAD c7eb4737（规则落地 cce3e2e3 + 落库后复核 c7eb4737）；只读复核：不改 .gitattributes/fixtures/G-2 证据/脚本；零 GPU。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T14:08:36Z",
+  "updated_at": "2026-11-05T14:08:36Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        ".gitattributes",
+        "fixtures/",
+        "src/",
+        "tests/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/",
+        "docs/development-evidence/repo-scene-flex-fixtures-eol-lf/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/repo-scene-flex-fixtures-eol-lf-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-repo-scene-flex-fixtures-eol-lf-check"
+    }
+  ]
+}
