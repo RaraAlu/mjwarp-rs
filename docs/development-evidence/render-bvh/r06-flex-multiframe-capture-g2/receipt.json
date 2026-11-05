@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-capture-g2",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-05-render-r06-flex-multiframe-capture-g2",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "capture-window",
+  "window": {
+    "date": "2026-11-05",
+    "time_local": "21:43-23:50（空闲段；实际执行 21:45-21:52）",
+    "chief_go": "2026-11-05 21:43（G-2 token；执行者/唯一写者 Backend）",
+    "s1_signature": {
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md",
+      "sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+      "bytes": 10506,
+      "unchanged": true,
+      "resign_required": false
+    },
+    "s2_authoring_exception": "已预批但未启用（常规 util<40 全程达标）",
+    "baseline_three_points": {
+      "ts": ["21:45:08", "21:45:11", "21:45:14"],
+      "free_mib": [14338, 14374, 14442],
+      "util_percent": [17, 17, 17],
+      "temp_c": 29,
+      "compute_filtered": 0,
+      "build_processes": 0,
+      "floor_mib": 11688,
+      "floor_formula": "max(min_free-3072=11266, 11688)=11688（取严）",
+      "pass": true
+    },
+    "monitor": {
+      "command": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -OutCsv target/r06-multiframe-capture-g2/monitor-g2.csv",
+      "samples": 60,
+      "longest_clean": 60,
+      "ready": true,
+      "start": "21:45:19",
+      "end": "21:50:19",
+      "util_min_max": [2, 4],
+      "free_min_mib": 14432,
+      "free_min_ge_floor": true,
+      "rows_below_floor": 0
+    },
+    "post_window": {"gpu_used_mib": 1541, "gpu_free_mib": 14521, "util_percent": 5, "temp_c": 29, "build_processes": 0},
+    "write_lock": "REPO_WRITE_LOCK owner=Backend（21:43:36 取，窗口后释放）"
+  },
+  "dry_run": {
+    "exit_code": 0,
+    "out_dir_created": false,
+    "refit_policy": "every-frame",
+    "refit_calls": 6,
+    "spec_sha_verified": true
+  },
+  "capture": {
+    "command": "capture_render_flex.py --frames 3 --frame-dz 0.1 --out-dir fixtures/render-bvh/scene-flex/multiframe --repeat 2",
+    "exit_code": 0,
+    "two_captures_bitwise_identical": true,
+    "legacy_reference_untouched": true,
+    "legacy_reference_files": 84,
+    "delta_verdict": "pass-margin",
+    "cam2_pairs": {
+      "000->001": {"depth_changed": 1167, "seg_changed": 1074, "margin_min": 576, "ok": true},
+      "001->002": {"depth_changed": 1262, "seg_changed": 1126, "margin_min": 576, "ok": true}
+    },
+    "retry": false
+  },
+  "hard_checks": {
+    "frame000_vs_base": {"ok": true, "arrays_checked": 15, "mismatches": [], "scope": "仅第一遍（两遍一致性由逐文件 sha 承担，不叠改）"},
+    "displacement": {
+      "ok": true,
+      "attached_vertices": 5,
+      "world_vertices": 1,
+      "frames": {"frame-000": 0.0, "frame-001": 0.1, "frame-002": 0.2},
+      "tolerance_m": 1e-06,
+      "source": "采集侧 state.npz.flexvert_xpos（设备回读）"
+    },
+    "delta_margins": {"ok": true, "margin_min": 576},
+    "refit": {"ok": true, "expected_calls": 6, "actual_calls": 6, "actual_sequence": [0, 1, 2, 0, 1, 2]}
+  },
+  "provenance": {
+    "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "spec_bytes": 10506,
+    "authoring_script_sha256": "capture_render_flex.py / capture_render_flex_multiframe.py / capture_render_flex_multiframe_checks.py（窗口时点，见 artifacts/capture.json.provenance）",
+    "refit_policy": "every-frame",
+    "refit_bvh": true,
+    "refit_calls": 6
+  },
+  "landed_fixtures": {
+    "root": "fixtures/render-bvh/scene-flex/multiframe/",
+    "files": 15,
+    "layout": [
+      "frame-000/{rgb,depth,seg,state}.npz",
+      "frame-001/{rgb,depth,seg,state}.npz",
+      "frame-002/{rgb,depth,seg,state}.npz",
+      "capture.json",
+      "cam-poses.json",
+      "README.md"
+    ],
+    "per_file_sha256_bytes": "artifacts/files-sha256.json（15/15）",
+    "manifest_lists_all": true
+  },
+  "supersede": {
+    "g1_card": "2026-11-05-render-r06-flex-multiframe-capture",
+    "g1_commit": "dbe8d2b7",
+    "statement": "G-1 的 non-discriminating 与「帧集不足」归因不成立；根因是旧脚本缺每帧 refit_bvh（诊断卡 77aeb6da A/B + 修复卡 ff8135e5/43295e49）。本窗同一签名 spec/帧集重采为 pass-margin，采集有效。",
+    "g1_evidence_retained": true
+  },
+  "boundaries": {
+    "changed_paths": [
+      "fixtures/render-bvh/scene-flex/multiframe/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-g2/"
+    ],
+    "unchanged": ["src/", "tests/", "scripts/", "fixtures/render-bvh/scene-flex/reference/", "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"],
+    "zero_compile": true,
+    "s2_exception_used": false,
+    "exit3_residue": "未触发（采集 exit 0，无残留）"
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "statement": "本窗只声明「采集有效 → 可进入验证窗（G-2 判据门）」；不声明多帧判据整体通过、动画一致性覆盖结论、与上游实现的等价性、任何发布依据。",
+    "known_observations": [
+      "QA r2 O1：自检日志 U+FFFD（cp936 解码）→ backlog",
+      "QA r2 O2：完整实现 diff 以 ff8135e5 引用",
+      "QA r2 O3：主模块 :160 注释缺 mujoco_warp/ 前缀 → backlog",
+      "QA r2 O4：exit3 残留流程本窗未触发"
+    ]
+  }
+}
