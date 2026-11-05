@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-entity-fix",
+  "title": {
+    "zh": "R06 多帧实体 A 小修：跨帧判据改 cam2-only + 选项 A 诚实口径（不补 body_pos 偏移）+ 证据数字/措辞校正（零 GPU）",
+    "en": "R06 multi-frame entity A fix: cam2-only cross-frame criterion + honest option-A wording (no body_pos offset step) + evidence count/wording corrections (GPU-free)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "实体 A（`2026-11-05-render-r06-flex-multiframe-entity`，提交 `2a27c2fd`/`241d702f`）落库后，Arch 旁证 7 项里 5 PASS、2 项必须验证窗前修：① `tests/support/render_bvh/multiframe.rs::change_pixels()` 对 3 个相机求和，而 spec §3/§5 写死跨帧判据**只算 cam2**（cam0/cam1 的帧间变化只作诊断）；当前 cam0/cam1 实测变化为 0 使数值恰好相同，但这是静默放宽风险，不能留。② 选项 A 不补 `body_pos` 偏移步骤（产品渲染路径不消费 `body_pos`，补一步是演戏——Chief 2026-11-05 裁决）；口径改为「逐帧 state 刚性位姿建 3 个 context + 断言三者刚性签名一致 + 同一 context 渲染对照 + `refits()==0`」，并写明 spec §2 的实现映射。顺带修实体证据 README §2 表格 support 模块 476→实际 475（`241d702f` 校正漏行）、两跑 sha 措辞（整块多相机缓冲 sha 更强）；recipe 参数比对 7 项 vs 单帧 28 项记 backlog 不修。**零 GPU、不开窗、不采集、不改 fixtures/spec/判据。**",
+    "en": "Fix two pre-window gaps found in the entity-A review: make the cross-frame change-pixel criterion cam2-only (spec §3/§5) instead of summing all three cameras, and restate option A honestly without a body_pos offset step (per Chief ruling), plus evidence count/wording corrections. GPU-free; no fixture/spec/criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**跨帧判据改 cam2-only（必办）**：`tests/support/render_bvh/multiframe.rs` 现状 `change_pixels()` 对 3 个相机求和；改为新增 `change_pixels_cam2()`（只取 cam2 槽位，spec §5 的 depth 位级变化像素 + seg 对变化像素）并用于**全部断言**（`verify_change_pixels`、CPU 自证、GPU 用例跨帧段）；原全相机实现改名 `change_pixels_all_cameras()` **只作诊断打印、不参与断言**。证据记录三相机变化实测（cam0/cam1=0 时 cam2-only 与合计相同）与「为什么必须显式只算 cam2」的定位（spec §3：cam0/cam1 帧间变化只诊断、不参与跨帧判定）。",
+    "**选项 A 口径诚实化（Chief 2026-11-05 裁决）**：**不补** `body_pos` 偏移步骤——产品渲染路径不消费 `body_pos`，补一步是演戏。GPU 用例 / CPU 自证 / README 的选项 A 口径改为：「**逐帧 state 刚性位姿建 3 个 context + 断言三者刚性签名（叶几何 + 位姿位型）一致 + 同一 context 渲染对照 + `refits()==0`**」，并写明一句「**spec §2 的实现映射：模型 `body_pos` 偏移对 flex 渲染惰性（产品每次渲染用通道 positions 重建合并 BVH）**」作为裁决留痕。实体 A 卡已 verified、`acceptance` 不可改写：裁决以本卡 acceptance + 实体证据 README §5 + 实体卡 `addenda`（最终提交追加）为准，不返工既验证结论。",
+    "**证据数字/措辞校正**：实体证据 README §2 表格 `tests/support/render_bvh/multiframe.rs` 行数 476 → **实际 475**（`241d702f` 只改了 §1/§9 漏了 §2）；§3「逐帧逐相机两跑 sha」措辞改为「**整块多相机缓冲 sha**（更强，等价逐相机相等）」；§4 跨帧段改为 cam2-only 口径（全相机合计仅诊断）；`logs/line-counts.txt`、`artifacts/script-identity.json`、`receipt.json`、`manifest.txt` 同步本卡改动后的实际行数/sha/bytes。新增证据目录 `docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/`（README + receipt.json + manifest.txt + logs + artifacts，UTF-8/LF 无 BOM，manifest 首行 `#` 表头、每文件 sha256+bytes 自核、裸 CR/TAB 自查）。",
+    "**backlog 登记（不修）**：recipe 参数比对 7 项 vs 单帧 28 项（风险低）登记为 `backlog` 卡 `.normify/changes/2026-11-05-render-r06-flex-multiframe-recipe-params-backlog.json`，并在本卡证据「已知项」列出；本卡**不补** recipe 比对。",
+    "**边界 / 行数 / 门禁**：只改 `tests/render_flex_multiframe.rs`、`tests/support/render_bvh/multiframe.rs`、实体证据目录（README/line-counts/script-identity/receipt/manifest）与本卡证据；`unchanged src/, fixtures/, tests/render_flex_validate.rs（498 行零 diff）, docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/（spec `1d9fa5ce…`/10,506 B 不变）`；改动后两个测试文件**均 ≤500 行**（`render_flex_multiframe.rs` 现 489，仅紧凑替换+少量注释，目标 ≤500）；四门禁 fmt/clippy/clippy-cuda/unit 全过；**零 GPU、不开窗、不采集、不执行 freeze**。",
+    "**非声明**：本卡只修判据实现口径与证据数字，不产生验证窗结论；不写 R06 整族通过、动画通用性、与上游实现的等价结论；GPU `#[ignore]` 用例真实结论仍留验证窗执行（Chief token）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-entity"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_multiframe.rs",
+      "tests/support/render_bvh/multiframe.rs",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Chief 2026-11-05 派工：Arch 旁证实体 A 的 7 项里 5 PASS、2 项验证窗前必修（cam2-only 跨帧判据 + 选项 A 诚实口径）。dependency=实体 A 卡（verified）。实体 A 卡 acceptance 不可改写（已启动/已验收），裁决留痕走本卡 acceptance + 实体证据 README §5 + 实体卡 addenda。QA 复核 + Arch 再旁证后 Chief 发验证窗 token（真冻结 28 条目 + 执行 `render_flex_multiframe` GPU 用例）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-05T14:25:00.000Z",
+  "updated_at": "2026-11-05T14:25:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/render_flex_validate.rs"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-entity-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "多帧验收通过",
+        "动画一致性已覆盖",
+        "上游等价"
+      ]
+    }
+  ]
+}
