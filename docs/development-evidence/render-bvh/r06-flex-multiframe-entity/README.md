@@ -21,7 +21,7 @@
 - 冻结器/guards：`freeze-guards-r06-multiframe.ps1`（`-Attempt 1`，**2 exes + 26 inputs = 28**）与
   `guards-r06-multiframe.json`；`-GuardsOnly` → `GUARDS_STRUCTURE_OK suite=render-r06-multiframe
   exes_pending=2 inputs=26 inputs_sha256_ok=true classification=input=25,guard_script=1`。
-- 行数棘轮：`tests/render_flex_multiframe.rs` **489**、`tests/support/render_bvh/multiframe.rs` **476**
+- 行数棘轮：`tests/render_flex_multiframe.rs` **489**、`tests/support/render_bvh/multiframe.rs` **475**
   （均 ≤500）；`allowlist.rs` 210（+14 行仅新增 `assert_depth_strict`）；`render_flex_validate.rs` **498 未变**。
 
 ## 2. 实体结构
