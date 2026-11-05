@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-refit-fix",
+  "title": {
+    "zh": "R06 多帧修复：采集脚本帧循环每帧强制 `mjw.refit_bvh` 后 render（H1 根因；authoring-only，零 GPU）",
+    "en": "R06 multiframe fix: force mjw.refit_bvh before every frame's render (H1 root cause; authoring-only, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "诊断卡 `2026-11-05-render-r06-flex-multiframe-pose-diag`（`77aeb6da`）H1 定论：`capture_render_flex_multiframe.py` 帧循环缺 `mjw.refit_bvh(m, d, rc)`。`create_render_context` 用创建时刻 `mjd`（MjData+mj_forward）把场景 BVH（含 1D flex capsule bounds）固化在 base，`render()` 全文件 0 处 refit；上游 `record.py:110`、`contrib/render.py:110/452` 都是每帧先 refit 再 render。A/B 实测：state 注入精确 0.100/0.200 m 且逐位相同，但 flex 像素 654→246→69（不 refit）vs 654→718→798（refit），自检 verdict non-discriminating(exit3) vs pass-margin(exit0)。本卡把 refit 变默认且强制，去掉 `--refit-bvh` 默认关路径，并补文档与 CPU 自检；不改判据/阈值/帧设计/spec。",
+    "en": "Make per-frame refit_bvh mandatory (remove the default-off switch), document the upstream basis, and add CPU self-proof; no criteria/spec changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**每帧强制 refit**：帧循环里在每帧 `put_model`/`mj_forward` 之后、`mjw.render(...)` 之前**无条件**调用 `mjw.refit_bvh(m, d, rc)`；**删除** `--refit-bvh` 诊断开关及其「默认关」路径（默认关比没有更危险），不保留任何跳过路径。帧设计（`--frames 3 --frame-dz 0.1`、锚点、`--repeat 2`、`--check-deltas` 阈值）一律不变。",
+    "**上游依据入文档**：脚本 README/证据写明上游依据 `record.py:110`、`contrib/render.py:110/452`（每帧先 refit 再 render），并新增一节「为什么多帧必须 refit」：BVH 在 `create_render_context` 时被固化、`render()` 不 refit、flex 1D capsule bounds 陈旧 ⇒ 可见性崩塌（引用 G-1 的 A/B 数字）。",
+    "**CPU 自检（零 GPU）**：`--dry-run` 通过；新增断言「state 每帧变化时 refit 必被调用」——用计次（如 monkeypatch/包装计数）验证帧数 == refit 次数，且无开关可绕过；合成数据 `--check-deltas` 三态仍正确（pass-margin exit0 / insufficient exit3 / non-discriminating exit3）。",
+    "**边界**：不改 `r06-flex-multiframe-criterion/spec.md`（sha `1d9fa5ce…`/10,506 B 必须不变）、不改判据/阈值/帧设计、不碰 `src/`、`tests/`、`fixtures/`；**零 GPU、不开窗口**。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix/`（README：H1 根因、改法 diff 说明、上游依据、CPU 自检输出、spec sha 前后对照、与 G-1 负结果的 supersede 关系预告）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-pose-diag"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/capture_render_flex_multiframe.py",
+      "scripts/authoring/README.md",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix/"
+    ],
+    "resources": [],
+    "priority": 84
+  },
+  "note": "Arch 2026-11-05 登记（Chief 指令）。**G-2 采集窗口前置**：本卡 verified + QA 复核 PASS 后由 Chief 发 token，执行会话 `arch-chat`；沿用 S-1 签名（spec 未变、帧设计未变、阈值不变，不需重签）。G-2 窗口硬要求：三点基线 ≥ floor 11,688、monitor 60/60（util<40 常规）、dry-run 通过、`--repeat 2` 逐位一致、verdict 必须 `pass-margin`、frame-000 vs base 数组级位级对照、CSV/日志/sha 全归档、失败即停不重试；G-1 负结果留档不删并在 G-2 证据写明 supersede。",
+  "revision": { "before": "e40418055700e7d3b8decfe1a5e1a06155674489", "after": null },
+  "created_at": "2026-11-05T21:20:00.000Z",
+  "updated_at": "2026-11-05T21:20:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["tests/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] }
+  ]
+}
