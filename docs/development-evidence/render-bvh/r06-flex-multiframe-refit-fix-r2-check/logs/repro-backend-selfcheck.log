@@ -1,0 +1,31 @@
+# command: python -B docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2/scripts/verify_refit_fix.py
+# exit_code: 0
+[PASS] A1 _render_frame 内无条件 refit 且在 capture_once 之前: {'refit_at': 617, 'capture_once_at': 700}
+[PASS] A2 无 if refit 分支、_render_frame 签名无 refit 形参: {'if_refit': False, 'args': ['api', 'scene', 'frame', 'anchor_ids', 'rc']}
+[PASS] A3 无 --refit-bvh（CLI 已删除）: False
+[PASS] A4 主模块 ≤500 行: 427
+[PASS] A5 自查模块 ≤500 行: 296
+[PASS] A6 单帧主脚本零 diff: {'lines': 498}
+[PASS] B1 两遍×3帧=6 次 refit → PASS: {'calls': 6, 'sequence': [0, 1, 2, 0, 1, 2]}
+[PASS] B2 只记一遍（3 次）→ FAIL（漏 --repeat 2 第二遍）: 3
+[PASS] B3 乱序 → FAIL: [0, 2, 1, 0, 1, 2]
+[PASS] C1 base 幂等 PASS（合成=base 原数组）: {'arrays': 15}
+[PASS] C2 base 幂等 FAIL（改 1 bit）: [{'array': 'state.qpos', 'bit_equal': False}]
+[PASS] C3 位移 PASS（精确 k×0.100 m）: {'frame-000': 0.0, 'frame-001': 0.10000000149011612, 'frame-002': 0.20000000298023224}
+[PASS] C4 位移 FAIL（+1e-3 超 ±1e-6）: {'frame-000': 0.0, 'frame-001': 0.0010000035166740362, 'frame-002': 0.00100000500679015}
+[PASS] C5 位移边界（+5e-7 在 ±1e-6 容差内）PASS: {'frame-000': 0.0, 'frame-001': 5.006790161077301e-07, 'frame-002': 4.9471855162464e-07}
+[PASS] C6 变化余量 PASS（600/600）: pass-margin
+[PASS] C7 变化余量 FAIL（500 <576）: {'depth_changed': 500, 'seg_changed': 600, 'margin_min': 576, 'ok': False}
+[PASS] C8 变化余量 FAIL（300 non-discriminating）: non-discriminating
+[PASS] C9 run_capture_checks 全 PASS: {'failures': []}
+[PASS] C10 run_capture_checks 检出失败项: ['frame000_vs_base']
+[PASS] D1 provenance spec sha/bytes 一致: {'sha': '1d9fa5cef1ebc829', 'bytes': 10506}
+[PASS] D2 provenance 三脚本 sha 与实际一致: {'scripts': ['capture_render_flex.py', 'capture_render_flex_multiframe.py', 'capture_render_flex_multiframe_checks.py'], 'refit_bvh': True}
+[PASS] E1 --help exit0 且无 --refit-bvh: {'exit': 0, 'has_switch': False}
+[PASS] E2 传 --refit-bvh 被拒（argparse exit2）: 2
+[PASS] E3 dry-run exit0 且不写产物: {'exit': 0, 'out_dir_created': False}
+[PASS] E4 dry-run 计划 refit_policy/refit_calls=6: {'refit_policy': 'every-frame', 'refit_calls': 6}
+[PASS] E5 --check-deltas pass exit=0: {'exit': 0, 'expected': 0}
+[PASS] E5 --check-deltas insufficient exit=3: {'exit': 3, 'expected': 3}
+[PASS] E5 --check-deltas non-discriminating exit=3: {'exit': 3, 'expected': 3}
+RESULT: PASS (28/28 pass, 0 fail)

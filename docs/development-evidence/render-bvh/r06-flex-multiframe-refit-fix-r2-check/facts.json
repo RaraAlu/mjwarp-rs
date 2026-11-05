@@ -1,0 +1,130 @@
+{
+  "task_id": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2-check",
+  "review_target": {
+    "card": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2",
+    "status": "verified",
+    "head": "43295e49d9adab59c4561e602f718466c4b363c1",
+    "impl_commit": "ff8135e5",
+    "doc_ref_fix_commit": "43295e49",
+    "root_cause_commit": "77aeb6da",
+    "g1_negative_result": "dbe8d2b7",
+    "qa_registration_commit": "24a165a8bf90cf3c767cd4e1fef962f4e893fd1c",
+    "script_blobs_equal_at_target_and_head": true
+  },
+  "line_counts": {
+    "scripts/authoring/capture_render_flex.py": 498,
+    "scripts/authoring/capture_render_flex_multiframe.py": 427,
+    "scripts/authoring/capture_render_flex_multiframe_checks.py": 296,
+    "scripts/authoring/README.md": 99
+  },
+  "line_limits": {
+    "main_module_le_500": true,
+    "checks_module_le_500": true
+  },
+  "sha256": {
+    "capture_render_flex.py": "f50e150e4dc29522ce5f49b64bbb50b01bfc5177cee82a3f3c704c9e5c0a16f9",
+    "capture_render_flex_multiframe.py": "46d7500227738e8a3fab8f79106bb02599b1b92b29ca4bda6baf807b989e7bd1",
+    "capture_render_flex_multiframe_checks.py": "ef77f38b6159a49971a85303961647b0aa88b596fce7dc924998b1e21f8201a9",
+    "spec.md": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6"
+  },
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md",
+    "sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "bytes": 10506,
+    "unchanged_77aeb6da_to_head": true
+  },
+  "single_frame_script_byte_identical_to_77aeb6da": true,
+  "refit": {
+    "policy": "every-frame",
+    "calls": 6,
+    "sequence": [
+      0,
+      1,
+      2,
+      0,
+      1,
+      2
+    ],
+    "call_site": {
+      "function": "_render_frame",
+      "count": 1,
+      "after": "mjw.forward",
+      "before": "api.capture_once",
+      "guarded": false,
+      "switch_removed": "--refit-bvh absent; unknown arg exit 2",
+      "skip_paths": "none (no if refit / no refit parameter)"
+    }
+  },
+  "hard_checks": {
+    "frame000_vs_base": {
+      "arrays": 15,
+      "rule": "bit-identical",
+      "failure": "exit 3"
+    },
+    "displacement": {
+      "rule": "mean attached flexvert_xpos displacement = k*0.100 m +/- 1e-6",
+      "source": "capture-side state flexvert_xpos",
+      "failure": "exit 3"
+    },
+    "delta_margins": {
+      "rule": "both pairs depth+seg >= 576",
+      "failure": "exit 3"
+    },
+    "in_capture_path": true
+  },
+  "provenance": {
+    "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "spec_bytes": 10506,
+    "scripts": 3,
+    "refit_bvh": true,
+    "refit_calls": 6
+  },
+  "frozen_surface_unchanged": {
+    "no_src_tests_fixtures_cargo_changes": true,
+    "frames": 3,
+    "frame_dz": 0.1,
+    "delta_accept_min": 384,
+    "delta_margin_min": 576,
+    "repeat_required": 2
+  },
+  "doc_references": {
+    "mujoco_warp/record.py:110-111": {
+      "exists": true,
+      "line_110": "mjw.refit_bvh(m, d, rc)",
+      "line_111": "mjw.render(m, d, rc)"
+    },
+    "upstream/contrib/render.py:452-453": {
+      "exists": true,
+      "line_452": "mjw.refit_bvh(m, d, rc)",
+      "line_453": "mjw.render(m, d, rc)"
+    },
+    "pinned_upstream_head": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "no_src_record_ref": true
+  },
+  "gates": {
+    "fmt": true,
+    "clippy": true,
+    "clippy-cuda": true,
+    "unit": {
+      "passed": 1321,
+      "failed": 0,
+      "ignored": 399
+    }
+  },
+  "no_npz": true,
+  "no_multiframe_fixtures": true,
+  "backend_cpu_selfcheck_reproduced": "PASS 28/28 (logs/repro-backend-selfcheck.log, tree clean after reproduction)",
+  "qa_verify": {
+    "result": "PASS",
+    "passed": 54,
+    "total": 54,
+    "fails": []
+  },
+  "conclusion": "PASS-with-observations (0 blocking)",
+  "observations": [
+    "O1 evidence logs contain U+FFFD replacement chars (check-deltas-synth-*.log 48/48/2, dry-run.log 25) because verifier decodes child cp936 stdout as utf-8 with errors=replace",
+    "O2 artifacts/refit-fix.diff is the doc-fix diff (1863 B, README section 10 documents it); full implementation diff only referenced by commit ff8135e5",
+    "O3 capture_render_flex_multiframe.py:160 comment lacks 'mujoco_warp/' prefix (record.py:110-111)",
+    "O4 hard checks run after artifacts are written: exit 3 leaves out_dir residue, documented as G-2 operational reminder in README section 12"
+  ]
+}

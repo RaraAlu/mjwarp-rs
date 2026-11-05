@@ -1,0 +1,63 @@
+WARNING: flex 'flex-line' is not rigid and has no equality constraints or passive forces
+Element name 'flex-line', id 0, line 87
+
+WARNING: flex 'flex-line-fat' is not rigid and has no equality constraints or passive forces
+Element name 'flex-line-fat', id 1, line 92
+
+[PASS] A1 _render_frame 内恰好 1 次 mjw.refit_bvh、1 次 api.capture_once: {'refit': 1, 'capture_once': 1}
+[PASS] A2 refit 位于 forward 之后、capture_once（渲染）之前: {'forward': [158], 'refit': 161, 'capture_once': 164}
+[PASS] A3 refit 无 If/Try/For/While/With 守卫（无条件执行）: {'guards': []}
+[PASS] A4 无 `if refit` 分支、_render_frame 签名无 refit 形参（无开关形参）: {'args': ['api', 'scene', 'frame', 'anchor_ids', 'rc']}
+[PASS] A5 无 --refit-bvh（CLI 已删除，未知参数 argparse exit2）: None
+[PASS] A6 record_refit 恰好 1 次且紧随 refit（行序）: {'record_line': [162]}
+[PASS] A7 模块源码仅 1 处 refit_bvh 调用；自查模块 0 处（拆出的模块不重复 put/refit）: {'main': 1, 'checks': 0}
+[PASS] A8 两遍采集都走同一帧循环（_capture_pass 调用 2 次）+ reset_refit_log 首遍前 1 次: {'capture_pass': 2, 'reset': 1}
+[PASS] A9 采集路径调用 run_capture_checks 且以 checks[ok] 决定 exit 0/3（失败打印不得落库）: {'calls': 1, 'return3': True}
+[PASS] A10 单帧主脚本挂载点唯一（dispatch_multiframe(...) 1 次、add_frame_args(...) 1 次）: {'dispatch': 1, 'add_frame': 1}
+[PASS] B1 两遍×3帧=6 次、顺序 [0,1,2,0,1,2] → PASS: {'actual': [0, 1, 2, 0, 1, 2]}
+[PASS] B2 只记一遍（3 次）→ FAIL（镜像 --repeat 2 第二遍漏 refit）: {'actual': [0, 1, 2], 'ok': False}
+[PASS] B3 乱序 [0,2,1,0,1,2] → FAIL: {'actual': [0, 2, 1, 0, 1, 2], 'ok': False}
+[PASS] B4 多记（9 次）→ FAIL: {'actual_calls': 9, 'ok': False}
+[PASS] B5 反例所测函数即采集路径使用的判定函数（run_capture_checks 内联 refit_summary）: {'wired': True}
+[PASS] C1 base 幂等 PASS（真实 base 四类产物 15 数组位级全等）: {'arrays_checked': 15, 'mismatches': []}
+[PASS] C2 base 幂等 FAIL（qpos 改 1 bit）: {'mismatches': [{'array': 'state.qpos', 'bit_equal': False}]}
+[PASS] C3 位移 PASS（附着顶点均值 = k×0.100 m，读采集侧 state）: {'frame-000': 0.0, 'frame-001': 0.100000012, 'frame-002': 0.2}
+[PASS] C4 位移 FAIL（+2e-6 超 ±1e-6）: {'frame-000': 0.0, 'frame-001': 1.996755599975586e-06, 'frame-002': 2.0027160644309205e-06}
+[PASS] C5 位移边界（+5e-7 在 ±1e-6 内）PASS: {'frame-000': 0.0, 'frame-001': 4.9471855162464e-07, 'frame-002': 5.125999450461549e-07}
+[PASS] C6 位移数据源为 state.flexvert_xpos（设备回读），函数体不引用 CPU mjd 变量: {'names': ['DISPLACEMENT_TOL', 'abs', 'attached', 'body', 'dict', 'enumerate', 'expected_m', 'float', 'frame', 'frame_dz', 'frame_ok', 'frames', 'index', 'int', 'len', 'list', 'magnitudes', 'mean_m', 'mjm', 'np', 'ok', 'position', 'positions', 'state', 'states', 'str', 'v', 'vertbodyid'], 'has_flexvert_key': True, 'mjd_name': False}
+[PASS] C7 变化余量 PASS（600/600 ≥576）: pass-margin
+[PASS] C8 变化余量 FAIL（depth 500 <576）: insufficient-margin
+[PASS] C9 变化余量 FAIL（depth 300 <384，non-discriminating）: non-discriminating
+[PASS] C10 阈值仍硬编码 384/576、CLI 无改值入口: {'accept': 384, 'margin': 576}
+[PASS] C11 run_capture_checks 全 PASS（refit 6 / base / 位移 / 余量）: {'failures': []}
+[PASS] C12 run_capture_checks 命中 refit 失败（只记一遍）: {'failures': ['refit']}
+[PASS] C13 run_capture_checks 命中 frame000_vs_base 失败（1 bit）: {'failures': ['frame000_vs_base']}
+[PASS] C14 run_capture_checks 命中 displacement 失败（+2e-6）: {'failures': ['displacement']}
+[PASS] C15 run_capture_checks 命中 delta_margins 失败（500<576）: {'failures': ['delta_margins']}
+[PASS] D1 provenance spec 双 sha（1d9fa5ce…/10,506 B）与实际 spec 一致: {'sha': '1d9fa5cef1ebc829', 'bytes': 10506}
+[PASS] D2 provenance 三脚本 sha 与实际文件一致 + refit_bvh=true + policy=every-frame: {'scripts': ['capture_render_flex.py', 'capture_render_flex_multiframe.py', 'capture_render_flex_multiframe_checks.py'], 'refit_bvh': True}
+[PASS] D3 capture.json 落 provenance/refit_policy/refit_calls（=frames×repeat=6）: {'provenance': True}
+[PASS] E1 --help exit0 且无 --refit-bvh: {'exit': 0}
+[PASS] E2 传 --refit-bvh 被 argparse 拒（exit2）: {'exit': 2}
+[PASS] E3 --frames 0 exit=1: {'exit': 1, 'msg': 'R06-S3b flex capture environment/reference mismatch: spec §2 冻结：--frames 只接受 1（单帧原路径）或 3（帧循环），收到 0；其它值（含 0/负数）一律拒绝'}
+[PASS] E3 --frames 4 exit=1: {'exit': 1, 'msg': 'R06-S3b flex capture environment/reference mismatch: spec §2 冻结：--frames 只接受 1（单帧原路径）或 3（帧循环），收到 4；其它值（含 0/负数）一律拒绝'}
+[PASS] E3 --frame-dz 0.2 exit=1: {'exit': 1, 'msg': 'R06-S3b flex capture environment/reference mismatch: spec §2 冻结：Δz 必须为 0.10 m（收到 0.2）；改 Δz 需新 spec + 用户重签'}
+[PASS] E3 --repeat 1 exit=1: {'exit': 1, 'msg': 'R06-S3b flex capture environment/reference mismatch: spec §8.4 冻结：两次采集逐位一致校验要求 --repeat 2（不得跳过校验）'}
+[PASS] E4 dry-run exit0、计划 refit_policy=every-frame / refit_calls=6、不写产物: {'exit': 0, 'refit_policy': 'every-frame', 'refit_calls': 6, 'out_dir_created': False}
+[PASS] E5 --check-deltas pass exit=0: {'exit': 0, 'expected': 0}
+[PASS] E5 --check-deltas insufficient exit=3: {'exit': 3, 'expected': 3}
+[PASS] E5 --check-deltas non-discriminating exit=3: {'exit': 3, 'expected': 3}
+[PASS] F1 修复范围 77aeb6da..HEAD 无 src/tests/fixtures/Cargo 改动: {'changed': ['']}
+[PASS] F2 冻结 spec 零改动（sha/bytes 1d9fa5ce…/10,506）: {'sha': '1d9fa5cef1ebc829', 'bytes': 10506}
+[PASS] F3 无 multiframe fixtures 目录、无 npz 产物: {'multiframe_dir': False}
+[PASS] F4 行数 498 / 427 / 296（git blob 换行口径），两模块 ≤500: {'capture_render_flex.py': 498, 'capture_render_flex_multiframe.py': 427, 'capture_render_flex_multiframe_checks.py': 296}
+[PASS] F5 单帧主脚本逐字节不变（工作树 vs 77aeb6da）: {'sha': 'f50e150e4dc29522'}
+[PASS] F6 上游行号内容核对（record.py:110-111 / contrib/render.py:452-453 = refit→render）: {'upstream_present': True, 'content_ok': True}
+[PASS] F7 文档引用修正：无 `_src/record`、无 `contrib/render.py:110`；正确路径齐全: {'bad': [], 'full_path_in': ['scripts/authoring/README.md', 'capture_render_flex_multiframe_checks.py'], 'contrib_ok': True}
+[PASS] F8 证据 manifest 11/11 自核（evidence-dir-relative + base dir）: None
+[PASS] F9 四门禁记录齐全（unit 1321 过 / 0 败）: {'gates': {'fmt': True, 'clippy': True, 'clippy-cuda': True, 'unit': True}, 'unit': {'passed': 1321, 'failed': 0, 'ignored': 399}}
+[PASS] F10 工作树除本复核证据/卡外 clean（无未预期改动）: {'dirty': 'M .normify/changes/2026-11-05-render-r06-flex-multiframe-refit-fix-r2-check.json\n?? docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2-check/', 'foreign': []}
+[PASS] F11 forbid_claim 四词 0 命中（证据文本）: {'hits': []}
+json written: D:/Rust/mjwarp-rs/docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2-check/logs/verify-r2.json
+
+RESULT: PASS (54/54 pass, 0 fail)
