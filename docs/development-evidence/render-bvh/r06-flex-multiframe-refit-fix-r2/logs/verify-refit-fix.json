@@ -1,0 +1,235 @@
+{
+  "result": "PASS",
+  "fails": [],
+  "main_module_lines": 427,
+  "checks_module_lines": 296,
+  "checks": [
+    {
+      "name": "A1 _render_frame 内无条件 refit 且在 capture_once 之前",
+      "ok": true,
+      "detail": {
+        "refit_at": 617,
+        "capture_once_at": 700
+      }
+    },
+    {
+      "name": "A2 无 if refit 分支、_render_frame 签名无 refit 形参",
+      "ok": true,
+      "detail": {
+        "if_refit": false,
+        "args": [
+          "api",
+          "scene",
+          "frame",
+          "anchor_ids",
+          "rc"
+        ]
+      }
+    },
+    {
+      "name": "A3 无 --refit-bvh（CLI 已删除）",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "name": "A4 主模块 ≤500 行",
+      "ok": true,
+      "detail": 427
+    },
+    {
+      "name": "A5 自查模块 ≤500 行",
+      "ok": true,
+      "detail": 296
+    },
+    {
+      "name": "A6 单帧主脚本零 diff",
+      "ok": true,
+      "detail": {
+        "lines": 498
+      }
+    },
+    {
+      "name": "B1 两遍×3帧=6 次 refit → PASS",
+      "ok": true,
+      "detail": {
+        "calls": 6,
+        "sequence": [
+          0,
+          1,
+          2,
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "name": "B2 只记一遍（3 次）→ FAIL（漏 --repeat 2 第二遍）",
+      "ok": true,
+      "detail": 3
+    },
+    {
+      "name": "B3 乱序 → FAIL",
+      "ok": true,
+      "detail": [
+        0,
+        2,
+        1,
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "name": "C1 base 幂等 PASS（合成=base 原数组）",
+      "ok": true,
+      "detail": {
+        "arrays": 15
+      }
+    },
+    {
+      "name": "C2 base 幂等 FAIL（改 1 bit）",
+      "ok": true,
+      "detail": [
+        {
+          "array": "state.qpos",
+          "bit_equal": false
+        }
+      ]
+    },
+    {
+      "name": "C3 位移 PASS（精确 k×0.100 m）",
+      "ok": true,
+      "detail": {
+        "frame-000": 0.0,
+        "frame-001": 0.10000000149011612,
+        "frame-002": 0.20000000298023224
+      }
+    },
+    {
+      "name": "C4 位移 FAIL（+1e-3 超 ±1e-6）",
+      "ok": true,
+      "detail": {
+        "frame-000": 0.0,
+        "frame-001": 0.0010000035166740362,
+        "frame-002": 0.00100000500679015
+      }
+    },
+    {
+      "name": "C5 位移边界（+5e-7 在 ±1e-6 容差内）PASS",
+      "ok": true,
+      "detail": {
+        "frame-000": 0.0,
+        "frame-001": 5.006790161077301e-07,
+        "frame-002": 4.9471855162464e-07
+      }
+    },
+    {
+      "name": "C6 变化余量 PASS（600/600）",
+      "ok": true,
+      "detail": "pass-margin"
+    },
+    {
+      "name": "C7 变化余量 FAIL（500 <576）",
+      "ok": true,
+      "detail": {
+        "depth_changed": 500,
+        "seg_changed": 600,
+        "margin_min": 576,
+        "ok": false
+      }
+    },
+    {
+      "name": "C8 变化余量 FAIL（300 non-discriminating）",
+      "ok": true,
+      "detail": "non-discriminating"
+    },
+    {
+      "name": "C9 run_capture_checks 全 PASS",
+      "ok": true,
+      "detail": {
+        "failures": []
+      }
+    },
+    {
+      "name": "C10 run_capture_checks 检出失败项",
+      "ok": true,
+      "detail": [
+        "frame000_vs_base"
+      ]
+    },
+    {
+      "name": "D1 provenance spec sha/bytes 一致",
+      "ok": true,
+      "detail": {
+        "sha": "1d9fa5cef1ebc829",
+        "bytes": 10506
+      }
+    },
+    {
+      "name": "D2 provenance 三脚本 sha 与实际一致",
+      "ok": true,
+      "detail": {
+        "scripts": [
+          "capture_render_flex.py",
+          "capture_render_flex_multiframe.py",
+          "capture_render_flex_multiframe_checks.py"
+        ],
+        "refit_bvh": true
+      }
+    },
+    {
+      "name": "E1 --help exit0 且无 --refit-bvh",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "has_switch": false
+      }
+    },
+    {
+      "name": "E2 传 --refit-bvh 被拒（argparse exit2）",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "name": "E3 dry-run exit0 且不写产物",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "out_dir_created": false
+      }
+    },
+    {
+      "name": "E4 dry-run 计划 refit_policy/refit_calls=6",
+      "ok": true,
+      "detail": {
+        "refit_policy": "every-frame",
+        "refit_calls": 6
+      }
+    },
+    {
+      "name": "E5 --check-deltas pass exit=0",
+      "ok": true,
+      "detail": {
+        "exit": 0,
+        "expected": 0
+      }
+    },
+    {
+      "name": "E5 --check-deltas insufficient exit=3",
+      "ok": true,
+      "detail": {
+        "exit": 3,
+        "expected": 3
+      }
+    },
+    {
+      "name": "E5 --check-deltas non-discriminating exit=3",
+      "ok": true,
+      "detail": {
+        "exit": 3,
+        "expected": 3
+      }
+    }
+  ]
+}

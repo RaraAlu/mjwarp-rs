@@ -11,6 +11,11 @@
   非 `pass-margin` 时打印「不得落库」警告并以 **exit 3** 退出（与 `--check-deltas` 的 0/3 同义），
   避免把停手交给人工记忆（QA O3）。
 - `--frames` 只接受 1（原单帧路径）或 3（spec §2 冻值）：`--frames 0`/负数显式 exit 1（QA O2）。
+- **每帧强制 refit**：帧循环在 `forward` 后、`render` 前无条件 `mjw.refit_bvh(m, d, rc)`（两遍采集逐帧都做，
+  无跳过路径；G-1 诊断 A/B 定论：缺 refit 会让 flex 命中像素随偏移崩塌 654→246→69）。
+- **采集路径三条硬自查**（拆到 `capture_render_flex_multiframe_checks`，任一失败 exit 3 停手）：
+  base 幂等（frame-000 vs reference/base 位级）、附着顶点位移 = k×0.100 m（±1e-6，读采集侧 state）、
+  两段变化像素均 ≥576；`capture.json` 记录 provenance（spec sha / 脚本 sha / refit 标记）。
 - 不带上述参数时 `dispatch()` 返回 None，`capture_render_flex.py` 原有单帧路径逐字节不变。
 
 边界：本模块属于离线 authoring 工具，不被产品构建/测试/cargo 门禁引用；不执行采集、不占用 GPU
@@ -28,19 +33,20 @@ import platform
 import sys
 import time
 
+from capture_render_flex_multiframe_checks import (
+    CAM2_HEIGHT, CAM2_INDEX, CAM2_PIXELS, CAM2_WIDTH, DELTA_ACCEPT_MIN, DELTA_MARGIN_MIN,
+    FRAMES, REFIT_POLICY, delta_exit_code, delta_report as _delta_report,
+    print_delta_report as _print_delta_report, provenance_block, record_refit,
+    reset_refit_log, run_capture_checks,
+)
+
 # ---- 冻结常量（spec `2026-11-05-render-r06-flex-multiframe-criterion-spec`；不得改） ----
 SPEC_TASK = "2026-11-05-render-r06-flex-multiframe-criterion-spec"
 SPEC_PATH = "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md"
 SPEC_SHA256 = "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6"
 SPEC_BYTES = 10506
-FRAMES = 3  # spec §2：frame-000/001/002
 FRAME_DZ = 0.10  # spec §2：每步 +0.100 m
 ANCHOR_BODIES = ("flex-anchor0", "flex-anchor1", "flex-anchor2")  # spec §2
-DELTA_ACCEPT_MIN = 384  # spec §5：0.5% × 76,800，硬编码
-DELTA_MARGIN_MIN = 576  # spec §5：1.5 × 384，硬编码
-CAM2_INDEX = 2  # spec §3：判据相机 = cam2（cam-flex）
-CAM2_WIDTH, CAM2_HEIGHT = 320, 240
-CAM2_PIXELS = CAM2_WIDTH * CAM2_HEIGHT
 MULTIFRAME_KIND = "render-flex-multiframe-capture"
 SCRIPT_TASK_ID = "2026-11-05-render-r06-flex-multiframe-capture-script"
 
@@ -67,14 +73,7 @@ def add_frame_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="读取 --out-dir 的采集结果，打印 cam2 相邻帧 depth/seg 变化像素自检（常量 384/576）",
     )
-    parser.add_argument(
-        "--refit-bvh",
-        action="store_true",
-        help=(
-            "【仅诊断用，默认关】帧循环每帧 mjw.forward 之后、渲染之前调用 mjw.refit_bvh(m, d, rc)；"
-            "用于验证「场景 BVH 停在 base → 渲染位移被剔除」假设，不改变生产默认行为"
-        ),
-    )
+
 
 
 def dispatch(args: argparse.Namespace, out_dir: pathlib.Path, api) -> int | None:
@@ -141,8 +140,8 @@ def _base_anchor_z(api, mjm, anchors: list[int]) -> list[float]:
     return [float(pos[body, 2]) for body in anchors]
 
 
-def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], rc, refit: bool = False):
-    """按 spec §2 注入偏移后执行 put_model → forward → 渲染，返回 capture_once 结果。"""
+def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], rc):
+    """按 spec §2 注入偏移后执行 put_model → forward → refit_bvh → 渲染，返回 capture_once 结果。"""
     import mujoco
     import mujoco_warp as mjw
     import warp as wp
@@ -158,9 +157,10 @@ def _render_frame(api, scene: pathlib.Path, frame: int, anchor_ids: list[int], r
     d = mjw.put_data(mjm, mjd, nworld=1)
     mjw.forward(m, d)
     wp.synchronize()
-    if refit:  # 诊断开关（--refit-bvh）：上游 render 不重建 BVH，几何变动后需显式 refit（record.py:110 同款）
-        mjw.refit_bvh(m, d, rc)
-        wp.synchronize()
+    # 上游 record.py:110-111 / contrib/render.py:452-453：每帧先 refit 再 render（render() 自身不 refit）。
+    mjw.refit_bvh(m, d, rc)
+    record_refit(frame)
+    wp.synchronize()
     capture = api.capture_once(mjm, m, d, rc)
     return mjm, d, capture
 
@@ -174,26 +174,32 @@ def _frame_file_groups(capture: dict) -> dict[str, dict]:
     return groups
 
 
-def _capture_pass(api, root: pathlib.Path, scene: pathlib.Path, anchor_ids: list[int], rc, refit: bool = False) -> dict:
+def _capture_pass(api, root: pathlib.Path, scene: pathlib.Path, anchor_ids: list[int], rc) -> dict:
     """一次完整帧循环采集，返回 files_sha256 / frame-000 的 state 与相机位姿。"""
     hashes: dict[str, str] = {}
     first_state: dict | None = None
+    first_arrays: dict | None = None
     first_poses: dict | None = None
     first_mjm = None
     render_seconds = []
+    states: list[dict] = []
     for frame in range(FRAMES):
-        mjm, d, capture = _render_frame(api, scene, frame, anchor_ids, rc, refit)
+        mjm, d, capture = _render_frame(api, scene, frame, anchor_ids, rc)
         frame_dir = root / f"frame-{frame:03d}"
         for name, arrays in _frame_file_groups(capture).items():
             hashes[f"frame-{frame:03d}/{name}.npz"] = api.save_npz_deterministic(frame_dir / f"{name}.npz", arrays)
         render_seconds.append(capture["render_seconds"])
+        states.append(capture["state"])
         if frame == 0:
             first_state = capture["state"]
+            first_arrays = capture["arrays"]
             first_poses = api.flex_cam_pose_record(d)
             first_mjm = mjm
     return {
         "files_sha256": hashes,
         "state": first_state,
+        "states": states,
+        "arrays": first_arrays,
         "poses": first_poses,
         "mjm": first_mjm,
         "render_seconds": render_seconds,
@@ -233,11 +239,11 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) -> 
     anchor_z = _base_anchor_z(api, mjm, anchor_ids)
     rc = mjw.create_render_context(mjm, **api.PARAMS)
 
+    reset_refit_log()  # 计次断言：两遍 × 每遍 3 帧 = 6 次 refit（无分支可跳过）
     started = time.perf_counter()
-    refit = bool(getattr(args, "refit_bvh", False))
-    first = _capture_pass(api, out_dir, scene, anchor_ids, rc, refit)
+    first = _capture_pass(api, out_dir, scene, anchor_ids, rc)
     repeat_dir = out_dir / ".repeat2"
-    second = _capture_pass(api, repeat_dir, scene, anchor_ids, rc, refit)
+    second = _capture_pass(api, repeat_dir, scene, anchor_ids, rc)
     import shutil
 
     if first["files_sha256"] != second["files_sha256"]:
@@ -262,6 +268,7 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) -> 
         per_frame[frame][filename] = sha
     # O3：采集完成后强制跑同一自检；verdict 写入 capture.json，并以自检状态决定返回码。
     delta_lines = _delta_report(out_dir, api, stream=False)
+    checks = run_capture_checks(api, first, delta_lines, FRAMES, args.repeat, FRAME_DZ)
     capture = {
         "schema": api.SCHEMA,
         "task_id": api.TASK_ID,
@@ -275,7 +282,9 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) -> 
         "anchor_body_ids": anchor_ids,
         "anchor_body_base_z": anchor_z,
         "parameters": dict(api.PARAMS),
-        "refit_bvh": refit,
+        "provenance": checks["provenance"],
+        "capture_checks": checks["checks"],
+        "refit_policy": REFIT_POLICY, "refit_calls": FRAMES * args.repeat,
         "seed": args.seed,
         "repeat": args.repeat,
         "two_captures_bitwise_identical": True,
@@ -326,8 +335,12 @@ def capture_multiframe(args: argparse.Namespace, out_dir: pathlib.Path, api) -> 
         "delta_verdict": delta_lines["overall"],
     }
     print(json.dumps(summary, indent=2, ensure_ascii=False))
-    # O3：非 pass-margin 时以非零码收尾（3 = 与 --check-deltas 同义），避免把停手交给人工记忆。
-    return delta_exit_code(delta_lines)
+    # 三条硬自查（refit 计次 / base 幂等 / 位移 / 变化余量）任一失败 → exit 3 停手。
+    if checks["ok"]:
+        return 0
+    for failure in checks["failures"]:
+        print(f"R06 capture self-check FAILED: {failure}（不得落库，exit 3）")
+    return 3
 
 
 def _multiframe_readme(frame_spec: dict, anchor_ids: list[int], anchor_z: list[float]) -> str:
@@ -342,93 +355,14 @@ def _multiframe_readme(frame_spec: dict, anchor_ids: list[int], anchor_z: list[f
 - 每帧产物：`frame-{{000,001,002}}/{{rgb,depth,seg,state}}.npz`；顶层 `capture.json` / `cam-poses.json` /
   本 README。`state.npz` 字段同 base：qpos / geom_xpos / geom_xmat / light_xpos / light_xdir / flexvert_xpos。
 - 两次采集：`--repeat 2`，逐帧逐文件 sha256 一致（`capture.json.two_captures_bitwise_identical = true`）。
+- 每帧渲染前强制 `mjw.refit_bvh`（两遍采集逐帧都做，`capture.json.refit_calls = 6`）。
+- 采集路径三条硬自查（任一失败 exit 3）：frame-000 与 reference/base 位级全等、附着顶点位移 = k×0.100 m、
+  两段变化像素均 ≥576；provenance 见 `capture.json.provenance`（spec sha / 脚本 sha / refit 标记）。
 - 变化像素自检（spec §5）：结论见 `capture.json.delta_selfcheck.overall`；非 `pass-margin` 时脚本
   **exit 3** 并打印「不得落库」警告（`--check-deltas` 独立模式同语义）。
 - 本目录只是离线 authoring 产物记录；帧内/跨帧判定口径见冻结 spec，本 README 不作结论。
 """
 
-
-# ----------------------------------------------------------------------------------
-# cam2 相邻帧变化像素自检（spec §5；阈值 384/576 硬编码，不提供改值参数）
-# ----------------------------------------------------------------------------------
-
-
-def _load_cam2(root: pathlib.Path, frame: int, filename: str):
-    import numpy as np
-
-    path = root / f"frame-{frame:03d}" / filename
-    if not path.is_file():
-        raise SystemExit(f"R06 multiframe delta self-check: missing {path}")
-    with np.load(path) as archive:
-        key = f"{filename.split('.')[0]}_cam{CAM2_INDEX}"
-        if key not in archive.files:
-            raise SystemExit(f"R06 multiframe delta self-check: {path} missing {key}")
-        return np.asarray(archive[key])
-
-
-def _verdict(depth_changed: int, seg_changed: int) -> str:
-    if depth_changed < DELTA_ACCEPT_MIN or seg_changed < DELTA_ACCEPT_MIN:
-        return "non-discriminating"
-    if depth_changed >= DELTA_MARGIN_MIN and seg_changed >= DELTA_MARGIN_MIN:
-        return "pass-margin"
-    return "insufficient-margin"
-
-
-def _delta_report(root: pathlib.Path, api, *, stream: bool = True) -> dict:
-    import numpy as np
-
-    frames = list(range(FRAMES))
-    depth = [_load_cam2(root, frame, "depth.npz") for frame in frames]
-    seg = [_load_cam2(root, frame, "seg.npz") for frame in frames]
-    for frame in frames:
-        if depth[frame].shape != (CAM2_HEIGHT, CAM2_WIDTH):
-            api.fail(f"cam2 depth 形状 {depth[frame].shape} != ({CAM2_HEIGHT}, {CAM2_WIDTH})（spec §3 冻结）")
-        if seg[frame].shape != (CAM2_HEIGHT, CAM2_WIDTH, 2):
-            api.fail(f"cam2 seg 形状 {seg[frame].shape} != ({CAM2_HEIGHT}, {CAM2_WIDTH}, 2)")
-        if int(np.prod(depth[frame].shape)) != CAM2_PIXELS:
-            api.fail("cam2 像素数不是 76,800（spec §3 冻结）")
-    report = []
-    overall = "pass-margin"
-    for left in frames[:-1]:
-        right = left + 1
-        depth_changed = int(np.count_nonzero(depth[left].view(np.uint32) != depth[right].view(np.uint32)))
-        seg_changed = int(np.count_nonzero(np.any(seg[left] != seg[right], axis=2)))
-        verdict = _verdict(depth_changed, seg_changed)
-        if verdict != "pass-margin":
-            overall = "insufficient-margin" if overall == "pass-margin" else overall
-        if verdict == "non-discriminating":
-            overall = "non-discriminating"
-        report.append({
-            "pair": f"{left:03d}->{right:03d}",
-            "depth_changed": depth_changed,
-            "seg_changed": seg_changed,
-            "verdict": verdict,
-        })
-    result = {"thresholds": {"accept_min": DELTA_ACCEPT_MIN, "margin_min": DELTA_MARGIN_MIN},
-              "cam2_pixels": CAM2_PIXELS, "report": report, "overall": overall}
-    if stream:
-        _print_delta_report(result)
-    return result
-
-
-def _print_delta_report(result: dict) -> None:
-    """打印自检明细；非 pass-margin 时补「不得落库」警告（采集路径与独立自检共用）。"""
-    print(
-        "R06 multiframe delta self-check (spec §5; thresholds hardcoded 384/576, cam2 pixels 76,800)"
-    )
-    for item in result["report"]:
-        print(
-            f"  cam2 {item['pair']}: depth_changed={item['depth_changed']} "
-            f"seg_changed={item['seg_changed']} -> {item['verdict']}"
-        )
-    print(f"  overall: {result['overall']}")
-    if result["overall"] != "pass-margin":
-        print("  spec §5：未达采集前置余量（>=576），不得落库为验收材料；停手报用户，不得改阈值。")
-
-
-def delta_exit_code(result: dict) -> int:
-    """自检 verdict → 退出码：pass-margin = 0，其余 = 3（采集路径与 --check-deltas 共用）。"""
-    return 0 if result["overall"] == "pass-margin" else 3
 
 
 def check_deltas(args: argparse.Namespace, out_dir: pathlib.Path, api) -> int:
@@ -475,7 +409,7 @@ def dry_run_plan(args: argparse.Namespace, api) -> int:
         "out_dir": pathlib.Path(args.out_dir).resolve().as_posix(),
         "repeat": args.repeat,
         "parameters": dict(api.PARAMS),
-        "refit_bvh": bool(getattr(args, "refit_bvh", False)),
+        "refit_policy": REFIT_POLICY, "refit_calls": FRAMES * 2,  # dry-run 计划：两遍 × 3 帧
         "expected_layout": [
             "frame-000/{rgb,depth,seg,state}.npz",
             "frame-001/{rgb,depth,seg,state}.npz",

@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-refit-fix-r2",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-05-render-r06-flex-multiframe-refit-fix-r2",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "authoring-pipeline-fix",
+  "depends_on": ["2026-11-05-render-r06-flex-multiframe-pose-diag"],
+  "root_cause": {
+    "card": "2026-11-05-render-r06-flex-multiframe-pose-diag",
+    "commit": "77aeb6da",
+    "h1": "采集脚本帧循环缺 mjw.refit_bvh(m, d, rc)：create_render_context 用创建时刻 mjd 固化场景 BVH，render() 不 refit；A/B 对照：flex 像素 654→246→69 vs 654→718→798，变化计数 697/616、244/183 vs 1,167/1,074、1,262/1,126"
+  },
+  "changes": {
+    "capture_render_flex_multiframe.py": {
+      "lines_before": 493,
+      "lines_after": 427,
+      "insertions": 44,
+      "deletions": 110,
+      "note": "帧循环无条件 refit + record_refit；采集末尾 run_capture_checks（ok→exit0 / 失败→exit3）；capture.json 增 provenance/capture_checks/refit_calls；delta 自检函数迁至 checks 模块"
+    },
+    "capture_render_flex_multiframe_checks.py": {
+      "status": "new",
+      "lines": 296,
+      "note": "自检模块：refit 计次（frames×passes）、三条硬自查、delta 自检（384/576 硬编码）、provenance"
+    },
+    "README.md": {"lines_before": 57, "lines_after": 99, "insertions": 43, "note": "refit 强制口径 + 三条硬自查 + spec 漂移审计 + 非声明"},
+    "capture_render_flex.py": {"lines": 498, "changed": false, "note": "单帧主脚本逐字节不变（零 diff）"}
+  },
+  "refit_policy": {
+    "policy": "every-frame",
+    "scope": "帧循环两遍采集逐帧都 refit（第 k 帧 forward 后、render 前无条件 mjw.refit_bvh）",
+    "switch_removed": "--refit-bvh 已从 CLI 删除，未知参数按 argparse exit 2；无任何跳过路径",
+    "passes": 2,
+    "frames_per_pass": 3,
+    "expected_refit_calls": 6,
+    "expected_sequence": [0, 1, 2, 0, 1, 2],
+    "assertion": "run_capture_checks → refit_summary(frames, passes)；计数或顺序不符即失败（exit 3）"
+  },
+  "hard_checks": {
+    "frame000_vs_base": {
+      "rule": "frame-000 的 rgb/depth/seg/state 与 reference/base 数组级位级全等（15 个数组）",
+      "failure": "exit 3",
+      "side_effect": "补 G-1 QA O7（frame-000 vs base 动态证据）缺口"
+    },
+    "displacement": {
+      "rule": "附着到非 world body 的顶点相对 base 帧平均位移 = k×0.100 m（k=0,1,2），容差 ±1e-6",
+      "source": "采集侧 state.npz.flexvert_xpos（设备回读），非 CPU mjd",
+      "failure": "exit 3"
+    },
+    "delta_margins": {
+      "rule": "000→001 与 001→002 的 depth 与 seg 变化像素均 ≥ 576（1.5×384，pass-margin 口径）",
+      "failure": "exit 3"
+    }
+  },
+  "provenance": {
+    "fields": ["spec_sha256", "spec_bytes", "authoring_script_sha256(3 scripts)", "refit_policy", "refit_bvh"],
+    "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+    "spec_bytes": 10506,
+    "placed_in": "capture.json.provenance（另有 refit_policy/refit_calls/capture_checks）"
+  },
+  "spec_drift_audit": {
+    "finding": "spec §8.2 只写 put_model→forward→渲染、未提 BVH；本修复补齐隐含前提「渲染必须消费当前 state」",
+    "spec_unchanged": true,
+    "resign_required": false,
+    "g2_signature": "沿用 S-1 签名（spec sha/bytes 不变、帧设计/阈值不变）"
+  },
+  "cpu_checks": {
+    "gpu_used": false,
+    "capture_executed": false,
+    "script": "scripts/verify_refit_fix.py",
+    "result": "PASS",
+    "passed": 28,
+    "failed": 0,
+    "groups": {
+      "A_static_ast": 6,
+      "B_refit_count": 3,
+      "C_hard_checks_synthetic": 10,
+      "D_provenance": 2,
+      "E_cli": 7
+    },
+    "line_counts": {"capture_render_flex.py": 498, "capture_render_flex_multiframe.py": 427, "capture_render_flex_multiframe_checks.py": 296},
+    "detail": "logs/verify-refit-fix.json"
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/authoring/capture_render_flex_multiframe.py",
+      "scripts/authoring/capture_render_flex_multiframe_checks.py",
+      "scripts/authoring/README.md",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-refit-fix-r2/"
+    ],
+    "unchanged": ["src/", "tests/", "fixtures/", "Cargo.toml", "Cargo.lock", "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/spec.md"],
+    "single_frame_script_unchanged": true,
+    "no_gpu_window": true,
+    "no_capture_executed": true,
+    "no_fixtures_written": true,
+    "spec_sha_unchanged": true
+  },
+  "supersede_plan": {
+    "g1_card": "2026-11-05-render-r06-flex-multiframe-capture（负结果，提交 dbe8d2b7）",
+    "plan": "G-2 采集窗用同一签名 spec/帧集重采；全过则声明「采集有效 → 可进入验证窗 G-2」并显式 supersede G-1 的「帧集不足」归因；G-1 证据保留不删"
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "note": "本卡只声明采集基础设施修复 + CPU 自检通过；不声明多帧判据通过/动画一致性覆盖结论/与上游一致/发布依据；真实采集有效性由 G-2 窗口判定（执行会话 Backend，token 由 Chief 在 QA PASS 后发放）。"
+  }
+}
