@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-capture-check",
+  "title": {
+    "zh": "QA 只读复核：R06 多帧采集窗负结果（001→002 non-discriminating、exit3 停手、未落库、窗口合规、锁时序事实记录）",
+    "en": "QA read-only review: R06 multi-frame capture-window negative result (non-discriminating, exit 3 stop, not landed, window compliance, lock-timing fact record)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对采集窗执行卡 `2026-11-05-render-r06-flex-multiframe-capture`（verified；提交 484852ca/dbe8d2b7/27474ac5）做**只读复核**：① 负结果判定成立（001→002 depth 244 / seg 183 < 384、overall non-discriminating、脚本 exit3、无重试/无调阈值/无改步进）；② 未落库（fixtures/render-bvh/scene-flex/multiframe 不存在、树 clean、帧产物已删、仅诊断日志与 capture.json 副本）；③ 窗口合规（基线三点 ≥ floor 11,688、monitor 60/60、S-2 未启用、两次采集逐位一致、spec sha 1d9fa5ce…/10,506 B 未变、单帧证据未受影响）；④ 锁时序 §10 仅作事实记录；⑤ 证据目录 manifest 自核与非声明。**只读 + 写自己的证据目录；零 GPU、不执行采集、不改窗口证据。**",
+    "en": "Read-only review of the capture-window execution card: negative-result validity, not-landed state, window compliance, lock-timing fact record, evidence manifest and non-claims. No GPU, no capture, no edits outside the reviewer evidence directory."
+  },
+  "modules": {},
+  "acceptance": [
+    "**负结果判定成立**：`capture-diagnostic.json.delta_selfcheck` 与 `capture.log` 摘要一致——000→001 depth 697 / seg 616（pass-margin）、001→002 depth 244 / seg 183（non-discriminating）、overall non-discriminating；脚本按 O3 语义 exit3；无重试（单次采集）、无阈值/帧数/Δz 改动。",
+    "**未落库**：`fixtures/render-bvh/scene-flex/multiframe/` 不存在；`git status` clean；窗口提交不含任何 `.npz`/帧产物；证据目录只保留诊断日志与 `capture.json`/`cam-poses.json` 副本。",
+    "**窗口合规**：基线三点 free ≥ floor 11,688 且 util<40；monitor 60/60（6 个干净条件，free_min ≥ floor）；S-2 例外未启用；两次采集逐位一致；冻结 spec sha/bytes 未变；现有单帧参考与 scripts 未被改动；无编译、无 guards 重冻。",
+    "**锁时序记录**：README §10 与卡 addenda 一致记录 11:59:25 早于窗口 acquire、12:00:07 纠正 release+acquire、窗口前无内容写；仅作事实记录。",
+    "**证据完整性**：窗口证据 manifest 自核通过；非声明齐全（不构成多帧验收材料、不声明多帧已覆盖/动画一致性/上游等价/对外发布依据）。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix`；证据落 `docs/development-evidence/render-bvh/r06-flex-multiframe-capture-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-capture"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-capture-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "QA 登记（Arch 已转只读，Chief 2026-11-05 指派只读复核负结果证据；窗口卡未同批登记 QA 复核卡）。只读复核：不改窗口证据/脚本/spec/fixtures；零 GPU、不执行采集。结论用于多帧专题结论链（负结果）。",
+  "revision": {
+    "before": "8f59ce9bd41881b4d16d087e2f9b3c967e0e6097",
+    "after": null
+  },
+  "created_at": "2026-11-05T04:20:00.000Z",
+  "updated_at": "2026-11-05T04:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"
+      ]
+    }
+  ]
+}
