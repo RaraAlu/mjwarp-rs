@@ -1,0 +1,66 @@
+== HEAD 27474ac5 | status clean: False
+
+[1] commit scope (b43d8295..HEAD) and boundaries
+PASS window commits touch only the card + capture evidence dir :: []
+PASS no src/tests/fixtures/scripts/spec changes in window commits
+PASS no npz/frame artifacts committed by window commits
+PASS existing base reference untouched by window commits
+PASS frozen spec sha/bytes unchanged :: 1d9fa5cef1eb / 10506B
+
+[2] negative result (capture.log summary, cp936 decoded)
+PASS capture summary has 3 frames / dz 0.1
+PASS 000->001 = 697/616 pass-margin :: {'pair': '000->001', 'depth_changed': 697, 'seg_changed': 616, 'verdict': 'pass-margin'}
+PASS 001->002 = 244/183 non-discriminating :: {'pair': '001->002', 'depth_changed': 244, 'seg_changed': 183, 'verdict': 'non-discriminating'}
+PASS overall = non-discriminating
+PASS changes below 384 on the second pair (negative-result root cause)
+PASS two captures bitwise identical = true
+PASS legacy single-frame reference untouched = true
+PASS 'do not land' warning printed
+PASS single capture run (one summary, no retry) :: count=1
+OBS  capture.log is script stdout only: no command line and no explicit exit code; command/exit=3 are recorded in receipt/README and follow from the reviewed O3 code (delta_verdict=non-discriminating -> delta_exit_code=3) :: log has 142 lines
+
+[3] dry-run
+PASS dry-run mode + spec sha + anchors + repeat=2 + gpu_used=false
+PASS dry-run expected layout = three frames + 3 top-level files :: ['frame-000/{rgb,depth,seg,state}.npz', 'frame-001/{rgb,depth,seg,state}.npz', 'frame-002/{rgb,depth,seg,state}.npz', 'capture.json', 'cam-poses.json', 'README.md']
+
+[4] baseline and monitor
+PASS baseline = 3 points within 5 min (file has 3 lines)
+PASS baseline every point free >= floor 11688 and util < 40 :: [{'used': 1730, 'free': 14332, 'util': 3, 'temp': 27}, {'used': 1730, 'free': 14332, 'util': 2, 'temp': 27}, {'used': 1730, 'free': 14332, 'util': 2, 'temp': 27}]
+PASS floor formula max(min_free-3072, 11688) = 11688 :: 11688
+PASS monitor = 60/60 clean rows
+PASS monitor util < 40 and every row free >= floor
+PASS monitor no compute/build processes
+PASS S-2 exception not used (normal util<40 met)
+PASS post-window GPU state recorded :: 1714 MiB, 14348 MiB, 2 %, 27
+
+[5] receipt vs capture.json diagnostic copy
+PASS receipt delta report == capture.json.delta_selfcheck.report
+PASS overall non-discriminating and exit_code 3
+PASS two-capture bitwise identity recorded
+PASS diagnostic spec block matches frozen spec
+PASS 12 per-frame file sha256 recorded and receipt table matches :: 12
+PASS frame-000 file sha256 == existing base (diagnostic precursor)
+OBS  array-level frame-000 vs base comparison NOT RUN (window stopped at self-check per spec section 8.5); recorded as such in receipt/README, to be run in a future spec window
+
+[6] not landed
+PASS fixtures/.../multiframe does not exist
+PASS no multiframe artifact tracked in fixtures
+PASS working tree clean outside this review's own files :: []
+PASS no frame artifacts left in target scratch :: []
+
+[7] evidence manifest, encodings, non-claims
+PASS evidence manifest self-check 9/9 :: 9/9
+PASS README/receipt/manifest/csv/json are UTF-8/LF/no BOM
+OBS  evidence encoding deviations vs card acceptance 'UTF-8/LF/no BOM': ['baseline-three-points.txt', 'capture.log', 'dry-run.log', 'post-window-gpu.txt'] :: capture.log/dry-run.log are PowerShell ANSI(cp936)+CRLF console captures; baseline-three-points.txt and post-window-gpu.txt carry UTF-8 BOM+CRLF
+PASS forbidden claim absent: 多帧验收通过
+PASS forbidden claim absent: 上游等价
+PASS forbidden claim absent: 超窗写
+PASS non-claims present (not multi-frame acceptance material / no coverage claim)
+
+[8] lock timing record and card
+PASS README section 10 records early acquire 11:59:25, corrective 12:00:07, no pre-window content write
+PASS capture card verified with lock-timing addendum :: {'status': 'verified', 'addenda': ['补记锁时序（11:59:25 早于窗口 acquire、12:00:07 纠正性 release+acquire，窗口前无仓库内容写）；结论不变'], 'created_at': '2026-11-05T04:01:00.000Z', 'closed_at': '2026-11-05T04:08:07.017Z', 'checks': 3}
+OBS  window card created_at 12:01 is after baseline 12:00:26 / monitor 12:00:44; the card and all window evidence were committed together at 12:07:59 (commit 484852ca, after capture ended 12:06:44). Registration-before-execution ordering is a bookkeeping deviation; data/stop/not-landed conclusions are unaffected :: commit times: 484852ca 12:07:59, dbe8d2b7 12:08:07, 27474ac5 12:08:44
+wrote docs/development-evidence/render-bvh/r06-flex-multiframe-capture-check/logs/qa-check.json
+
+RESULT: PASS fails=
