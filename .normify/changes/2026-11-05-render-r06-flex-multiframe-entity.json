@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-entity",
+  "title": {
+    "zh": "R06 多帧实体 A：新测试实体 render_flex_multiframe（3 帧逐帧口径 + 跨帧可见性 + 选项 A 三 context 审计；零 GPU 实现）",
+    "en": "R06 multi-frame entity A: new test entity render_flex_multiframe (per-frame criteria + cross-frame visibility + option-A three-context audit; GPU-free implementation)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G-2 采集窗（`2026-11-05-render-r06-flex-multiframe-capture-g2`，提交 `5f2bd0bb`，verdict pass-margin）已落库 3 帧参考（`fixtures/render-bvh/scene-flex/multiframe/`）。本卡登记**新测试实体** `render_flex_multiframe`：GPU `#[ignore]` 用例按逐帧口径（rgb ≤1 LSB 且 beyond=0、depth frame-000 仅 cam2/(134,128)/flexid0 allowlist 其余严格、001/002 严格 bit-first、seg 全等、逐帧两跑 sha）与跨帧可见性（实体自算 000→001、001→002 变化像素各 ≥384）验证；并用**选项 A**（按 spec §2 偏移模型建 3 个 context）把「模型偏移对 flex 渲染惰性」变成可审计证据，记录产品「每渲染重建合并 BVH」的架构事实（`refits()==0`）。配套：`tests/support/render_bvh/multiframe.rs`（夹具/自检）、`allowlist.rs` 增 `assert_depth_strict` 纯位等函数、冻结器 `freeze-guards-r06-multiframe.ps1`（`-Attempt 1`，2 exes + 26 inputs = 28）、`guards-r06-multiframe.json`（`-GuardsOnly` 结构自检）。**现有 `tests/render_flex_validate.rs` 498 行一行不动；零 GPU、不开窗、不执行 freeze。**",
+    "en": "Register a new test entity render_flex_multiframe for the G-2 three-frame reference: GPU #[ignore] per-frame and cross-frame checks, option-A three-context audit, a shared multiframe support module, an assert_depth_strict helper, a new guard freezer and a guards JSON. No changes to the existing 498-line render_flex_validate.rs; GPU-free, no window, no freeze execution."
+  },
+  "modules": {},
+  "acceptance": [
+    "**新实体 / GPU 用例**：`tests/render_flex_multiframe.rs`（新，≤500 行）含 `#[ignore]` GPU 用例；普通 `cargo test` 可跑 CPU 自证 **≥20 项**（参考完整性/帧集位移/变化像素/两跑 sha 静态/provenance/选项 A 结构等），零 GPU。",
+    "**逐帧口径**：逐帧断言 state_k 的刚性数组（`geom_xpos`/`geom_xmat`/`light_xpos`/`light_xdir`/`qpos`）与 frame-000 **位级相等**（证「只有 flex 动」）；每帧一次 `FlexHostAssembly::build` + `render_with`；与 `frame-00k` 逐相机判：**rgb ≤1 LSB 且 beyond_1_lsb=0**；**depth：frame-000 仅 cam2 `(134,128)`/flexid0 走 allowlist，frame-001/002 全部严格 bit-first**；**seg 逐像素全等**；**逐帧逐相机两跑 sha 相等**。",
+    "**跨帧可见性（实体自算，不信 `delta_selfcheck`）**：实体从 3 帧 npz 自己算 `000→001`、`001→002` 的 cam2 depth 位级变化与 seg 对变化像素，**各 ≥384**（384 = 验收判据；576 只是采集余量，不得当验收阈）。",
+    "**选项 A（三 context 审计）**：按 spec §2 用偏移模型建 3 个 context；断言三个 context 的**刚性叶几何/位姿完全一致**（把「模型偏移对 flex 渲染惰性」变成可审计证据）；并断言 `RenderContext::refits()==0`（记录产品「每渲染重建合并 BVH」的架构事实）。允许补充「同 context 渲染」对照并断言与各自 context 结果逐位相同。",
+    "**allowlist 边界**：frame-001/002 若出现与 frame-000 同像素同类型差 → 打印 `flat/x/y/bits/ulp/seg` 并**大声失败、停手报用户**；**禁止自动扩 allowlist**；`allowlist.rs` 仅新增 `assert_depth_strict`（纯位等）与 frame-000 用 allowlist 版。",
+    "**参考完整性 / provenance**：重算 12 个 npz sha256 对齐 `capture.json.files_sha256`、3 个文本夹具 sha256 对齐记录（合计 15 文件）；断言 spec `1d9fa5ce…`/10,506 B、三脚本 `authoring_script_sha256`、`refit_calls=6`、`refit.actual_sequence==[0,1,2,0,1,2]`、`refit_policy=every-frame`。",
+    "**冻结器 / guards**：新增 `scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1`（克隆 r06-s3b-flex；`-Attempt 1`；**条目预算 2 exes + 26 inputs = 28**；只做结构自检不执行 freeze）与 `guards-r06-multiframe.json`（`-GuardsOnly` 结构自检通过，exes 待冻结、inputs 26 条 sha 自洽）；证据记录 `GUARDS_STRUCTURE_OK` 输出。",
+    "**500 行棘轮 / 边界**：两个新 rs 文件各 ≤500 行；`include_bytes!` 12 npz ≈14.2 MB；`tests/render_flex_validate.rs` **一行不动**（498 行）；`unchanged src/, fixtures/`；四门禁全过；**零 GPU、不跑窗口、不执行 freeze（只 `-GuardsOnly` 结构自检）**。",
+    "**非声明**：只覆盖「3 帧集上的逐帧口径 + 跨帧可见性」，不写 R06 整族/动画通用/上游等价结论；不改变 G-2 已落库夹具与判据/spec。",
+    "**证据** `docs/development-evidence/render-bvh/r06-flex-multiframe-entity/`（README + receipt + manifest，UTF-8/LF 无 BOM）：实体结构、判据逐项、CPU 自证原始 `cargo test` 输出、guards 结构自检输出、行数口径、与 `render_flex_validate.rs` unchanged 对照、非声明。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-capture-g2",
+      "2026-11-05-render-r06-flex-multiframe-capture-g2-check",
+      "2026-11-05-render-r06-flex-multiframe-refit-fix-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_multiframe.rs",
+      "tests/support/render_bvh/multiframe.rs",
+      "tests/support/render_bvh/allowlist.rs",
+      "scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1",
+      "scripts/validate/render-bvh/guards-r06-multiframe.json",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Chief 2026-11-05 夜派工（Arch 多帧设计方案 A 已批）：新实体实现卡；零 GPU、不跑窗口、不执行 freeze（冻结器只做 -GuardsOnly 结构自检）。现有 render_flex_validate.rs 498 行一行不动。设计要点：逐帧判据 + 跨帧变化 ≥384（验收阈值，非采集余量 576）+ 选项 A 三 context 刚性一致性审计 + refits()==0 架构事实。QA 复核 PASS 后 Chief 发验证窗 token（真冻结 16→28 条目 + 实体本卡用例）。",
+  "revision": { "before": "2ab631b096ce7445d885ee9ab70568d7a333711f", "after": null },
+  "created_at": "2026-11-05T22:20:00.000Z",
+  "updated_at": "2026-11-05T22:20:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-entity"
+    },
+    { "kind": "forbid_claim", "terms": ["多帧验收通过", "动画一致性已覆盖", "上游等价"] }
+  ]
+}
