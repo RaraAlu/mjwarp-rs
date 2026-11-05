@@ -5,7 +5,7 @@
     "zh": "R06 多帧修复：采集脚本帧循环每帧强制 `mjw.refit_bvh` 后 render（H1 根因；authoring-only，零 GPU）",
     "en": "R06 multiframe fix: force mjw.refit_bvh before every frame's render (H1 root cause; authoring-only, zero GPU)"
   },
-  "status": "in_progress",
+  "status": "abandoned",
   "intent": {
     "zh": "诊断卡 `2026-11-05-render-r06-flex-multiframe-pose-diag`（`77aeb6da`）H1 定论：`capture_render_flex_multiframe.py` 帧循环缺 `mjw.refit_bvh(m, d, rc)`。`create_render_context` 用创建时刻 `mjd`（MjData+mj_forward）把场景 BVH（含 1D flex capsule bounds）固化在 base，`render()` 全文件 0 处 refit；上游 `record.py:110`、`contrib/render.py:110/452` 都是每帧先 refit 再 render。A/B 实测：state 注入精确 0.100/0.200 m 且逐位相同，但 flex 像素 654→246→69（不 refit）vs 654→718→798（refit），自检 verdict non-discriminating(exit3) vs pass-margin(exit0)。本卡把 refit 变默认且强制，去掉 `--refit-bvh` 默认关路径，并补文档与 CPU 自检；不改判据/阈值/帧设计/spec。",
     "en": "Make per-frame refit_bvh mandatory (remove the default-off switch), document the upstream basis, and add CPU self-proof; no criteria/spec changes."
@@ -33,13 +33,14 @@
     "resources": [],
     "priority": 84
   },
-  "note": "Arch 2026-11-05 登记（Chief 指令）。**G-2 采集窗口前置**：本卡 verified + QA 复核 PASS 后由 Chief 发 token，执行会话 `arch-chat`；沿用 S-1 签名（spec 未变、帧设计未变、阈值不变，不需重签）。G-2 窗口硬要求：三点基线 ≥ floor 11,688、monitor 60/60（util<40 常规）、dry-run 通过、`--repeat 2` 逐位一致、verdict 必须 `pass-margin`、frame-000 vs base 数组级位级对照、CSV/日志/sha 全归档、失败即停不重试；G-1 负结果留档不删并在 G-2 证据写明 supersede。",
+  "note": "Arch 2026-11-05 登记（Chief 指令）。**G-2 采集窗口前置**：本卡 verified + QA 复核 PASS 后由 Chief 发 token，执行会话 `arch-chat`；沿用 S-1 签名（spec 未变、帧设计未变、阈值不变，不需重签）。G-2 窗口硬要求：三点基线 ≥ floor 11,688、monitor 60/60（util<40 常规）、dry-run 通过、`--repeat 2` 逐位一致、verdict 必须 `pass-margin`、frame-000 vs base 数组级位级对照、CSV/日志/sha 全归档、失败即停不重试；G-1 负结果留档不删并在 G-2 证据写明 supersede。\n放弃：卡面缺 Chief 2026-11-05 夜定的 4 条硬性要求（两遍采集都 refit、base 幂等停手条件、设备端/采集侧位姿断言、两段变化像素≥576）与 spec 漂移审计说明，files 也缺自查新模块；proposed→started 后发现需一次写对，故 abandon 并重登记 r2",
   "revision": {
     "before": "1b5cf654097992f7d5f4cc609216caaa357697c0",
     "after": null
   },
   "created_at": "2026-11-05T21:20:00.000Z",
-  "updated_at": "2026-11-05T13:18:32.395Z",
+  "updated_at": "2026-11-05T13:19:03.984Z",
+  "closed_at": "2026-11-05T13:19:03.984Z",
   "checks": [
     {
       "kind": "gate",
