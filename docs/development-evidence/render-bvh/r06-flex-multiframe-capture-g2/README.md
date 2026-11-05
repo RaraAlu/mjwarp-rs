@@ -41,6 +41,19 @@
 > Arch 提醒的口径已按卡面执行：`check_frame000_vs_base` **只比对第一遍**；两遍一致性由既有逐帧逐文件 sha 比对
 > 承担——两项**分别记录、不互相替代**（见 `capture.json.capture_checks` 与 `two_captures_bitwise_identical`）。
 
+**窗口时点三脚本 sha256 原值**（与 `artifacts/capture.json.provenance.authoring_script_sha256` 逐字一致；
+`artifacts/script-sha256.txt`）：
+
+| 脚本 | sha256 | bytes |
+| --- | --- | --- |
+| `capture_render_flex.py` | `f50e150e4dc29522ce5f49b64bbb50b01bfc5177cee82a3f3c704c9e5c0a16f9` | 25,916 |
+| `capture_render_flex_multiframe.py` | `46d7500227738e8a3fab8f79106bb02599b1b92b29ca4bda6baf807b989e7bd1` | 19,787 |
+| `capture_render_flex_multiframe_checks.py` | `ef77f38b6159a49971a85303961647b0aa88b596fce7dc924998b1e21f8201a9` | 13,006 |
+
+`capture.json.capture_checks` **原文**另存 `artifacts/capture-checks.json`（含 `refit.actual_sequence=[0,1,2,0,1,2]`、
+base 15 数组、位移三帧、两段变化计数逐项）；采集日志首部（command / exit_code / out_dir 状态）原文见
+`artifacts/capture-log-header.txt`（`logs/capture.log` 前 11 行）。
+
 ## 3. 落库产物（`fixtures/render-bvh/scene-flex/multiframe/`，15 个文件）
 
 `frame-{000,001,002}/{rgb.npz,depth.npz,seg.npz,state.npz}`（12）+ `capture.json` + `cam-poses.json` + `README.md`。
@@ -67,6 +80,9 @@
 - 已知观察/errata（记已知，不返工）：QA 复核 r2 的 O1（自检日志 U+FFFD 解码）、O2（完整实现 diff 以
   `ff8135e5` 引用）、O3（主模块 `:160` 注释缺 `mujoco_warp/` 前缀）、O4（exit3 残留流程）——其中 O4 本窗未触发
   （采集 exit 0，无残留）；诊断卡 files 含 `scripts/authoring/` 仅用于加诊断开关、不改采集语义。
+- **流程留痕（Arch 审计旁证）**：卡面在最终登记前经历过一次**本地** reset 重登记（21:44，未推送）；旧提交
+  `8bfa25e8`（登记）/`e0968e8a`（start）为孤儿提交、**不再引用**；最终登记 **`6d51e10f`**、start **`9a4a2f6e`**。
+  `master` 相对 `github/master` 为 ahead 状态、本批提交未推远端，**不构成公开历史改写**；记录于此供后续审计对号。
 
 ## 6. 证据清单
 
@@ -81,6 +97,9 @@
 | `logs/post-window-gpu.txt` | 窗后 GPU/构建进程/树/锁状态 |
 | `artifacts/files-sha256.json` | 落库 15 个文件的 sha256/bytes 清单 |
 | `artifacts/capture.json` / `artifacts/cam-poses.json` | 落库 provenance 副本（与 fixtures 同 sha） |
+| `artifacts/capture-checks.json` | `capture.json.capture_checks` **原文**（refit 序列 / base 幂等 / 位移 / 两段变化逐项） |
+| `artifacts/script-sha256.txt` | 窗口时点三脚本 sha256/bytes **原值**（与 provenance 逐字一致） |
+| `artifacts/capture-log-header.txt` | 采集日志首部原文（command / exit_code / out_dir 状态，`logs/capture.log` 前 11 行） |
 | `scripts/run_g2.py` | 本窗 wrapper（dry-run/capture/post-gpu/files-sha，UTF-8/LF 日志） |
 | `manifest.txt` | 本目录 sha256 + bytes + 证据目录内相对路径（首行 `#` 表头，不自列） |
 
