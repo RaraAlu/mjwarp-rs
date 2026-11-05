@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-render-r06-flex-multiframe-pose-diag",
+  "title": {
+    "zh": "R06 多帧诊断：渲染实际消费的位移增量衰减根因（0.058→0.020 m vs 名义 0.1）",
+    "en": "R06 multiframe diagnostic: root cause of attenuated displacement increment consumed by rendering (0.058->0.020 m vs nominal 0.1)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "2026-11-05 多帧采集窗（`2026-11-05-render-r06-flex-multiframe-capture`，负结果 non-discriminating：000→001 697/616、001→002 244/183）显示第二步位姿步进在 cam2 上变化骤降。Chief 指派：定位「渲染实际消费的位移增量衰减」（0.058→0.020 m，名义 0.1 m/步）的根因。本卡为**诊断专用**：跑一次诊断采集（输出到 `target/`，非 fixtures），对每帧 `state.npz` 的 `flexvert_xpos` 做相对 base 的位移分布分析（逐顶点/逐 flex/逐附着 body），核 frame-000 与 base 的位级同一性、复现渲染变化计数，判断「位姿注入链是否完整、衰减发生在模型→状态还是状态→渲染」。**不写 fixtures、不改 spec/判据/脚本、不产验收材料**；修复动作另卡，等诊断结论由 Chief 决定。",
+    "en": "The 2026-11-05 multiframe capture window returned a negative result (000->001 697/616, 001->002 244/183): the second pose step nearly vanishes on cam2. Chief assigns a diagnostic to locate the root cause of the attenuated displacement increment actually consumed by rendering (0.058->0.020 m vs nominal 0.1 m/step). Diagnostic only: one diagnostic capture to target/ (never fixtures); analyze per-frame state.npz flexvert_xpos displacement relative to base (per vertex / per flex / per attached body), verify frame-000 vs base bit-level identity, reproduce render change counts, and determine whether the attenuation happens in model->state or state->render. No fixtures writes, no spec/criteria/script changes, no acceptance material."
+  },
+  "modules": {},
+  "acceptance": [
+    "**诊断专用边界（写死）**：不写 `fixtures/`、不改冻结 spec/判据/阈值/帧数/Δz/相机、不改 `scripts/`、不产任何验收材料；采集输出只落 `target/r06-multiframe-diag/`（gitignored），证据目录只放诊断日志/分析结果。",
+    "**一次诊断采集**：用现有脚本原样执行（`--frames 3 --frame-dz 0.1 --out-dir target/r06-multiframe-diag/ --repeat 2`），保留 `frame-{000,001,002}/state.npz`、`capture.json`、`cam-poses.json`；脚本末尾自检 verdict=`non-discriminating` 并 exit 3 属预期结果（不视为失败、不重试）。",
+    "**窗口纪律**：Chief GO 一次性（仅诊断窗口，非验收窗）；开窗前 5 分钟内三点基线 + floor=max(min_free−3072, 11688) 取严 + monitor 60/60（S-2 authoring 例外 util<60）+ 贴开发团队群留痕；外部负载不达标即停手报 Chief、不重试。",
+    "**位移分析**：逐帧 `flexvert_xpos` 相对 base（frame-000）的位移分布（每顶点 dx/dy/dz/模长、均值/中位/最大；按 flex（flex-line 4 顶点 / flex-line-fat 2 顶点）与按附着 body（world vs flex-anchor0/1/2）分组），与理论注入 `k*0.100 m` 对照，给衰减比；标出异常顶点（未按预期位移或方向异常）。",
+    "**同一性与渲染计数**：frame-000 四类产物（rgb/depth/seg/state）与 `reference/base/` 的**数组级位级**对照；复现窗口观测的 cam2 变化计数（000→001 `697/616`、001→002 `244/183`，允许记录本机实测值并对照）。",
+    "**根因判定**：给出「模型→状态注入链是否完整」与「状态→渲染消费链是否衰减」两段结论；若定位到渲染上下文/BVH 等实现嫌疑，给出可复算证据（例如 `create_render_context` 生成时机与 BVH bounds 快照对照），不修代码。",
+    "**证据** `docs/development-evidence/render-bvh/r06-flex-multiframe-pose-diag/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM）：窗口基线/monitor/采集日志、位移分析 JSON、结论与异常清单；`unchanged src/, tests/, fixtures/`；四门禁 fmt/clippy/clippy-cuda/unit。",
+    "**非声明**：不声称多帧判据可用、不声称上游等价、不作发布依据；本卡结论只服务下一轮帧集/实现决策。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-capture",
+      "2026-11-05-render-r06-flex-multiframe-capture-script-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-pose-diag/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-05 夜指派（Arch 转只读，写任务交 Backend）：诊断卡 + 一次诊断采集 + 位移衰减根因分析；Chief GO 已发（仅诊断窗口，一次性、失败即停不重试）。S-2 authoring 例外（util<60）用户已预批。采集脚本/判据/spec 零改动；修复另卡。",
+  "revision": { "before": "7a24d54b03e1c5b63deb017d3ef7e5016f5fa2cd", "after": null },
+  "created_at": "2026-11-05T21:06:00.000Z",
+  "updated_at": "2026-11-05T21:06:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-pose-diag/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-render-r06-flex-multiframe-pose-diag"
+    },
+    {
+      "kind": "unchanged",
+      "paths": ["src/", "tests/", "fixtures/"]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["多帧已验收", "上游等价", "对外发布依据"]
+    }
+  ]
+}
