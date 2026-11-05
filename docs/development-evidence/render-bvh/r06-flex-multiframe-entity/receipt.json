@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-entity",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-05-render-r06-flex-multiframe-entity",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "test-entity",
+  "depends_on": [
+    "2026-11-05-render-r06-flex-multiframe-capture-g2",
+    "2026-11-05-render-r06-flex-multiframe-refit-fix-r2"
+  ],
+  "entity": {
+    "name": "render_flex_multiframe",
+    "gpu_test": "#[ignore] multiframe_renders_match_captured_reference（验证窗执行）",
+    "cpu_self_proof_tests": 22,
+    "reference": "fixtures/render-bvh/scene-flex/multiframe/（G-2 落库，verdict pass-margin）",
+    "files": {
+      "tests/render_flex_multiframe.rs": {"status": "new", "lines": 489},
+      "tests/support/render_bvh/multiframe.rs": {"status": "new", "lines": 476},
+      "tests/support/render_bvh/allowlist.rs": {"status": "modified", "lines": 210, "change": "+14：新增 assert_depth_strict（纯位等）+ #[allow(dead_code)]"},
+      "scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1": {"status": "new", "lines": 205},
+      "scripts/validate/render-bvh/guards-r06-multiframe.json": {"status": "new", "note": "28 条目结构（2 exes pending + 26 inputs）"}
+    }
+  },
+  "criteria": {
+    "per_frame": {
+      "rigid_state": "state_k 的 geom_xpos/geom_xmat/light_xpos/light_xdir/qpos 与 frame-000 f32 位级相等",
+      "rgb": "逐相机 max_byte_diff <= 1 且 beyond_1_lsb == 0",
+      "depth": "frame-000 仅 cam2/(134,128)/flexid0 走 allowlist（ULP<=4 且 beyond4=0，并校验参考 seg）；frame-001/002 全严格 bit-first",
+      "depth_drift": "001/002 若 allowlist 像素出现同像素同类型差 → panic 打印 flat/x/y/bits/expected/ulp/seg，停手报用户；禁止自动扩 allowlist",
+      "seg": "逐相机逐像素全等",
+      "two_run": "每帧两跑 rgb/depth/seg sha256 相等"
+    },
+    "cross_frame": {
+      "source": "实体从 npz 自算（不读 delta_selfcheck）",
+      "threshold": "000→001 与 001→002 变化像素各 >= 384（验收判据；576 仅采集余量）"
+    },
+    "option_a": {
+      "contexts": 3,
+      "rigid_consistency": "三 context 的刚性叶几何（geom_type/geom_id/geom_size）与位姿（xpos/xmat 位型）完全一致",
+      "refits": "RenderContext::refits() == 0（每渲染重建合并 BVH 的架构事实）",
+      "same_context_crosscheck": "frame-001/002 用 contexts[0] 渲染与其自身 context 结果 sha 相同"
+    },
+    "reference_integrity": "12 npz sha256 对齐 capture.json.files_sha256 + 3 文本夹具 sha256 锚定 = 15 文件",
+    "provenance": {
+      "spec_sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6",
+      "spec_bytes": 10506,
+      "script_sha": "三脚本 authoring_script_sha256 逐项校验",
+      "refit_calls": 6,
+      "actual_sequence": [0, 1, 2, 0, 1, 2],
+      "refit_policy": "every-frame"
+    }
+  },
+  "guards": {
+    "script": "scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1",
+    "guards_file": "scripts/validate/render-bvh/guards-r06-multiframe.json",
+    "attempt": 1,
+    "budget": {"frozen_exes": 2, "guard_inputs": 26, "total": 28},
+    "guards_only_output": "GUARDS_STRUCTURE_OK suite=render-r06-multiframe exes_pending=2 inputs=26 inputs_sha256_ok=true aggregate_inputs_sha256=b8110cee547a6a6a12dbc4b8201f1571bebb31f7450e2d252f0a4015484afb7f classification=input=25,guard_script=1",
+    "freeze_executed": false
+  },
+  "verification": {
+    "cpu_tests": {"command": "cargo test --locked --features cuda-probe --test render_flex_multiframe", "result": "38 passed / 0 failed / 1 ignored", "entity_tests": 22},
+    "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "1359 passed / 0 failed"},
+    "line_ratchet": {"tests/render_flex_multiframe.rs": 489, "tests/support/render_bvh/multiframe.rs": 476, "limit": 500},
+    "existing_validate_unchanged": {"path": "tests/render_flex_validate.rs", "lines": 498, "diff": "none"}
+  },
+  "boundaries": {
+    "changed_paths": [
+      "tests/render_flex_multiframe.rs",
+      "tests/support/render_bvh/multiframe.rs",
+      "tests/support/render_bvh/allowlist.rs",
+      "scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1",
+      "scripts/validate/render-bvh/guards-r06-multiframe.json",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/"
+    ],
+    "unchanged": ["src/", "fixtures/", "tests/render_flex_validate.rs", "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"],
+    "zero_gpu": true,
+    "no_window": true,
+    "freeze_executed": false
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "statement": "本实体只覆盖该 3 帧集的逐帧口径 + 跨帧可见性；不声明 R06 整族通过、动画通用性或与上游等价；GPU 用例真实结论留验证窗（Chief token）执行。"
+  }
+}

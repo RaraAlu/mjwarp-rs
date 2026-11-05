@@ -63,6 +63,20 @@ pub(crate) fn assert_depth_allowlisted(camera: usize, width: usize, rendered: &[
     }
 }
 
+#[allow(dead_code)] // 共享支持模块：仅 render_flex_multiframe 实体使用
+/// 纯位等深度断言（frame-001/002 专用）：**不允许任何 allowlist 放宽**（逐像素 bits 必须相等）。
+/// 失配时打印 bits/expected/ulp 与 flat/x/y 定位，供多帧实体（`render_flex_multiframe`）使用。
+#[rustfmt::skip]
+pub(crate) fn assert_depth_strict(camera: usize, width: usize, rendered: &[f32], expected_bits: &[u32]) {
+    assert_eq!(rendered.len(), expected_bits.len(), "cam{camera} depth 长度");
+    for (flat, (value, expected)) in rendered.iter().zip(expected_bits).enumerate() {
+        if value.to_bits() != *expected {
+            let ulp = ulp_distance(value.to_bits(), *expected);
+            panic!("cam{camera} depth 严格 bit-first 失配：bits={:#010x} expected={:#010x} ulp={ulp} (flat={flat}, x={}, y={})", value.to_bits(), expected, flat % width, flat / width);
+        }
+    }
+}
+
 /// 只读统计行（成功路径打印；不改变任何断言/阈值）：逐相机 `(mismatched, beyond4, max_ulp)`，
 /// cam2 额外返回 allowlist 像素明细行（bits/expected/ULP/beyond4/flexid）。
 #[rustfmt::skip]
