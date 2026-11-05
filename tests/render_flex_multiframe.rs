@@ -83,18 +83,18 @@ fn world_vertex_stays_fixed() {
     }
 }
 
-/// ⑤ 跨帧可见性：000→001 变化像素各 ≥384（实体自算）。
+/// ⑤ 跨帧可见性（cam2-only，spec §5）：000→001 变化像素各 ≥384（实体自算）。
 #[test]
 fn change_pixels_000_001_meet_threshold() {
-    let (depth, seg) = multiframe::change_pixels(0);
+    let (depth, seg) = multiframe::change_pixels_cam2(0);
     assert!(depth >= CHANGE_PIXELS_MIN, "depth={depth}");
     assert!(seg >= CHANGE_PIXELS_MIN, "seg={seg}");
 }
 
-/// ⑥ 跨帧可见性：001→002 变化像素各 ≥384。
+/// ⑥ 跨帧可见性（cam2-only，spec §5）：001→002 变化像素各 ≥384。
 #[test]
 fn change_pixels_001_002_meet_threshold() {
-    let (depth, seg) = multiframe::change_pixels(1);
+    let (depth, seg) = multiframe::change_pixels_cam2(1);
     assert!(depth >= CHANGE_PIXELS_MIN, "depth={depth}");
     assert!(seg >= CHANGE_PIXELS_MIN, "seg={seg}");
 }
@@ -111,8 +111,13 @@ fn change_pixel_threshold_is_acceptance_384() {
 
 #[test]
 fn change_pixels_are_recomputed_deterministically() {
-    assert_eq!(multiframe::change_pixels(0), multiframe::change_pixels(0));
-    assert_eq!(multiframe::change_pixels(1), multiframe::change_pixels(1));
+    for pair in 0..FRAMES - 1 {
+        let cam2 = multiframe::change_pixels_cam2(pair);
+        let all = multiframe::change_pixels_all_cameras(pair);
+        println!("pair {pair}: cam2={cam2:?} all={all:?}");
+        assert_eq!(cam2, multiframe::change_pixels_cam2(pair));
+        assert_eq!(all, multiframe::change_pixels_all_cameras(pair));
+    }
 }
 
 #[test]
@@ -341,7 +346,9 @@ fn multiframe_renders_match_captured_reference() {
         )
         .expect("S5 预计算射线");
     let renderer = MegakernelRenderer::new(&session).expect("megakernel 编译");
-    // 选项 A：按 spec §2 用偏移模型建 3 个 context；刚性叶几何/位姿必须完全一致。
+    // 选项 A（口径按 Chief 2026-11-05 裁决）：逐帧 state 刚性位姿建 3 个 context + 断言三者刚性签名一致 +
+    // 同一 context 渲染对照 + `refits()==0`；不补 body_pos 偏移步骤（产品路径不消费 body_pos）。
+    // spec §2 的实现映射：模型 body_pos 偏移对 flex 渲染惰性（产品每次渲染用通道 positions 重建合并 BVH）。
     let mut contexts = Vec::new();
     let mut signatures = Vec::new();
     for frame in &reference {
@@ -378,7 +385,7 @@ fn multiframe_renders_match_captured_reference() {
         signatures[0], signatures[2],
         "选项 A：frame-002 刚性场景与 frame-000 完全一致"
     );
-    // 逐帧：一次 assembly + render_with（各自 context），两跑 sha 相同；frame-000 allowlist、001/002 严格。
+    // 逐帧：一次 assembly + render_with（各自 context），整块多相机缓冲 sha 相同；frame-000 allowlist、001/002 严格。
     let mut shas = Vec::new();
     for (index, frame) in reference.iter().enumerate() {
         let inputs = multiframe::flex_inputs(frame);
@@ -439,12 +446,15 @@ fn multiframe_renders_match_captured_reference() {
             context.refits()
         );
     }
-    // 跨帧可见性：实体自算（不读 delta_selfcheck），两段各 ≥384。
-    let pairs = [multiframe::change_pixels(0), multiframe::change_pixels(1)];
-    for (pair, (depth, seg)) in pairs.iter().enumerate() {
+    // 跨帧可见性：实体自算（不读 delta_selfcheck）；验收口径仅 cam2，全相机合计只诊断打印。
+    let pair_0 = multiframe::change_pixels_cam2(0);
+    let pair_1 = multiframe::change_pixels_cam2(1);
+    for (pair, (depth, seg)) in [pair_0, pair_1].iter().enumerate() {
+        let (all_d, all_s) = multiframe::change_pixels_all_cameras(pair);
+        println!("pair {pair} cam2={depth}/{seg}; all_cameras={all_d}/{all_s}");
         assert!(
             depth >= &CHANGE_PIXELS_MIN && seg >= &CHANGE_PIXELS_MIN,
-            "pair {pair} 变化像素 depth={depth} seg={seg} 低于 384"
+            "pair {pair} cam2 变化像素 depth={depth} seg={seg} 低于 384"
         );
     }
     // 「同一 context」对照：frame-001/002 用 contexts[0] 渲染，结果应与其自身 context 逐位相同。

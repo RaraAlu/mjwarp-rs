@@ -2,8 +2,8 @@
 //!
 //! 参考：G-2 落库的 3 帧参考 `fixtures/render-bvh/scene-flex/multiframe/`（verdict pass-margin）。
 //! 普通 `cargo test` 即可验证：参考完整性（12 npz sha 对齐 capture、3 文本 sha 锚定）、刚性数组逐帧位等、
-//! flex 位移 0/0.1/0.2 m、跨帧变化像素（实体自算 ≥384，不读 `delta_selfcheck`）、provenance（spec/三脚本/
-//! refit_calls=6/actual_sequence）、allowlist 像素参考 seg；并向 GPU 用例提供 scene/flex/context 构造与逐帧判据。
+//! flex 位移 0/0.1/0.2 m、跨帧变化像素（**cam2-only**，实体自算 ≥384，不读 `delta_selfcheck`）、provenance
+//! （spec/三脚本/refit_calls=6/actual_sequence）、allowlist 像素参考 seg；并向 GPU 用例提供 scene/flex/context 构造与逐帧判据。
 //!
 //! 边界：不改现有 `render_flex_validate.rs`；不改 G-2 夹具/spec/判据。
 
@@ -12,6 +12,8 @@ use serde_json::Value;
 pub const FRAMES: usize = 3;
 pub const FRAME_DZ: f64 = 0.10;
 pub const CHANGE_PIXELS_MIN: usize = 384;
+/// 跨帧判据相机（spec §3/§5：只有 cam2 参与跨帧判定；cam0/cam1 帧间变化只作诊断）。
+pub const CAM2: usize = 2;
 pub const SPEC_SHA: &str = "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6";
 pub const SPEC_BYTES: u64 = 10_506;
 #[rustfmt::skip]
@@ -200,7 +202,26 @@ pub fn verify_displacement() -> Vec<f64> {
 }
 
 #[rustfmt::skip]
-pub fn change_pixels(pair: usize) -> (usize, usize) {
+fn cam2_slot(frame: &Frame) -> usize {
+    frame.rgb.iter().position(|camera| camera.index == CAM2).expect("cam2 槽位")
+}
+
+/// 跨帧变化像素（**验收判据口径：仅 cam2**，spec §3/§5）；全相机合计见 `change_pixels_all_cameras`（仅诊断）。
+#[rustfmt::skip]
+pub fn change_pixels_cam2(pair: usize) -> (usize, usize) {
+    let frames = frames();
+    let (left, right) = (&frames[pair], &frames[pair + 1]);
+    let slot = cam2_slot(left);
+    assert_eq!(right.rgb[slot].index, CAM2, "cam2 槽位");
+    assert_eq!(left.rgb[slot].pixels, left.depth_bits[slot].len(), "cam2 depth 长度");
+    let depth = left.depth_bits[slot].iter().zip(&right.depth_bits[slot]).filter(|(a, b)| a != b).count();
+    let seg = left.seg[slot].iter().zip(&right.seg[slot]).filter(|(a, b)| a != b).count();
+    (depth, seg)
+}
+
+/// 全相机合计变化像素——**只作诊断打印**，不参与跨帧验收断言（spec §3：cam0/cam1 帧间变化只诊断）。
+#[rustfmt::skip]
+pub fn change_pixels_all_cameras(pair: usize) -> (usize, usize) {
     let frames = frames();
     let (left, right) = (&frames[pair], &frames[pair + 1]);
     let (mut depth_changed, mut seg_changed) = (0usize, 0usize);
@@ -212,19 +233,19 @@ pub fn change_pixels(pair: usize) -> (usize, usize) {
     (depth_changed, seg_changed)
 }
 
-/// CPU 自检 D：跨帧可见性——两段变化像素各 ≥384（验收判据，非采集余量 576）。
+/// CPU 自检 D：跨帧可见性——**cam2-only** 两段变化像素各 ≥384（验收判据，非采集余量 576）。
 pub fn verify_change_pixels() -> Vec<(usize, usize)> {
     let mut counts = Vec::new();
     for pair in 0..FRAMES - 1 {
-        let (depth, seg) = change_pixels(pair);
+        let (depth, seg) = change_pixels_cam2(pair);
         assert!(
             depth >= CHANGE_PIXELS_MIN,
-            "{pair:03}->{} depth 变化 {depth} < {CHANGE_PIXELS_MIN}",
+            "{pair:03}->{} cam2 depth 变化 {depth} < {CHANGE_PIXELS_MIN}",
             pair + 1
         );
         assert!(
             seg >= CHANGE_PIXELS_MIN,
-            "{pair:03}->{} seg 变化 {seg} < {CHANGE_PIXELS_MIN}",
+            "{pair:03}->{} cam2 seg 变化 {seg} < {CHANGE_PIXELS_MIN}",
             pair + 1
         );
         counts.push((depth, seg));

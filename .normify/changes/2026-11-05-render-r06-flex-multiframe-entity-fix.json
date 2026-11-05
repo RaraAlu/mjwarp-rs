@@ -5,7 +5,7 @@
     "zh": "R06 多帧实体 A 小修：跨帧判据改 cam2-only + 选项 A 诚实口径（不补 body_pos 偏移）+ 证据数字/措辞校正（零 GPU）",
     "en": "R06 multi-frame entity A fix: cam2-only cross-frame criterion + honest option-A wording (no body_pos offset step) + evidence count/wording corrections (GPU-free)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "实体 A（`2026-11-05-render-r06-flex-multiframe-entity`，提交 `2a27c2fd`/`241d702f`）落库后，Arch 旁证 7 项里 5 PASS、2 项必须验证窗前修：① `tests/support/render_bvh/multiframe.rs::change_pixels()` 对 3 个相机求和，而 spec §3/§5 写死跨帧判据**只算 cam2**（cam0/cam1 的帧间变化只作诊断）；当前 cam0/cam1 实测变化为 0 使数值恰好相同，但这是静默放宽风险，不能留。② 选项 A 不补 `body_pos` 偏移步骤（产品渲染路径不消费 `body_pos`，补一步是演戏——Chief 2026-11-05 裁决）；口径改为「逐帧 state 刚性位姿建 3 个 context + 断言三者刚性签名一致 + 同一 context 渲染对照 + `refits()==0`」，并写明 spec §2 的实现映射。顺带修实体证据 README §2 表格 support 模块 476→实际 475（`241d702f` 校正漏行）、两跑 sha 措辞（整块多相机缓冲 sha 更强）；recipe 参数比对 7 项 vs 单帧 28 项记 backlog 不修。**零 GPU、不开窗、不采集、不改 fixtures/spec/判据。**",
     "en": "Fix two pre-window gaps found in the entity-A review: make the cross-frame change-pixel criterion cam2-only (spec §3/§5) instead of summing all three cameras, and restate option A honestly without a body_pos offset step (per Chief ruling), plus evidence count/wording corrections. GPU-free; no fixture/spec/criteria changes."
@@ -40,7 +40,8 @@
     "after": null
   },
   "created_at": "2026-11-05T14:25:00.000Z",
-  "updated_at": "2026-11-05T14:24:25.471Z",
+  "updated_at": "2026-11-05T14:29:18.681Z",
+  "closed_at": "2026-11-05T14:29:18.681Z",
   "checks": [
     {
       "kind": "gate",

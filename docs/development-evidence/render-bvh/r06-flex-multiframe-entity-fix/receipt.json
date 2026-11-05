@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-05-render-r06-flex-multiframe-entity-fix",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-05-render-r06-flex-multiframe-entity-fix",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "test-criteria-fix",
+  "depends_on": ["2026-11-05-render-r06-flex-multiframe-entity"],
+  "source": {
+    "chief_assignment": "Arch 旁证实体 A 的 7 项里 5 PASS、2 项验证窗前必修（cam2-only 跨帧判据；选项 A 诚实口径）",
+    "entity_commits": ["2a27c2fd", "241d702f"]
+  },
+  "changes": {
+    "tests/render_flex_multiframe.rs": {
+      "lines_before": 489,
+      "lines_after": 499,
+      "note": "CPU 自证 ⑤⑥ 与确定性测试改 change_pixels_cam2；GPU 用例跨帧段 cam2 断言 + 全相机诊断 println；选项 A 注释改诚实口径（不补 body_pos）"
+    },
+    "tests/support/render_bvh/multiframe.rs": {
+      "lines_before": 475,
+      "lines_after": 496,
+      "note": "新增 CAM2/cam2_slot/change_pixels_cam2（cam2-only 判据）；原 3 相机求和实现改名 change_pixels_all_cameras（仅诊断）；verify_change_pixels 改 cam2-only"
+    },
+    "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/": {
+      "files": ["README.md", "receipt.json", "logs/line-counts.txt", "artifacts/script-identity.json", "manifest.txt"],
+      "note": "§2 行数校正、§3 sha 措辞、§4 cam2-only、§5 选项 A 裁决留痕、行数/清单/回执同步"
+    }
+  },
+  "cam2_only": {
+    "criterion_camera": 2,
+    "assertion_function": "change_pixels_cam2(pair) -> (depth_changed, seg_changed)",
+    "diagnostic_only": "change_pixels_all_cameras(pair)（仅 println，不参与断言）",
+    "measured": {
+      "000->001": {"cam2": [1167, 1074], "all_cameras": [1167, 1074]},
+      "001->002": {"cam2": [1262, 1126], "all_cameras": [1262, 1126]},
+      "note": "cam0/cam1 帧间变化为 0，cam2-only 与全相机合计逐对相同；按 spec §3/§5 仍必须显式只算 cam2（避免静默放宽）"
+    },
+    "threshold": "cam2 depth 与 seg 变化像素各 >= 384（验收判据；576 仅采集余量）"
+  },
+  "option_a": {
+    "chief_ruling_at": "2026-11-05",
+    "no_body_pos_step": true,
+    "wording": "逐帧 state 刚性位姿建 3 个 context + 断言三者刚性签名（叶几何 + 位姿位型）一致 + 同一 context 渲染对照 + refits()==0",
+    "spec_section_2_implementation_mapping": "模型 body_pos 偏移对 flex 渲染惰性（产品每次渲染用通道 positions 重建合并 BVH）",
+    "entity_acceptance_immutable": true,
+    "ruling_trace": ["本卡 acceptance #2", "实体证据 README §5", "GPU 用例选项 A 注释", "receipt.json.criteria.option_a.chief_ruling"]
+  },
+  "backlog": {
+    "card": "2026-11-05-render-r06-flex-multiframe-recipe-params-backlog",
+    "item": "recipe 参数比对 7 项（实体 A）vs 28 项（单帧验收）；风险低，只登记不修"
+  },
+  "verification": {
+    "cpu_tests": {
+      "command": "cargo test --locked --features cuda-probe --test render_flex_multiframe -- --nocapture",
+      "exit": 0,
+      "result": "38 passed / 0 failed / 1 ignored",
+      "entity_self_proof_tests": 22,
+      "diagnostics": ["pair 0: cam2=(1167, 1074) all=(1167, 1074)", "pair 1: cam2=(1262, 1126) all=(1262, 1126)"]
+    },
+    "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "1359 passed / 0 failed"},
+    "line_ratchet": {
+      "tests/render_flex_multiframe.rs": 499,
+      "tests/support/render_bvh/multiframe.rs": 496,
+      "limit": 500
+    },
+    "existing_validate_unchanged": {"path": "tests/render_flex_validate.rs", "lines": 498, "diff": "none"},
+    "spec_unchanged": {"sha256": "1d9fa5cef1ebc829747d63f648d3bab1ec935d8df8e3403bc52c2ac2aa7c40b6", "bytes": 10506}
+  },
+  "boundaries": {
+    "changed_paths": [
+      "tests/render_flex_multiframe.rs",
+      "tests/support/render_bvh/multiframe.rs",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-entity-fix/"
+    ],
+    "unchanged": ["src/", "fixtures/", "tests/render_flex_validate.rs", "docs/development-evidence/render-bvh/r06-flex-multiframe-criterion/"],
+    "zero_gpu": true,
+    "no_window": true,
+    "no_capture": true,
+    "freeze_executed": false
+  },
+  "claims": {
+    "acceptance_conclusion": "none",
+    "note": "本卡只修跨帧判据实现口径与证据数字；不声明多帧判据通过/动画一致性覆盖/与上游一致；GPU #[ignore] 用例真实结论留验证窗（Chief token）。"
+  }
+}

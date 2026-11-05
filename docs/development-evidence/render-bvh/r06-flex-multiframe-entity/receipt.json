@@ -16,8 +16,8 @@
     "cpu_self_proof_tests": 22,
     "reference": "fixtures/render-bvh/scene-flex/multiframe/（G-2 落库，verdict pass-margin）",
     "files": {
-      "tests/render_flex_multiframe.rs": {"status": "new", "lines": 489},
-      "tests/support/render_bvh/multiframe.rs": {"status": "new", "lines": 475},
+      "tests/render_flex_multiframe.rs": {"status": "new", "lines": 499},
+      "tests/support/render_bvh/multiframe.rs": {"status": "new", "lines": 496},
       "tests/support/render_bvh/allowlist.rs": {"status": "modified", "lines": 210, "change": "+14：新增 assert_depth_strict（纯位等）+ #[allow(dead_code)]"},
       "scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1": {"status": "new", "lines": 205},
       "scripts/validate/render-bvh/guards-r06-multiframe.json": {"status": "new", "note": "28 条目结构（2 exes pending + 26 inputs）"}
@@ -34,13 +34,17 @@
     },
     "cross_frame": {
       "source": "实体从 npz 自算（不读 delta_selfcheck）",
-      "threshold": "000→001 与 001→002 变化像素各 >= 384（验收判据；576 仅采集余量）"
+      "camera": "cam2-only（spec §3/§5；全相机合计仅诊断打印，不参与断言）",
+      "threshold": "000→001 与 001→002 变化像素各 >= 384（验收判据；576 仅采集余量）",
+      "measured": "cam2：000→001 = (1167, 1074)、001→002 = (1262, 1126)；cam0/cam1 变化为 0（全相机合计与之相同）"
     },
     "option_a": {
       "contexts": 3,
-      "rigid_consistency": "三 context 的刚性叶几何（geom_type/geom_id/geom_size）与位姿（xpos/xmat 位型）完全一致",
+      "build": "逐帧 state 刚性位姿建 3 个 context（f32 位型直读；不补 body_pos 偏移步骤——产品渲染路径不消费）",
+      "rigid_consistency": "三 context 的刚性签名一致（叶几何 geom_type/geom_id/geom_size + 位姿 xpos/xmat 位型）",
       "refits": "RenderContext::refits() == 0（每渲染重建合并 BVH 的架构事实）",
-      "same_context_crosscheck": "frame-001/002 用 contexts[0] 渲染与其自身 context 结果 sha 相同"
+      "same_context_crosscheck": "frame-001/002 用 contexts[0] 渲染与其自身 context 结果 sha 相同",
+      "chief_ruling": "2026-11-05 Chief 裁决：不补 body_pos 偏移步骤；spec §2 实现映射=模型 body_pos 偏移对 flex 渲染惰性（产品每次渲染用通道 positions 重建合并 BVH）"
     },
     "reference_integrity": "12 npz sha256 对齐 capture.json.files_sha256 + 3 文本夹具 sha256 锚定 = 15 文件",
     "provenance": {
@@ -63,9 +67,15 @@
   "verification": {
     "cpu_tests": {"command": "cargo test --locked --features cuda-probe --test render_flex_multiframe", "result": "38 passed / 0 failed / 1 ignored", "entity_tests": 22},
     "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "1359 passed / 0 failed"},
-    "line_ratchet": {"tests/render_flex_multiframe.rs": 489, "tests/support/render_bvh/multiframe.rs": 476, "limit": 500},
+    "line_ratchet": {"tests/render_flex_multiframe.rs": 499, "tests/support/render_bvh/multiframe.rs": 496, "limit": 500},
     "existing_validate_unchanged": {"path": "tests/render_flex_validate.rs", "lines": 498, "diff": "none"}
   },
+  "revisions": [
+    {
+      "card": "2026-11-05-render-r06-flex-multiframe-entity-fix",
+      "changes": "跨帧判据改 cam2-only（spec §3/§5）；选项 A 口径按 Chief 裁决诚实化（不补 body_pos 偏移步骤）；README 行数/措辞校正；判据语义与 G-2 夹具未变"
+    }
+  ],
   "boundaries": {
     "changed_paths": [
       "tests/render_flex_multiframe.rs",

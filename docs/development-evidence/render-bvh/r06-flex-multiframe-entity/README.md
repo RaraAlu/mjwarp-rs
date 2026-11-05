@@ -5,6 +5,8 @@
   verdict `pass-margin`）+ refit 修复 r2（`ff8135e5`/`43295e49`）
 - 边界：**零 GPU、不开窗、不执行 freeze**（冻结器只做 `-GuardsOnly` 结构自检）；不改 G-2 夹具/spec/判据；
   **现有 `tests/render_flex_validate.rs`（498 行）一行不动**
+- **修订**：本 README 由小修卡 `2026-11-05-render-r06-flex-multiframe-entity-fix` 校正（跨帧判据改 **cam2-only**、
+  选项 A 口径按 Chief 裁决改诚实措辞见 §5、行数/措辞同步）；实体判据语义与 G-2 夹具未变。
 
 ## 1. 结论
 
@@ -12,24 +14,25 @@
   （本目标合计 `38 passed / 0 failed / 1 ignored`，其余来自共享 s7b1/allowlist 模块的自带测试）。
 - 判据落地：逐帧 rgb ≤1 LSB 且 beyond=0；depth **frame-000 仅 cam2/(134,128)/flexid0 allowlist**、
   **frame-001/002 严格 bit-first**（allowlist 像素出现同像素同类型差 → 打印 flat/x/y/bits/ulp/seg 并大声失败，
-  禁止自动扩 allowlist）；seg 逐像素全等；逐帧逐相机两跑 sha 相等。
-- 跨帧可见性由**实体自算**（从 npz 重算 `000→001`、`001→002` 变化像素各 **≥384**；不读 `delta_selfcheck`；
-  576 仅采集余量、不作验收阈）。
-- **选项 A**：按 spec §2 偏移模型建 3 个 context，断言三者刚性叶几何/位姿完全一致（CPU 前提 + GPU 用例各一次），
-  并断言 `RenderContext::refits()==0`（记录产品「每渲染重建合并 BVH」的架构事实）；另加「同 context 渲染对照」
-  断言 frame-001/002 用 `contexts[0]` 渲染与其自身 context 逐位相同。
+  禁止自动扩 allowlist）；seg 逐像素全等；逐帧**整块多相机缓冲**两跑 sha 相等。
+- 跨帧可见性由**实体自算**（从 npz 重算 **cam2-only** 的 `000→001`、`001→002` 变化像素各 **≥384**；
+  全相机合计只作诊断打印；不读 `delta_selfcheck`；576 仅采集余量、不作验收阈）。
+- **选项 A**（口径按 Chief 2026-11-05 裁决，见 §5）：**逐帧 state 刚性位姿建 3 个 context**，断言三者
+  刚性签名（叶几何 + 位姿位型）一致（CPU 前提 + GPU 用例各一次），并断言 `RenderContext::refits()==0`
+  （记录产品「每渲染重建合并 BVH」的架构事实）；另加「同 context 渲染对照」断言 frame-001/002 用
+  `contexts[0]` 渲染与其自身 context 逐位相同。**不补 `body_pos` 偏移步骤**（产品路径不消费）。
 - 冻结器/guards：`freeze-guards-r06-multiframe.ps1`（`-Attempt 1`，**2 exes + 26 inputs = 28**）与
   `guards-r06-multiframe.json`；`-GuardsOnly` → `GUARDS_STRUCTURE_OK suite=render-r06-multiframe
   exes_pending=2 inputs=26 inputs_sha256_ok=true classification=input=25,guard_script=1`。
-- 行数棘轮：`tests/render_flex_multiframe.rs` **489**、`tests/support/render_bvh/multiframe.rs` **475**
-  （均 ≤500）；`allowlist.rs` 210（+14 行仅新增 `assert_depth_strict`）；`render_flex_validate.rs` **498 未变**。
+- 行数棘轮：`tests/render_flex_multiframe.rs` **499**、`tests/support/render_bvh/multiframe.rs` **496**
+  （均 ≤500；小修卡校正后）；`allowlist.rs` 210（+14 行仅新增 `assert_depth_strict`）；`render_flex_validate.rs` **498 未变**。
 
 ## 2. 实体结构
 
 | 文件（新/改） | 行数 | 职责 |
 | --- | --- | --- |
-| `tests/render_flex_multiframe.rs`（新） | 489 | 22 项 CPU 自证 + 1 个 `#[ignore]` GPU 用例（逐帧/跨帧/选项 A/同 context 对照） |
-| `tests/support/render_bvh/multiframe.rs`（新） | 476 | 3 帧 npz/文本夹具嵌入与解析、参考完整性与 provenance、刚性位等/位移/变化像素、scene/flex/context 构造、逐帧判据实现 |
+| `tests/render_flex_multiframe.rs`（新） | 499 | 22 项 CPU 自证 + 1 个 `#[ignore]` GPU 用例（逐帧/跨帧/选项 A/同 context 对照） |
+| `tests/support/render_bvh/multiframe.rs`（新） | 496 | 3 帧 npz/文本夹具嵌入与解析、参考完整性与 provenance、刚性位等/位移、跨帧变化像素（**cam2-only 判据 + 全相机诊断**）、scene/flex/context 构造、逐帧判据实现 |
 | `tests/support/render_bvh/allowlist.rs`（改） | 210 | 仅新增 `assert_depth_strict`（纯位等；`#[allow(dead_code)]` 供本实体使用） |
 | `scripts/validate/render-bvh/freeze-guards-r06-multiframe.ps1`（新） | 205 | 冻结器（克隆 r06-s3b-flex；2 exes + 26 inputs = 28；`-GuardsOnly` 结构自检） |
 | `scripts/validate/render-bvh/guards-r06-multiframe.json`（新） | — | 28 条目结构文件（2 exes 待冻结 + 26 inputs sha 自洽） |
@@ -43,22 +46,28 @@
 | depth | frame-000：cam2 的 `(134,128)`（参考 seg=`(flexid0,9)`）允许 `ULP ≤4` 且 `beyond4=0`，其余严格位等；frame-001/002：**全严格 bit-first** |
 | allowlist 边界 | frame-001/002 若 allowlist 像素出现同像素同类型差 → panic 打印 `flat/x/y/bits/expected/ulp/seg`，停手报用户；**不自动扩 allowlist** |
 | seg | 逐相机逐像素全等（含 flex `(flexid,9)`） |
-| 两跑 | 每帧渲染两次，rgb/depth/seg 三份 sha256 逐帧逐相机相同 |
+| 两跑 | 每帧渲染两次，**整块多相机缓冲** rgb/depth/seg sha256 相同（整块 sha 更强，等价逐相机相等） |
 
-## 4. 跨帧可见性（实体自算，不读 `delta_selfcheck`）
+## 4. 跨帧可见性（cam2-only；实体自算，不读 `delta_selfcheck`）
 
-- 从 3 帧 npz 重算 cam2 相邻帧 `depth` 位级变化像素与 `seg` 对变化像素（全相机合计与 cam2 均校验）；
+- 从 3 帧 npz 重算**仅 cam2** 的相邻帧 `depth` 位级变化像素与 `seg` 对变化像素（`change_pixels_cam2()`，**判据口径**）；
+- 全相机合计（`change_pixels_all_cameras()`）**只作诊断打印、不参与断言**（spec §3：cam0/cam1 帧间变化只诊断）；
+  实测 cam0/cam1 变化为 0，cam2-only 与合计逐对相同：`000→001 = (1167, 1074)`、`001→002 = (1262, 1126)`；
 - 判据 **各 ≥384**（spec §5：0.5% × 76,800）；**576 只是采集前置余量，不得当验收阈**；
-- CPU 自证：`change_pixels(0)`、`change_pixels(1)` 与阈值常量 384 的静态断言。
+- CPU 自证：`change_pixels_cam2(0)`、`change_pixels_cam2(1)` 与阈值常量 384 的静态断言。
 
-## 5. 选项 A（三 context 审计）
+## 5. 选项 A（三 context 审计；口径按 Chief 2026-11-05 裁决）
 
-- 按 spec §2：对每帧用**偏移模型**（锚点 `body_pos.z += k×0.10`；Rust 侧体现为 frame-k 的刚性位姿/场景叶输入）
-  建 3 个 `RenderContext`；
-- 断言三个 context 的**刚性叶几何（geom_type/geom_id/geom_size）与位姿（xpos/xmat 位型）完全一致**
-  （CPU 自证 ⑳ + GPU 用例各一次，把「模型偏移对 flex 渲染惰性」变成可审计证据）；
+- **实现方式**：逐帧 state 的刚性位姿建 3 个 `RenderContext`（frame-k 的 `geom_xpos`/`geom_xmat` f32 位型
+  直读为场景叶位姿；该帧刚性数组与 frame-000 位级相等，见 §3）；
+- 断言三个 context 的**刚性签名一致**（叶几何 `geom_type`/`geom_id`/`geom_size` + 位姿 `xpos`/`xmat` 位型；
+  CPU 前提 + GPU 用例各一次，把「模型偏移对 flex 渲染惰性」变成可审计证据）；
 - 断言 `context.refits() == 0`（产品渲染上下文不 refit——「每渲染重建合并 BVH」的架构事实）；
-- 对照：frame-001/002 用 `contexts[0]`（同一 context）渲染，sha 与各自 context 结果相同。
+- 对照：frame-001/002 用 `contexts[0]`（同一 context）渲染，整块多相机缓冲 sha 与各自 context 结果相同；
+- **裁决留痕（Chief 2026-11-05）**：**不补 `body_pos` 偏移步骤**——产品渲染路径不消费 `body_pos`，补一步是演戏；
+  口径以「逐帧 state 刚性位姿建 3 个 context + 刚性签名一致 + 同一 context 渲染对照 + `refits()==0`」为准
+  （卡面 acceptance #4 已不可改写，裁决记录于小修卡 acceptance 与 §5 本段）；
+- **spec §2 的实现映射**：模型 `body_pos` 偏移对 flex 渲染惰性（产品每次渲染用通道 positions 重建合并 BVH）。
 
 ## 6. 参考完整性 / provenance（CPU 自证）
 
