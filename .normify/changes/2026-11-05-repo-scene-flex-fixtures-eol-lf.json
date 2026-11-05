@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-05-repo-scene-flex-fixtures-eol-lf",
+  "title": {
+    "zh": "治理(工程): .gitattributes 为 scene-flex 多帧文本夹具固定 eol=lf（fresh clone 下 3 个文本夹具 sha/bytes 不漂移）",
+    "en": "Repo governance: pin eol=lf for the scene-flex multiframe text fixtures so their sha256/bytes do not drift in a fresh clone"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 复核 G-2 采集窗时发现（治理 O1）：`fixtures/render-bvh/scene-flex/multiframe/` 下 3 个文本夹具（`capture.json` / `cam-poses.json` / `README.md`）在 `core.autocrlf=true` 的 fresh clone 中被 LF→CRLF，导致其 sha256/bytes 与采集时点记录的 `files-sha256.json`（以及 `manifest.txt`）不一致；12 个 `.npz` 已由 `*.npz -text -diff` 保护、逐字节一致。本卡在 `.gitattributes` 追加一条 `fixtures/render-bvh/scene-flex/** text eol=lf`（放在 `*.npz -text -diff` **之前**，保住 npz 的 `-text -diff` 优先级），**不 renormalize、不改任何既有 blob**；用 fresh clone（autocrlf=true）验证 3 文本夹具 sha256/bytes 与 `files-sha256.json` 一致、12 个 npz 逐字节一致。O2/O3（G-2 证据 README 措辞）记已知不返工。",
+    "en": "QA's G-2 review found that the three text fixtures under fixtures/render-bvh/scene-flex/multiframe/ drift LF->CRLF in a fresh clone with core.autocrlf=true while the 12 npz stay binary-safe. Add an eol=lf rule for that subtree before the *.npz -text -diff rule, without renormalizing or rewriting any existing blob, and verify with a fresh clone."
+  },
+  "modules": {},
+  "acceptance": [
+    "**.gitattributes 改动写死**：在 `*.npz -text -diff` **之前**追加（保持 npz 的 `-text -diff` 后匹配优先）一条 `fixtures/render-bvh/scene-flex/** text eol=lf`；附 1–2 行中文依据注释；**不改既有行**、不动 `.git/info/attributes`、不 `git add --renormalize`、不改任何既有 blob。",
+    "**属性生效验证**：`git check-attr text eol diff -- fixtures/render-bvh/scene-flex/multiframe/{capture.json,cam-poses.json,README.md}` 显示 `text: set` / `eol: lf`；对 `frame-000/state.npz` 等 npz 显示 `text: unset` / `diff: unset`（与改动前 npz 行为一致）。",
+    "**fresh clone 验证（必须看 clone，不得只看工作树）**：`git -c core.autocrlf=true clone --no-local <repo> target/scene-flex-fixtures-eol-clone`；clone 内 3 个文本夹具 **sha256/bytes 与 G-2 `files-sha256.json` 逐条一致**；12 个 `.npz` 逐字节一致（sha 清单 15/15 全对）；clone 内 `git status --porcelain` 为空、`git check-attr` 与上条一致。",
+    "**对照（必要性证据）**：同一 clone 中 checkout 规则落地前的提交（HEAD 父提交，即 G-2 收口 `38a7767c`），在 autocrlf=true 下 3 个文本夹具出现 LF→CRLF、sha 与 `files-sha256.json` 不一致（复现 QA O1），证明本规则必要。",
+    "**scope 与零重写**：只改 `.gitattributes` + 本证据目录 + 卡/runs；`git status` 不出现 `fixtures/` 内容变化；`git show --stat` 本卡提交只含 `.gitattributes`（+证据/卡/runs），无任何 blob 重写；`unchanged src/, tests/, fixtures/, docs/evidence/` 通过。",
+    "**证据** `docs/development-evidence/repo-scene-flex-fixtures-eol-lf/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM）：改动 diff、属性前后对照、fresh clone 前后 sha 对照（3 文本 + 12 npz）、clone 内 `git status`/`check-attr` 输出、复跑脚本；非声明：O2/O3 记已知。",
+    "**机器检查**：`json`（receipt `/task_id`）+ `unchanged src/, tests/, fixtures/, docs/evidence/`；无 Rust 改动，四门禁按需（本卡不挂 gate 检查）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-05-render-r06-flex-multiframe-capture-g2",
+      "2026-11-05-render-r06-flex-multiframe-capture-g2-check"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Backend",
+    "files": [
+      ".gitattributes",
+      "docs/development-evidence/repo-scene-flex-fixtures-eol-lf/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-05 夜指派（QA G-2 复核治理 O1）：仅 `.gitattributes` 一条规则 + 证据；不 renormalize、不改既有 blob；QA 只读复核。历史先例：`2026-11-05-repo-evidence-gitattributes-rule`（同一文件、同 -text/-diff 类规则、fresh clone 验证方法）；`2026-10-25-evidence-bin-eol-hygiene`（同文件先例）。O2/O3（G-2 证据 README 措辞）记已知不返工。",
+  "revision": { "before": "17224ebb75f41bcfd969af296e6d1d8ae2432d11", "after": null },
+  "created_at": "2026-11-05T22:00:00.000Z",
+  "updated_at": "2026-11-05T22:00:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/repo-scene-flex-fixtures-eol-lf/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-05-repo-scene-flex-fixtures-eol-lf"
+    },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["tests/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    { "kind": "unchanged", "paths": ["docs/evidence/"] }
+  ]
+}
