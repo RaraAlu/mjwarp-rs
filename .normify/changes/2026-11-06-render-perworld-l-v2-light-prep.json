@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-render-perworld-l-v2-light-prep",
+  "title": {
+    "zh": "perworld L v2 灯备选准备片：采集脚本参数化（--scene/--out-root）+ scene-a-light 场景变体（零 GPU；不采集/不改判据）",
+    "en": "Per-world L v2 light prep slice: capture-script parametrization (--scene/--out-root) plus a scene-a-light variant (GPU-free; no capture, no criteria change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户方向（perworld L-v2 灯 vs mesh 方案 A）未定；按「空闲就派」先做**零 GPU、可回滚**的备选准备片 1。目的：把后续 perworld L v2 灯采集所需的两个前置物准备好——① `scripts/capture_render_perworld.py` 参数化（`--scene`、`--out-root`，默认值逐字不变）；② 新场景变体 `fixtures/render-bvh/scene-a-light/scene.xml`（三灯挂 `tri_body`，使三 world 灯位姿真差异，造出判别力）。本片**不采集参考、不产数值结论、不构成 L v2 启动**；用户选定方向后才排采集窗（需用户双签计划+floor+authoring 例外）与判据签名卡。若用户最终选 mesh 方案 A，本片留档不浪费。",
+    "en": "Prepare two zero-GPU, rollback-safe prerequisites for a possible per-world L v2 light capture: parametrize the authoring script (--scene/--out-root with unchanged defaults) and add a scene-a-light variant whose three lights hang on tri_body so per-world light poses actually differ. No reference capture, no numeric conclusions, not a start of L v2."
+  },
+  "modules": {},
+  "acceptance": [
+    "**采集脚本参数化（`scripts/capture_render_perworld.py`，基线 499 行 / sha256 `67a760fa400f2cf89c19a700e49d08c619a78008664f03cd69fab21bd2077815`）**：新增 `--scene`（默认 `fixtures/render-bvh/scene-a/scene.xml`）与 `--out-root`（默认 `fixtures/render-bvh/scene-a/perworld`）；**默认值下行为不变**（同一命令 dry-run 输出与改动前逐字段一致，仅多出新增参数回显）；`--out-dir` 仍强制位于 `--out-root` 之下、只增不改（目标非空即拒）；`legacy_manifest()` 的排除集合随 `--out-root` 参数化（新根不误伤既有参考）；recipe/判据/容差/`--repeat 2` 两次采集逐位一致语义一律不动。",
+    "**场景变体 `fixtures/render-bvh/scene-a-light/scene.xml`**：与 `fixtures/render-bvh/scene-a/scene.xml` 同源，差异仅限三灯挂载——`sun`/`lamp`/`spot` 增加 `body=\"tri_body\"`；light 的类型/颜色/attenuation/cutoff/exponent/castshadow/intensity/range 等属性 **逐字不变**；`cam-persp` 保持 mode 0 固定、`cam-track` mode 3 不变。**scene-a 既有文件零改动**（`unchanged fixtures/render-bvh/scene-a/`）。",
+    "**dry-run 自检（零 GPU，CPU）**：`--scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir .../nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --dry-run` → exit 0，输出含：① 场景加载与静态自检（`njnt`/`jnt_type`/`jnt_qposadr`/`nq`/`qpos0`/相机 mode）；② **三 world 灯位姿差异前置自算**：用 pinned mujoco `mj_forward`（CPU host，不建 CUDA device）按三 world 的 hinge qpos 逐 world 算 `light_xpos`/`light_xdir`，打印三灯逐 world 数值与差异键（`sun` xdir 夹角、`lamp`/`spot` pos 位移），并给一行「差异非零/达预期量级」判定；**不做渲染判别力断言、不落参考**；③ 输出路径参数化生效（默认与显式路径都打印，显式路径必须在 `--out-root` 之下）。",
+    "**边界（写死）**：零 GPU、不开窗、**不采集参考**、**不写 `fixtures/` 参考数据**（仅允许新增场景 XML 本身）；**不改判据/容差/已签 criterion v2.2**；**不动既有 perworld 参考 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/` 与任何 guards/冻结件**；`unchanged src/`；四门禁 fmt / clippy / clippy-cuda / unit 全过。",
+    "**证据** `docs/development-evidence/render-bvh/perworld-l-v2-light-prep/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM，manifest 首行 `#`）：脚本 diff 说明、场景 diff、dry-run 原始输出、三 world 灯差异自算数、非声明；`receipt.json` 的 `/task_id` 供本卡 `json` 检查。",
+    "**定位与非声明**：本片只是**备选准备**，**不构成 perworld L v2 启动**；不产生参考、不宣称 per-world 灯位姿已覆盖、不宣称与上游等价、不宣称任何渲染数值结论；用户选定方向后才排采集窗与判据签名卡。",
+    "**可回滚**：本片只新增一个场景文件 + 扩展脚本两个参数（默认值不变）+ 本卡证据；回滚 = 撤回这三个文件与卡，不影响任何既有验证面/冻结件。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/capture_render_perworld.py",
+      "fixtures/render-bvh/scene-a-light/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-prep/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-11-06 登记（Chief 指令：恢复写权后先做零 GPU、可回滚备选准备片 1）。用户方向未定（perworld L-v2 灯 vs mesh 方案 A），本片不预判方向。Backend 已做只读预研并确认实际脚本路径为 `scripts/capture_render_perworld.py`（非 `scripts/authoring/`）。候选映射（本片不含实现）：L v2 灯实现可按 host-only 走（内核 light 数组是 1-D、per-world 发射时 worldid 恒 0，每 world 重传灯数组即可，`.cu` 零改动），细节见 Arch 2026-11-06 决策准备对话留档。",
+  "revision": {
+    "before": "822c4edf0b9da2b4a216671843d0e2f086881986",
+    "after": null
+  },
+  "created_at": "2026-11-06T11:02:00.000Z",
+  "updated_at": "2026-11-06T11:02:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-a/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/sdf-criterion-v2.2/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-prep/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-06-render-perworld-l-v2-light-prep"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "灯位姿已覆盖",
+        "per-world 灯验收通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
