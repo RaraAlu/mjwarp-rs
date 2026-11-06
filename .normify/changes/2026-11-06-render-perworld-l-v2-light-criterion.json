@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-render-perworld-l-v2-light-criterion",
+  "title": {
+    "zh": "perworld L v2 灯判据规格（可签草案）：scene-a-light 参考范围 + 灯字段位级/容差 + world 间判别力门槛（零 GPU；未签不生效）",
+    "en": "Per-world L v2 light criterion spec (signable draft): scene-a-light reference scope, light-field bit/tolerance face, and inter-world discriminability gate (GPU-free; not effective until signed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户方向（perworld L-v2 灯 vs mesh 方案 A）尚未定；本卡把 L v2 灯验收所需的**可签判据规格**先写出来，用户选定方向后由 Chief 整理成签名卡、用户签 S-1 即生效。规格内容按已定的设计：① 新参考范围 = `fixtures/render-bvh/scene-a-light/scene.xml`（三灯嵌套挂 `tri_body`）+ 新 tag `nw3-light-hinge02040`（worlds 3 / hinge 0,20,40）；② 判据把 `state.npz` 的 `light_xpos`/`light_xdir` 纳入比对（位级）；③ 渲染判据沿用 perworld S1 严格口径（逐 world rgb 0 字节差、depth 位级 `mismatched=0` 且 `max_ulp≤4`、seg 全等、两跑 sha 相等）；④ 新增 world 间判别力门槛（采集前置 ≥576、验收 ≥384，depth 与 seg 均需满足）；⑤ 明确**不继承 criterion v2.2 清单**；⑥ 事实地基：`spot` 在 hinge 旋转轴上恒 0，实际可判别灯只有 `sun`/`lamp`。本卡**只产规格文本与证据**：零 GPU、不采集、不产参考、不改任何生效判据/criterion v2.2/既有冻结件；**未经用户签名不生效**。",
+    "en": "Draft the signable acceptance criterion for per-world L v2 light authoring: reference scope (scene-a-light variant + new tag), light-field bit-level comparison, strict per-world render checks, inter-world discriminability gate (collection margin 576 / acceptance 384), no inheritance of the criterion v2.2 allowlists, and the spot-is-zero fact. Text and evidence only; GPU-free; no capture; no reference produced; not effective until the user signs."
+  },
+  "modules": {},
+  "acceptance": [
+    "**规格文件 `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md`（可签版）内容齐全**：适用/边界、参考范围（场景变体 + 新 tag + worlds/hinge + recipe 逐字同 `nw3-hinge02040` + 单固定相机 320×240）、产物布局与体积估算、判据（帧内/world 内 + 灯字段 + 判别力）、失败条件与退化保护、不继承 criterion v2.2 清单的声明、采集与验证方案、签名清单（S-1/S-2/S-3）、GO 清单、已知风险、变更控制、非声明。`spec.md` 的 sha256 + bytes 即签名对象。",
+    "**判据写死（不留给实现自由发挥）**：① 每个 world 的 rgb **位级 0 字节差**（`max_byte_diff=0`）；② depth 位级 `mismatched=0` 且 `max_ulp≤4`、`beyond_ulp=0`；③ seg 逐像素全等；④ 两次运行 rgb/depth/seg sha256 相等；⑤ 数据面 `state.npz` 的 `light_xpos`/`light_xdir` 与参考位级对齐（0 例外，f32 位型）；⑥ **world 间判别力**（参考侧自算，不用产品侧数据）：相邻 world（0→1、1→2）的 depth 变化像素与 seg 变化像素均 ≥ **384**（验收），采集窗前置要求均 ≥ **576**；`[384,576)` 判余量不足、`<384` 判无判别力、拒绝通过。",
+    "**事实地基与限制写清**：`spot` 的 `pos=(0,0,2)`/`dir=(0,0,-1)` 落在 `tri_body` 的 z 旋转轴上，铰链旋转下位移/朝向恒 0（几何事实，不是缺陷）；**实际可判别灯只有 `sun`/`lamp`**。若用户要求三灯均可判别，须另改场景变体并出新 spec + 重签，本规格不覆盖。",
+    "**签名与窗口口径写死**：S-1 = 本 spec（sha256+bytes）；S-2 = 采集窗计划（**用户双签**：计划 + 开窗前 5 分钟三点基线 + signed floor = baseline_free − 3072 MiB 取严 + **authoring 例外是否预批**，即常规 `util<40` 不达标时是否允许 authoring-only `util<60`）；S-3 = 验证窗计划（用户双签）与 Chief token；两窗均要求 monitor 60/60、零编译、失败即停、不重试、不放宽、不调阈值。",
+    "**边界（写死）**：零 GPU、不开窗、不采集、不产参考、不写 `fixtures/`；**不改任何生效判据/容差/criterion v2.2/既有冻结件**；`unchanged src/`、`unchanged fixtures/`；四门禁 fmt / clippy / clippy-cuda / unit 全过。",
+    "**证据** `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/`：`spec.md` + `receipt.json`（`/task_id` 供本卡 json 检查，含 spec sha256/bytes、边界、未生效状态）+ `manifest.txt`（首行 `#` 表头、逐文件 sha256+bytes、UTF-8/LF/无 BOM、裸 CR/TAB 自查）。",
+    "**非声明**：本卡只是**可签草案**，**未经用户签名不生效**；不构成 perworld L v2 启动、不产参考、不宣称 per-world 灯位姿已覆盖、不宣称与上游等价、不宣称任何渲染数值结论、不宣称性能。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-perworld-l-v2-light-prep"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Chief 2026-11-06 派工：用户方向未定前先把 L v2 灯判据做成「可签草案」，用户选 L-v2 后由 Chief 整理签名卡。依据：备选准备片 `2026-11-06-render-perworld-l-v2-light-prep`（`b0b8cc02`，场景变体 + 灯位姿前置自算已落库）+ perworld S1 判据先例（`nw3-hinge02040` 验证窗）。本卡只产 spec/receipt/manifest，不写 fixtures、不跑 GPU。QA 读前预审。",
+  "revision": {
+    "before": "04475a18a2a492b9ab0f6a0a84ccb14c8cd9e2a6",
+    "after": null
+  },
+  "created_at": "2026-11-06T12:00:00.000Z",
+  "updated_at": "2026-11-06T12:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-06-render-perworld-l-v2-light-criterion"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "灯位姿已覆盖",
+        "per-world 灯验收通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
