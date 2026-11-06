@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-06-render-perworld-l-v2-light-criterion-check",
+  "owner": "QA",
+  "kind": "pre-signature-read-only-review",
+  "date": "2026-11-06",
+  "reviewed_card": "2026-11-06-render-perworld-l-v2-light-criterion",
+  "reviewed_card_status": "verified",
+  "reviewed_commits": {
+    "register": "42748ac7",
+    "result": "1ef5bd5b"
+  },
+  "final_head": "1ef5bd5b",
+  "baseline": "b6f5b724",
+  "qa_registration_commit": "271749bb",
+  "conclusion": "PASS-with-observations",
+  "blocking": 0,
+  "observations": 5,
+  "qa_checks": {
+    "result": "PASS",
+    "passed": 21,
+    "total": 21,
+    "fails": []
+  },
+  "point_results": {
+    "1_signature_object_sha_bytes_and_machine_readable_status": "PASS",
+    "2_content_self_consistency_criteria_fact_base_fail_stop_change_control_nonces": "PASS",
+    "3_signature_S_and_GO_G_checklists_unambiguous": "PASS",
+    "4_zero_boundary_no_capture_no_new_fixture_gates_1359_0_manifest_2_2": "PASS",
+    "5_spec_vs_current_capture_script_interface_gaps_flagged": "PASS (observations O2/O3)"
+  },
+  "signature_object": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "1821be98953e834265e6e8b3a8e6e363f0b59306b9625ed96b6a39cb570ab9e8",
+    "bytes": 16625,
+    "receipt_status": "draft_pending_user_signature",
+    "receipt_effective": false,
+    "receipt_kind": "criterion-spec-draft",
+    "three_way_consistent": true,
+    "manifest_entries": 2,
+    "evidence_files": 3,
+    "encoding": "UTF-8/LF/no BOM, no bare CR/TAB"
+  },
+  "scope": {
+    "diff_base": "b6f5b724",
+    "diff_head": "1ef5bd5b",
+    "changed_paths": 8,
+    "files": [
+      ".normify/changes/2026-11-06-render-perworld-l-v2-light-criterion.json",
+      ".normify/runs/2026-11-06-render-perworld-l-v2-light-criterion/clippy-cuda.json",
+      ".normify/runs/2026-11-06-render-perworld-l-v2-light-criterion/clippy.json",
+      ".normify/runs/2026-11-06-render-perworld-l-v2-light-criterion/fmt.json",
+      ".normify/runs/2026-11-06-render-perworld-l-v2-light-criterion/unit.json",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/manifest.txt",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md"
+    ],
+    "zero_diff_probe": ["fixtures/", "src/", "scripts/", "tests/",
+                        "docs/development-evidence/render-bvh/sdf-criterion-v2.2/"],
+    "no_capture": true,
+    "no_new_reference": true,
+    "gpu_free": true
+  },
+  "content_consistency": {
+    "sections": 15,
+    "thresholds": {"acceptance_px": 384, "collection_margin_px": 576, "px_per_world": 76800,
+                   "acceptance_pct": 0.005, "arithmetic_ok": true},
+    "reference_scope": {"tag": "nw3-light-hinge02040", "worlds": 3, "hinge_deg": [0, 20, 40],
+                        "camera": "cam-persp only (mode 0), 320x240", "cam_active": [true, false],
+                        "scene_variant": "fixtures/render-bvh/scene-a-light/scene.xml",
+                        "out_root": "fixtures/render-bvh/scene-a-light/perworld/"},
+    "recipe_parameters_match_v1": true,
+    "v1_reference": {"cam_res": [[320, 240]], "total_rays": 76800,
+                     "sizes": {"rgb.npz": 2765524, "depth.npz": 922336, "seg.npz": 1843924,
+                               "state.npz": 2486, "capture.json": 8836},
+                     "total_bytes": 5543106},
+    "fact_base_matches_prep": true,
+    "criterion_v22_not_inherited": true,
+    "fail_stop_items": 7,
+    "signature_S_items": ["S-1", "S-2", "S-3"],
+    "go_G_items": ["G-L1", "G-L2"],
+    "perworld_suite_fact": {"frozen_exes": 11, "guard_inputs": 83, "outline_lists": 2, "total": 96,
+                            "matches_archived_guards": true}
+  },
+  "reviewed_card": {
+    "status": "verified",
+    "revision_before": "42748ac70aa5b6cd8c2802bc9d1084857862ced5",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit_gate": {"passed": 1359, "failed": 0, "ignored": 400}
+  },
+  "observations_detail": [
+    {
+      "id": "O1",
+      "severity": "low",
+      "area": "spec §2.3 shape notation",
+      "summary": "§2.3 用堆叠记法 [nworld,240,320,3] 描述 rgb，但既有参考实际按 world 存独立键（rgb_w0_cam0 等，各 [240,320,3]）；同节又写『与 nw3-hinge02040 同编码』，字面矛盾。建议签名前改记法或注明为逻辑形状。"
+    },
+    {
+      "id": "O2",
+      "severity": "low",
+      "area": "spec §2.4 vs current capture script (collection prerequisite)",
+      "summary": "§2.4 要求 capture.json 必含『命令』与『采集时间』，但现有脚本不写 command 字段；captured_at 从 MJWARP_CAPTURE_AT 读取、v1 参考为空串，而 §9.2 写死命令未含该 env；recipe.task_id 仍为旧卡 id（prep 复核 O3）。建议写进采集窗卡/S-2 前置：补 command、设 MJWARP_CAPTURE_AT、定 task_id/reference_tag 口径。"
+    },
+    {
+      "id": "O3",
+      "severity": "low",
+      "area": "spec §2.4 per_world_scope (collection prerequisite)",
+      "summary": "§2.4 要求 capture.json.per_world_scope 写明覆盖 per-world 灯位姿 + geom 位姿并注明设备灯语义前提，但脚本该字段硬编码旧口径 does_not_cover: per-world light poses（v1 实测）；实现卡或采集窗卡需同步更新文案，采集后自核。"
+    },
+    {
+      "id": "O4",
+      "severity": "low",
+      "area": "spec §2.2 recipe row wording",
+      "summary": "行标写 recipe，正文引『逐字同 …/capture.json.parameters』；recipe 本体（scene_xml/script sha）必然随新场景与脚本变化，实际只有 parameters 块可逐字同。建议明确『parameters 块逐字同；recipe 的 scene_xml/script 按新场景与脚本记录』。"
+    },
+    {
+      "id": "O5",
+      "severity": "low",
+      "area": "spec §10.2 estimate wording",
+      "summary": "『预估 +14 条：新 tag 5 + 场景变体 1 + 脚本/模块 2 + 冻结器/证据若干』未列明 +14 是否含新增 exe，『若干』未定数；spec 已声明以窗口卡冻结清单为准，可在窗口卡落实际条数时写清。"
+    }
+  ],
+  "informational_notes": [
+    "体积估算 ≈5.55 MB/tag 与实测合计 5,543,106 B（5.54 MB 十进制）相差 0.1%，属取整口径，不构成不符。"
+  ],
+  "boundaries": {
+    "read_only_review": true,
+    "gpu_used": false,
+    "gates_run": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "changed_paths": [
+      ".normify/changes/2026-11-06-render-perworld-l-v2-light-criterion-check.json",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-check/"
+    ],
+    "unchanged": ["reviewed spec/receipt/manifest", "fixtures/", "src/", "scripts/", "tests/",
+                  "docs/development-evidence/render-bvh/sdf-criterion-v2.2/"]
+  },
+  "claims": {
+    "acceptance_conclusion": "pre-signature review PASS-with-observations",
+    "not_claimed": "不构成用户签名、不产生生效判据、不构成 perworld L v2 启动；不写灯位姿覆盖成立 / 与上游实现等价 / 渲染数值结论 / 性能 / 发布依据"
+  }
+}
