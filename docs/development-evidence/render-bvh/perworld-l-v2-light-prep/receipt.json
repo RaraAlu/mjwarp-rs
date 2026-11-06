@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-06-render-perworld-l-v2-light-prep",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-06-render-perworld-l-v2-light-prep",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "authoring-prep",
+  "positioning": "backup preparation only; NOT a perworld L v2 start",
+  "inputs": {
+    "baseline_script": {
+      "path": "scripts/capture_render_perworld.py",
+      "lines": 499,
+      "sha256": "67a760fa400f2cf89c19a700e49d08c619a78008664f03cd69fab21bd2077815"
+    },
+    "scene_a": "fixtures/render-bvh/scene-a/scene.xml"
+  },
+  "changes": {
+    "scripts/capture_render_perworld.py": {
+      "lines_before": 499,
+      "lines_after": 497,
+      "sha256": "3e1d207c78830347b0a0eebb656963aa17970194c699d4f7d66d6296e8450201",
+      "note": "--scene / --out-root (defaults unchanged); legacy_manifest(out_root); dry-run plan moved to helper module; capture semantics unchanged"
+    },
+    "scripts/perworld_light_prep.py": {
+      "status": "new",
+      "lines": 160,
+      "sha256": "9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c",
+      "note": "path echo, dry-run plan assembly, CPU per-world light-pose precheck"
+    },
+    "fixtures/render-bvh/scene-a-light/scene.xml": {
+      "status": "new",
+      "lines": 84,
+      "sha256": "4db66e2c6c32f3e928baf475537127ef19904deeda90eb697f2f4e1587e7df0a",
+      "note": "three lights (sun/lamp/spot) mounted on tri_body; all light attributes byte-identical to scene-a; only scene.xml in this directory"
+    }
+  },
+  "default_behavior": {
+    "command": "python -B scripts/capture_render_perworld.py --dry-run --out-dir fixtures/render-bvh/scene-a/perworld/prep-default-dryrun",
+    "before_after_diff": "artifacts/default-dryrun-diff.json",
+    "unexpected_changes": 0,
+    "allowed_changes": [
+      "new '/paths' parameter echo block",
+      "recipe.script.sha256 / recipe.script.bytes (script edited)",
+      "legacy_manifest_entries 106 -> 107 (new static fixture scene-a-light/scene.xml counted by the unfiltered legacy scan; default out-root unchanged)"
+    ]
+  },
+  "dry_run_selfchecks": {
+    "explicit_light_command": "python -B scripts/capture_render_perworld.py --dry-run --scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40",
+    "exit": 0,
+    "scene_load": {"njnt": 2, "nq": 8, "cameras": "cam-persp mode 0, cam-track mode 3"},
+    "light_attach": {"sun": "tri_body", "lamp": "tri_body", "spot": "tri_body"},
+    "light_pose_diff_keys": {
+      "world_1": {"sun_xdir_angle_deg": 10.745878447, "lamp_xpos_move_m": 0.222378165, "spot_xpos_move_m": 0.0},
+      "world_2": {"sun_xdir_angle_deg": 21.255926664, "lamp_xpos_move_m": 0.437999482, "spot_xpos_move_m": 0.0}
+    },
+    "verdict": {
+      "nonzero": true,
+      "zero_reason": "spot pos=0 0 2 and dir=0 0 -1 lie on the tri_body z/rotation axis, so rotation leaves them unchanged (scene-geometry fact, recorded only)",
+      "no_rendering_discrimination_claim": true
+    },
+    "paths_parameterized": true,
+    "legacy_manifest_entries": {"before_default": 106, "after_default": 107, "explicit_light": 112},
+    "negative_checks": {"outdir_nonempty": "rejected exit 1", "outdir_outside_root": "rejected exit 1"}
+  },
+  "mounting_note": "MJCF has no <light body=...> attribute (schema rejects it); lights are attached to tri_body by nesting them inside the body element, per MuJoCo semantics; all light attributes are byte-identical to scene-a.",
+  "line_ratchet": {
+    "scripts/capture_render_perworld.py": 497,
+    "scripts/perworld_light_prep.py": 160,
+    "limit": 500,
+    "note": "git blob newline count; both <= 500"
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_light_prep.py",
+      "fixtures/render-bvh/scene-a-light/scene.xml",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-prep/"
+    ],
+    "unchanged": ["src/", "fixtures/render-bvh/scene-a/", "docs/development-evidence/render-bvh/sdf-criterion-v2.2/", "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/"],
+    "gpu_free": true,
+    "no_capture": true,
+    "no_reference_written": true,
+    "rollback": "revert two script changes + one scene xml + this evidence; no existing validation surface or frozen artifact touched"
+  },
+  "non_claims": {
+    "statement": "Backup preparation only; not a perworld L v2 start; produces no reference, claims no per-world light-pose coverage, no upstream-implementation equivalence and no rendering numeric conclusion."
+  }
+}

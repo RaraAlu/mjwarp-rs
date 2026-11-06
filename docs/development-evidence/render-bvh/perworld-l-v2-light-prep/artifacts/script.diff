@@ -1,0 +1,112 @@
+diff --git a/scripts/capture_render_perworld.py b/scripts/capture_render_perworld.py
+index 1bd62b30..b7e3415d 100644
+--- a/scripts/capture_render_perworld.py
++++ b/scripts/capture_render_perworld.py
+@@ -27,6 +27,10 @@ Usage:
+   <pinned-python> -B scripts/capture_render_perworld.py --help
+   <pinned-python> -B scripts/capture_render_perworld.py --dry-run \
+       --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040
++  <pinned-python> -B scripts/capture_render_perworld.py --dry-run \
++      --scene fixtures/render-bvh/scene-a-light/scene.xml \
++      --out-root fixtures/render-bvh/scene-a-light/perworld \
++      --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040
+   <pinned-python> -B scripts/capture_render_perworld.py \
+       --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040
+ Env: MJWARP_CAPTURE_AT (ISO8601; share across invocations so capture.json is stable)
+@@ -45,6 +49,8 @@ import sys
+ import time
+ import zipfile
+ 
++from perworld_light_prep import build_dry_run_plan
++
+ ROOT = pathlib.Path(__file__).resolve().parents[1]
+ SCENE_DIR = ROOT / "fixtures/render-bvh/scene-a"
+ SCENE_XML = SCENE_DIR / "scene.xml"
+@@ -102,9 +108,9 @@ def sha_manifest(root: pathlib.Path, exclude: tuple[pathlib.Path, ...]) -> dict[
+         manifest[path.relative_to(ROOT).as_posix()] = digest(path)
+     return manifest
+ 
+-def legacy_manifest() -> dict[str, str]:
+-    """Existing render-bvh references, excluding the new scene-a/perworld subtree."""
+-    return sha_manifest(RENDER_BVH, (OUT_ROOT.resolve(),))
++def legacy_manifest(out_root: pathlib.Path) -> dict[str, str]:
++    """Existing render-bvh references, excluding the effective per-world output subtree."""
++    return sha_manifest(RENDER_BVH, (out_root.resolve(),))
+ 
+ def check_environment(*, want_cuda_device: bool, scene_path: pathlib.Path) -> dict:
+     problems = []
+@@ -339,7 +345,11 @@ def context_receipt(mjm, rc, files_sha256: dict, capture: dict, run_index: int)
+ def parse_args() -> argparse.Namespace:
+     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+     parser.add_argument("--out-dir", type=pathlib.Path, required=True,
+-                        help="new output directory (inside fixtures/render-bvh/scene-a/perworld/)")
++                        help="new output directory (must stay inside --out-root)")
++    parser.add_argument("--scene", type=pathlib.Path, default=SCENE_XML,
++                        help="scene XML; default fixtures/render-bvh/scene-a/scene.xml")
++    parser.add_argument("--out-root", type=pathlib.Path, default=OUT_ROOT,
++                        help="output root; default fixtures/render-bvh/scene-a/perworld")
+     parser.add_argument("--worlds", type=int, default=DEFAULT_WORLDS,
+                         help="number of worlds (nworld); default 3")
+     parser.add_argument("--hinge-deg", default=DEFAULT_HINGE_DEG,
+@@ -366,10 +376,11 @@ def main() -> int:
+     PARAMS["nworld"] = args.worlds
+     PARAMS["use_fast_math"] = args.use_fast_math == "true"
+     PARAMS["use_shadows"] = args.use_shadows == "true"
+-    scene_path = SCENE_XML.resolve()
++    scene_path = args.scene.resolve()
++    out_root = args.out_root.resolve()
+     out_dir = args.out_dir.resolve()
+-    if not out_dir.is_relative_to(OUT_ROOT.resolve()):
+-        fail(f"--out-dir {out_dir} is outside {OUT_ROOT}")
++    if not out_dir.is_relative_to(out_root):
++        fail(f"--out-dir {out_dir} is outside --out-root {out_root}")
+     if out_dir.exists() and any(out_dir.iterdir()):
+         fail(f"--out-dir {out_dir} already exists and is not empty (references are append-only)")
+     import warp as wp
+@@ -397,30 +408,17 @@ def main() -> int:
+ 
+         mjm = mujoco.MjModel.from_xml_path(str(scene_path))
+         world_qpos = build_world_qpos(mjm, world_deg)
+-        plan = {
+-            "task_id": TASK_ID, "dry_run": True,
+-            "recipe": {k: v for k, v in recipe.items() if k != "capture_at_env"},
+-            "out_dir": out_dir.as_posix(), "repeat": args.repeat, "seed": args.seed,
+-            "warp_cache": str(args.warp_cache),
+-            "model_static": {
+-                "njnt": int(mjm.njnt), "nq": int(mjm.nq), "jnt_type": [int(v) for v in mjm.jnt_type],
+-                "jnt_qposadr": [int(v) for v in mjm.jnt_qposadr], "qpos0": [float(v) for v in mjm.qpos0],
+-                "cameras": [[i, int(mjm.cam_mode[i]), mjm.camera(i).name or f"cam{i}"]
+-                            for i in range(int(mjm.ncam))]},
+-            "per_world_plan": {"nworld": args.worlds, "world_hinge_deg": world_deg,
+-                "world_qpos": world_qpos.tolist(),
+-                "state_arrays": ["qpos", "geom_xpos", "geom_xmat", "light_xpos", "light_xdir"],
+-                "note": "lights are captured for completeness only; the device path still indexes "
+-                        "lights single-world, so per-world light poses are not claimed"},
+-            "cam_active_fixed_only": [int(mode) == 0 for mode in environment["camera_modes"]],
+-            "legacy_manifest_entries": len(legacy_manifest()),
+-            "environment": environment,
+-        }
++        plan = build_dry_run_plan(
++            root=ROOT, task_id=TASK_ID, recipe=recipe, environment=environment,
++            mjm=mjm, world_qpos=world_qpos, world_deg=world_deg, out_dir=out_dir,
++            scene_path=scene_path, out_root=out_root, repeat=args.repeat, seed=args.seed,
++            warp_cache=str(args.warp_cache),
++            legacy_manifest_entries=len(legacy_manifest(out_root)))
+         print(json.dumps(plan, indent=2, ensure_ascii=False))
+         return 0
+ 
+     environment = check_environment(want_cuda_device=True, scene_path=scene_path)
+-    legacy_before = legacy_manifest()
++    legacy_before = legacy_manifest(out_root)
+     import mujoco
+     import mujoco_warp as mjw
+     import numpy as np
+@@ -468,7 +466,7 @@ def main() -> int:
+         "files_sha256": first_hashes, "captured_at": capture_at,
+         "environment": environment, "recipe": recipe, "parameters": PARAMS,
+         "context": context_receipt(mjm, rc, first_hashes, first, 1),
+-        "legacy_reference_untouched": legacy_manifest() == legacy_before,
++        "legacy_reference_untouched": legacy_manifest(out_root) == legacy_before,
+         "legacy_reference_files": len(legacy_before),
+         "reads_product_tree": False, "authoring_only": True,
+         "product_python_dependency": False,
