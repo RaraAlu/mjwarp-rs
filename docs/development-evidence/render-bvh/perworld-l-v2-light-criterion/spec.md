@@ -1,8 +1,9 @@
 # per-world L v2 灯判据规格（可签草案）
 
-- 任务：`2026-11-06-render-perworld-l-v2-light-criterion`（owner Arch）
+- 任务：`2026-11-06-render-perworld-l-v2-light-criterion`（owner Arch）；v2 修订卡 `2026-11-06-render-perworld-l-v2-light-criterion-spec-v2`
 - 日期：2026-11-06
-- 状态：**待用户签名、未生效**（签名对象 = 本文件 sha256 + bytes；用户选定 perworld L-v2 方向后，由 Chief 整理签名卡）
+- 版本：**v2**。取代 v1（sha256 `1821be98953e834265e6e8b3a8e6e363f0b59306b9625ed96b6a39cb570ab9e8` / 16,625 B）。v2 修订 = QA 读前预审 O1/O4/O5（签名前文本改正）+ O2/O3（写入 §11 S-2 / §12 G-L1 采集窗前置）；**判据语义、阈值（384/576）、失败条件、不继承 v2.2 清单、事实地基均未变**。
+- 状态：**待用户签名、未生效**（签名对象 = 本文件 sha256 + bytes；用户选定 perworld L-v2 方向后，由 Chief 按 **v2 sha** 整理签名卡）
 - 前置：备选准备片 `2026-11-06-render-perworld-l-v2-light-prep`（`b0b8cc02`）已落库：`scene-a-light` 场景变体 + 采集脚本 `--scene`/`--out-root` 参数化 + 三 world 灯位姿前置自算
 - 上游依据：pinned checkout `target/mjwarp-parallel/upstream` @ `71da24d9`（mujoco_warp 3.15.0）；既有 per-world geom 参考 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`（L v1 验证窗使用）
 - 边界：**规格文本**。不采集、不开窗、不动 `fixtures/`、不改产品代码、不改任何生效判据/容差/criterion v2.2/既有冻结件。**本草案未经用户签名不生效。**
@@ -33,18 +34,36 @@
 | worlds | **3**（nworld=3） |
 | hinge 角（度） | **0 / 20 / 40**（写入各 world 的唯一 hinge `tri-hinge` qpos） |
 | 相机 | **仅固定相机 `cam-persp`（mode 0）**，320×240 = **76,800 px/world**；`cam-track`（mode 3）不启用（`cam_active=[true,false]`） |
-| recipe | 逐字同既有 perworld 参考 `nw3-hinge02040/capture.json.parameters`（`use_fast_math=false`、`use_shadows=true`、`samples_per_pixel=1`、`enabled_geom_groups=[0,1,2,3]`、`background_color=[0,0,0,1]`、`shadow_light_fraction=0.3`、`flex_render_smooth=true`、`use_precomputed_rays=true`、其余同源） |
+| recipe.parameters | **仅 `parameters` 块**逐字同既有 perworld 参考 `nw3-hinge02040/capture.json.parameters`（`use_fast_math=false`、`use_shadows=true`、`samples_per_pixel=1`、`enabled_geom_groups=[0,1,2,3]`、`background_color=[0,0,0,1]`、`shadow_light_fraction=0.3`、`flex_render_smooth=true`、`use_precomputed_rays=true`、其余同源） |
+| recipe.scene_xml / recipe.script | **sha256/bytes 必然变化**（场景变体 `scene-a-light/scene.xml` + 采集脚本参数化），**不得**要求与旧参考相同；`recipe` 的 `nworld/hinge_deg/seed/repeat/versions/upstream_revision` 与旧参考同口径 |
 | 变化机制 | 只在**模型层外部注入**：各 world 的 hinge qpos = 0/20/40 度；灯随 `tri_body` 刚性转动 → `light_xpos/light_xdir` 逐 world 不同。**不做物理步进/时间积分/加外力**，world 间差异 100% 来自位形注入 |
 
-### 2.3 产物布局与体积（写死）
+### 2.3 产物布局与编码（写死；按既有 perworld 参考实际编码，v2 修正）
+
+目录：
 ```
 fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
-  rgb.npz        # [nworld, 240, 320, 3] f32（与 nw3-hinge02040 同编码）
-  depth.npz      # [nworld, 240, 320] f32
-  seg.npz        # [nworld, 240, 320, 2] i32
-  state.npz      # qpos / geom_xpos / geom_xmat / light_xpos / light_xdir（逐 world）
-  capture.json   # 位形、recipe、pinned 环境、文件 sha256、两次采集逐位一致标记、per_world_scope
+  rgb.npz / depth.npz / seg.npz     # 每 world 独立键（见下）
+  state.npz                        # 按 nworld 首维堆叠（见下）
+  capture.json                     # 位形、recipe、pinned 环境、文件 sha256、两次采集逐位一致标记、per_world_scope
 ```
+
+**rgb/depth/seg：每 world 一个独立键**（`cam0` 是唯一启用相机 `cam-persp`；world 号写在键名里，**不是** `[nworld, ...]` 堆叠）：
+| 文件 | 键 | shape | dtype |
+| --- | --- | --- | --- |
+| `rgb.npz` | `rgb_w{0,1,2}_cam0` | `(240, 320, 3)` | f32 |
+| `depth.npz` | `depth_w{0,1,2}_cam0` | `(240, 320)` | f32 |
+| `seg.npz` | `seg_w{0,1,2}_cam0` | `(240, 320, 2)` | i32 |
+
+**state.npz：无 world 键，数组以 nworld 为首维堆叠**（nworld=3）：
+| 键 | shape | dtype |
+| --- | --- | --- |
+| `qpos` | `(3, 8)` | f32 |
+| `geom_xpos` | `(3, 7, 3)` | f32 |
+| `geom_xmat` | `(3, 7, 3, 3)` | f32 |
+| `light_xpos` | `(3, 3, 3)` | f32（nworld × nlight × 3） |
+| `light_xdir` | `(3, 3, 3)` | f32（nworld × nlight × 3） |
+
 体积估算（按既有 `nw3-hinge02040` 实测）：rgb 2,765,524 B + depth 922,336 B + seg 1,843,924 B + state 2,486 B + capture.json ≈ 8.8 KB ≈ **5.55 MB/tag**。
 
 ### 2.4 确定性与 provenance（写死）
@@ -149,7 +168,7 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 - 判据实现需 QA 只读复核（world 顺序、像素计数方向、阈值换算、灯字段位型比较、判别力算法、无 allowlist）。
 
 ### 10.2 窗口材料与纪律（写死）
-- 新实体进入 guards：既有 perworld suite 96 条（11 exe + 83 输入 + 2 条 criterion v2.2 清单）基础上，新增 exe 与参考输入（预估 +14 条：新 tag 5 文件 + 场景变体 1 + 脚本/模块 2 + 冻结器/证据若干），**具体条目数以窗口卡冻结清单为准**；旧 suite 副本与既有冻结件**只读保留**。
+- 新实体进入 guards：既有 perworld suite 96 条（11 exe + 83 输入 + 2 条 criterion v2.2 清单）基础上，**新增 1 个 exe**（`render_per_world_light`），**新增输入 ≤12 条**，其中**必须包含**：新 tag 5 文件（rgb/depth/seg/state/capture.json）、场景变体 `scene-a-light/scene.xml` 1、采集脚本 `scripts/capture_render_perworld.py` 1、新模块 `scripts/perworld_light_prep.py` 1、本 `spec.md` 1（合计 9 条必需）；其余至多 3 条可放冻结器/证据输入。**最终条目数以验证窗卡冻结清单为准，且不得少冻结上述 9 条必需输入**；旧 suite 副本与既有冻结件**只读保留**。
 - 验证窗纪律：开窗前 5 分钟三点基线、signed floor = baseline_free − 3072 MiB（取严）、常规 monitor 60/60（util<40；authoring 例外仅采集窗可预批）、树干净、`cargo test --no-run` exit 0；窗口内**零编译**（冻结后只允许 `--features cuda-probe` 口径构建/运行）；冻结 exe live==guard==stash；单次运行、失败即停；证据归档（baseline/monitor/entity log/guards 副本 + manifest）。
 
 ### 10.3 实现形态与设备脱钩面（写死前提）
@@ -165,11 +184,20 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 | **S-2** | **采集窗计划**（用户双签：计划 + 开窗前 5 分钟三点基线 + signed floor） | 含 **authoring 例外是否预批**（常规 `util<40` 不达标时是否允许 authoring-only `util<60`）；不预批则等常规阈值 |
 | **S-3** | **验证窗计划**（用户双签）+ Chief token | 窗口清单、guards 冻结、基线/floor、失败条款 |
 
+### 11.1 S-2 采集窗前置（写死；QA 读前预审 O2/O3，签名前固定）
+
+S-2 签名前，下列四项必须在采集脚本/采集窗卡中落实，否则 S-2 不得签：
+
+1. **`command` 字段**：当前 perworld 采集脚本**不写** `command`；采集前必须补写（记录实际命令行），采集后自核非空。
+2. **`captured_at` 与 env**：当前 `captured_at` 依赖 `MJWARP_CAPTURE_AT`，而既有参考里为空串 `""`；采集窗**必须显式设置 `MJWARP_CAPTURE_AT`**（非空 ISO8601），开窗前核 env，采集后自核 `captured_at` 非空。
+3. **`per_world_scope` 文案**：既有参考的 `per_world_scope` 仍是旧口径（`does_not_cover: per-world light poses`）；采集前必须同步改为**新参考覆盖口径**（覆盖 per-world 灯位姿 + per-world geom 位姿），采集后自核文案与覆盖声明一致。
+4. **`recipe.task_id` 旧卡 id**：既有参考 `recipe.task_id` 仍是旧采集卡 id（`2026-10-30-render-perworld-capture-authoring`）；采集前二选一处置——**参数化 task_id** 或 **新增 `reference_tag` 字段**，处置决定与前后值写入采集窗证据，避免 provenance 混淆。
+
 ## 12. GO 清单（Chief 级）
 
 | # | 窗口 | 前置 |
 | --- | --- | --- |
-| **G-L1** | 采集窗（authoring，1 个） | S-1 + S-2 已签 + 本 spec/receipt/manifest 落库 + 采集脚本参数化已 verified + QA 只读复核 + 基线/floor 取严 + 材料贴群 |
+| **G-L1** | 采集窗（authoring，1 个） | S-1 + S-2 已签 + 本 spec/receipt/manifest 落库 + **§11.1 四项采集窗前置全部落实（command / captured_at+env / per_world_scope 文案 / task_id 或 reference_tag）** + 采集脚本参数化已 verified + QA 只读复核 + 基线/floor 取严 + 材料贴群 |
 | **G-L2** | 验证窗（1 个） | 采集证据 verified（两次采集逐位一致 + world 间 ≥576）+ 判据实体实现 verified + QA 复核 PASS + guards 冻结（含新 exe + 新参考）+ 基线/floor + 零编译纪律 |
 
 ## 13. 已知风险（如实登记）
@@ -187,6 +215,13 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 - 本文件是**签名对象**：任何改动（参考范围/tag/world 数/hinge 角/相机/recipe/字段/容差/门槛/失败条件/实现形态前提）都产生新 sha → **需用户重签**；
 - 签名后本文件与 `receipt.json`、`manifest.txt` 按 sha256 冻结；实现卡只能引用、不得改写本规格；
 - 历史不回改：既有 perworld S1 证据、R06 多帧证据、criterion v2.2 均保持原样。
+
+### 14.1 修订记录
+
+| 版本 | 日期 | 修订内容 | 依据 |
+| --- | --- | --- | --- |
+| v1 | 2026-11-06 | 初版草案（sha256 `1821be98…` / 16,625 B） | 备选准备片 `2026-11-06-render-perworld-l-v2-light-prep` |
+| **v2** | 2026-11-06 | ① §2.2 recipe 拆分「仅 parameters 逐字同 / scene_xml 与 script sha 必然变」；② §2.3 改为实际编码（rgb/depth/seg 每 world 独立键、state 按 nworld 首维堆叠）；③ §10.2 guards 条数明确（新增 1 exe + 输入 ≤12 条、必须含 9 条必需输入）；④ 新增 §11.1 采集窗前置四项（command / captured_at+env / per_world_scope 文案 / task_id 或 reference_tag）；⑤ §12 G-L1 引用上述前置。**判据语义、阈值、失败条件、非声明均未变。** | QA 读前预审 `2026-11-06-render-perworld-l-v2-light-criterion-check`（`e9b1181b`，PASS-with-observations 0 阻断）：O1/O4/O5 签名前改、O2/O3 写进采集窗前置 |
 
 ## 15. 非声明
 
