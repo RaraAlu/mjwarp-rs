@@ -13,6 +13,7 @@
   "modules": {},
   "acceptance": [
     "**采集脚本参数化（`scripts/capture_render_perworld.py`，基线 499 行 / sha256 `67a760fa400f2cf89c19a700e49d08c619a78008664f03cd69fab21bd2077815`）**：新增 `--scene`（默认 `fixtures/render-bvh/scene-a/scene.xml`）与 `--out-root`（默认 `fixtures/render-bvh/scene-a/perworld`）；**默认值下行为不变**（同一命令 dry-run 输出与改动前逐字段一致，仅多出新增参数回显）；`--out-dir` 仍强制位于 `--out-root` 之下、只增不改（目标非空即拒）；`legacy_manifest()` 的排除集合随 `--out-root` 参数化（新根不误伤既有参考）；recipe/判据/容差/`--repeat 2` 两次采集逐位一致语义一律不动。",
+    "**500 行棘轮 / 拆分模块**：主脚本基线 499 行（自加 ≤500 口径），本片新增参数与 dry-run 灯自检会超限 → 拆出新模块 `scripts/perworld_light_prep.py`（职责：路径解析与校验、dry-run plan 组装、三 world 灯位姿前置自算），主脚本把现有 dry-run plan 块移入新模块、只留 import+调用；**改后 `scripts/capture_render_perworld.py` 与 `scripts/perworld_light_prep.py` 各自 ≤500 行**（`git cat-file` 换行口径），采集语义/recipe/`--repeat 2`/默认路径逐字不变。",
     "**场景变体 `fixtures/render-bvh/scene-a-light/scene.xml`**：与 `fixtures/render-bvh/scene-a/scene.xml` 同源，差异仅限三灯挂载——`sun`/`lamp`/`spot` 增加 `body=\"tri_body\"`；light 的类型/颜色/attenuation/cutoff/exponent/castshadow/intensity/range 等属性 **逐字不变**；`cam-persp` 保持 mode 0 固定、`cam-track` mode 3 不变。**scene-a 既有文件零改动**（`unchanged fixtures/render-bvh/scene-a/`）。",
     "**dry-run 自检（零 GPU，CPU）**：`--scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir .../nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --dry-run` → exit 0，输出含：① 场景加载与静态自检（`njnt`/`jnt_type`/`jnt_qposadr`/`nq`/`qpos0`/相机 mode）；② **三 world 灯位姿差异前置自算**：用 pinned mujoco `mj_forward`（CPU host，不建 CUDA device）按三 world 的 hinge qpos 逐 world 算 `light_xpos`/`light_xdir`，打印三灯逐 world 数值与差异键（`sun` xdir 夹角、`lamp`/`spot` pos 位移），并给一行「差异非零/达预期量级」判定；**不做渲染判别力断言、不落参考**；③ 输出路径参数化生效（默认与显式路径都打印，显式路径必须在 `--out-root` 之下）。",
     "**边界（写死）**：零 GPU、不开窗、**不采集参考**、**不写 `fixtures/` 参考数据**（仅允许新增场景 XML 本身）；**不改判据/容差/已签 criterion v2.2**；**不动既有 perworld 参考 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/` 与任何 guards/冻结件**；`unchanged src/`；四门禁 fmt / clippy / clippy-cuda / unit 全过。",
@@ -26,6 +27,7 @@
     "owner": "Backend",
     "files": [
       "scripts/capture_render_perworld.py",
+      "scripts/perworld_light_prep.py",
       "fixtures/render-bvh/scene-a-light/",
       "docs/development-evidence/render-bvh/perworld-l-v2-light-prep/"
     ],
