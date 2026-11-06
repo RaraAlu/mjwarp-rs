@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-render-perworld-l-v2-light-criterion-check",
+  "title": {
+    "zh": "QA 读前预审：perworld L v2 灯判据可签草案（签名对象 sha/bytes 一致 / 判据与事实地基自洽 / S-G 清单无歧义 / 边界零改动 / 与 prep 证据数字对齐 / 采集接口缺口）",
+    "en": "QA pre-signature review of the perworld L v2 light criterion draft (signature object hash, criterion/fact-base consistency, S/G checklist clarity, zero cross-boundary changes, numeric alignment with prep evidence, capture-interface gaps)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对可签判据草案卡 `2026-11-06-render-perworld-l-v2-light-criterion`（verified；登记 42748ac7 → 实现 1ef5bd5b）做**读前预审**（复核目标 HEAD 1ef5bd5b，基线 b6f5b724）：① 签名对象 `spec.md` sha256 `1821be98…`/16,625 B 与 receipt 一致，状态 `draft_pending_user_signature`、`effective=false` 机读一致；② 内容自洽（参考范围 scene-a-light/新 tag `nw3-light-hinge02040`/3 world/cam-persp 320×240/≈5.55 MB、判据 A/B/C、不继承 v2.2 清单、事实地基 sun·lamp·spot 数值与原因、失败即停 7 条、变更控制、非声明）；③ S-1/S-2/S-3 与 G-L1/G-L2 命名与内容无歧义；④ 边界零改动（`fixtures/`、`src/`、`scripts/`、criterion v2.2、既有冻结件）、未采集、四门禁 unit 1359/0、证据 manifest 2/2 与编码卫生。**另核「规格要求 vs 现有采集脚本输出」的接口差**（capture.json 的 command/采集时间/per_world_scope 文案），以及与 prep 证据数字的逐值对齐。**只读 + 只写本卡证据目录；零 GPU。**",
+    "en": "Pre-signature read-only review of the L v2 light criterion draft at HEAD 1ef5bd5b: signature-object hash consistency, machine-readable draft/non-effective status, criterion/fact-base/threshold consistency, signature and GO checklist clarity, zero cross-boundary changes, evidence manifest/encoding, plus interface gaps between the spec's capture.json requirements and the current authoring script, and numeric alignment with the prep evidence."
+  },
+  "modules": {},
+  "acceptance": [
+    "**签名对象一致**：`spec.md` 实测 sha256 `1821be98953e834265e6e8b3a8e6e363f0b59306b9625ed96b6a39cb570ab9e8` / 16,625 B，与 `receipt.spec.sha256/bytes` 及 manifest 逐项一致；receipt `status=draft_pending_user_signature`、`effective=false`、`kind=criterion-spec-draft`、`task_id=/卡 id`。",
+    "**内容自洽**：15 节齐全（适用/参考范围/事实地基/判据 A/B/C/v2.2 关系/失败条件/采集方案/验证方案/签名/GO/风险/变更控制/非声明）；判据阈值算术正确（0.5% × 76,800 = 384；576 = 1.5 × 384；320×240 = 76,800）；参考范围写死（scene-a-light、tag `nw3-light-hinge02040`、3 world、hinge 0/20/40、cam-persp only、recipe parameters 与 `nw3-hinge02040/capture.json.parameters` 逐项一致）；事实地基三灯数值与 prep 证据逐值一致；失败即停 7 条齐全；不继承 v2.2 的两条已签清单（sha/行数）与 `|ULP|≤128`。",
+    "**签名/GO 清单无歧义**：S-1/S-2/S-3 各自对象、责任与生效条件明确；G-L1/G-L2 前置可核（含 spec 落库、脚本 verified、QA 复核、基线/floor、冻结/零编译纪律）；数量/口径与既有 perworld suite 事实对齐（11 exe + 83 输入 + 2 清单 = 96）。",
+    "**边界零改动**：`git diff b6f5b724..1ef5bd5b` 仅 8 路径（卡 + 4 gate runs + 3 证据文件）；`fixtures/`、`src/`、`scripts/`、`tests/`、criterion v2.2 零 diff；未采集、未新增参考；被复核卡 gates 记录 unit 1359/0；证据 manifest 2/2（3 文件）自核、UTF-8/LF/无 BOM/裸 CR·TAB 0。",
+    "**接口差与观察**：核出「规格要求 vs 现有采集脚本输出」的差距（capture.json `command` 缺失、`captured_at` 依赖 `MJWARP_CAPTURE_AT` 且 v1 为空串、`per_world_scope` 文案仍旧口径 does_not_cover lights）与 §2.3 产物形状描述/§2.2 recipe 措辞/§10.2 预估口径歧义，按 observation 记录并给出签名/窗口前处置建议。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单（按严重级别）；证据落 `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-perworld-l-v2-light-criterion"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "QA 自登记（Chief 2026-11-06 20:02：可签判据规格落库后做读前预审，自登记一张挂在它下；用户选 L-v2 后才发签名卡）。复核目标 HEAD 1ef5bd5b，基线 b6f5b724。只读复核：不改被复核 spec/receipt/manifest、既有证据、代码、fixtures；零 GPU、CPU-only。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-06T12:07:00Z",
+  "updated_at": "2026-11-06T12:07:00Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/sdf-criterion-v2.2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-06-render-perworld-l-v2-light-criterion-check"
+    }
+  ]
+}
