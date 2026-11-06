@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-06-render-perworld-l-v2-light-criterion",
+  "kind": "criterion-spec-draft",
+  "title": "perworld L v2 light criterion spec (signable draft)",
+  "status": "draft_pending_user_signature",
+  "effective": false,
+  "owner": "Arch",
+  "date": "2026-11-06",
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "1821be98953e834265e6e8b3a8e6e363f0b59306b9625ed96b6a39cb570ab9e8",
+    "bytes": 16625,
+    "sections": 15
+  },
+  "basis": {
+    "prep_slice": "2026-11-06-render-perworld-l-v2-light-prep (b0b8cc02)",
+    "existing_perworld_reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/",
+    "pinned_upstream": "71da24d9 (mujoco_warp 3.15.0)",
+    "per_world_light_facts": {
+      "sun_xdir_angle_deg": [10.745878447, 21.255926664],
+      "lamp_xpos_move_m": [0.222378165, 0.437999482],
+      "spot_xpos_move_m": [0.0, 0.0],
+      "spot_note": "spot pos=(0,0,2)/dir=(0,0,-1) lies on tri_body z-rotation axis; zero under hinge rotation (scene geometry fact, not a defect)"
+    }
+  },
+  "criteria": {
+    "render_per_world": {
+      "rgb": "bit-level, max_byte_diff = 0",
+      "depth": "bit-level mismatched = 0 (max_ulp <= 4 by construction)",
+      "seg": "pixel pair (id, type) exact",
+      "two_run_sha256": "equal per world for rgb/depth/seg"
+    },
+    "light_fields": "state.npz light_xpos/light_xdir bit-level equal per world (f32 bit patterns, zero exceptions)",
+    "inter_world_discriminability": {
+      "definition": "adjacent worlds (0->1, 1->2): depth bit-changed pixels and seg pair-changed pixels",
+      "acceptance_min_pixels": 384,
+      "collection_margin_min_pixels": 576,
+      "bands": {
+        "[384,576)": "insufficient margin -> collection fails, stop and report",
+        "<384": "non-discriminating -> refuse to pass"
+      }
+    },
+    "criterion_v2_2_inheritance": "NONE; v2.2 allowlists (183px / 172px, |ULP|<=128) serve only the 10 legacy regression entities and are untouched"
+  },
+  "signatures_required": [
+    "S-1 spec sha256+bytes (this file's spec.sha256/bytes)",
+    "S-2 collection window plan (user dual-sign: plan + baseline + signed floor + authoring exception pre-approval)",
+    "S-3 validation window plan (user dual-sign) + Chief token"
+  ],
+  "boundary": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_reference_produced": true,
+    "fixtures_unchanged": true,
+    "src_unchanged": true,
+    "criterion_v2_2_untouched": true,
+    "existing_frozen_artifacts_untouched": true
+  },
+  "non_claim": [
+    "draft only; not effective until the user signs",
+    "not a per-world L v2 start",
+    "no per-world light coverage claimed",
+    "no upstream equivalence claimed",
+    "no performance or rendering-value conclusions claimed",
+    "spot has zero discriminability; only sun/lamp are discriminable in this reference"
+  ]
+}
