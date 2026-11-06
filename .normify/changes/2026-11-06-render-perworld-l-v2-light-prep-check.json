@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-render-perworld-l-v2-light-prep-check",
+  "title": {
+    "zh": "QA 只读复核：perworld L v2 灯备选准备片（默认行为逐字段一致 / scene-a 与 src 零越界 / 行数棘轮 497+160 / dry-run 三自检与负例 / 证据自核）",
+    "en": "QA read-only review of the perworld L v2 light prep slice (default behavior field-identical, zero-diff boundaries, 497+160 line ratchet, dry-run self-checks and negatives, evidence self-check)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对备选准备片 `2026-11-06-render-perworld-l-v2-light-prep`（verified；登记 4ae66c81 → 补 files b6b8bd89 → start a27e54a7 → 实现 b0b8cc02）做**只读复核**（复核目标 HEAD b0b8cc02，基线 `b0b8cc02^`）：① 默认参数 dry-run 与改动前逐字段一致，允许差异仅 4 项（新增 `/paths`、`recipe.script.sha256`、`recipe.script.bytes`、`legacy_manifest_entries 106→107` 且有理由），其余字段（recipe/判据/容差/`--repeat 2`/out_dir/seed/environment/model_static/per_world_plan/cam_active_fixed_only）逐字一致；② 边界零越界：`src/`、`fixtures/render-bvh/scene-a/`、`scene-a/perworld/`、`sdf-criterion-v2.2/` 零 diff；`scene-a-light/` 只含 `scene.xml`，三灯属性与 scene-a 逐字相同、嵌套在 `tri_body` 下、相机 mode 不变；③ 行数：主脚本 497（基线 499）、新模块 160、场景 84（git blob 换行口径，均 ≤500），采集语义/recipe/`--repeat 2`/默认路径未变；④ dry-run 三自检（场景静态 / 三灯×三 world 位姿数值表与差异键 / 路径回显）可独立复现且数值与证据一致；负例非空 out-dir、越界 out-root 均 exit 1；不做渲染判别力断言；⑤ 证据 manifest 自核（16 文件口径）、task_id=/卡 id、UTF-8/LF/无 BOM/裸 CR·TAB 0、非声明在位。**只读 + 只写本卡证据目录；零 GPU。**",
+    "en": "Read-only review at HEAD b0b8cc02 of the light-prep slice: default dry-run field-identical apart from the four allowed diffs, zero-diff boundaries, 497/160/84 git-blob line counts, independently reproduced dry-run self-checks and negative exits, and evidence self-check/encoding/non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**默认行为不变**：同树（当前工作树）下用改动前脚本（`b0b8cc02^`，sha `67a760fa…`/24,008 B）与改动后脚本（`3e1d207c…`/23,829 B）跑同一默认命令，逐叶字段 diff 仅 `/paths`（新增 7 叶）、`/recipe/script/sha256`、`/recipe/script/bytes` 三项（`/recipe/script/path` 一致；`legacy_manifest_entries` 同为 107、`repeat` 同为 2）；`b0b8cc02^`→`b0b8cc02` 的 legacy 计数 106→107 由新增静态夹具 `scene-a-light/scene.xml`（+1）解释，非脚本行为变化。",
+    "**边界零越界**：`git diff --name-only b0b8cc02^..b0b8cc02 -- src fixtures/render-bvh/scene-a docs/development-evidence/render-bvh/sdf-criterion-v2.2` 为空；`fixtures/render-bvh/scene-a-light/` 恰 1 文件 `scene.xml`；无 `scene-a-light/perworld/` 或其它新参考。",
+    "**场景变体等价性**：解析两份 XML，三灯 `name/type/pos/dir/diffuse/specular/ambient/attenuation/cutoff/exponent/softness/castshadow/active/bulbradius/intensity/range` 属性字典逐值相等（sun 12 / lamp 14 / spot 16 属性）；变体中三灯父元素均为 `tri_body`；移除三灯后两份 XML 结构完全相等；相机 mode 不变（cam-persp 0、cam-track 3）。",
+    "**行数与采集语义**：git blob 换行口径 `capture_render_perworld.py` 497（基线 499）、`perworld_light_prep.py` 160、`scene.xml` 84，均 ≤500；脚本 diff 仅涉及 docstring 示例、模块 import、`legacy_manifest(out_root)` 参数化、`--scene/--out-root` 参数、dry-run plan 移入模块、捕获路径 `legacy_manifest(out_root)` 两处；`--repeat` 仍 `choices=(1,2), default=2`，recipe 字段集合/判据/容差未动。",
+    "**dry-run 三自检可复现**：显式 `--scene scene-a-light/scene.xml --out-root scene-a-light/perworld --worlds 3 --hinge-deg 0,20,40 --dry-run` → exit 0；`light_pose_precheck` 含 `lights`（三灯 attached_body 均 `tri_body`）、`per_world`（3 world 的 light_xpos/xdir）、`diff_keys`（sun 10.745878447°/21.255926664°、lamp 0.222378165/0.437999482 m、spot 0/0）、`verdict.nonzero=true`；`paths` 回显默认/显式且 `scene_explicit/out_root_explicit=true`；默认 run **不含** `light_pose_precheck`（默认行为不变）。",
+    "**负例**：`--out-dir` 指向已存在非空目录 → exit 1；`--out-dir` 不在 `--out-root` 下 → exit 1；两者均无副作用（无目录创建、`git status` 干净）。",
+    "**证据自核**：`perworld-l-v2-light-prep/manifest.txt` 首行 `#`、逐条 sha256/bytes 独立重算通过（15 条 + manifest 自身 = 16 文件口径）、不自列；16 个文件 UTF-8/LF/无 BOM/裸 CR·TAB 0；`receipt.json /task_id` = 卡 id；非声明在位（不构成 L v2 启动、不产参考、不宣称灯位姿覆盖/上游等价/渲染数值结论）；卡 status=verified、revision.before=b6b8bd89。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单；O1（死代码占位）/O2（diff 分类命名）/O3（TASK_ID 旧卡 id）/O4（spot 恒 0）按 observation 记录不返工；证据落 `docs/development-evidence/render-bvh/perworld-l-v2-light-prep-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-perworld-l-v2-light-prep"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-prep-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "QA 自登记（Chief 2026-11-06 19:14：备选准备片 1 落库后做只读复核，自登记一张挂在该卡下）。复核目标 HEAD b0b8cc02，基线 b0b8cc02^。只读复核：不改被复核脚本/场景/证据、既有证据、代码与 fixtures；零 GPU、CPU-only。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-06T11:19:00Z",
+  "updated_at": "2026-11-06T11:19:00Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/render-bvh/scene-a/",
+        "docs/development-evidence/render-bvh/sdf-criterion-v2.2/",
+        "scripts/capture_render_perworld.py",
+        "scripts/perworld_light_prep.py",
+        "fixtures/render-bvh/scene-a-light/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-prep/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-prep-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-06-render-perworld-l-v2-light-prep-check"
+    }
+  ]
+}
