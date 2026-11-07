@@ -66,8 +66,10 @@ def main():
     head = run("git", "rev-parse", "HEAD").stdout.decode().strip()
     anc = run("git", "merge-base", "--is-ancestor", BASE, "HEAD").returncode
     after = run("git", "diff", "--name-only", BASE, "HEAD").stdout.decode().splitlines()
-    mine = [p for p in after if p == CARD or p.startswith(CHECK)
-            or p.startswith(".normify/runs/2026-11-07-render-perworld-l-v1-reference-discriminability-check/")]
+    qa_names = ("perworld-l-v1-reference-discriminability-check",
+                "perworld-l-v1-reference-review",
+                "perworld-l-v2-capture-perworld-refresh-check")
+    mine = [p for p in after if any(n in p for n in qa_names)]
     add("review_target_traceable_and_only_own_artifacts_after", anc == 0 and after == mine,
         {"base": BASE, "current_head": head, "after": after})
 
@@ -256,6 +258,80 @@ def main():
     else:
         add("minimal_conclusion_and_qualification_present", False, "README missing")
 
+    # 13) P0-3 补充（Arch 请求，fix 轮）：证据链锚点映射 / 面向用户话术 / P0-1·pilot 独立建议
+    chain = {
+        "note": "哪些 L v1 断言直接依赖该参考的逐 world 像素对照、哪些只依赖产品侧隔离/实现面/完整性。",
+        "items": [
+            {"path": ".normify/changes/2026-10-30-render-perworld-impl-s1.json", "anchor": "acceptance #2「逐 world 正确性」",
+             "claim": "逐 world 位级比对 rgb（mismatched=0/max_byte_diff=0）、depth（mismatched=0/max_ulp<=4）、seg 全等；world 隔离；两跑 SHA 相同",
+             "depends_on_reference_pixels": True,
+             "still_valid_part": "world 隔离（产品侧）、两跑 SHA（确定性）",
+             "downgraded_part": "「rgb/depth/seg 逐 world 位级对照通过」在该参考上空转", "class": "B"},
+            {"path": "docs/development-evidence/render-bvh/perworld-impl-s1/README.md", "anchor": "「实现机制」1–4 节",
+             "claim": "adr 位移输出定位、内核索引点不变、逐 world 编排、leaf 槽位校验",
+             "depends_on_reference_pixels": False,
+             "still_valid_part": "实现机制与 CPU 单测/门禁事实", "downgraded_part": "无（该节不依赖参考像素）", "class": "实现面事实"},
+            {"path": "docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/entity-results.csv",
+             "anchor": "行 `render_per_world,new,0`；logs/render_per_world.log `gpu_per_world_matches_captured_reference ... ok`",
+             "claim": "实体通过（含参考逐 world 对照 + 两跑 + 隔离）",
+             "depends_on_reference_pixels": True,
+             "still_valid_part": "产品侧 world 隔离与两跑确定性（日志内同用例）",
+             "downgraded_part": "参考对照部分空转；不得作为 per-world 正确性依据", "class": "B"},
+            {"path": "tests/render_per_world.rs", "anchor": ":378-420 参考逐 world 对照 / :422-435 两跑 SHA / :437-469 world 隔离",
+             "claim": "参考对照 + 确定性 + 隔离断言",
+             "depends_on_reference_pixels": True,
+             "still_valid_part": ":422-435 确定性、:437-469 隔离（产品侧）",
+             "downgraded_part": ":378-420 参考对照（参考无判别力）", "class": "B（部分）"},
+            {"path": "docs/development-evidence/render-bvh/perworld-s1-window-material/materials/entity-table.json",
+             "anchor": "render_per_world 实体条目（判据/覆盖理由）",
+             "claim": "窗口内用该参考做逐 world 对照",
+             "depends_on_reference_pixels": True, "still_valid_part": "材料/冻结/窗口纪律部分",
+             "downgraded_part": "参考对照判据在该参考上不适用", "class": "B"},
+            {"path": "docs/development-evidence/render-bvh/perworld-capture-run/receipt.json（及 manifest）",
+             "anchor": "capture.json files_sha256 / manifest 逐文件 sha256+bytes",
+             "claim": "参考文件存在、哈希绑定、两跑 bitwise 一致",
+             "depends_on_reference_pixels": False,
+             "still_valid_part": "完整性/确定性（C 类）", "downgraded_part": "不涉数值正确性", "class": "C"},
+            {"path": "docs/development-evidence/render-bvh/perworld-capture-check/", "anchor": "QA 采集复核证据",
+             "claim": "采集产物完整性/确定性/边界复核",
+             "depends_on_reference_pixels": False,
+             "still_valid_part": "C 类完整性结论", "downgraded_part": "不覆盖 world 判别力（当时未要求）", "class": "C"},
+        ],
+    }
+    add("evidence_chain_anchor_map_recorded", len(chain["items"]) == 7
+        and any(i["depends_on_reference_pixels"] for i in chain["items"])
+        and any(not i["depends_on_reference_pixels"] for i in chain["items"]),
+        {"items": len(chain["items"])})
+    dump("evidence-chain.json", chain)
+
+    user_sentence = ("L v1 per-world geom 位姿覆盖中，「以 nw3-hinge02040 参考做逐 world 像素对照并通过」这部分为空转："
+                     "该参考三 world 输出逐位相同、无 world 间判别力，不能作为 per-world 位姿正确性的对照依据；"
+                     "仍成立的是参考的确定性/哈希完整性、逐 world 位姿数据面记录，以及产品侧 world 隔离断言——"
+                     "后者只说明位姿变化会影响产品输出，不等于与参考一致。"
+                     "待 P0-1 修复 + pilot 通过后的新参考再验证。")
+    advice = {
+        "supports_refit_direction": True,
+        "why": "refit_bvh 是实现正确的必要修复（调用序/上游语义核对通过）；但它只解决「render 前未刷新场景 BVH」这一根因假设，不改变视野内看不到 world 变化几何的事实。",
+        "pilot_expectation": "按现 scene-a-light + cam-persp（视野内仅 floor），depth/seg 变化很可能仍为 0；即便 rgb 因灯光位姿变化而有差，§6 的 depth/seg 门槛仍不可达。",
+        "pilot_must_record": ["per-world rgb/depth/seg 参考与产品侧变化像素", "seg 可见 geom id 集合", "rgb 差异来源（灯光/阴影面 vs 几何面）", "refit 是否实际执行（调用计数/日志）"],
+        "recommendation": "pilot 若 non-discriminating：先核视野（seg 是否仍只有 floor）、再决定改场景/相机（新 spec + 重签）或改判别力口径（签名级）；不要只在采集脚本上继续试。",
+        "not_claiming": "不替实现卡/判据下结论；refit 修复仍按 P0-1 卡与本 QC 复核结论有效（PASS）。",
+    }
+    add("pilot_advice_recorded", advice["supports_refit_direction"] is True
+        and len(advice["pilot_must_record"]) >= 3 and "non-discriminating" in advice["recommendation"],
+        {"supports_refit_direction": advice["supports_refit_direction"]})
+    dump("pilot-advice.json", advice)
+
+    if os.path.exists(readme_path):
+        readme2 = open(readme_path, encoding="utf-8").read()
+        add("p0_3_supplement_sections_present",
+            "## 9. 证据链锚点映射" in readme2 and "## 10. 面向用户的限定话术" in readme2
+            and "## 11. 对 P0-1 / pilot 的独立建议" in readme2 and "该参考三 world 输出逐位相同" in readme2,
+            {"has_9_10_11": all(s in readme2 for s in ["## 9. 证据链锚点映射", "## 10. 面向用户的限定话术",
+                                                       "## 11. 对 P0-1 / pilot 的独立建议"])})
+    else:
+        add("p0_3_supplement_sections_present", False, "README missing")
+
     passed = sum(1 for c in checks if c["ok"])
     total = len(checks)
     summary = {"conclusion": "PASS" if passed == total else "FAIL", "passed": passed, "total": total,
@@ -271,3 +347,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

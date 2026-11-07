@@ -85,3 +85,30 @@ cd D:\Rust\mjwarp-rs
 target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/scripts/verify_l1_reference_review.py
 # 期望末行：SUMMARY PASS 10/10
 ```
+
+## 9. 证据链锚点映射（P0-3 补充）
+
+| 证据/文件 | 锚点 | 断言 | 是否直接依赖该参考的逐 world 像素对照 | 仍成立 / 降级 |
+| --- | --- | --- | --- | --- |
+| `.normify/changes/2026-10-30-render-perworld-impl-s1.json` | acceptance #2「逐 world 正确性」 | rgb/depth/seg 逐 world 位级对照 + world 隔离 + 两跑 SHA | **是（像素对照部分）** | 隔离、两跑 SHA 仍成立；像素对照降级（空转） |
+| `docs/development-evidence/render-bvh/perworld-impl-s1/README.md` | 「实现机制」1–4 节 | adr 位移定位、内核索引点不变、逐 world 编排、leaf 槽位校验 | 否 | 仍成立（实现面事实） |
+| `docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/entity-results.csv` + `logs/render_per_world.log` | `render_per_world,new,0`；`gpu_per_world_matches_captured_reference ... ok` | 实体通过（含参考对照/两跑/隔离） | **是（整体用例）** | 隔离/确定性仍成立；参考对照降级 |
+| `tests/render_per_world.rs` | `:378-420` 参考对照 / `:422-435` 两跑 SHA / `:437-469` world 隔离 | 参考对照 + 确定性 + 隔离断言 | **部分是** | `:422-435`、`:437-469` 仍成立；`:378-420` 降级 |
+| `docs/development-evidence/render-bvh/perworld-s1-window-material/materials/entity-table.json` | `render_per_world` 实体条目 | 窗口内用该参考做逐 world 对照 | **是** | 材料/冻结/纪律部分成立；参考对照判据降级 |
+| `docs/development-evidence/render-bvh/perworld-capture-run/receipt.json`（及 manifest） | `capture.json` `files_sha256` / manifest 逐文件 sha256+bytes | 参考存在、哈希绑定、两跑 bitwise 一致 | 否 | 仍成立（C 类完整性/确定性） |
+| `docs/development-evidence/render-bvh/perworld-capture-check/` | QA 采集复核证据 | 采集产物完整性/确定性/边界 | 否 | 仍成立（C 类）；不覆盖 world 判别力（当时未要求） |
+
+## 10. 面向用户的限定话术（P0-3 补充，供 Chief 直接引用）
+
+> **L v1 per-world geom 位姿覆盖中，「以 `nw3-hinge02040` 参考做逐 world 像素对照并通过」这部分为空转：该参考三 world 输出逐位相同、无 world 间判别力，不能作为 per-world 位姿正确性的对照依据；仍成立的是参考的确定性/哈希完整性、逐 world 位姿数据面记录，以及产品侧 world 隔离断言——后者只说明位姿变化会影响产品输出，不等于与参考一致。待 P0-1 修复 + pilot 通过后的新参考再验证。**
+
+## 11. 对 P0-1 / pilot 的独立建议（P0-3 补充）
+
+- **是否支持 refit_bvh 方向：支持（必要修复）**。理由：调用序/上游语义核对通过（见 `perworld-l-v2-capture-perworld-refresh` 与 QA 复核卡 `...-refresh-check`），它解决「render 前未刷新场景 BVH」这一根因假设；但**不改变**视野内看不到 world 变化几何的事实。
+- **pilot 期望**：按现 `scene-a-light` + `cam-persp`（视野内仅 floor），depth/seg 变化很可能仍为 0；即使 rgb 因灯光位姿变化而有差，spec v2 §6 的 depth/seg 门槛仍不可达。**若 pilot 仍 `non-discriminating`，不必然否定 refit 修复**（它修的是另一问题），但说明「改场景/相机使 world 变化几何可见」或「改判别力口径」是前置（均属签名级）。
+- **pilot 必须记录**：per-world rgb/depth/seg 参考与产品侧变化像素、seg 可见 geom id 集合、rgb 差异来源（灯光/阴影面 vs 几何面）、refit 是否实际执行（调用计数/日志）。
+- **不替实现卡/判据下结论**；refit 修复本身按 P0-1 卡与 QA 复核结论（PASS）有效。
+
+## 12. 修订记录（fix）
+
+- 2026-11-07：按 Arch P0-3 acceptance 补充 §9（证据链锚点映射）、§10（面向用户限定话术）、§11（P0-1/pilot 独立建议）。**主体 §1–§8 的事实、分类与限定未改**；不改历史证据/既有卡状态。

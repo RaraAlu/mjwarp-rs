@@ -1,0 +1,13 @@
+{
+ "supports_refit_direction": true,
+ "why": "refit_bvh 是实现正确的必要修复（调用序/上游语义核对通过）；但它只解决「render 前未刷新场景 BVH」这一根因假设，不改变视野内看不到 world 变化几何的事实。",
+ "pilot_expectation": "按现 scene-a-light + cam-persp（视野内仅 floor），depth/seg 变化很可能仍为 0；即便 rgb 因灯光位姿变化而有差，§6 的 depth/seg 门槛仍不可达。",
+ "pilot_must_record": [
+  "per-world rgb/depth/seg 参考与产品侧变化像素",
+  "seg 可见 geom id 集合",
+  "rgb 差异来源（灯光/阴影面 vs 几何面）",
+  "refit 是否实际执行（调用计数/日志）"
+ ],
+ "recommendation": "pilot 若 non-discriminating：先核视野（seg 是否仍只有 floor）、再决定改场景/相机（新 spec + 重签）或改判别力口径（签名级）；不要只在采集脚本上继续试。",
+ "not_claiming": "不替实现卡/判据下结论；refit 修复仍按 P0-1 卡与本 QC 复核结论有效（PASS）。"
+}

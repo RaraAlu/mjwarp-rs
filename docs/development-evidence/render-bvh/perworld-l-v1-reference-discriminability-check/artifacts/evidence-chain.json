@@ -1,0 +1,68 @@
+{
+ "note": "哪些 L v1 断言直接依赖该参考的逐 world 像素对照、哪些只依赖产品侧隔离/实现面/完整性。",
+ "items": [
+  {
+   "path": ".normify/changes/2026-10-30-render-perworld-impl-s1.json",
+   "anchor": "acceptance #2「逐 world 正确性」",
+   "claim": "逐 world 位级比对 rgb（mismatched=0/max_byte_diff=0）、depth（mismatched=0/max_ulp<=4）、seg 全等；world 隔离；两跑 SHA 相同",
+   "depends_on_reference_pixels": true,
+   "still_valid_part": "world 隔离（产品侧）、两跑 SHA（确定性）",
+   "downgraded_part": "「rgb/depth/seg 逐 world 位级对照通过」在该参考上空转",
+   "class": "B"
+  },
+  {
+   "path": "docs/development-evidence/render-bvh/perworld-impl-s1/README.md",
+   "anchor": "「实现机制」1–4 节",
+   "claim": "adr 位移输出定位、内核索引点不变、逐 world 编排、leaf 槽位校验",
+   "depends_on_reference_pixels": false,
+   "still_valid_part": "实现机制与 CPU 单测/门禁事实",
+   "downgraded_part": "无（该节不依赖参考像素）",
+   "class": "实现面事实"
+  },
+  {
+   "path": "docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/entity-results.csv",
+   "anchor": "行 `render_per_world,new,0`；logs/render_per_world.log `gpu_per_world_matches_captured_reference ... ok`",
+   "claim": "实体通过（含参考逐 world 对照 + 两跑 + 隔离）",
+   "depends_on_reference_pixels": true,
+   "still_valid_part": "产品侧 world 隔离与两跑确定性（日志内同用例）",
+   "downgraded_part": "参考对照部分空转；不得作为 per-world 正确性依据",
+   "class": "B"
+  },
+  {
+   "path": "tests/render_per_world.rs",
+   "anchor": ":378-420 参考逐 world 对照 / :422-435 两跑 SHA / :437-469 world 隔离",
+   "claim": "参考对照 + 确定性 + 隔离断言",
+   "depends_on_reference_pixels": true,
+   "still_valid_part": ":422-435 确定性、:437-469 隔离（产品侧）",
+   "downgraded_part": ":378-420 参考对照（参考无判别力）",
+   "class": "B（部分）"
+  },
+  {
+   "path": "docs/development-evidence/render-bvh/perworld-s1-window-material/materials/entity-table.json",
+   "anchor": "render_per_world 实体条目（判据/覆盖理由）",
+   "claim": "窗口内用该参考做逐 world 对照",
+   "depends_on_reference_pixels": true,
+   "still_valid_part": "材料/冻结/窗口纪律部分",
+   "downgraded_part": "参考对照判据在该参考上不适用",
+   "class": "B"
+  },
+  {
+   "path": "docs/development-evidence/render-bvh/perworld-capture-run/receipt.json（及 manifest）",
+   "anchor": "capture.json files_sha256 / manifest 逐文件 sha256+bytes",
+   "claim": "参考文件存在、哈希绑定、两跑 bitwise 一致",
+   "depends_on_reference_pixels": false,
+   "still_valid_part": "完整性/确定性（C 类）",
+   "downgraded_part": "不涉数值正确性",
+   "class": "C"
+  },
+  {
+   "path": "docs/development-evidence/render-bvh/perworld-capture-check/",
+   "anchor": "QA 采集复核证据",
+   "claim": "采集产物完整性/确定性/边界复核",
+   "depends_on_reference_pixels": false,
+   "still_valid_part": "C 类完整性结论",
+   "downgraded_part": "不覆盖 world 判别力（当时未要求）",
+   "class": "C"
+  }
+ ]
+}
