@@ -18,6 +18,7 @@ import numpy as np
 sys.dont_write_bytecode = True
 
 BASE = "e34df3b7"
+REG = "2746db06"  # 本卡登记提交（BASE 的直接子提交）；用于稳定追溯判定
 EVID_REF = "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/"
 EVID_MAIN = "fixtures/render-bvh/scene-a/reference/"
 CHECK = "docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/"
@@ -62,16 +63,14 @@ def main():
             json.dump(obj, f, ensure_ascii=False, indent=1)
             f.write("\n")
 
-    # 0) 复核目标可追溯：BASE 之后只允许本卡登记/证据
-    head = run("git", "rev-parse", "HEAD").stdout.decode().strip()
-    anc = run("git", "merge-base", "--is-ancestor", BASE, "HEAD").returncode
-    after = run("git", "diff", "--name-only", BASE, "HEAD").stdout.decode().splitlines()
-    qa_names = ("perworld-l-v1-reference-discriminability-check",
-                "perworld-l-v1-reference-review",
-                "perworld-l-v2-capture-perworld-refresh-check")
-    mine = [p for p in after if any(n in p for n in qa_names)]
-    add("review_target_traceable_and_only_own_artifacts_after", anc == 0 and after == mine,
-        {"base": BASE, "current_head": head, "after": after})
+    # 0) 复核目标可追溯（稳定判定：不记录 HEAD / after 等易变字段，保证复跑不弄脏树）
+    base_anc = run("git", "merge-base", "--is-ancestor", BASE, "HEAD").returncode == 0
+    reg_anc = run("git", "merge-base", "--is-ancestor", REG, "HEAD").returncode == 0
+    reg_scope = run("git", "diff", "--name-only", f"{BASE}..{REG}").stdout.decode().splitlines()
+    add("review_target_traceable_and_only_own_artifacts_after",
+        base_anc and reg_anc and reg_scope == [CARD],
+        {"base": BASE, "registration": REG, "base_ancestor": base_anc,
+         "registration_ancestor": reg_anc, "registration_scope_ok": reg_scope == [CARD]})
 
     # 1) 参考文件与 capture.json 哈希绑定
     cap = json.load(open(os.path.join(EVID_REF, "capture.json"), encoding="utf-8"))

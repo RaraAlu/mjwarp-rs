@@ -60,7 +60,7 @@
 
 | 路径 | 说明 |
 | --- | --- |
-| `scripts/verify_l1_reference_review.py` | 复核脚本（10 项只读复算：事实/哈希/可见性/分类/历史不改，可复跑） |
+| `scripts/verify_l1_reference_review.py` | 复核脚本（14 项只读复算：事实/哈希/可见性/分类/历史不改 + P0-3 锚点/话术/建议，可复跑且复跑不改写易变字段） |
 | `logs/verify-l1-reference-review.json` | 检查结果机器可读（PASS n/n） |
 | `logs/verify-l1-reference-review.log` | 脚本原始输出 |
 | `artifacts/reference-facts.json` | 逐 world 逐位相等性、max abs diff、变化像素、文件哈希绑定 |
@@ -69,6 +69,8 @@
 | `artifacts/l1-claims.json` | L v1 相关卡与窗口 attempt3 声明清单（原文引用） |
 | `artifacts/classification.json` | 按标准的分类、前提判定、仍成立/降级清单 |
 | `artifacts/unchanged.json` | 历史证据/卡零改动探针 |
+| `artifacts/evidence-chain.json` | P0-3 证据链锚点映射（7 条：依赖参考像素对照 vs 产品侧/完整性） |
+| `artifacts/pilot-advice.json` | P0-3 对 P0-1/pilot 的独立建议 |
 | `README.md` / `receipt.json` | 本限定说明与机器可读回执 |
 | `manifest.txt` | 本目录 sha256 + bytes（首行 `#`，不自列） |
 
@@ -83,7 +85,7 @@
 ```powershell
 cd D:\Rust\mjwarp-rs
 target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/scripts/verify_l1_reference_review.py
-# 期望末行：SUMMARY PASS 10/10
+# 期望末行：SUMMARY PASS 14/14
 ```
 
 ## 9. 证据链锚点映射（P0-3 补充）
@@ -112,3 +114,5 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/rend
 ## 12. 修订记录（fix）
 
 - 2026-11-07：按 Arch P0-3 acceptance 补充 §9（证据链锚点映射）、§10（面向用户限定话术）、§11（P0-1/pilot 独立建议）。**主体 §1–§8 的事实、分类与限定未改**；不改历史证据/既有卡状态。
+- 2026-11-07（hold 期 O1–O3 修复）：O1 复核脚本追溯判定改为稳定判定（不再写 `current_head`/`after`），复跑不改写易变字段、复跑后树干净；O2 §6 计数 10→14 并补 `evidence-chain.json`/`pilot-advice.json` 两行、§8 复现摘要 14/14；O3 manifest 相对路径统一正斜杠。**§1–§11 正文结论未改。**
+
