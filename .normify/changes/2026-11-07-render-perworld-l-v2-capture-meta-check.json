@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v2-capture-meta-check",
+  "title": {
+    "zh": "QA 只读复核：perworld L v2 采集脚本 §11.1 前置（command/captured_at/per_world_scope/reference_tag；含 9275e6e6 证据层修正后的最终状态）",
+    "en": "QA read-only review of the perworld L v2 capture-script §11.1 prerequisites (command/captured_at/per_world_scope/reference_tag; final state after the 9275e6e6 evidence-layer fix)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对采集元数据实现卡 `2026-11-07-render-perworld-l-v2-capture-meta`（verified；登记 262c034a → start d8597014 → 实现 b0af1be4 → 证据层修正 9275e6e6）做**只读复核**（复核目标 HEAD **9275e6e6**，代码基线 91d628c3）：① `command` 顶层 {argv 逐字, cwd, rendered} + dry-run 回显 + 写后自核非空；② `captured_at` 只接受显式非空 ISO8601 `MJWARP_CAPTURE_AT`，缺失/空串/非 ISO 均在 GPU 之前 exit 1 且 out_dir 不创建，dry-run 不消费只回显 {present, non_empty}；③ `per_world_scope` 保留字段名、新覆盖口径（灯位姿 + geom 位姿 + spec §10.3 host-only 前提），旧口径出现即拒；④ 选 (b) 新增 `reference_tag`（默认参考目录名、`--reference-tag` 覆盖），`task_id`/`task_id_source` 保留，理由与前后值入证据；⑤ 默认干跑前后逐字段 diff unexpected=0（仅新增 /command、/reference_tag、/captured_at_env 与 /recipe/script sha/bytes），legacy 107 不变；⑥ 行数 499/230、四门禁 unit 1359/0、`unchanged src/, fixtures/`、证据 manifest 16/16 与编码卫生、模块自检 14/14、两条负例日志带 exit_code、合成形状文件标注 SYNTHETIC；并复核 9275e6e6 的三条证据层修正（O1 计时统一为实测 0.079/0.078 s、O2『环境变量』笔误修正、O4 `command.argv` 路径写法已知项）。**只读 + 只写本卡证据目录；CPU-only、零 GPU、不采集。**",
+    "en": "Read-only review at HEAD 9275e6e6 (code baseline 91d628c3) of the four §11.1 prerequisites, the unchanged default behavior, line counts/gates/boundaries/evidence self-checks, and the three evidence-layer corrections made in 9275e6e6."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① command**：`capture.json` 顶层 `command = {argv 非空逐字, cwd, rendered 非空}`；dry-run plan 同口径回显；采集写后 `verify_capture_metadata` 自核非空；空 argv 被拒（接口级复现）。",
+    "**② captured_at**：只接受显式非空 ISO8601 `MJWARP_CAPTURE_AT`；缺失、空串、非 ISO8601 三种输入在采集路径均 exit 1、消息明确、out_dir 未创建、耗时 <2 s 且无 CUDA/warp device 字样（GPU 之前失败）；dry-run 不消费该 env，只回显 `{present, non_empty}`（含非法值也不报错）。",
+    "**③ per_world_scope**：保留 `covers`/`does_not_cover` 字段名；`covers` 含 per-world 灯位姿 + geom 位姿 + spec §10.3 host-only 灯语义前提（`1-D`/`worldid`/`.cu unchanged`）；`does_not_cover` 列 AA×perworld、方案 K、连续动画/多 world 规模、上游等价；旧口径字符串出现即被拒（接口级+模块自检双重）。",
+    "**④ task_id/reference_tag**：`reference_tag` 默认 = 参考目录名（spec v2 §2.2 tag）、`--reference-tag` 可覆盖；`task_id` + `task_id_source=script-constant` 原样保留；决策 (b) 理由与前后值在 README §2 与 `artifacts/capture-meta.json`。",
+    "**⑤ 默认行为**：同树旧脚本（sha `3e1d207c…`/497 行）vs 新脚本默认 dry-run 逐叶 diff 仅新增 `/command`、`/reference_tag`、`/captured_at_env` 与变更 `/recipe/script/sha256|bytes`；removed=0、legacy 107 不变、repeat 2 不变；被复核 before/after 日志可逐叶复跑一致。",
+    "**⑥ 边界与证据**：行数 git blob 口径 499/230（≤500）且与证据一致；四门禁被复核卡 unit 1359/0；`git diff 91d628c3..9275e6e6` 仅代码 2 文件 + 证据目录 + 卡/runs，`fixtures/`、`src/` 零 diff、未采集；证据 manifest 16/16 自核、17 文件 UTF-8/LF/无 BOM/裸 CR·TAB 0；模块自检 14/14；负例日志带 exit_code；合成文件标注 SYNTHETIC；`9275e6e6` 修正面仅 README/receipt/manifest + 卡 addenda + gates（O1 计时 0.079/0.078、O2『环境变量』、O4 argv 路径已知项）。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单；证据落 `docs/development-evidence/render-bvh/perworld-l-v2-capture-meta-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-capture-meta"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-meta-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "QA 自登记（Chief 2026-11-07 13:04：采集元数据实现卡落库后复核；Backend 13:06 追加证据层修正 9275e6e6，复核目标改为最终 HEAD 9275e6e6）。代码基线 91d628c3。只读复核：不改被复核脚本/证据、既有证据、代码与 fixtures；CPU-only、零 GPU、不采集。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-07T05:08:00Z",
+  "updated_at": "2026-11-07T05:08:00Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/sdf-criterion-v2.2/",
+        "scripts/capture_render_perworld.py",
+        "scripts/perworld_capture_meta.py",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-meta/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-meta-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v2-capture-meta-check"
+    }
+  ]
+}
