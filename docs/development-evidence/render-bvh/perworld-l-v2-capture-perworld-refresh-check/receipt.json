@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh-check",
+  "owner": "QA",
+  "kind": "read-only-review",
+  "date": "2026-11-07",
+  "reviewed_card": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh",
+  "reviewed_card_status": "verified",
+  "reviewed_commits": {"register": "27bbd8fb", "start": "ff5cba9e", "result": "e34df3b7"},
+  "final_head": "e34df3b7",
+  "baseline": "edc6019b",
+  "conclusion": "PASS",
+  "blocking": 0,
+  "observations": 0,
+  "qa_checks": {"result": "PASS", "passed": 16, "total": 16, "fails": []},
+  "point_results": {
+    "1_refit_immediately_before_render_and_helper_contract": "PASS",
+    "2_call_order_assertion_10_of_10_reproduced_with_7_negatives": "PASS",
+    "3_upstream_root_cause_citations_verified": "PASS",
+    "4_default_and_worlds1_behavior_unchanged": "PASS",
+    "5_lines_gates_boundary_evidence": "PASS"
+  },
+  "change": {
+    "where": "scripts/capture_render_perworld.py::render_images (statement immediately before mjw.render)",
+    "helper": "scripts/perworld_capture_meta.py::refit_scene_before_render",
+    "helper_call": "mjw.refit_bvh(m, d, rc)",
+    "helper_has_control_flow": false,
+    "render_images_mjw_render_calls": 1,
+    "capture_once_calls_render_images": 1,
+    "main_calls_capture_once": 2,
+    "capture_once_calls_after_create_render_context": true,
+    "no_context_rebuild": true,
+    "no_megakernel_recompile": true
+  },
+  "upstream_citations": {
+    "pinned_upstream": "target/mjwarp-parallel/upstream (71da24d9)",
+    "render_util_create_render_context_mjdata_mj_forward_lines": [403, 404],
+    "refit_bvh_definition_line": 39,
+    "refit_bvh_args": ["m", "d", "rc"],
+    "refit_scene_bvh_definition_line": 382,
+    "refit_scene_bvh_uses_nworld_dim_and_geom_fields": true,
+    "init_exports_refit_bvh": true
+  },
+  "default_behavior": {
+    "method": "same working tree; edc6019b main script temporarily restored, run, restored in finally (sha verified)",
+    "changed_leaves": ["/recipe/script/sha256", "/recipe/script/bytes"],
+    "added_leaves": [],
+    "removed_leaves": [],
+    "legacy_manifest_entries": [107, 107],
+    "evidence_logs_reproduced": true
+  },
+  "worlds1_behavior": {
+    "old_exit": 1,
+    "new_exit": 1,
+    "stderr_equal": true,
+    "out_dir_created": false,
+    "message": "perworld capture environment/reference mismatch: --worlds must be >= 2 (this is a per-world reference)"
+  },
+  "line_ratchet": {
+    "scripts/capture_render_perworld.py": {"lines": 500, "baseline_lines": 499, "bytes": 24148, "sha256": "6360e5d44da6508774ace481ee0c26b9dfb2bff71d194afaf38d109d940c522c"},
+    "scripts/perworld_capture_meta.py": {"lines": 244, "baseline_lines": 230, "bytes": 11048, "sha256": "302661fd8f8d551f4329549dbbc5cd12a344556a96f034c59a1e425fcf91100c"},
+    "scripts/perworld_light_prep.py": {"lines": 160, "bytes": 7206, "sha256": "9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c"},
+    "limit": 500,
+    "all_within_limit": true
+  },
+  "scope": {
+    "diff_base": "edc6019b",
+    "diff_head": "e34df3b7",
+    "changed_paths": 27,
+    "zero_diff_probe": ["fixtures/", "src/", "tests/", "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"],
+    "no_capture": true,
+    "no_reference_written": true,
+    "gpu_free": true
+  },
+  "evidence_selfcheck": {
+    "manifest_entries": 18,
+    "files_total": 19,
+    "manifest_selfcheck_bad": 0,
+    "encoding_bad": [],
+    "scripts_diff_matches_git": true,
+    "default_dryrun_diff_unexpected": 0,
+    "worlds1_identical": true,
+    "call_order_assertion": {"exit": 0, "summary": "SUMMARY PASS 10/10", "negatives": 7}
+  },
+  "reviewed_card": {
+    "status": "verified",
+    "revision_before": "27bbd8fb538c3cfad9b0a76e950d858d0c13d900",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit_gate": {"passed": 1359, "failed": 0, "ignored": 400}
+  },
+  "cross_reference": {
+    "qa_hypothesis_card": "2026-11-07-render-perworld-l-v1-reference-discriminability-check (a654c2a7)",
+    "note": "P0-1 是必要修复；但 QA 另一只读复核实测 cam-persp 视野内只有 world 不变地板（参考 seg 仅 floor + 背景），故单靠本修复不能让 cam-persp-only 参考获得 depth/seg 判别力；P0-2 pilot 若仍 non-discriminating 属材料 P0-4 预期分支。"
+  },
+  "boundaries": {
+    "read_only_review": true,
+    "gpu_used": false,
+    "changed_paths": [
+      ".normify/changes/2026-11-07-render-perworld-l-v2-capture-perworld-refresh-check.json",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh-check/"
+    ],
+    "unchanged": ["reviewed scripts/evidence", "fixtures/", "src/", "tests/", "spec evidence"],
+    "control_variable_note": "复核脚本曾临时把 edc6019b 主脚本写回真实路径运行并在 finally 恢复（sha 校验一致）；最终工作树 scripts/fixtures 零改动。"
+  },
+  "claims": {
+    "acceptance_conclusion": "P0-1 per-world scene refresh fix review PASS",
+    "not_claimed": "不产参考、不宣称判别力恢复、不宣称采集有效、不宣称 per-world 灯验收、不宣称与上游实现等价、不宣称任何渲染数值结论；G-L1 仍需 P0-2 pilot pass-margin"
+  }
+}

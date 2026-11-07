@@ -5,7 +5,7 @@
     "zh": "QA 只读复核：P0-1 采集脚本每 world 场景刷新（refit 紧前于 render / 覆盖每次渲染 / AST 断言 10-10 / 根因上游引用 / 默认与 worlds1 行为 / 行数 500-244-160 / 边界与证据）",
     "en": "QA read-only review of the P0-1 per-world scene refresh fix (refit immediately before render, coverage of every render, AST assertion 10/10, upstream root-cause citations, default and worlds=1 behavior, line counts, boundaries and evidence)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 P0-1 修卡 `2026-11-07-render-perworld-l-v2-capture-perworld-refresh`（verified；登记 27bbd8fb → start ff5cba9e → 实现 e34df3b7）做**只读复核**（复核目标 HEAD **e34df3b7**，基线 edc6019b）：① 改法：`scripts/capture_render_perworld.py::render_images` 在 `mjw.render` **紧前一句**调用 `refit_scene_before_render(m, d, rc)`；helper 在 `scripts/perworld_capture_meta.py` 内且恰一次 `mjw.refit_bvh(m, d, rc)`（实参顺序 m,d,rc）、无控制流；不重建 context/不重编 megakernel；覆盖：`capture_once` 只调 `render_images` 一次、`main` 调 `capture_once` 两次（首遍 + `--repeat 2`）⇒ 每次 render 前恰一次 refit。② 独立复核调用序：重跑执行方 AST 断言器（SUMMARY PASS 10/10、7 条负例均按预期拒绝、日志带 exit_code），并做独立 AST/文本检查（render 前直接语句、调用次数、helper 内容、上游导出/签名）。③ 根因引用核对：pinned 上游 `_src/render_util.py` 快照建树、`_src/bvh.py` `refit_scene_bvh` 用 `(d.nworld, rc.bvh_ngeom)` 并读 `d.geom_xpos/geom_xmat`，且一次 refit 覆盖全部 world。④ 默认/单 world：同树旧/新脚本默认 dry-run 逐叶 diff 仅 `/recipe/script/sha256|bytes`（unexpected=0）；`--worlds 1` 两版本均 exit 1、stderr 一致、不落盘。⑤ 行数：主脚本 500、meta 模块 244、prep 模块 160（≤500、git blob 口径）；四门禁 unit 1359/0；`unchanged src/, fixtures/`；证据 manifest 18/18 与编码卫生；零 GPU、不采集、不落参考。**只读 + 只写本卡证据目录；CPU-only、零 GPU。**",
     "en": "Read-only review at HEAD e34df3b7 of the P0-1 per-world scene refresh fix: call placement/coverage, independent AST verification, upstream root-cause citations, default and worlds=1 behavior, line counts, gates, boundaries and evidence self-checks."
@@ -34,11 +34,12 @@
   },
   "note": "QA 自登记（Backend 2026-11-07 13:2x：P0-1 修卡落库后复核）。复核目标 HEAD e34df3b7，基线 edc6019b。只读 + 只写本卡证据目录；零 GPU、不采集、不重跑窗口。",
   "revision": {
-    "before": null,
+    "before": "9bc8039cff7ef869961c2b1f6610a2fa0910a788",
     "after": null
   },
   "created_at": "2026-11-07T05:34:00Z",
-  "updated_at": "2026-11-07T05:34:00Z",
+  "updated_at": "2026-11-07T05:30:16.907Z",
+  "closed_at": "2026-11-07T05:30:16.907Z",
   "checks": [
     {
       "kind": "gate",
