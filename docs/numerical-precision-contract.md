@@ -262,6 +262,11 @@ SDF的frame/normal实测2.78e-5含有限差分h=1e-4的方法学放大，非缺�
 不自动放宽本表。本节前述「不写入任何生效atol或rtol」自2026-10-27起对接触字段不再适用，
 该段保留为2026-10-25选项B的历史记录与样本边界说明（当时真native仅`ellipsoid-box`1个case、2个接触点）。
 除本表外，本文件其它章节的数字与口径不动。
+
+注记（2026-11-07）：本段「边界：E尚未定稿」及随后「G6首步会用产品输出直接对native f64重算确认」「若重算后E超过1.05倍红线，须回炉报告」为2026-10-27拍板当时的历史形态，保留不回改。
+E指标已于2026-11-05由用户签署（签名级，同码跨后端核对，A2），以[NP01 E指标A2](development-evidence/np01-e-criterion-a2/README.md)（卡`2026-11-05-precision-np01-e-criterion-a2`、提交`b9cb2993`）与下节「E指标定稿（NP01，用户2026-11-05拍板选项①）」为准。
+已签范围（CONVEX/SDF两路径 × dist/pos/frame三字段块，97标量）判据为「实测worst ≤ 已签atol」的核对，不再以E比值作判据。
+本节E列数值仅保留为当时「上游f32作产品代理」的估算与历史记录，不构成当前设计依据。
 记录见[接触字段容差分档](development-evidence/native-contact-frame-normal-tiers/README.md)。
 
 ### E指标定稿（NP01，用户2026-11-05拍板选项①）
