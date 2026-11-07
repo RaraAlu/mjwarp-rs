@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v1-reference-review",
+  "title": {
+    "zh": "只读复核：L v1 perworld 参考 nw3-hinge02040 无 world 判别力（输入位姿不同、输出逐位相同）→ L v1 覆盖声明的参考侧空转限定（判据裁定 A/B/C 分类；零 GPU）",
+    "en": "Read-only review: L v1 perworld reference nw3-hinge02040 has no inter-world discriminability (poses differ, outputs bit-identical) - qualify L v1 coverage claims and classify per the machine-criterion standard A/B/C (GPU-free)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "Arch 在 G-L1 材料期发现 P0（证据 `2026-11-07-render-perworld-l-v2-capture-g-l1-material` README §0.2）：既有 L v1 perworld 参考 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/` 的 `state.npz` qpos/geom_xpos 逐 world 不同，而 `rgb/depth/seg` 三 world **逐位完全相同**（max abs diff 0.0；判别力脚本判 non-discriminating，两对 world depth/seg 变化=0）。本卡由 QA 做**只读复核**：独立重算该事实、核对 `capture.json`/文件 sha、评估「L v1 per-world geom 位姿覆盖」相关既有判据与声明的成立性，并按《机器判据裁定标准 v1》给出 A/B/C 分类与降级/限定说明。**不改历史证据、不改代码/夹具/判据、零 GPU、不采集、不开窗**；只为 Chief/用户提供限定口径，不宣称任何覆盖或等价结论。",
+    "en": "Independent read-only review of the P0 finding: recompute the per-world array equality fact, check capture metadata/file shas, assess which L v1 claims/evidence still hold versus need qualification, and classify per the A/B/C machine-criterion standard. No historical rewrite, no code/fixture/criteria change, GPU-free."
+  },
+  "modules": {},
+  "acceptance": [
+    "**事实独立重算（只读）**：从 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/` 独立读取并给出：① `state.npz` 的 `qpos`/`geom_xpos` 逐 world 差异（逐 world 值或差异摘要）；② `rgb.npz`/`depth.npz`/`seg.npz` 的 `*_w{0,1,2}_cam0` 三 world 逐位相等性（dtype/shape/`np.array_equal`/`max abs diff`）；③ 两对 world 的 depth/seg 变化像素数（应为 0/0）；④ 与 `capture.json.files_sha256` 的逐文件 sha256 对齐结果。允许复用 `docs/development-evidence/render-bvh/perworld-l-v2-capture-g-l1/materials/discriminability_check.py`，但须独立重跑并留原始输出。",
+    "**证据链核对**：核对 L v1 采集/验证相关证据（`perworld-capture-run`、`perworld-impl-s1`、`perworld-s1-window-material` 等）中「参考对照」的使用方式：哪些断言直接依赖该参考的逐 world 像素对照、哪些仅依赖产品侧 world 隔离/实现面断言；逐条列出引用位置（文件+行/锚点）。",
+    "**判据裁定分类（按《机器判据裁定标准 v1》A/B/C）**：对受影响的既有判据/声明逐条分类：A 本质-推导型（可作依据）/B 参考-前提型（前提不成立→降级并补前提）/C 完整性-哈希型（不动）；给出「仍成立」「需降级/限定」「不得继续引用」三组清单及理由；**不得**自行改写历史证据或已签判据，只给限定说明与处置建议。",
+    "**限定结论（写死口径）**：明确写出「L v1 per-world geom 位姿覆盖」在**参考侧**的对照为空转（若复核成立）；同时区分哪些既有结论仍成立（例如产品侧 world 隔离断言、实现/ABI 面证据、非位像对照类证据），避免过度否定；给出面向用户的一句话限定表述（供 Chief 使用）。",
+    "**对 P0-1/pilot 的独立建议**：说明复核结果是否支持 P0-1 的最小候选（每 world 场景刷新）方向，以及 pilot 应观察到的最小现象（判别力 >0）；不替实现卡下结论。",
+    "**边界（写死）**：只读、零 GPU、不采集、不开窗；不改 `src/`、`tests/`、`fixtures/`、任何历史证据正文、任何已签判据/criterion v2.2；只产本卡证据目录；四门禁 fmt/clippy/clippy-cuda/unit 全过；`unchanged src/`、`unchanged fixtures/`。",
+    "**证据** `docs/development-evidence/render-bvh/perworld-l-v1-reference-review/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM，manifest 首行 `#`、每文件 sha256+bytes 自核、裸 CR/TAB 自查）：事实重算原始输出、引用清单、A/B/C 分类表、限定结论、非声明。",
+    "**非声明**：不宣称 L v1 参考可修复、不宣称任何覆盖被撤销或恢复、不宣称与上游等价；本卡只给「参考侧空转」的限定与分类，处置由 Chief/用户决定。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-perworld-impl-s1",
+      "2026-11-03-render-perworld-s1-window-material"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v1-reference-review/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-07 派工（P0 决策 3）：只读复核卡，owner QA；核 L v1 参考「输入位姿不同、输出逐位相同」的事实，不改历史证据，给出「L v1 覆盖声明在参考侧空转」的限定说明与 A/B/C 分类。来源发现：G-L1 材料卡 `2026-11-07-render-perworld-l-v2-capture-g-l1-material`（`edc6019b`）§0.2。零 GPU、只读。",
+  "revision": {
+    "before": "0d4edf5614be2778ab4af7bdcdb04b74c75655f5",
+    "after": null
+  },
+  "created_at": "2026-11-07T05:35:00.000Z",
+  "updated_at": "2026-11-07T05:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v1-reference-review/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v1-reference-review"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "覆盖已撤销",
+        "覆盖已恢复",
+        "上游等价"
+      ]
+    }
+  ]
+}

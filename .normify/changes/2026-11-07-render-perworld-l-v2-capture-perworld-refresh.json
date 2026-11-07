@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh",
+  "title": {
+    "zh": "perworld L v2 采集脚本 P0-1：每 world 场景刷新（forward/create_render_context 后、render 前 mjw.refit_bvh；零 GPU；G-L1 依赖）",
+    "en": "Per-world L v2 capture script P0-1: per-world scene refresh (mjw.refit_bvh after forward/context creation and before render; GPU-free; G-L1 dependency)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G-L1 材料期发现 P0（见 `2026-11-07-render-perworld-l-v2-capture-g-l1-material` 证据 README §0.2）：既有 L v1 参考 `nw3-hinge02040` 的 qpos/geom_xpos 逐 world 不同，但 rgb/depth/seg 三 world **逐位完全相同**（判别力脚本判 `non-discriminating`，两对 world depth/seg 变化=0）。候选成因 ① 采集脚本 `put_data → forward → create_render_context → render` 之间**没有每 world 的场景刷新**（context 用创建时快照建场景 BVH，render 自身不 refit；与 R06 多帧 H1 同型）。本卡按 Chief 2026-11-07 决定做**最小候选修复**：在 `create_render_context` 之后、**每次** `mjw.render` 之前调用 `mjw.refit_bvh(m, d, rc)`，让场景 BVH/bounds 使用当前 `d`（含 nworld）的几何位姿。**零判据改动、零 GPU、不采集、不开窗**；修复是否解决判别力由后续 **pilot**（GPU，Chief token）判定，本卡**不宣称**判别力已恢复。",
+    "en": "Implement the minimal candidate fix for P0: call mjw.refit_bvh(m, d, rc) after context creation and before every mjw.render so the scene BVH/bounds consume the current per-world geometry. Zero criteria change, GPU-free, no capture, no window; effectiveness is judged by a later GPU pilot only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**最小改法（写死）**：`scripts/capture_render_perworld.py` 在 `mjw.create_render_context(...)` 之后、**每一次** `mjw.render(m, d, rc)` 之前调用 `mjw.refit_bvh(m, d, rc)`；**两遍采集（`--repeat 2`）的每一次渲染都覆盖**，不得只做首遍；不得重编/重建 context（不重建 megakernel）；调用顺序由 CPU 静态断言守护（AST/源码序：`create_render_context` < `refit_bvh` < `render`，且 `refit_bvh` 位于渲染函数内或每次 render 前）。",
+    "**500 行棘轮（硬）**：主脚本当前 **499** 行（git blob 换行口径），只余 1 行；实现时**不得使主脚本超过 500 行**——建议把 `refit_scene_before_render(m, d, rc)` 之类辅助函数放进**已有的** `scripts/perworld_capture_meta.py`（已 import，新增调用不增 import 行）或 `scripts/perworld_light_prep.py`；若确需新模块，主脚本必须同时移出等量行数，改后**每个 `.py` 均 ≤500 行**并给行数前后对照。",
+    "**默认 / 单 world 行为对照（零 GPU 可核部分）**：① 默认参数 `--dry-run` 输出与 HEAD `edc6019b` 逐字段一致（允许差异仅：`recipe.script` sha/bytes、新增回显；unexpected 必须 0）；② `--worlds 1` 的 `--dry-run` 与改动前逐字段一致（同口径），并说明：单 world 时 refit 使用与建树同源的 `d.geom_xpos`，语义上应为幂等（真实像素级对照留 pilot，本卡不宣称）；③ 静态断言 `mjw.refit_bvh` 在 pinned upstream 顶层导出（`mujoco_warp/__init__.py`）且签名包含 `(m, d, rc)`。",
+    "**零判据 / 零产品面**：不改任何判据/阈值/容差/参考、不改 `src/`、不改 `fixtures/`、不改 spec/receipt/manifest 既有内容；不采集、不开窗、零 GPU、不落参考。",
+    "**证据** `docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM，manifest 首行 `#`、每文件 sha256+bytes 自核、裸 CR/TAB 自查）：改动 diff、调用序静态断言输出、默认与单 world dry-run 前后对照（unexpected=0）、行数前后对照、`mjw.refit_bvh` 上游导出核验、非声明（含「不宣称判别力恢复 / 不宣称 L v1 参考可修复」）。",
+    "**门禁与边界**：四门禁 fmt/clippy/clippy-cuda/unit 全过；`unchanged src/`、`unchanged fixtures/`；不改既有 perworld 参考与冻结件。",
+    "**G-L1 依赖声明（写进卡面与证据）**：G-L1 正式采集**依赖本卡 verified + QA pass + P0-2 pilot 判别力 `pass-margin`**；本卡只实现「每 world 场景刷新」，**pilot 与正式采集不在本卡**。若 pilot 仍 `non-discriminating`，按材料 P0-4 另起诊断卡，不在本卡重试或改判据。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-capture-meta",
+      "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2",
+      "2026-11-07-render-perworld-l-v2-capture-g-l1-material"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_capture_meta.py",
+      "scripts/perworld_light_prep.py",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Chief 2026-11-07 派工（P0 决策 2）：P0 由 Arch 的 G-L1 材料期发现（既有 L v1 参考无 world 判别力）。本卡是最小候选修复（refit_bvh 一行家族，与 R06 H1 同型），零判据改动、零 GPU；**G-L1 依赖本卡 + pilot**。新模块若需新建由 Backend 在 start 前提出并先改卡面 files。",
+  "revision": {
+    "before": "0d4edf5614be2778ab4af7bdcdb04b74c75655f5",
+    "after": null
+  },
+  "created_at": "2026-11-07T05:35:00.000Z",
+  "updated_at": "2026-11-07T05:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判别力已恢复",
+        "采集有效",
+        "上游等价"
+      ]
+    }
+  ]
+}
