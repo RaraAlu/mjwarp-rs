@@ -1,42 +1,59 @@
 {
   "schema": 1,
-  "task_id": "2026-11-06-render-perworld-l-v2-light-criterion",
+  "task_id": "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
   "kind": "criterion-spec-draft",
-  "title": "perworld L v2 light criterion spec (signable draft)",
-  "version": "v2",
+  "title": "perworld L v2 light criterion spec (signable draft, v3: two cameras, two discriminability sets C1 + C2)",
+  "version": "v3",
   "status": "draft_pending_user_signature",
   "effective": false,
   "owner": "Arch",
-  "date": "2026-11-06",
+  "date": "2026-11-07",
   "spec": {
     "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
-    "sha256": "6cfaa57e2c8d5317442f90fddc157c666430d726ad20d3ceace102fe0b435900",
-    "bytes": 20681,
+    "sha256": "4bfc521baf632a536d224d925aed78e8d10d3d529fa32fc2a16d0dd28e62ac25",
+    "bytes": 32970,
+    "lines": 327,
     "sections": 15
   },
   "supersedes": {
-    "version": "v1",
-    "spec_sha256": "1821be98953e834265e6e8b3a8e6e363f0b59306b9625ed96b6a39cb570ab9e8",
-    "spec_bytes": 16625
+    "version": "v2",
+    "spec_sha256": "6cfaa57e2c8d5317442f90fddc157c666430d726ad20d3ceace102fe0b435900",
+    "spec_bytes": 20681
   },
   "revisions": [
     {
       "version": "v2",
       "date": "2026-11-06",
       "task": "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2",
-      "basis": "QA pre-signature review 2026-11-06-render-perworld-l-v2-light-criterion-check (e9b1181b, PASS-with-observations 0 blocking)",
       "items": [
-        "O1: section 2.3 encoding corrected to actual reference encoding (per-world keys rgb_w{k}_cam0 / depth_w{k}_cam0 / seg_w{k}_cam0; state.npz stacked on nworld leading dim)",
-        "O4: section 2.2 recipe split - only parameters block verbatim equal; scene_xml/script sha256/bytes necessarily change",
-        "O5: section 10.2 guard count made explicit (new exe = 1; new inputs <= 12 with 9 mandatory) and final count per window freeze list",
-        "O2: section 11.1 precondition - capture script must write command; captured_at must come from explicit non-empty MJWARP_CAPTURE_AT",
-        "O3: section 11.1 precondition - per_world_scope wording must be updated before capture; recipe.task_id old-card-id handled via task_id parameterization or reference_tag"
+        "section 2.3 encoding corrected to actual reference encoding (per-world keys)",
+        "section 2.2 recipe split - only parameters block verbatim equal",
+        "section 10.2 guard count made explicit",
+        "section 11.1 capture-window preconditions added (command / captured_at env / per_world_scope / task_id or reference_tag)"
       ],
-      "unchanged": "criteria semantics, thresholds 384/576, failure conditions, criterion v2.2 non-inheritance, fact base (spot=0), non-claim"
+      "unchanged": "criteria semantics, thresholds 384/576, failure conditions, criterion v2.2 non-inheritance, fact base, non-claim"
+    },
+    {
+      "version": "v3",
+      "date": "2026-11-07",
+      "task": "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "basis": "User decision 2026-11-07 (via Chief): implement everything in order, no cost trade-offs - per-world L v2 discriminability must cover BOTH light-driven rgb and geometry-driven depth/seg; two cameras; pilot retained with C1 AND C2 both pass-margin. Plus P0-1 refit verified (e34df3b7, QA PASS 3e08be09) and L v1 reference B-class downgrade (2026-11-07-render-perworld-l-v1-reference-discriminability-check, evidence c318cebb).",
+      "items": [
+        "Two cameras: keep cam-persp (lighting view) and add fixed cam-hinge (geometry view: mode 0, pos -0.0925 0.4981 0.8296, quat -0.211088 -0.149763 0.558924 0.787792, fovy 30, resolution 320x240); cam_active = [true,true,false]; 153,600 px/world",
+        "Criterion C split: C1 = cam-persp adjacent-world pixels with max_channel |delta rgb| >= 1/255; C2 = cam-hinge adjacent-world depth bit-changed and seg pair-changed pixels; BOTH must reach 384 acceptance / 576 collection pre-threshold on both adjacent world pairs",
+        "Layout/volume for two cameras: rgb_w{k}_cam{0,1} / depth_w{k}_cam{0,1} / seg_w{k}_cam{0,1}; ~11.07 MB/tag",
+        "Fact base: view composition (cam-persp floor 59,805 + bg 16,995, zero geometry pixels at every hinge angle tested; cam-hinge moving geometry 24k-31k px), C1 prediction 55,581/55,839 px, C2 prediction depth 35,812/33,947 and seg 16,041/16,755 px; all labelled CPU predictions pending pilot",
+        "P0-1 refit written as prerequisite (without it C2 degenerates to 0)",
+        "Failure conditions extended to both cameras and C1/C2; self-check order, guard inputs (9 -> 10), S-2 preconditions (4 -> 6), GO list (new G-L0 pilot) synchronized",
+        "recipe.parameters carve-out: only cam_active changes from [true,false] to [true,true]; before/after must be recorded"
+      ],
+      "unchanged": "criteria A/B semantics, threshold numbers 384/576 (now applied to both C1 and C2), criterion v2.2 non-inheritance, fact that spot has zero discriminability, S-1/S-2/S-3 structure, non-claim"
     }
   ],
   "basis": {
     "prep_slice": "2026-11-06-render-perworld-l-v2-light-prep (b0b8cc02)",
+    "p0_1_fix": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh (verified, e34df3b7; QA check PASS 3e08be09)",
+    "l1_reference_downgrade": "2026-11-07-render-perworld-l-v1-reference-discriminability-check (verified, evidence c318cebb) - L v1 reference has zero inter-world discriminability, class B (reference-premise) downgraded",
     "existing_perworld_reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/",
     "pinned_upstream": "71da24d9 (mujoco_warp 3.15.0)",
     "per_world_light_facts": {
@@ -44,37 +61,132 @@
       "lamp_xpos_move_m": [0.222378165, 0.437999482],
       "spot_xpos_move_m": [0.0, 0.0],
       "spot_note": "spot pos=(0,0,2)/dir=(0,0,-1) lies on tri_body z-rotation axis; zero under hinge rotation (scene geometry fact, not a defect)"
+    },
+    "view_facts_cpu_raycast": {
+      "method": "pinned venv MuJoCo mj_forward + per-pixel mj_ray aggregation, no CUDA, no rendering; ray-caster validated against the existing L v1 reference depth (59,805/59,805 hit parity, depth max relative error 3.52e-7, seg object ids 0/76,800 differences)",
+      "cam_persp": {
+        "floor_px": 59805,
+        "background_px": 16995,
+        "moving_or_static_geometry_px": 0,
+        "hinge_angle_sweep_0_330_step30_geometry_px": 0
+      },
+      "cam_hinge": {
+        "moving_geometry_px_range": [24487, 30911],
+        "static_base_px_range": [8809, 12792],
+        "floor_px_range": [11319, 20225],
+        "stable_px_pairs": [40988, 42853]
+      }
+    },
+    "discriminability_predictions": {
+      "c1_rgb_changed_px": {
+        "pair_0_1": {"material_ge_1_over_255": 55581, "bitwise": 55839},
+        "pair_1_2": {"material_ge_1_over_255": 55839, "bitwise": 55839},
+        "per_pixel_relative_irradiance_change": {"pair_0_1_p50": 0.0251, "pair_0_2_p50": 0.0672, "min": 0.0085},
+        "reference_saturated_pixel_fraction_any_channel": 0.4739,
+        "note": "clipping-aware prediction against the existing reference rgb; 3,966 floor px are fully saturated and cannot change; background is black (render_skybox=false)"
+      },
+      "c2_depth_seg_changed_px": {
+        "pair_0_1": {"depth": 35812, "seg": 16041},
+        "pair_1_2": {"depth": 33947, "seg": 16755}
+      },
+      "caveat": "CPU predictions only; pilot (G-L0) and the capture window must measure with the real renderer; shortfall -> stop and report, never adjust thresholds/cameras"
     }
+  },
+  "cameras": {
+    "cam0": {
+      "name": "cam-persp",
+      "role": "lighting view; carries C1 (light-driven rgb discriminability)",
+      "mode": 0,
+      "resolution": [320, 240],
+      "pos": [1.2, -1.1, 0.8],
+      "quat": [0.9, 0.1, -0.2, 0.3],
+      "sensorsize": [0.036, 0.024],
+      "intrinsic": [0.018, 0.016, 0.0, 0.0],
+      "changed_vs_scene_a": false
+    },
+    "cam1": {
+      "name": "cam-hinge",
+      "role": "geometry view; carries C2 (geometry-driven depth/seg discriminability)",
+      "mode": 0,
+      "resolution": [320, 240],
+      "pos": [-0.0925, 0.4981, 0.8296],
+      "quat": [-0.211088, -0.149763, 0.558924, 0.787792],
+      "fovy": 30.0,
+      "sensorsize": [0.0, 0.0],
+      "intrinsic": [0.01, 0.01, 0.0, 0.0],
+      "changed_vs_scene_a": "new camera added in the scene-a-light variant only; fixtures/render-bvh/scene-a/ unchanged"
+    },
+    "cam_active": [true, true, false],
+    "note": "cam-hinge uses the fovy path (sensorsize=0); must be recorded as such in capture.json - do not claim intrinsics"
   },
   "criteria": {
     "render_per_world": {
+      "applies_to": ["cam-persp", "cam-hinge"],
       "rgb": "bit-level, max_byte_diff = 0",
       "depth": "bit-level mismatched = 0 (max_ulp <= 4 by construction)",
       "seg": "pixel pair (id, type) exact",
-      "two_run_sha256": "equal per world for rgb/depth/seg"
+      "two_run_sha256": "equal per world per camera"
     },
     "light_fields": "state.npz light_xpos/light_xdir bit-level equal per world (f32 bit patterns, zero exceptions)",
     "inter_world_discriminability": {
-      "definition": "adjacent worlds (0->1, 1->2): depth bit-changed pixels and seg pair-changed pixels",
-      "acceptance_min_pixels": 384,
-      "collection_margin_min_pixels": 576,
+      "c1_light_driven": {
+        "camera": "cam-persp",
+        "definition": "adjacent worlds 0->1, 1->2: pixel count with max_channel |delta rgb| >= 1/255",
+        "acceptance_min_pixels": 384,
+        "collection_margin_min_pixels": 576
+      },
+      "c2_geometry_driven": {
+        "camera": "cam-hinge",
+        "definition": "adjacent worlds 0->1, 1->2: depth bit-changed pixels and seg pair-changed pixels",
+        "acceptance_min_pixels": 384,
+        "collection_margin_min_pixels": 576
+      },
+      "both_required": true,
       "bands": {
         "[384,576)": "insufficient margin -> collection fails, stop and report",
         "<384": "non-discriminating -> refuse to pass"
+      },
+      "diagnostics_no_threshold": {
+        "cam_persp_depth_seg_changed_px_expected": [0, 0],
+        "cam_hinge_rgb_changed_px_expected": "large (geometry + light driven)"
       }
     },
     "criterion_v2_2_inheritance": "NONE; v2.2 allowlists (183px / 172px, |ULP|<=128) serve only the 10 legacy regression entities and are untouched"
   },
+  "layout": {
+    "keys": {
+      "rgb.npz": "rgb_w{0,1,2}_cam{0,1} (240,320,3) f32",
+      "depth.npz": "depth_w{0,1,2}_cam{0,1} (240,320) f32",
+      "seg.npz": "seg_w{0,1,2}_cam{0,1} (240,320,2) i32",
+      "state.npz": "qpos (3,8); geom_xpos (3,7,3); geom_xmat (3,7,3,3); light_xpos (3,3,3); light_xdir (3,3,3)"
+    },
+    "estimated_bytes": {
+      "rgb.npz": 5531048,
+      "depth.npz": 1844672,
+      "seg.npz": 3687848,
+      "state.npz": 2486,
+      "capture.json": 10000,
+      "total_approx": 11076054
+    }
+  },
   "preconditions_collection_window": [
-    "capture script must write command field (currently absent) and it must be non-empty after capture",
-    "captured_at must be produced from an explicitly set non-empty MJWARP_CAPTURE_AT (existing reference has empty string); verify env before window",
-    "per_world_scope wording must be updated from the old 'does_not_cover: per-world light poses' text to the new coverage statement",
-    "recipe.task_id old-card-id handled: parameterize task_id or add reference_tag; record before/after in collection evidence"
+    "capture script writes command field (argv verbatim, cwd, rendered) and self-checks non-empty after capture",
+    "captured_at must be produced from an explicitly set non-empty MJWARP_CAPTURE_AT; absent/empty -> exit 1 before GPU and no output dir",
+    "per_world_scope wording must be the new coverage statement (per-world light poses + per-world geom poses); old wording rejected",
+    "recipe.task_id handled via reference_tag (default = reference dir name; --reference-tag override), task_id/task_id_source retained",
+    "scene variant camera change verified (cam-hinge exactly as section 2.1; cam-persp/cam-track/lights/geometry verbatim; scene-a untouched) and scene sha recorded",
+    "capture-script two-camera behavior verified (dry-run: nrender==2, cam_active==[true,true,false], cam_res==[[320,240],[320,240],[240,180]]; per-camera key naming; two-capture determinism unaffected)"
   ],
+  "go_list": {
+    "G-L0": "pilot (authoring, 1 window, not committed): S-1 signed + scene camera change verified + capture-script two-camera verification verified + P0-1 refit verified + QA pre-review PASS + baseline/floor + monitor 60/60 + zero compile; PASS = BOTH C1 and C2 pass-margin (>=576 on both adjacent pairs); fail -> stop, no retry, do not commit",
+    "G-L1": "capture window (authoring, 1): S-1 + S-2 signed + G-L0 pass-margin + spec/receipt/manifest landed + six S-2 preconditions + QA review + baseline/floor strict + material posted",
+    "G-L2": "validation window (1): capture evidence verified (two captures bitwise identical + C1 and C2 both >=576) + entity implementation verified + QA review PASS + guards freeze (1 new exe + 5 two-camera reference files) + baseline/floor + zero compile"
+  },
   "signatures_required": [
-    "S-1 spec sha256+bytes (this file's spec.sha256/bytes, v2)",
-    "S-2 collection window plan (user dual-sign: plan + baseline + signed floor + authoring exception pre-approval) plus the four preconditions above",
-    "S-3 validation window plan (user dual-sign) + Chief token"
+    "S-1 spec sha256+bytes (v3)",
+    "S-2 collection window plan (user dual-sign: plan + baseline + signed floor + authoring exception pre-approval) plus the six preconditions above",
+    "S-3 validation window plan (user dual-sign) + Chief token",
+    "pilot token is Chief-level (G-L0), not a user signature"
   ],
   "boundary": {
     "gpu_free": true,
@@ -83,7 +195,8 @@
     "fixtures_unchanged": true,
     "src_unchanged": true,
     "criterion_v2_2_untouched": true,
-    "existing_frozen_artifacts_untouched": true
+    "existing_frozen_artifacts_untouched": true,
+    "scene_variant_edit_planned_after_signature": true
   },
   "non_claim": [
     "draft only; not effective until the user signs",
@@ -91,6 +204,7 @@
     "no per-world light coverage claimed",
     "no upstream equivalence claimed",
     "no performance or rendering-value conclusions claimed",
+    "section 3 discriminability numbers are CPU predictions, not renderer measurements",
     "spot has zero discriminability; only sun/lamp are discriminable in this reference"
   ]
 }

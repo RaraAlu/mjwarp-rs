@@ -5,7 +5,7 @@
     "zh": "perworld L v2 灯判据规格 v3（双相机双判别力：C1 灯驱动 rgb + C2 几何驱动 depth/seg；纯文本、零 GPU、未签不生效）",
     "en": "Per-world L v2 light criterion spec v3 (two cameras, two discriminability sets: C1 light-driven rgb on cam-persp + C2 geometry-driven depth/seg on cam-hinge; text only, GPU-free, not effective until signed)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "用户 2026-11-07 拍板：perworld L v2 的判别力两套都要做——「rgb 变化（灯驱动）」与「换相机看几何（depth/seg 几何驱动）」同时覆盖，不得以「rgb 够用」「体积大」为由省掉任一套。本卡把判据规格从 v2（单相机、§6 只认 depth/seg）改为 **v3**：① 相机改双相机——保留 `cam-persp`（照明视角）+ 新增固定相机 `cam-hinge`（几何视角，pos/quat/fovy 30/320x240 写死）；② §6 判别力拆 C1（`cam-persp` rgb，`max_channel|Δrgb|≥1/255` 计数）与 C2（`cam-hinge` depth/seg 变化像素），阈值仍 384 验收/576 采集前置，两套都必须实测达标；③ 参考布局/体积改双相机（≈11.07 MB）；④ §3 事实地基改为两套判别力的 CPU 预测量（含视野事实与 L v1 参考 B 类降级依据）；⑤ §8 失败条件、§9.3 自查顺序、§10.2 guards 输入（9→10）、§11.1 前置（4→6）、§12 GO 清单（新增 G-L0 pilot，C1&C2 双 pass-margin 才继续）同步。**只改文本与判据口径，不采集、不开窗、不写 fixtures、不改产品代码/criterion v2.2；未签不生效。**",
     "en": "User decision 2026-11-07: cover BOTH discriminability sets for per-world L v2 (light-driven rgb + geometry-driven depth/seg) with two cameras; no cost-based omission. Produce spec v3: keep cam-persp (lighting view) and add fixed cam-hinge (geometry view); split criterion C into C1 (rgb change count on cam-persp) and C2 (depth/seg change pixels on cam-hinge), thresholds 384/576 both; layout/volume for two cameras (~11.07 MB); fact base with CPU predictions; failure conditions, self-check order, guard inputs (9->10), S-2 preconditions (4->6) and GO list (new G-L0 pilot) synchronized. Text/criteria only; no capture, no window, no fixture edits; not effective until signed."
@@ -44,7 +44,8 @@
     "after": null
   },
   "created_at": "2026-11-07T05:52:00.000Z",
-  "updated_at": "2026-11-07T05:51:14.284Z",
+  "updated_at": "2026-11-07T05:52:13.798Z",
+  "closed_at": "2026-11-07T05:52:13.798Z",
   "checks": [
     {
       "kind": "gate",
