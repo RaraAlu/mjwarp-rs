@@ -50,7 +50,7 @@ import time
 import zipfile
 
 from perworld_light_prep import build_dry_run_plan
-from perworld_capture_meta import capture_metadata, dry_run_echo, verify_capture_metadata
+from perworld_capture_meta import capture_metadata, dry_run_echo, refit_scene_before_render, verify_capture_metadata
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCENE_DIR = ROOT / "fixtures/render-bvh/scene-a"
@@ -246,6 +246,7 @@ def render_images(mjm, m, d, rc) -> tuple[dict, dict, float]:
     started = time.perf_counter()
     import mujoco_warp as mjw
 
+    refit_scene_before_render(m, d, rc)
     mjw.render(m, d, rc)
     wp.synchronize()
     elapsed = time.perf_counter() - started

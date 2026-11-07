@@ -5,7 +5,7 @@
     "zh": "perworld L v2 采集脚本 P0-1：每 world 场景刷新（forward/create_render_context 后、render 前 mjw.refit_bvh；零 GPU；G-L1 依赖）",
     "en": "Per-world L v2 capture script P0-1: per-world scene refresh (mjw.refit_bvh after forward/context creation and before render; GPU-free; G-L1 dependency)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "G-L1 材料期发现 P0（见 `2026-11-07-render-perworld-l-v2-capture-g-l1-material` 证据 README §0.2）：既有 L v1 参考 `nw3-hinge02040` 的 qpos/geom_xpos 逐 world 不同，但 rgb/depth/seg 三 world **逐位完全相同**（判别力脚本判 `non-discriminating`，两对 world depth/seg 变化=0）。候选成因 ① 采集脚本 `put_data → forward → create_render_context → render` 之间**没有每 world 的场景刷新**（context 用创建时快照建场景 BVH，render 自身不 refit；与 R06 多帧 H1 同型）。本卡按 Chief 2026-11-07 决定做**最小候选修复**：在 `create_render_context` 之后、**每次** `mjw.render` 之前调用 `mjw.refit_bvh(m, d, rc)`，让场景 BVH/bounds 使用当前 `d`（含 nworld）的几何位姿。**零判据改动、零 GPU、不采集、不开窗**；修复是否解决判别力由后续 **pilot**（GPU，Chief token）判定，本卡**不宣称**判别力已恢复。",
     "en": "Implement the minimal candidate fix for P0: call mjw.refit_bvh(m, d, rc) after context creation and before every mjw.render so the scene BVH/bounds consume the current per-world geometry. Zero criteria change, GPU-free, no capture, no window; effectiveness is judged by a later GPU pilot only."
@@ -43,7 +43,8 @@
     "after": null
   },
   "created_at": "2026-11-07T05:35:00.000Z",
-  "updated_at": "2026-11-07T05:20:08.620Z",
+  "updated_at": "2026-11-07T05:22:14.133Z",
+  "closed_at": "2026-11-07T05:22:14.133Z",
   "checks": [
     {
       "kind": "gate",

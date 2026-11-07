@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-07-render-perworld-l-v2-capture-perworld-refresh",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "authoring-fix",
+  "positioning": "minimal candidate P0-1 fix; zero criteria change; GPU-free; effectiveness judged by a later GPU pilot only",
+  "source": {
+    "p0_finding": "2026-11-07-render-perworld-l-v2-capture-g-l1-material README §0.2 / §7 P0-1",
+    "r06_h1_family": "same class as R06 multiframe H1 (render does not refit; explicit refresh needed before render)"
+  },
+  "change": {
+    "call": "mjw.refit_bvh(m, d, rc)",
+    "call_site": "scripts/capture_render_perworld.py::render_images, immediately before mjw.render(m, d, rc)",
+    "helper": "scripts/perworld_capture_meta.py::refit_scene_before_render(m, d, rc)",
+    "coverage": "capture_once calls render_images once; main calls capture_once twice (first + --repeat 2) => exactly one refit per capture render pass",
+    "context_rebuilt": false,
+    "root_cause_source_evidence": [
+      "upstream _src/render_util.py:403-404 - create_render_context builds scene BVH from a CPU MjData snapshot taken at construction",
+      "upstream _src/bvh.py:382-402 - refit_scene_bvh launches _compute_bvh_bounds with dim=(d.nworld, rc.bvh_ngeom) reading d.geom_xpos/d.geom_xmat, i.e. one call covers all worlds"
+    ]
+  },
+  "call_order_assertion": {
+    "script": "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh/scripts/verify_refresh_call_order.py",
+    "log": "logs/call-order-assertion.log",
+    "result": "SUMMARY PASS 10/10",
+    "positive_checks": [
+      "render_images has exactly one mjw.render and its immediately preceding statement is refit_scene_before_render (no conditional wrapper)",
+      "capture_once calls render_images exactly once; main calls capture_once exactly twice after create_render_context",
+      "helper has no control flow, exactly one mjw.refit_bvh(m, d, rc) call, correct argument order, imported from perworld_capture_meta"
+    ],
+    "negative_checks": [
+      "missing refit", "refit after render", "refit wrapped in if", "duplicate refit",
+      "helper with control flow", "helper wrong arg order", "upstream signature mismatch"
+    ]
+  },
+  "default_behavior": {
+    "default_dryrun_diff": "artifacts/default-dryrun-diff.json",
+    "unexpected_changes": 0,
+    "allowed_changes": ["/recipe/script/sha256", "/recipe/script/bytes"],
+    "worlds1": "rejected by design (--worlds must be >= 2) in both versions: same exit 1, same stderr, no out_dir created",
+    "single_world_semantics": "with nworld=1 refit recomputes bounds from post-forward d.geom_xpos (same source as building) => semantically idempotent; pixel-level comparison is left to the pilot and is NOT claimed here"
+  },
+  "line_ratchet": {
+    "scripts/capture_render_perworld.py": 500,
+    "scripts/perworld_capture_meta.py": 244,
+    "scripts/perworld_light_prep.py": 160,
+    "limit": 500,
+    "all_ok": true
+  },
+  "upstream_checks": {
+    "init_exports_refit_bvh": true,
+    "signature_m_d_rc": true,
+    "refit_scene_bvh_uses_nworld_and_device_geom": true
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_capture_meta.py",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh/"
+    ],
+    "unchanged": ["src/", "fixtures/", "criteria/thresholds/tolerances/references", "spec v2 content"],
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "no_reference_written": true
+  },
+  "g_l1_dependency": "G-L1 formal capture depends on this card verified + QA pass + P0-2 pilot discriminability pass-margin; pilot and formal capture are NOT in this card. If the pilot stays non-discriminating, open a diagnostic card per material P0-4 instead of retrying or relaxing criteria here.",
+  "non_claims": {
+    "statement": "No claim that discriminability is restored, that the existing L v1 reference is repairable, that any capture is valid, that per-world lights are accepted, that upstream-implementation equivalence holds, or any rendering numeric conclusion."
+  }
+}

@@ -1,0 +1,46 @@
+diff --git a/scripts/capture_render_perworld.py b/scripts/capture_render_perworld.py
+index 9d5ee094..dbb13351 100644
+--- a/scripts/capture_render_perworld.py
++++ b/scripts/capture_render_perworld.py
+@@ -50,7 +50,7 @@ import time
+ import zipfile
+ 
+ from perworld_light_prep import build_dry_run_plan
+-from perworld_capture_meta import capture_metadata, dry_run_echo, verify_capture_metadata
++from perworld_capture_meta import capture_metadata, dry_run_echo, refit_scene_before_render, verify_capture_metadata
+ 
+ ROOT = pathlib.Path(__file__).resolve().parents[1]
+ SCENE_DIR = ROOT / "fixtures/render-bvh/scene-a"
+@@ -246,6 +246,7 @@ def render_images(mjm, m, d, rc) -> tuple[dict, dict, float]:
+     started = time.perf_counter()
+     import mujoco_warp as mjw
+ 
++    refit_scene_before_render(m, d, rc)
+     mjw.render(m, d, rc)
+     wp.synchronize()
+     elapsed = time.perf_counter() - started
+diff --git a/scripts/perworld_capture_meta.py b/scripts/perworld_capture_meta.py
+index bbe162dd..c1d66acf 100644
+--- a/scripts/perworld_capture_meta.py
++++ b/scripts/perworld_capture_meta.py
+@@ -121,6 +121,20 @@ def capture_metadata(argv, cwd, cli_tag, out_dir, env=None) -> dict:
+     }
+ 
+ 
++def refit_scene_before_render(m, d, rc) -> None:
++    """Refit the scene BVH from the current device data immediately before a render.
++
++    Minimal P0-1 fix (G-L1 material §0.2, same family as R06 H1): upstream
++    `create_render_context` builds the scene BVH from a CPU snapshot taken at
++    construction time, so per-world device poses must be refit into the BVH
++    before rendering. `refit_bvh` launches bounds over `(d.nworld, bvh_ngeom)`
++    and reads `d.geom_xpos`/`d.geom_xmat`, i.e. one call covers all worlds.
++    """
++    import mujoco_warp as mjw
++
++    mjw.refit_bvh(m, d, rc)
++
++
+ def verify_capture_metadata(capture: dict) -> None:
+     """Post-write self-check: non-empty command/captured_at/reference_tag and new scope wording."""
+     command = capture.get("command") or {}

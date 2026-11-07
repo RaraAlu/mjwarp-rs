@@ -121,6 +121,20 @@ def capture_metadata(argv, cwd, cli_tag, out_dir, env=None) -> dict:
     }
 
 
+def refit_scene_before_render(m, d, rc) -> None:
+    """Refit the scene BVH from the current device data immediately before a render.
+
+    Minimal P0-1 fix (G-L1 material §0.2, same family as R06 H1): upstream
+    `create_render_context` builds the scene BVH from a CPU snapshot taken at
+    construction time, so per-world device poses must be refit into the BVH
+    before rendering. `refit_bvh` launches bounds over `(d.nworld, bvh_ngeom)`
+    and reads `d.geom_xpos`/`d.geom_xmat`, i.e. one call covers all worlds.
+    """
+    import mujoco_warp as mjw
+
+    mjw.refit_bvh(m, d, rc)
+
+
 def verify_capture_metadata(capture: dict) -> None:
     """Post-write self-check: non-empty command/captured_at/reference_tag and new scope wording."""
     command = capture.get("command") or {}

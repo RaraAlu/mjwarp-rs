@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "head_before": "27bbd8fb",
+  "fix": {
+    "where": "scripts/capture_render_perworld.py::render_images (immediately before mjw.render)",
+    "helper": "scripts/perworld_capture_meta.py::refit_scene_before_render",
+    "call": "mjw.refit_bvh(m, d, rc)",
+    "coverage": "every capture render pass (repeat=2 => capture_once called twice => render_images twice => one refit each)",
+    "no_context_rebuild": true,
+    "root_cause_evidence": "upstream create_render_context builds the scene BVH from a CPU MjData snapshot (render_util.py:403-404); refit_scene_bvh launches _compute_bvh_bounds with dim=(d.nworld, rc.bvh_ngeom) reading d.geom_xpos/d.geom_xmat (bvh.py:382-402), i.e. one refit call covers all worlds."
+  },
+  "line_counts": {
+    "capture_render_perworld.py": 500,
+    "perworld_capture_meta.py": 244,
+    "perworld_light_prep.py": 160
+  },
+  "line_ratchet": {
+    "limit": 500,
+    "all_ok": true
+  },
+  "upstream_checks": {
+    "init_exports_refit_bvh": true,
+    "signature_contains_m_d_rc": true,
+    "scene_refit_dim_nworld": true,
+    "scene_refit_reads_device_geom": true
+  },
+  "default_dryrun_diff_unexpected": 0,
+  "worlds1_identical": true,
+  "call_order_assertion": {
+    "exit": 0,
+    "summary": "SUMMARY PASS 10/10"
+  }
+}
