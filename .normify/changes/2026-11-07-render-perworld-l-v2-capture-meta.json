@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v2-capture-meta",
+  "title": {
+    "zh": "perworld L v2 采集脚本 §11.1 前置实现：command 字段 + captured_at 显式 env + per_world_scope 文案 + task_id/reference_tag（零 GPU；工具/元数据面，不需用户签名）",
+    "en": "Per-world L v2 capture-script section 11.1 prerequisites: command field, explicit captured_at env, per_world_scope wording, task_id/reference_tag (GPU-free; tooling/metadata, no user signature)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户已选 perworld L-v2，S-1 签名在途。本卡实现判据 spec v2 §11.1 的四项采集窗前置（工具/元数据面，**非判据**，因此不需要用户签名）：① `capture.json` 补 `command` 字段（实际命令行）；② `captured_at` 必须来自**显式非空** `MJWARP_CAPTURE_AT`（空/缺 → 显式报错，不再写空串）；③ `per_world_scope` 文案从旧口径 `does_not_cover: per-world light poses` 改为新覆盖口径（覆盖 per-world 灯位姿 + geom 位姿），并保留旧字段语义兼容；④ `recipe.task_id` 旧卡 id 处置（**参数化 `--task-id`/env** 或 **新增 `reference_tag`**，二选一，写清选择与理由）。零 GPU、不采集、不改判据/夹具/既有参考；默认行为（无新参数）必须与现脚本逐字段一致。",
+    "en": "Implement the four capture-window prerequisites from criterion spec v2 section 11.1 as tooling/metadata: command field, explicit non-empty MJWARP_CAPTURE_AT for captured_at with a hard error otherwise, updated per_world_scope wording (with backward-compatible field semantics), and handling of the legacy recipe.task_id via parametrization or a reference_tag. GPU-free; no capture; no criteria/fixtures/reference changes; default behavior must stay field-identical."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置 ① `command` 字段**：`capture.json` 顶层新增 `command`（记录实际命令行，与 dry-run plan 的 `command`/`recipe` 口径一致，argv 逐字）；旧参考无该字段属历史，不回改；**采集产物必须非空**；负例：构造缺失 → 采集路径显式失败（不写空 `command`）。",
+    "**前置 ② `captured_at` 与 env**：`captured_at` **只**接受非空 `MJWARP_CAPTURE_AT`（ISO8601）；env 缺失或为空串 → **显式报错退出**（非零退出 + 明确文案），**禁止写空串**；dry-run 不消费该 env（dry-run 输出只回显 env 状态）；负例：缺 env、空串 env 各一条，均验证「非零退出 + 不落盘」。",
+    "**前置 ③ `per_world_scope` 文案**：改为新覆盖口径（`covers`: per-world 灯位姿 + per-world geom 位姿；`does_not_cover`: AA×perworld、性能、上游等价等不变项），并**保留旧字段名与结构**（只改内容，不删字段），供既有消费方兼容；负例：断言旧口径字符串不再出现在采集产物中。",
+    "**前置 ④ `recipe.task_id` 旧卡 id 处置（二选一并写死）**：在实现卡中明确选 **(a) 参数化**（`--task-id` 或 env，默认值=当前脚本 task_id 常量）或 **(b) 新增 `reference_tag`**（保留旧 task_id 原样、另加新字段）；无论哪种，采集产物必须同时可追溯「脚本 task_id 来源」与「实际参考 tag」；理由写入证据 README；负例：不传参数/未设 env 时行为与现状逐字一致。",
+    "**默认行为不变**：不带任何新参数的 `--dry-run` 输出与当前 HEAD 输出逐字段对照（允许差异仅限：新增 `command`/`reference_tag`/`captured_at_env` 回显与 `recipe.script` sha/bytes、`legacy_manifest_entries` 计数因脚本/夹具变化的解释项）；差异清单逐条分类并说明，unexpected 必须为 0。",
+    "**500 行棘轮 / 拆分**：主脚本 `scripts/capture_render_perworld.py` 现 **497 行**，本卡预计超限 → 拆出元数据/前置校验模块 `scripts/perworld_capture_meta.py`（职责：`command`/`captured_at` env 校验、`per_world_scope` 文案、task_id/reference_tag 解析），主脚本只留 import+调用；**改后两个 `.py` 各自 ≤500 行**（`git cat-file` 换行口径）。",
+    "**边界**：零 GPU、不开窗、不采集、**不写 `fixtures/` 参考**、不改判据/容差/已签 spec（含 v2）/criterion v2.2、不动既有 perworld 参考与冻结件；`unchanged src/`、`unchanged fixtures/`；四门禁 fmt/clippy/clippy-cuda/unit 全过。",
+    "**证据** `docs/development-evidence/render-bvh/perworld-l-v2-capture-meta/`（README + receipt.json + manifest.txt，UTF-8/LF/无 BOM，manifest 首行 `#`，每文件 sha256+bytes 自核、裸 CR/TAB 自查）：四项改动 diff 说明、选择 (a)/(b) 的理由、默认行为前后对照、四条负例日志（含 exit code 行）、行数对照、非声明；`receipt.json` 的 `/task_id` 供本卡 `json` 检查。",
+    "**非声明**：本卡只改采集工具/元数据面，**不产参考、不调判据、不宣称任何采集有效性或数值结论**；采集窗（G-L1）与验证窗（G-L2）仍按 spec v2 的签名/GO 流程执行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-perworld-l-v2-light-criterion",
+      "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_capture_meta.py",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-meta/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-07 派工：用户已选 perworld L-v2，S-1 在途；先做**不依赖签名**的 §11.1 前置（spec v2 `2026-11-06-render-perworld-l-v2-light-criterion-spec-v2`，QA 最小复核 PASS `91d628c3`）。本卡**不需用户签名**（工具/元数据面，非判据）。依赖两项均为 verified：判据草案卡 + spec v2 修订卡。新模块名 `scripts/perworld_capture_meta.py` 为建议名，Backend 可在 start 前提出改名（本卡 files 已含该路径，改名需先改卡）。QA 复核后由 Chief 决定是否进入采集窗排期。",
+  "revision": {
+    "before": "3c314ffdd3e3767b2dee663b23d7f65e88b420b7",
+    "after": null
+  },
+  "created_at": "2026-11-07T04:59:00.000Z",
+  "updated_at": "2026-11-07T04:59:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-meta/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v2-capture-meta"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "采集有效",
+        "per-world 灯验收通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
