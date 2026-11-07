@@ -50,6 +50,7 @@ import time
 import zipfile
 
 from perworld_light_prep import build_dry_run_plan
+from perworld_capture_meta import capture_metadata, dry_run_echo, verify_capture_metadata
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCENE_DIR = ROOT / "fixtures/render-bvh/scene-a"
@@ -350,6 +351,8 @@ def parse_args() -> argparse.Namespace:
                         help="scene XML; default fixtures/render-bvh/scene-a/scene.xml")
     parser.add_argument("--out-root", type=pathlib.Path, default=OUT_ROOT,
                         help="output root; default fixtures/render-bvh/scene-a/perworld")
+    parser.add_argument("--reference-tag", default=None,
+                        help="reference tag; default = reference directory name (spec v2 §2.2)")
     parser.add_argument("--worlds", type=int, default=DEFAULT_WORLDS,
                         help="number of worlds (nworld); default 3")
     parser.add_argument("--hinge-deg", default=DEFAULT_HINGE_DEG,
@@ -383,6 +386,7 @@ def main() -> int:
         fail(f"--out-dir {out_dir} is outside --out-root {out_root}")
     if out_dir.exists() and any(out_dir.iterdir()):
         fail(f"--out-dir {out_dir} already exists and is not empty (references are append-only)")
+    provenance = None if args.dry_run else capture_metadata([sys.executable, *sys.argv], pathlib.Path.cwd(), args.reference_tag, out_dir)
     import warp as wp
 
     wp.config.kernel_cache_dir = str(args.warp_cache)
@@ -414,6 +418,7 @@ def main() -> int:
             scene_path=scene_path, out_root=out_root, repeat=args.repeat, seed=args.seed,
             warp_cache=str(args.warp_cache),
             legacy_manifest_entries=len(legacy_manifest(out_root)))
+        plan.update(dry_run_echo([sys.executable, *sys.argv], pathlib.Path.cwd(), args.reference_tag, out_dir))
         print(json.dumps(plan, indent=2, ensure_ascii=False))
         return 0
 
@@ -454,32 +459,29 @@ def main() -> int:
         fail(f"two captures differ in npz bytes: {first_hashes} vs {second_hashes}")
     import shutil
     shutil.rmtree(tmp_second, ignore_errors=True)
-    capture_at = __import__("os").environ.get("MJWARP_CAPTURE_AT", "")
-    recipe["capture_at_env"] = capture_at
+    recipe["capture_at_env"] = provenance["captured_at"]
     recipe["cameras"] = camera_recipe(mjm, rc)
     capture = {
+        **provenance,
         "schema": SCHEMA, "task_id": TASK_ID, "kind": "render-perworld-capture",
         "nworld": args.worlds, "hinge_deg": world_deg,
         "use_shadows": PARAMS["use_shadows"], "use_fast_math": PARAMS["use_fast_math"],
         "seed": args.seed, "repeat": args.repeat,
         "two_captures_bitwise_identical": first_hashes == second_hashes,
-        "files_sha256": first_hashes, "captured_at": capture_at,
+        "files_sha256": first_hashes,
         "environment": environment, "recipe": recipe, "parameters": PARAMS,
         "context": context_receipt(mjm, rc, first_hashes, first, 1),
         "legacy_reference_untouched": legacy_manifest(out_root) == legacy_before,
         "legacy_reference_files": len(legacy_before),
         "reads_product_tree": False, "authoring_only": True,
         "product_python_dependency": False,
-        "per_world_scope": {
-            "covers": "per-world geom poses (geom_xpos/geom_xmat) with nworld>1",
-            "does_not_cover": "per-world light poses (device path indexes lights single-world)",
-        },
     }
     if not capture["legacy_reference_untouched"]:
         fail("legacy references changed during capture")
     (out_dir / "capture.json").write_text(
         json.dumps(capture, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8", newline="\n")
+    verify_capture_metadata(capture)
     print(json.dumps({
         "task_id": TASK_ID, "out_dir": out_dir.as_posix(),
         "files_sha256": first_hashes,

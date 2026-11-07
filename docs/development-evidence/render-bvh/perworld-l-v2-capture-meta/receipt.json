@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-07-render-perworld-l-v2-capture-meta",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-07-render-perworld-l-v2-capture-meta",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "authoring-tooling",
+  "positioning": "tooling/metadata surface only; not a criteria change; no user signature required",
+  "source": {
+    "spec_v2_card": "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2",
+    "spec_v2_qa_pass": "91d628c3",
+    "spec_section": "§11.1 S-2 capture-window prerequisites (four items)"
+  },
+  "prerequisites": {
+    "command": {
+      "field": "capture.json.command = {argv (verbatim), cwd, rendered}",
+      "dry_run_echo": true,
+      "write_check": "verify_capture_metadata rejects empty command",
+      "negative": "module self-check case command-negative-empty-argv"
+    },
+    "captured_at": {
+      "env": "MJWARP_CAPTURE_AT",
+      "rule": "explicit non-empty ISO8601 only; missing/empty/non-ISO8601 => non-zero exit before any GPU work; never write an empty string",
+      "dry_run": "does not consume the env; echoes {present, non_empty} only",
+      "negative_missing": {"exit": 1, "out_dir_created": false, "elapsed_s": 0.075},
+      "negative_empty": {"exit": 1, "out_dir_created": false, "elapsed_s": 0.111}
+    },
+    "per_world_scope": {
+      "field_names_kept": ["covers", "does_not_cover"],
+      "covers": "per-world light poses + per-world geom poses (nworld>1), with the host-only light semantics premise of spec v2 §10.3",
+      "does_not_cover": "AA x perworld, single-launch performance plan K, continuous animation/large world counts, upstream-implementation equivalence claims",
+      "negative": "old wording 'per-world light poses (device path indexes lights single-world)' rejected when present"
+    },
+    "task_id_decision": {
+      "chosen": "add reference_tag (option b); task_id unchanged",
+      "task_id": "2026-10-30-render-perworld-capture-authoring",
+      "task_id_source": "script-constant",
+      "reference_tag_default": "reference directory name (spec v2 §2.2 tag convention)",
+      "reference_tag_override": "--reference-tag",
+      "why": "task_id identifies the authoring-script provenance; parametrising it would reopen the provenance ambiguity §11.1 item 4 asks to close; a separate reference_tag aligns with the spec tag concept and keeps both facts traceable without changing task_id semantics.",
+      "before": {"recipe.task_id": "2026-10-30-render-perworld-capture-authoring", "reference_tag": null, "captured_at": "", "command": null},
+      "after": {"recipe.task_id": "2026-10-30-render-perworld-capture-authoring", "reference_tag": "<reference dir name>", "captured_at": "<explicit MJWARP_CAPTURE_AT>", "command": "<argv+cwd+rendered>"}
+    }
+  },
+  "changes": {
+    "scripts/capture_render_perworld.py": {
+      "lines_before": 497,
+      "lines_after": 499,
+      "note": "import metadata module; --reference-tag; early strict env validation on capture path (before GPU); dry-run echo update; capture.json merges metadata block; post-write self-check"
+    },
+    "scripts/perworld_capture_meta.py": {
+      "status": "new",
+      "lines": 230,
+      "note": "command capture, strict captured_at env, per_world_scope wording, reference_tag resolution, capture.json metadata block, write self-check, 14-case CPU self-check"
+    }
+  },
+  "default_behavior": {
+    "command": "capture_render_perworld.py --dry-run --out-dir fixtures/render-bvh/scene-a/perworld/prep-default-dryrun",
+    "before_after_diff": "artifacts/default-dryrun-diff.json",
+    "unexpected_changes": 0,
+    "allowed_changes": ["/command", "/reference_tag", "/captured_at_env (additive dry-run echo)", "/recipe/script/sha256", "/recipe/script/bytes (script edited)"],
+    "legacy_manifest_entries": 107
+  },
+  "line_ratchet": {
+    "scripts/capture_render_perworld.py": 499,
+    "scripts/perworld_capture_meta.py": 230,
+    "limit": 500,
+    "note": "git blob newline count; both <= 500"
+  },
+  "self_checks": {
+    "module_selfcheck": {"command": "python -B scripts/perworld_capture_meta.py", "exit": 0, "result": "SELFCHECK PASS 14/14"},
+    "negative_cases": "logs/negative-captured-at-{missing,empty}.log",
+    "synthetic_shape": "artifacts/synthetic-capture-metadata.json (SYNTHETIC; not a reference, no GPU)"
+  },
+  "boundaries": {
+    "changed_paths": ["scripts/capture_render_perworld.py", "scripts/perworld_capture_meta.py", "docs/development-evidence/render-bvh/perworld-l-v2-capture-meta/"],
+    "unchanged": ["src/", "fixtures/"],
+    "gpu_free": true,
+    "no_capture": true,
+    "no_reference_written": true,
+    "no_criteria_change": true
+  },
+  "non_claims": {
+    "statement": "Tooling/metadata only; produces no reference, makes no capture-validity claim, no per-world light acceptance claim, no upstream-implementation equivalence claim and no rendering numeric conclusion; G-L1/G-L2 still follow the spec v2 signature/GO flow."
+  }
+}
