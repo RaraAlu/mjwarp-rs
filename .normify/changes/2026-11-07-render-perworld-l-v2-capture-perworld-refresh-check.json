@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh-check",
+  "title": {
+    "zh": "QA 只读复核：P0-1 采集脚本每 world 场景刷新（refit 紧前于 render / 覆盖每次渲染 / AST 断言 10-10 / 根因上游引用 / 默认与 worlds1 行为 / 行数 500-244-160 / 边界与证据）",
+    "en": "QA read-only review of the P0-1 per-world scene refresh fix (refit immediately before render, coverage of every render, AST assertion 10/10, upstream root-cause citations, default and worlds=1 behavior, line counts, boundaries and evidence)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 P0-1 修卡 `2026-11-07-render-perworld-l-v2-capture-perworld-refresh`（verified；登记 27bbd8fb → start ff5cba9e → 实现 e34df3b7）做**只读复核**（复核目标 HEAD **e34df3b7**，基线 edc6019b）：① 改法：`scripts/capture_render_perworld.py::render_images` 在 `mjw.render` **紧前一句**调用 `refit_scene_before_render(m, d, rc)`；helper 在 `scripts/perworld_capture_meta.py` 内且恰一次 `mjw.refit_bvh(m, d, rc)`（实参顺序 m,d,rc）、无控制流；不重建 context/不重编 megakernel；覆盖：`capture_once` 只调 `render_images` 一次、`main` 调 `capture_once` 两次（首遍 + `--repeat 2`）⇒ 每次 render 前恰一次 refit。② 独立复核调用序：重跑执行方 AST 断言器（SUMMARY PASS 10/10、7 条负例均按预期拒绝、日志带 exit_code），并做独立 AST/文本检查（render 前直接语句、调用次数、helper 内容、上游导出/签名）。③ 根因引用核对：pinned 上游 `_src/render_util.py` 快照建树、`_src/bvh.py` `refit_scene_bvh` 用 `(d.nworld, rc.bvh_ngeom)` 并读 `d.geom_xpos/geom_xmat`，且一次 refit 覆盖全部 world。④ 默认/单 world：同树旧/新脚本默认 dry-run 逐叶 diff 仅 `/recipe/script/sha256|bytes`（unexpected=0）；`--worlds 1` 两版本均 exit 1、stderr 一致、不落盘。⑤ 行数：主脚本 500、meta 模块 244、prep 模块 160（≤500、git blob 口径）；四门禁 unit 1359/0；`unchanged src/, fixtures/`；证据 manifest 18/18 与编码卫生；零 GPU、不采集、不落参考。**只读 + 只写本卡证据目录；CPU-only、零 GPU。**",
+    "en": "Read-only review at HEAD e34df3b7 of the P0-1 per-world scene refresh fix: call placement/coverage, independent AST verification, upstream root-cause citations, default and worlds=1 behavior, line counts, gates, boundaries and evidence self-checks."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改法成立**：`render_images` 内 `mjw.render(m, d, rc)` 的**直接前一条语句**是 `refit_scene_before_render(m, d, rc)`（无 if/for 包裹）；helper 体内无控制流、恰 1 次 `mjw.refit_bvh(m, d, rc)`（实参顺序 m,d,rc）且由 `perworld_capture_meta` import；`capture_once` 恰调用 `render_images` 1 次、`main` 恰调用 `capture_once` 2 次 ⇒ 每遍每次 render 前恰一次 refit；不重建 context、不重编 megakernel。",
+    "**调用序断言可复核**：执行方断言器重跑 SUMMARY PASS 10/10（正向 3 + 7 条负例按预期拒绝），日志带 exit_code；独立 AST/文本检查与之一致（不采信执行方结论）。",
+    "**根因引用属实**：pinned 上游 `target/mjwarp-parallel/upstream`（71da24d9）中 `create_render_context` 用 CPU MjData 快照建场景 BVH、`refit_scene_bvh`/`refit_bvh` 以 `(d.nworld, rc.bvh_ngeom)` 覆盖全部 world 读 `d.geom_xpos/xmat`、`__init__` 导出 `refit_bvh(m,d,rc)`；引用行号与语义逐条核对。",
+    "**默认/单 world 行为不变**：同树旧/新脚本默认 dry-run 逐叶 diff 仅 `/recipe/script/sha256`、`/recipe/script/bytes`（unexpected=0、removed=0）；`--worlds 1` 两版本均 exit 1、stderr 与不落盘一致；单 world refit 幂等语义仅记录、不作像素级声明。",
+    "**行数/门禁/边界**：git blob 换行口径 主脚本 **500**、`perworld_capture_meta.py` **244**、`perworld_light_prep.py` **160**，均 ≤500；被复核卡 unit gate 1359/0；`git diff edc6019b..e34df3b7` 仅 2 脚本 + 证据目录 + 卡/runs，`fixtures/`、`src/` 零 diff、未采集、无参考写入。",
+    "**证据与依赖声明**：证据 manifest **18/18** 自核（19 文件）、UTF-8/LF/无 BOM/裸 CR·TAB 0；README/receipt 明确「G-L1 依赖本卡 verified + QA pass + P0-2 pilot pass-margin」「不宣称判别力恢复/采集有效/灯验收/上游等价/数值结论」。",
+    "**结论格式**：`PASS` / `PASS-with-observations` / `needs-fix` + 观察清单；证据落 `docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh-check/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-capture-perworld-refresh"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "QA 自登记（Backend 2026-11-07 13:2x：P0-1 修卡落库后复核）。复核目标 HEAD e34df3b7，基线 edc6019b。只读 + 只写本卡证据目录；零 GPU、不采集、不重跑窗口。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-07T05:34:00Z",
+  "updated_at": "2026-11-07T05:34:00Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/",
+        "tests/",
+        "scripts/capture_render_perworld.py",
+        "scripts/perworld_capture_meta.py",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-perworld-refresh-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh-check"
+    }
+  ]
+}
