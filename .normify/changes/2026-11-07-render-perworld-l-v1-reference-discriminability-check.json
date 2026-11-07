@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v1-reference-discriminability-check",
+  "title": {
+    "zh": "QA 只读复核：per-world L v1 参考「输入位姿不同、输出逐位相同」事实确认 + 机器判据裁定分类（B 类前提不成立→降级）+ 限定说明",
+    "en": "QA read-only review: confirm the per-world L v1 reference fact (different input poses, bit-identical outputs), classify under the machine-criterion standard (class-B premise fails -> downgrade), and record the qualification note"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 P0 发现（既有 per-world L v1 参考 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`：`state.npz` 的 qpos/geom_xpos/geom_xmat 三 world 不同，但 rgb/depth/seg 的 `*_w{0,1,2}_cam0` 三 world 逐位完全相同、判别力 0/0）做**只读独立复核**（零 GPU，读参考 npz + 场景模型即可）：① 独立重算逐 world 逐位相等性、max abs diff、depth/seg 变化像素数、state 数组差异；② 按《机器判据裁定标准 v1》给出分类：L v1 中依赖该参考的「per-world geom 位姿」对照声明属参考-前提型（B 类），其前提「参考具备 world 间判别力」是否成立 → 成立/降级/补限定；③ 写明哪些 L v1 声明仍成立（数据面记录、两跑确定性、产品侧隔离断言的窄信号）、哪些必须降级或加限定（参考对照通过 = 空转）；④ 补充实测的结构性成因线索：参考图像 seg 只含 geom 0（floor）与背景（cam-persp 视野内没有 world 变化几何），说明非判别力可能不是单一采集刷新问题；该线索与 L v2 spec §6 的 depth/seg ≥384 门槛可满足性直接相关，供 Chief/Arch 定夺；⑤ 产出一页「限定说明」证据供后续 L v2 与引用方参考。**不改历史证据、不改任何既有卡状态、不重跑窗口、不改判据/夹具/源码；只读 + 只写本卡证据目录。**",
+    "en": "Independent zero-GPU read-only confirmation of the L v1 per-world reference fact, classification under the machine-criterion standard (premise failure -> downgrade), a qualification note for downstream consumers, and a measured structural cause clue (reference images contain only the world-invariant floor), without modifying any historical evidence or card state."
+  },
+  "modules": {},
+  "acceptance": [
+    "**事实复核（独立重算）**：`state.npz` qpos 三 world hinge 列 = 0 / 0.34906584 / 0.69813168 rad，geom_xpos 三 world 不同（max abs diff 0→1 = 0.0503952 m、0→2 = 0.1020426 m）、geom_xmat 不同（0→1 = 0.3359681）；rgb/depth/seg 的 `*_w{0,1,2}_cam0` 三 world **逐位完全相同**（sha256 相同、max abs diff = 0、depth bit-changed pixels = 0/0、seg pair-changed pixels = 0/0）；`light_xpos/light_xdir` 三 world 相同（v1 灯模型级单份，符合其范围声明）。",
+    "**结构性成因线索（实测，供定夺）**：参考 `seg.npz` 的 cam0 三 world 只含 (geom id 0, type 5=GEOM) 与背景 (-1,-1)；同场景主参考 `scene-a/reference/seg.npz` 的 `seg_cam0`（cam-persp）同为「仅 floor + 背景」，而 `seg_cam1`（cam-track）含 geom 0..5。即 **cam-persp 视野内只有世界不变的地板** → 该参考的 0 判别力至少部分由场景/相机视野决定，不能只归因于采集刷新缺失；与 L v2 spec §6（depth/seg 变化像素 ≥384）可满足性直接相关。",
+    "**裁定分类（按《机器判据裁定标准 v1》）**：依赖该参考的「per-world geom 位姿」对照判据属 **B 类（参考-前提型）**；其隐含前提「参考具备 world 间判别力（同 recipe/编译形态/GPU/warp 之外的参考有效性前提）」**不成立** → 该参考上的逐 world 对照「通过」不能作为 per-world 位姿正确性的依据（降级/不适用），符合标准 §2/§3/§4 的高危项（同一参考跨场景复用前提未复核 + 用确定性/哈希完整性代替数值正确性）。",
+    "**仍成立 / 需限定的声明清单**：仍成立——（a）参考字节与哈希绑定、两跑 `two_captures_bitwise_identical=true`、legacy 未被改（C 类完整性）；（b）`state.npz` 逐 world 记录了不同的 geom 位姿输入（数据面事实，但非渲染正确性）；（c）窗口日志中 `render_per_world` 的 product-side world 隔离断言通过（仅窄信号：位姿变化会影响产品输出，不证明与参考一致、不证明 per-world 正确）。需降级/加限定——（d）「逐 world 位姿级对照通过（mismatched=0 等）」在该参考上是**空转**，不得再作 per-world 位姿正确性/发布依据；（e）「该参考可用于后续 per-world 对照」→ 不得用于位姿正确性对照，仅可作布局/哈希/回归留痕（回归价值亦低，输出对位姿不敏感）。",
+    "**不动历史**：不改任何历史证据、不改任何既有卡状态、不重跑窗口/GPU、不改 fixtures/源码/判据；本卡只新增自己的证据目录；结论以「限定说明」形式落档。",
+    "**最小结论句**：L v1 参考无 world 间判别力，不能作为 per-world 位姿正确性的对照依据；待 P0-1 修复 + pilot 通过后新参考再验证。",
+    "**结论格式**：复核成立（fact 确认）+ 分类结论 + 限定说明 + 影响面；证据 `docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/`（README+receipt+manifest，manifest 自核、UTF-8/LF/无 BOM）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "QA 自登记（Chief 2026-11-07 13:18：P0 发现需起只读复核卡；独立复核事实 + 按《机器判据裁定标准 v1》分类 + 出限定说明；不改历史证据/卡状态；P0-1 修卡另派 Backend，无需等它）。只读 + 只写本卡证据目录；零 GPU、不采集、不重跑窗口。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-07T05:25:00Z",
+  "updated_at": "2026-11-07T05:25:00Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/",
+        "tests/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-impl-s1/",
+        "docs/development-evidence/render-bvh/perworld-capture-run/",
+        "docs/development-evidence/render-bvh/perworld-capture-check/",
+        "docs/development-evidence/render-bvh/perworld-s1-window-material/",
+        "docs/development-evidence/render-bvh/criteria-purpose-audit/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v1-reference-discriminability-check"
+    }
+  ]
+}
