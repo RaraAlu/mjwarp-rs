@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-07-render-perworld-l-v2-capture-g-l1-material",
+  "kind": "capture-window-material",
+  "status": "conditional_draft_pending_P0_and_signature",
+  "effective": false,
+  "owner": "Arch",
+  "date": "2026-11-07",
+  "material": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-g-l1/README.md",
+    "sha256": "48d61a0699b4a39ec308bb78cc1af78a6e065234e95bc5793f7a2a34df63bffb",
+    "bytes": 13080
+  },
+  "spec_basis": {
+    "task": "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2",
+    "spec_sha256": "6cfaa57e2c8d5317442f90fddc157c666430d726ad20d3ceace102fe0b435900",
+    "spec_bytes": 20681
+  },
+  "s2_split": {
+    "S-2a": "this material (plan) - user signs after S-1",
+    "S-2b": "open-window three-point baseline + signed floor (baseline_free - 3072 MiB) - user signs within 5 min before the window",
+    "authoring_exception": "pre-approved in S-2 for monitor stage only (util<60), per-sample recording required"
+  },
+  "p0_blocker": {
+    "status": "OPEN",
+    "finding": "existing L v1 per-world reference nw3-hinge02040 has bit-identical rgb/depth/seg across the three worlds while state qpos/geom_xpos differ (max abs diff 0.0)",
+    "measured": {
+      "reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040",
+      "rgb_w0_w1_w2_equal": true,
+      "depth_w0_w1_w2_equal": true,
+      "seg_w0_w1_w2_equal": true,
+      "qpos_differs_per_world": true,
+      "geom_xpos_differs_per_world": true,
+      "discriminability_checker_overall": "non-discriminating",
+      "pair_0_depth_seg_changed": [0, 0],
+      "pair_1_depth_seg_changed": [0, 0]
+    },
+    "candidate_causes_not_yet_determined": [
+      "capture script has no per-world scene refresh (put_data -> forward -> create_render_context -> render; create_render_context uses a creation-time snapshot and render does not refit) - same family as the R06 multiframe H1 stale-BVH issue",
+      "pinned upstream render per-world pose consumption semantics differ from the assumed model",
+      "the existing reference was produced by a different script revision than HEAD"
+    ],
+    "impact": [
+      "L v1 per-world geom pose reference comparison is vacuous on this reference; historical evidence is unchanged but new claims must not rely on it",
+      "G-L1 must not capture with the current script unchanged: the new reference would likely be non-discriminating and the capture would be rejected by the >=576 check"
+    ],
+    "required_actions": [
+      "P0-1: implement per-world scene refresh in the capture script (minimal candidate: mjw.refit_bvh(m,d,rc) after forward and before render) - zero criteria change, four gates + CPU self-check",
+      "P0-2: small GPU pilot to verify discriminability pass-margin; non-discriminating -> stop and report (no retry)",
+      "P0-3: L v1 claim review (Chief decision; no historical rewrite)",
+      "P0-4: if the pilot still fails, diagnose cause candidates 2/3 in a separate card; no recipe/criteria changes in-window"
+    ]
+  },
+  "path_discrepancy": {
+    "dispatch_command_out_root": "fixtures/render-bvh/scene-a/perworld",
+    "spec_v2_out_root": "fixtures/render-bvh/scene-a-light/perworld",
+    "material_uses": "spec_v2 (S-1 signed object); changing to scene-a/perworld would require a new spec sha + user re-sign and weakens legacy reference protection",
+    "status": "reported to Chief for confirmation"
+  },
+  "window_discipline": {
+    "baseline": "3 points within 5 min; signed floor = baseline_free - 3072 MiB (strict)",
+    "monitor": "-Required 60 -MaxMinutes 30 -MaxUtil 40; internal 10240 MiB is only a lower bound",
+    "authoring_exception": "util<60 only with S-2 pre-approval; per-sample recording",
+    "zero_rust_compile": true,
+    "fail_stop": "no retry, no threshold change, no evidence deletion"
+  },
+  "boundary": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_reference_produced": true,
+    "fixtures_unchanged": true,
+    "src_unchanged": true,
+    "criteria_unchanged": true
+  },
+  "non_claim": [
+    "material only; window not opened, not passed",
+    "S-2 must not be signed before P0-1 is verified and the pilot passes",
+    "no capture validity, no per-world light coverage, no upstream equivalence, no numeric rendering claim"
+  ]
+}

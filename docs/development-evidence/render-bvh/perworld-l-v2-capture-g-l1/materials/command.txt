@@ -1,0 +1,20 @@
+# G-L1 perworld L v2 capture window - verbatim commands (P0-fixed script required)
+# All commands run from repo root D:\Rust\mjwarp-rs with the pinned venv python.
+# No command in this file was executed while producing the material card.
+
+# --- 0) Pre-window: MJWARP_CAPTURE_AT must be explicit, non-empty ISO8601 (N1 check) ---
+$env:MJWARP_CAPTURE_AT = "<ISO8601 written in the window card>"
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import os,datetime; v=os.environ['MJWARP_CAPTURE_AT']; datetime.datetime.fromisoformat(v.replace('Z','+00:00')); print('CAPTURE_AT_OK', v)"
+
+# --- 1) Dry-run (CPU only, no products) ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --dry-run --scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true --seed 20261030 --repeat 2
+
+# --- 2) Formal capture (ONE attempt, no retry), requires P0 fix + pre-window baseline/floor signatures ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true --seed 20261030 --repeat 2
+
+# --- 3) Post-capture discriminability self-check (acceptance >=576, margin; exit 0 = pass-margin) ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/render-bvh/perworld-l-v2-capture-g-l1/materials/discriminability_check.py --reference-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040
+
+# --- 4) Monitor (pre-window; explicit -OutCsv; internal 10240 MiB is only a lower bound) ---
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl1/monitor.csv
+# authoring exception (only if pre-approved in S-2): -MaxUtil 60 and record every sample

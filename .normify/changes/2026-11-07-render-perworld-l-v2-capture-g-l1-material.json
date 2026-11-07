@@ -5,7 +5,7 @@
     "zh": "perworld L v2 G-L1 采集窗材料（可签计划）：pinned 环境 + 逐字命令 + 判别力 ≥576 自检 + 基线/floor + monitor/零编译/失败即停 + S-2 双签拆分（零 GPU，不采样不开窗）",
     "en": "Per-world L v2 G-L1 capture-window material (signable plan): pinned env, verbatim command, discriminability >=576 self-check, baseline/floor, monitor/zero-compile/fail-stop, S-2 dual-sign split (GPU-free, no capture, no window)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "用户已选 perworld L-v2、S-1 签名在途；本卡把 **G-L1 采集窗材料**（仅材料，不采样、不开窗、不落参考）备好，供 Chief 整理成 S-2 签名卡。内容严格按判据 spec v2 §12 G-L1 + §2.2/§6/§11.1 写死：pinned 环境与逐字采集命令（含 `--reference-tag`、`--repeat 2`、显式 `MJWARP_CAPTURE_AT` 与 N1 开窗前 ISO8601 校验步）、采集后判别力自检（相邻 world depth/seg 变化像素 **≥576**；`spot` 0/0 只记录不判）、元数据四项自核、开窗前 5 分钟三点基线与 signed floor、monitor 60/60、零 Rust 编译、失败即停不重试、S-2 双签拆分（计划 S-2a / 基线·floor S-2b / authoring 例外预批）与证据归档清单。**本卡只产材料**：零 GPU、不采样、不开窗、不写 `fixtures/`、不改 spec/判据/夹具/criterion v2.2。",
     "en": "Prepare the G-L1 capture-window material only (no capture, no window, no reference): pinned environment and verbatim command, post-capture discriminability self-check >=576, metadata self-checks, 3-point baseline and signed floor, monitor 60/60, zero Rust compile, fail-stop, S-2 dual-sign split, and the evidence archive list. Material only; GPU-free."
@@ -38,11 +38,12 @@
   },
   "note": "Chief 2026-11-07 派工：S-1 在途，先备 G-L1 材料（CPU-only、零 GPU、不开窗、仅材料）。**材料按 S-1 spec v2 §2.2 写**（out-root=scene-a-light/perworld）；派工消息里的 `--out-root fixtures/render-bvh/scene-a/perworld` 与本材料不同，已在材料 §0 列明并由 Arch 报 Chief 确认——若确要 scene-a/perworld 属改 S-1 范围，需重签且会削弱既有 L v1 参考的 legacy 保护。依赖三项均 verified。QA 读前预审。",
   "revision": {
-    "before": "02ed452d5f09a476b870eb1c795b24b89180b298",
+    "before": "16617b0ad1df031f6bb9ebb733ef8248650701ed",
     "after": null
   },
   "created_at": "2026-11-07T05:20:00.000Z",
-  "updated_at": "2026-11-07T05:20:00.000Z",
+  "updated_at": "2026-11-07T05:17:35.369Z",
+  "closed_at": "2026-11-07T05:17:35.213Z",
   "checks": [
     {
       "kind": "gate",
@@ -85,6 +86,14 @@
         "per-world 灯验收通过",
         "上游等价"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-11-07T05:17:35.369Z",
+      "reason": "材料期发现 P0（并记录 acceptance 判读差异）：既有 L v1 参考 nw3-hinge02040 的 rgb/depth/seg 三 world 逐位相同（max abs diff 0.0，而 qpos/geom_xpos 逐 world 不同）→ 判别力脚本实测 non-discriminating（两对 world depth/seg 变化=0）；故 acceptance 里『用既有 L v1 参考自测通过』应读作『脚本自身在该参考上正确运行并给出判定』，其判定结果是 non-discriminating，并触发本材料的 P0 阻塞：S-2 在 P0-1（采集脚本每 world 场景刷新，候选最小改法 refit_bvh）verified + pilot pass-margin 前不可签。另：派工命令 out-root=scene-a/perworld 与 S-1 spec v2 §2.2（scene-a-light/perworld）不一致，材料按 spec 写并报 Chief 确认。",
+      "prev": null,
+      "hash": "sha256:de6dc2c8bcc8d515c12b340a0900cd855f4621e6f55e6557f766bba9bb9d8f5d"
     }
   ]
 }

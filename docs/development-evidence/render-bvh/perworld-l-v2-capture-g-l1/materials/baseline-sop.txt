@@ -1,0 +1,24 @@
+# G-L1 baseline / floor SOP (write it into the window card; user signs S-2b)
+
+1. Window start: five minutes before capture, run three samples ~5 s apart:
+   nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
+   nvidia-smi --query-compute-apps=pid,name --format=csv,noheader   # no task CUDA compute process
+   record: build processes count (must be 0), git status (must be clean), HEAD sha.
+
+2. baseline_free = min(free of the three samples)  [MiB]
+   signed floor  = baseline_free - 3072            [MiB, strict]
+   Also record memory.used, util %, temp C for each sample.
+
+3. Acceptance for baseline points:
+   - every point free >= signed floor
+   - every point util < 40 %  (or < 60 % only if the authoring exception was pre-approved in S-2,
+     and then every point must be recorded)
+   - no task CUDA compute process; build processes 0; tree clean
+
+4. Monitor (pre-window): monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40
+   The script's internal 10,240 MiB lower bound DOES NOT replace the signed floor.
+   If any sample lands in [10240, signed_floor) the script keeps running -> the operator MUST stop manually.
+   Exception path: -MaxUtil 60 only with S-2 pre-approval; record per-sample util and note
+   exception_load_bearing=true; free >= signed floor still mandatory.
+
+5. Any baseline/monitor failure -> do not open the window; report Chief/user; no retry, no threshold change.
