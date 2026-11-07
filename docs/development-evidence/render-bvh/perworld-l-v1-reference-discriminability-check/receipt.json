@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-07-render-perworld-l-v1-reference-discriminability-check",
+  "owner": "QA",
+  "kind": "read-only-p0-review-qualification",
+  "date": "2026-11-07",
+  "reviewed_reference": "fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/",
+  "reviewed_cards": ["2026-10-30-render-perworld-capture", "2026-10-30-render-perworld-impl-s1",
+                      "2026-11-03-render-perworld-s1-window-material", "2026-11-03-render-perworld-s1-check"],
+  "baseline_head": "e34df3b7",
+  "qa_registration_commit": "2746db06",
+  "conclusion": "PASS-with-observations",
+  "fact_confirmed": true,
+  "blocking": 0,
+  "observations": 3,
+  "qa_checks": {"result": "PASS", "passed": 11, "total": 11, "fails": []},
+  "facts": {
+    "qpos_hinge_rad": [0.0, 0.3490658402442932, 0.6981316804885864],
+    "geom_xpos_max_abs_diff_0_1": 0.05039520561695099,
+    "geom_xpos_max_abs_diff_0_2": 0.102042555809021,
+    "geom_xmat_max_abs_diff_0_1": 0.33596814423799515,
+    "light_xpos_xdir_all_equal": true,
+    "rgb_w0_w1_w2_bitwise_identical": true,
+    "rgb_max_abs_diff": 0.0,
+    "depth_bit_changed_pixels": [0, 0],
+    "seg_pair_changed_pixels": [0, 0],
+    "capture_two_captures_bitwise_identical": true,
+    "reference_files_bound_to_capture_json": true
+  },
+  "structural_clue": {
+    "perworld_cam0_seg_pairs": [{"id": -1, "type": -1, "pixels": 16995}, {"id": 0, "type": 5, "pixels": 59805}],
+    "scene_a_reference_cam0_seg_pairs_same": true,
+    "scene_a_reference_cam1_sees_geom_ids": [-1, 0, 1, 2, 3, 4, 5],
+    "implication": "cam-persp 视野内只有 world 不变的地板；参考对 world 位姿变化结构性不敏感，不能只归因于采集刷新缺失",
+    "l_v2_impact": "spec v2 §6 要求 depth 与 seg 变化像素 ≥384/≥576；scene-a-light 只把灯挂 tri_body、相机/几何不变 → 灯不改变 depth/seg，视野内又无 world 变化几何 → depth/seg 门槛结构性不可达；建议在 S-2 签名前先决定改场景/相机（新 spec+重签）或改判别力口径（签名级），不要等 pilot/窗口内发现"
+  },
+  "classification": {
+    "standard": "docs/development-evidence/criteria-purpose-audit/standard.md (v1)",
+    "class": "B",
+    "class_name": "参考-前提型",
+    "reference_validity_premise": "参考必须具备 world 间判别力",
+    "premise_holds": false,
+    "verdict": "该参考上的逐 world 位姿对照降级/不适用；不得作 per-world 位姿正确性依据",
+    "still_valid": [
+      "C 类：参考字节/哈希绑定、两跑 bitwise 一致、legacy 未被改（完整性，不涉数值正确性）",
+      "数据面事实：state.npz 逐 world 记录不同 geom 位姿输入（不等于渲染正确性）",
+      "产品侧 world 隔离断言（窗口 attempt3 通过）：仅窄信号，位姿变化影响产品输出；不替代参考对照"
+    ],
+    "requires_downgrade_or_qualification": [
+      "「逐 world 位姿级对照通过（mismatched=0 / max_ulp<=4 / seg 全等）」在该参考上空转，不得作正确性/发布依据",
+      "「该参考可用于后续 per-world 位姿对照」→ 不可用于位姿正确性对照；仅可作布局/哈希/回归留痕（对位姿不敏感）",
+      "引用 impl-s1 卡「逐 world 正确性」时必须同时引用本限定说明；新声明不得建立在无判别力参考上"
+    ]
+  },
+  "minimal_conclusion": "L v1 参考无 world 间判别力，不能作为 per-world 位姿正确性的对照依据；待 P0-1 修复 + pilot 通过后新参考再验证。",
+  "observations_detail": [
+    {"id": "O1", "severity": "high", "area": "reference validity", "summary": "L v1 per-world 参考三 world 输出逐位相同（rgb/depth/seg），世界差异输入被记录但输出无判别力（0/0）→ 参考对照空转，相关声明降级。"},
+    {"id": "O2", "severity": "high", "area": "L v2 spec §6 feasibility", "summary": "cam-persp 视野内只有 world 不变地板（perworld 与 scene-a 主参考 seg cam0 同构；cam1 才见 geom 1..5）；scene-a-light 灯光不改 depth/seg → §6 depth/seg ≥384 门槛结构性不可达，S-2 签名前需定夺。"},
+    {"id": "O3", "severity": "low", "area": "root cause scope", "summary": "P0-1（每 world refit）是必要修复，但单靠它不能使 cam-persp-only 参考具备 depth/seg 判别力；pilot 需按 P0-4 预期可能失败，判定前先看本说明。"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_rerun": false,
+    "historical_evidence_modified": false,
+    "historical_cards_modified": false,
+    "fixtures_src_modified": false,
+    "changed_paths": [
+      ".normify/changes/2026-11-07-render-perworld-l-v1-reference-discriminability-check.json",
+      "docs/development-evidence/render-bvh/perworld-l-v1-reference-discriminability-check/"
+    ]
+  },
+  "claims": {
+    "acceptance_conclusion": "P0 fact confirmed; class-B premise fails; qualification note issued",
+    "not_claimed": "不产参考、不宣称 L v2 采集有效/灯验收/上游等价/任何渲染数值通过；不改历史判定；P0 根因以 P0-1/P0-2/pilot 与后续诊断为准"
+  }
+}
