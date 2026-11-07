@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v2-capture-g-l1-material",
+  "title": {
+    "zh": "perworld L v2 G-L1 采集窗材料（可签计划）：pinned 环境 + 逐字命令 + 判别力 ≥576 自检 + 基线/floor + monitor/零编译/失败即停 + S-2 双签拆分（零 GPU，不采样不开窗）",
+    "en": "Per-world L v2 G-L1 capture-window material (signable plan): pinned env, verbatim command, discriminability >=576 self-check, baseline/floor, monitor/zero-compile/fail-stop, S-2 dual-sign split (GPU-free, no capture, no window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户已选 perworld L-v2、S-1 签名在途；本卡把 **G-L1 采集窗材料**（仅材料，不采样、不开窗、不落参考）备好，供 Chief 整理成 S-2 签名卡。内容严格按判据 spec v2 §12 G-L1 + §2.2/§6/§11.1 写死：pinned 环境与逐字采集命令（含 `--reference-tag`、`--repeat 2`、显式 `MJWARP_CAPTURE_AT` 与 N1 开窗前 ISO8601 校验步）、采集后判别力自检（相邻 world depth/seg 变化像素 **≥576**；`spot` 0/0 只记录不判）、元数据四项自核、开窗前 5 分钟三点基线与 signed floor、monitor 60/60、零 Rust 编译、失败即停不重试、S-2 双签拆分（计划 S-2a / 基线·floor S-2b / authoring 例外预批）与证据归档清单。**本卡只产材料**：零 GPU、不采样、不开窗、不写 `fixtures/`、不改 spec/判据/夹具/criterion v2.2。",
+    "en": "Prepare the G-L1 capture-window material only (no capture, no window, no reference): pinned environment and verbatim command, post-capture discriminability self-check >=576, metadata self-checks, 3-point baseline and signed floor, monitor 60/60, zero Rust compile, fail-stop, S-2 dual-sign split, and the evidence archive list. Material only; GPU-free."
+  },
+  "modules": {},
+  "acceptance": [
+    "**材料文档齐全**：`docs/development-evidence/render-bvh/perworld-l-v2-capture-g-l1/README.md` 含 §0 与派工命令差异说明、§1 pinned 环境与逐字命令（含 N1 校验步、N2/N3 已知项）、§2 采集后自检（两次采集逐位一致 + 判别力 ≥576 + 元数据四项）、§3 开窗纪律（三点基线/floor/monitor 60/60/零编译/失败即停）、§4 S-2 双签拆分与 authoring 例外预批、§5 证据归档清单与路径、§6 非声明；另附 `materials/`（命令、基线 SOP、monitor 计划、判别力脚本、证据清单）。",
+    "**路径与 spec v2 §2.2 一致**：`--out-root fixtures/render-bvh/scene-a-light/perworld`、参考目录 `.../scene-a-light/perworld/nw3-light-hinge02040`；**不得**使用 `scene-a/perworld`（§0 说明该派工差异；若改用需改 S-1 并重签）。命令逐字含 `--scene fixtures/render-bvh/scene-a-light/scene.xml --worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true --seed 20261030 --repeat 2 --reference-tag nw3-light-hinge02040` 与显式 `MJWARP_CAPTURE_AT`。",
+    "**判别力自检可执行**：`materials/discriminability_check.py`（pinned python、只读 npz、CPU）对相邻 world 对（0→1、1→2）计算 depth 位级变化像素与 seg 对变化像素，判据 **均 ≥576**；`[384,576)` 不足、`<384` 无判别力（采集失败、停手报用户，不改阈值）；`spot` 0/0 只作记录不参与判定；脚本在材料期用既有 L v1 参考 `scene-a/perworld/nw3-hinge02040` 自测通过并留 `materials/discriminability-selftest.txt`（自测只验脚本，不代表新参考）。",
+    "**元数据四项自核**：采集后独立核 `capture.json` 的 `command`（非空 argv/cwd/rendered）、`captured_at`（非空 ISO8601，来自显式 env）、`reference_tag`（=`nw3-light-hinge02040`）、`per_world_scope`（新覆盖口径且旧文案不出现）、`recipe.task_id`+`task_id_source` 可追溯；自核脚本与预期输出写进材料。",
+    "**开窗纪律写死**：开窗前 5 分钟内三点基线（memory/free/util/temp + 无本任务 CUDA 任务 + build=0 + 树 clean）；**signed floor = baseline_free − 3072 MiB（取严）**，并明写与 monitor 脚本内部 10,240 MiB 下界的区别（内部值不替代 signed floor）；monitor `-Required 60 -MaxMinutes 30 -MaxUtil 40`（常规），例外 `-MaxUtil 60` **仅在 S-2 预批 authoring 例外时启用并逐点记录**；窗口内**零 Rust 编译**（不跑 cargo；warp JIT cache 命中/编译属预期并记录）；失败即停、不重试、不改阈值、不删证据。",
+    "**S-2 双签拆分写清**：**S-2a** = 本材料（计划）签名（用户签）；**S-2b** = 开窗前 5 分钟基线 + signed floor 签名（用户签）；authoring 例外（util<60）用在 **monitor 阶段**，前提是 S-2 已写预批且逐点采样入证据；G-L1 token 由 Chief 发，两个签名齐备才可开窗。",
+    "**边界**：零 GPU、不采样、不开窗、不写 `fixtures/` 参考、不改 spec/判据/容差/criterion v2.2/既有 perworld 参考与冻结件；`unchanged src/`、`unchanged fixtures/`；四门禁 fmt/clippy/clippy-cuda/unit 全过。",
+    "**证据自洽**：`manifest.txt` 首行 `#`、逐文件 sha256+bytes 自核、UTF-8/LF/无 BOM、裸 CR/TAB 自查；`receipt.json` 含 `/task_id`、材料 sha256/bytes、S-2 待签状态、边界与非声明。",
+    "**非声明**：本卡只是材料/计划，**不代表窗口已开或已通过**；不产参考、不宣称采集有效、不宣称 per-world 灯覆盖/上游等价/任何渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-perworld-l-v2-light-criterion",
+      "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2",
+      "2026-11-07-render-perworld-l-v2-capture-meta"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-g-l1/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-07 派工：S-1 在途，先备 G-L1 材料（CPU-only、零 GPU、不开窗、仅材料）。**材料按 S-1 spec v2 §2.2 写**（out-root=scene-a-light/perworld）；派工消息里的 `--out-root fixtures/render-bvh/scene-a/perworld` 与本材料不同，已在材料 §0 列明并由 Arch 报 Chief 确认——若确要 scene-a/perworld 属改 S-1 范围，需重签且会削弱既有 L v1 参考的 legacy 保护。依赖三项均 verified。QA 读前预审。",
+  "revision": {
+    "before": "02ed452d5f09a476b870eb1c795b24b89180b298",
+    "after": null
+  },
+  "created_at": "2026-11-07T05:20:00.000Z",
+  "updated_at": "2026-11-07T05:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-g-l1/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-07-render-perworld-l-v2-capture-g-l1-material"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "采集有效",
+        "per-world 灯验收通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
