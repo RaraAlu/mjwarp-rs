@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+  "title": {
+    "zh": "perworld L v2 灯判据规格 v3（双相机双判别力：C1 灯驱动 rgb + C2 几何驱动 depth/seg；纯文本、零 GPU、未签不生效）",
+    "en": "Per-world L v2 light criterion spec v3 (two cameras, two discriminability sets: C1 light-driven rgb on cam-persp + C2 geometry-driven depth/seg on cam-hinge; text only, GPU-free, not effective until signed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-11-07 拍板：perworld L v2 的判别力两套都要做——「rgb 变化（灯驱动）」与「换相机看几何（depth/seg 几何驱动）」同时覆盖，不得以「rgb 够用」「体积大」为由省掉任一套。本卡把判据规格从 v2（单相机、§6 只认 depth/seg）改为 **v3**：① 相机改双相机——保留 `cam-persp`（照明视角）+ 新增固定相机 `cam-hinge`（几何视角，pos/quat/fovy 30/320x240 写死）；② §6 判别力拆 C1（`cam-persp` rgb，`max_channel|Δrgb|≥1/255` 计数）与 C2（`cam-hinge` depth/seg 变化像素），阈值仍 384 验收/576 采集前置，两套都必须实测达标；③ 参考布局/体积改双相机（≈11.07 MB）；④ §3 事实地基改为两套判别力的 CPU 预测量（含视野事实与 L v1 参考 B 类降级依据）；⑤ §8 失败条件、§9.3 自查顺序、§10.2 guards 输入（9→10）、§11.1 前置（4→6）、§12 GO 清单（新增 G-L0 pilot，C1&C2 双 pass-margin 才继续）同步。**只改文本与判据口径，不采集、不开窗、不写 fixtures、不改产品代码/criterion v2.2；未签不生效。**",
+    "en": "User decision 2026-11-07: cover BOTH discriminability sets for per-world L v2 (light-driven rgb + geometry-driven depth/seg) with two cameras; no cost-based omission. Produce spec v3: keep cam-persp (lighting view) and add fixed cam-hinge (geometry view); split criterion C into C1 (rgb change count on cam-persp) and C2 (depth/seg change pixels on cam-hinge), thresholds 384/576 both; layout/volume for two cameras (~11.07 MB); fact base with CPU predictions; failure conditions, self-check order, guard inputs (9->10), S-2 preconditions (4->6) and GO list (new G-L0 pilot) synchronized. Text/criteria only; no capture, no window, no fixture edits; not effective until signed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**双相机写死**：§2.1 写明场景变体与 `scene-a` 的差异**恰好两处**——① 三灯嵌套进 `tri_body`；② 新增固定相机 `cam-hinge`（`mode 0`、`pos -0.0925 0.4981 0.8296`、`quat -0.211088 -0.149763 0.558924 0.787792`、`fovy 30`、`resolution 320 240`）。`cam-persp`（`pos 1.2 -1.1 0.8`、`quat 0.9 0.1 -0.2 0.3`、`sensorsize 0.036 0.024`、`focalpixel 160 160`）、`cam-track`、三灯属性、几何/材质/纹理/`<visual>` **逐字不变**；`fixtures/render-bvh/scene-a/` 零改动。§2.2 写明 `cam_active=[true,true,false]`、合计 153,600 px/world，且 **`recipe.parameters` 除 `cam_active` 外逐字同**旧参考（唯一差异必须记录前后值）。",
+    "**判别力拆 C1/C2 且两套都写死门槛**：§6 定义 C1 = `cam-persp` 相邻 world 像素级 `max_channel |Δrgb| ≥ 1/255` 计数；C2 = `cam-hinge` 相邻 world 的 depth 位变化像素与 seg pair 变化像素。**两套都要求两个相邻 world 对分别 ≥384（验收）/≥576（采集前置）**；任一套落 [384,576) 判余量不足停手、<384 判无判别力拒通过。诊断项（不设门槛、必须记录且不得冒充）：`cam-persp` 的 depth/seg 预期 0/0、`cam-hinge` 的 rgb 预期很大。",
+    "**参考布局/体积写死（双相机）**：§2.3 键名改 `rgb_w{0,1,2}_cam{0,1}` / `depth_w{k}_cam{0,1}` / `seg_w{k}_cam{0,1}`；`state.npz` 仍按 nworld 首维堆叠；体积表给出双相机估算 ≈ **11.07 MB**（rgb 5,531,048 + depth 1,844,672 + seg 3,687,848 + state 2,486 + capture.json ≈10 KB）。§2.4 要求 `capture.json` 记录两台相机快照（`cam_id_map/cam_res/mode/pos/quat-xmat/fovy/sensorsize/intrinsic`，并如实写 `cam-hinge` 走 fovy 路径）与 C1/C2 计数。",
+    "**事实地基写实（§3）**：① 灯位姿差异（sun xdir 10.745878447°/21.255926664°、lamp xpos 0.222378165/0.437999482 m、spot 0/0 几何事实）；② 视野事实（`cam-persp` = floor 59,805 + bg 16,995、几何 0 px，故 depth/seg 恒 0；`cam-hinge` = 转动几何约 2.4–3.1 万 px，相邻 world depth 变化 35,812/33,947、seg 变化 16,041/16,755）；③ C1 预测：地板逐像素辐照变化中位 1.7%–2.5%/5.2%–6.7%，`max_channel|Δrgb|≥1/255` 预测 **55,581/55,839 px**（参考 47.4% 饱和、饱和像素不计）；④ 明确这些是 CPU 预测量、以 pilot/采集窗真渲染实测为准；⑤ 写明 L v1 参考 B 类降级事实（引用 `2026-11-07-render-perworld-l-v1-reference-discriminability-check` / `c318cebb`）。",
+    "**P0-1 refit 写为前提**：§2.2/§3.4/§9.2 写明采集必须每次 render 前 `refit_bvh`（P0-1 verified `e34df3b7`、QA PASS `3e08be09`），否则 `cam-hinge` 的 geometry 判别力退化为 0；采集窗必须自核 refit 实际执行。",
+    "**判据 A/B 与失败条件同步**：§4 判据 A 对**两台相机各自**逐 world 要求 rgb 位级 0 字节差、depth 位级全等、seg 全等、两跑 sha 相等；§5 判据 B 灯字段位级对齐不变；§8 失败条件扩到「任一台相机任一 world」「C1<384」「C2<384」「C1 或 C2 落 [384,576)」「两台相机快照与 §2.1 不符」「诊断项冒充 C1/C2」；失败即停、不重试、不改阈值/参考/相机。",
+    "**采集/验证/GO 同步**：§9.2 写明双相机**不需改采集脚本**（`PARAMS['cam_active']=[cam_mode==0]` → `[true,true,false]`、`nrender=2`），dry-run 必须自核 `cam_active/cam_res/nrender`；§9.3 自查顺序 = 两跑逐位一致 → C1≥576 → C2≥576 → 元数据四项+双相机快照 → legacy untouched → 落库；§10.2 guards 必需输入 **10 条**（5 参考文件 + 场景变体 + 采集脚本 + `perworld_capture_meta.py` + `perworld_light_prep.py` + 本 spec），新增输入 ≤12、1 新 exe；§11.1 S-2 前置 **6 项**（v2 四项 + 场景相机卡 verified + 采集脚本双相机验证 verified）；§12 新增 **G-L0 pilot**（通过条件 = C1 与 C2 两套均 pass-margin，失败即停不落库），G-L1/G-L2 引用之。",
+    "**签名对象与 supersedes**：头注写明 v3 取代 v2（`6cfaa57e2c8d5317442f90fddc157c666430d726ad20d3ceace102fe0b435900` / 20,681 B）、v2 已取代 v1（`1821be98…` / 16,625 B）；§11 签名清单 S-1/S-2/S-3 结构不变但内容按 v3 更新；§14.1 修订记录加 v3 行（依据：用户拍板 + P0-1 verified + L v1 B 类降级）。",
+    "**证据重算与门禁**：`spec.md` v3 sha256/bytes 重算并写进 `receipt.json`（`version: v3`、`supersedes`、修订清单、双相机与 C1/C2 口径）与 `manifest.txt`（首行 `#`、sha256+bytes、UTF-8/LF/无 BOM、裸 CR/TAB 自查）；四门禁 fmt/clippy/clippy-cuda/unit 全过；`unchanged src/`、`unchanged fixtures/`。",
+    "**非声明**：本卡只产 v3 文本与判据口径，**未签不生效**；不采集、不开窗、不写 fixtures、不产参考；不宣称 per-world 灯位姿覆盖、不宣称与上游等价、不宣称任何渲染数值结论；§3 数值是 CPU 预测量，不是渲染实测。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-06-render-perworld-l-v2-light-criterion",
+      "2026-11-06-render-perworld-l-v2-light-criterion-spec-v2",
+      "2026-11-07-render-perworld-l-v2-capture-perworld-refresh",
+      "2026-11-07-render-perworld-l-v1-reference-discriminability-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-07 15:xx 转派用户拍板：'所有的功能都要按部就班实现，没有取舍的道理'——perworld L v2 判别力必须两套同时覆盖（rgb 灯驱动 + depth/seg 几何驱动），不得以成本为由取舍；相机按完整覆盖设计（cam-persp 保留 + 新增 cam-hinge，双相机就双相机，参考体积按 ≈11 MB 完整写）；pilot 保留且判据改为「C1 与 C2 两套均 pass-margin 才继续正式采集」。本卡只产 v3 文本（零 GPU、不改 fixture）；场景/相机改动作 v3 签名后的独立卡。QA 预审在落库后。",
+  "revision": {
+    "before": "d38ab61a123a046f882fc203776a24910571a076",
+    "after": null
+  },
+  "created_at": "2026-11-07T05:52:00.000Z",
+  "updated_at": "2026-11-07T05:52:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    { "kind": "json", "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json", "pointer": "/task_id", "equals": "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3" },
+    { "kind": "forbid_claim", "terms": ["采集已有效", "灯位姿已覆盖", "上游等价"] }
+  ]
+}
