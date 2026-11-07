@@ -11,7 +11,7 @@
 | # | 前置 | 实现 | 负例 |
 | --- | --- | --- | --- |
 | ① | `command` 字段 | `capture.json` 顶层新增 `command = {argv（逐字）, cwd, rendered}`；dry-run plan 同口径回显；写后 `verify_capture_metadata` 自核非空 | 空 argv 构造 → 显式失败（模块自检 case `command-negative-empty-argv`） |
-| ② | `captured_at` 与 env | 只接受**显式非空 JSON** 的 `MJWARP_CAPTURE_AT`（非空 ISO8601）；缺失/空串/非 ISO8601 → 显式报错退出；**不再写空串**；dry-run 不消费该 env、只回显状态 | 缺 env、空串 env 各一条（脚本级 exit 1 + 不落盘，0.075 s / 0.111 s 即失败，未进入 GPU）；非 ISO8601 在模块自检 |
+| ② | `captured_at` 与 env | 只接受**显式非空环境变量** `MJWARP_CAPTURE_AT`（非空 ISO8601）；缺失/空串/非 ISO8601 → 显式报错退出；**不再写空串**；dry-run 不消费该 env、只回显状态 | 缺 env、空串 env 各一条（脚本级 exit 1 + 不落盘，**0.079 s / 0.078 s** 即失败，未进入 GPU；见负例日志实测）；非 ISO8601 在模块自检 |
 | ③ | `per_world_scope` 文案 | 保留 `covers`/`does_not_cover` 字段名，内容改新覆盖口径：**per-world 灯位姿 + per-world geom 位姿**，并写明 §10.3 的 host-only 灯语义前提；`does_not_cover` 列 AA×perworld、单发射性能方案 K、连续动画/多 world 规模、与上游实现等价性等不变项 | 旧口径字符串 `per-world light poses (device path indexes lights single-world)` 出现即拒（模块自检 `capture-metadata-negative-old-scope`、`scope-negative-old-wording`） |
 | ④ | `recipe.task_id` 旧卡 id | **选 (b) 新增 `reference_tag`**（保留 `task_id` 原样）：`reference_tag` 默认 = 参考目录名（spec v2 §2.2 tag 约定），CLI `--reference-tag` 可覆盖；`task_id` + `task_id_source=script-constant` 同时写入采集元数据 | 空目录名无法派生 → 显式失败；`--reference-tag` 为空/未传时默认派生（模块自检 `reference-tag-negative-empty-dir` 等） |
 
@@ -26,6 +26,7 @@
 
 - `artifacts/default-dryrun-diff.json`：`unexpected = 0`；允许差异仅 5 项——新增 `/command`、`/reference_tag`、`/captured_at_env`（additive echo）与 `/recipe/script/sha256|bytes`（脚本被编辑）；`legacy_manifest_entries` 保持 **107 不变**。
 - `logs/before-default-dryrun.json`（HEAD `91d628c3` 脚本）与 `logs/after-default-dryrun.json` 均留档；before-meta 记旧脚本 sha。
+- **已知项（Arch 旁证 O4）**：`command.argv` 逐字记录调用 argv，不同 shell / 路径写法（正斜杠 vs 反斜杠等）会产生不同 `command` 文本；该字段用于 provenance 留痕，若日后要做机器比对需先规范化路径写法。
 
 ## 4. 行数 / 拆分（500 行棘轮）
 
