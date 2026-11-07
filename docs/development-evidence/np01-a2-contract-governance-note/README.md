@@ -34,9 +34,14 @@
 | --- | --- | --- |
 | `docs/numerical-precision-contract.md` L260–L262 | 2026-10-27 节内边界/状态句（历史形态） | **本卡加带日期注记**（原句不动） |
 | `docs/development-evidence/native-contact-frame-normal-tiers/README.md:31` | 同一句在已落库历史证据中的副本（冻结） | 不改（历史不回改；证据目录零 diff） |
-| `docs/numerical-precision-contract.md` L284 | 治理规则本身（「历史 summary 不回改」） | 不改 |
+| `docs/numerical-precision-contract.md` L284（插入前）/ L289（插入后） | 治理规则本身（「历史 summary 不回改」） | 不改 |
 | `docs/development-evidence/np01-e-criterion-a2/README.md:22`、`.../np01-e-criterion-a2-check/README.md:36` | A2 措辞规则与复核记录本身 | 不改 |
 | `docs/development-evidence/np01-e-criterion-a2-check/facts.json` O1 | 该观察的记录（建议加注记） | 不改（本卡即其落地） |
+| `.normify/changes/2026-11-04-precision-np01-e-recompute.json:10` | A2 之前任务卡 intent：引用契约 L260「E 尚未定稿」，并把「③维持现状（E 不定稿、只留 upstream-f32 判据）」列为候选 | 不改（历史任务记录，不回改） |
+| `.normify/changes/2026-11-04-g10-p5-family-closeout.json:18`、`...-g10-p5-family-closeout-check.json:18` | A2 之前收口/复核卡的量词规则「NP01 =『已核对、E 指标 1 项待用户签』」 | 不改（A2 措辞规则明确历史快照不回改） |
+| `.normify/changes/2026-11-04-render-r01-p8-closeout-check.json:10,16` | A2 之前复核卡「NP01 E 指标仍待用户签」「…待用户签（A2）」 | 不改（历史任务记录） |
+
+扫描口径：`git grep -n -E 'E尚未定稿|E 尚未定稿|E指标1项待用户签|E指标待用户签'`（全仓 tracked 文件）。命中分四类：① 契约 L260 旧句（本卡加注记、原句不动）；② 契约 L266 与本卡证据内的**引用性提及**（新注记/规则本身，非旧口径）；③ 冻结证据副本（`native-contact-frame-normal-tiers/README.md:31`）；④ `.normify/changes` 历史任务卡（上表三行，均不改）。
 
 ## 5. 未波及面与门禁
 
