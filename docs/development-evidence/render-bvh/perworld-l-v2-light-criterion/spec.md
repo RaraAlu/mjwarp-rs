@@ -5,6 +5,7 @@
 - 版本：**v3**。取代 v2（sha256 `6cfaa57e2c8d5317442f90fddc157c666430d726ad20d3ceace102fe0b435900` / 20,681 B），v2 已取代 v1（`1821be98…` / 16,625 B）。
 - 状态：**待用户签名、未生效**（签名对象 = 本文件 sha256 + bytes）
 - **用户拍板（2026-11-07，经 Chief 转派）**：perworld L v2 的**判别力两套都要做**——「rgb 变化（灯驱动）」与「换相机看几何（depth/seg 几何驱动）」**同时覆盖**；不得以「rgb 够用」「体积大」为由省掉任一套。v3 据此改为**双相机 + 双判别力判据（C1/C2）**。
+- **预审修订（2026-11-07）**：QA 读前预审 PASS-with-observations（0 阻断）后，**O1–O3（相机插入位置/索引顺序、§9.2 自查字段、§2.4 相机快照字段）已在本版签名前修正**，O4–O7 低项同批修正；逐条见 §14.1。签名对象以**本文件当前 sha256 + bytes** 为准。
 - 前置（均已落库）：
   - **P0-1 每 world 场景刷新**：`2026-11-07-render-perworld-l-v2-capture-perworld-refresh` verified（实现 `e34df3b7`；`render_images` 在 `mjw.render` 紧前调 `mjw.refit_bvh(m, d, rc)`，两遍采集都覆盖），QA 复核卡 `...-capture-perworld-refresh-check` PASS（`3e08be09`）。**本规格的 C2（几何驱动判别力）以 refit 生效为前提**：不 refit 则三维 BVH 是建树时 CPU 快照，几何视角会退化为 world 间逐位相同。
   - **L v1 参考 B 类降级**：`2026-11-07-render-perworld-l-v1-reference-discriminability-check` verified（证据 `c318cebb`）——既有 `nw3-hinge02040` 参考「输入位姿不同、输出逐位相同」，按《机器判据裁定标准 v1》判 **B 类（参考-前提型）**、前提「参考具备 world 间判别力」不成立 → 该参考上的逐 world 位姿对照降级/不适用，不得作为 per-world 位姿正确性依据。
@@ -39,6 +40,8 @@
      | quat | `-0.211088 -0.149763 0.558924 0.787792` |
      | fovy | **30** |
      | resolution | **320 240** |
+
+- **插入位置写死**：`cam-hinge` 必须插在 `cam-persp` 之后、`cam-track` 之前 → 相机索引 **0/1/2 = `cam-persp`/`cam-hinge`/`cam-track`**。该顺序决定 `cam_active`、`cam_res` 三元组与产物键 `cam1`=cam-hinge 的语义；改变插入位置属**改参考范围**（新 spec + 新 sha + 重签），窗口内不得变更。
 - `cam-persp`（`pos 1.2 -1.1 0.8`、`quat 0.9 0.1 -0.2 0.3`、`resolution 320 240`、`sensorsize 0.036 0.024`、`focalpixel 160 160`、`projection perspective`）**逐字不变**；`cam-track`（`mode targetbody`、`fovy 40`、`240 180`）**逐字不变**。
 - 三灯全部属性（`type/pos/dir/diffuse/specular/ambient/attenuation/cutoff/exponent/softness/castshadow/active/bulbradius/intensity/range`）**逐字不变**；几何、材质、纹理、`<visual>` **逐字不变**。
 - `fixtures/render-bvh/scene-a/` 既有文件**零改动**。
@@ -96,13 +99,16 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 | `seg.npz` | 1,843,924 B | **3,687,848 B** |
 | `state.npz` | 2,486 B | 2,486 B |
 | `capture.json` | ≈ 8.8 KB | ≈ 10 KB（多两相机块 + C1/C2 计数） |
-| **合计/tag** | ≈ 5.55 MB | **≈ 11.07 MB** |
+| **合计/tag** | ≈ 5.55 MB | **≈ 11.08 MB**（11,076,054 B） |
 
 ### 2.4 确定性与 provenance（写死）
 
 - **两次采集逐位一致**：`--repeat 2`，两次运行的**每文件** sha256 相等，否则采集失败。
 - `capture.json` 必含：`nworld`、`hinge_deg`、`recipe`、`parameters`、pinned 环境（python 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4）、pinned commit `71da24d9`、每文件 sha256、两次采集对比结果、采集时间、命令（`command.argv` 逐字）、`reference_tag`、`per_world_scope`。
-- `capture.json` 另须记录**两台相机的快照**：`cam_id_map`、`cam_res`、每台相机的 `mode`、`pos`、`quat`/`xmat`、`fovy`、`sensorsize`、`intrinsic`（`cam-hinge` 走 fovy 路径，`sensorsize`=0、`intrinsic` 为模型默认值——必须在证据里如实记录，不得声称有 intrinsics）。
+- `capture.json` 另须记录**两台相机的快照**，字段来源写死（不得按想象字段记录）：
+  - `context.resolved.cam_id_map`、`context.resolved.cam_res`（**只含启用相机**，本参考应为 `[0,1]` 与 `[[320,240],[320,240]]`）；
+  - `recipe.cameras`（现有 `camera_recipe` 产出 `slot / mujoco_cam_id / name / mode / xpos / xquat / fovy / resolution`，应为 2 条）；
+  - **v3 要求 `camera_recipe` 额外补 `sensorsize` 与 `intrinsic` 两个字段**（现脚本未产出，属 §11.1 第 6 项必须落实的前置；未补则 §9.3 第 4 步自核不通过）。`cam-hinge` 的 `sensorsize` 为 `[0,0]`、`intrinsic` 为模型默认值 `[0.01, 0.01, 0, 0]`，必须如实记录其走 **fovy 路径**，**不得声称有 intrinsics**。
 - `capture.json` 另须记录**判别力计数**（参考侧自算）：`c1_rgb_changed_px`（两对 world，含 bitwise 与 `max_channel|Δrgb|≥1/255` 两个计数）、`c2_depth_changed_px` / `c2_seg_changed_px`（两对 world），以及诊断项 `campersp_depth_seg_changed_px`、`camhinge_rgb_changed_px`。
 - `capture.json.per_world_scope` 必须写明本参考覆盖「per-world 灯位姿 + per-world geom 位姿」，并注明设备路径的灯语义前提（见 §10.3）。
 
@@ -138,13 +144,15 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 
 ### 3.4 几何驱动判别力（`cam-hinge`，写死）
 
-- 相邻 world：depth 位变化像素 **35,812 / 33,947**（门槛 576 的 59×/59×）；seg 变化像素 **16,041 / 16,755**（28×/29×）。
+- 相邻 world：depth 位变化像素 **35,812 / 33,947**（门槛 576 的 **62× / 59×**）；seg 变化像素 **16,041 / 16,755**（**28× / 29×**）。
+- **QA 独立复算（2026-11-07 只读预审）**：depth 35,873 / 33,898（与本表差 ≤0.2%，源于 f32/f64 深度比较精度），seg 16,041 / 16,755 完全一致 → 不改变门槛量级（60× 量级）；正式判定仍以 pilot/采集窗真渲染实测为准。
 - **前提**：采集必须按 §2.2 执行每 world refit（P0-1）；不 refit 时三 world 的 BVH 边界来自建树快照，`cam-hinge` 的 depth/seg 会退化为 0。
 
 ### 3.5 事实地基的效力边界
 
 - 上述 §3.3/§3.4 是**预测量**：pilot（§12 G-L0）与采集窗（§9.3）用真渲染实测；采集实测低于 576 → 停手报用户，不得改阈值/换参考/调相机。
 - 两套判别力**都要**实测 ≥576（采集前置）才允许落库：任一套不足即整轮失败。
+- **QA 独立复核（2026-11-07 只读预审）**：按上游 `compute_ray` 口径独立复算并与 L v1 参考对齐（hit/miss 0 差异、seg 0 差异、depth 相对误差 3.73e-7）；cam-persp floor/bg/几何 0 px 与 cam-hinge 四类像素合计 76,800/world 逐值一致；C2 seg 16,041/16,755 完全一致、depth 35,873/33,898（差 ≤0.2%）；C1 预测 ≤ 上界；饱和统计 0.974256/0.901961/47.39% 一致。预审结论 PASS-with-observations（0 阻断），O1–O3 已在本版签名前修正（见 §14.1）。
 
 ## 4. 判据 A：逐 world 渲染（写死，严格口径；两台相机各自）
 
@@ -231,14 +239,17 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 - dry-run（零 GPU）：
   `--scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --dry-run`
 - 正式采集（一次，不重试）：同上参数去掉 `--dry-run`，并要求 `--repeat 2` + 显式非空 `MJWARP_CAPTURE_AT`。
-- 采集窗**必须**验证 dry-run 计划里 `cam_active == [true, true, false]`、`cam_res == [[320,240],[320,240],[240,180]]`、`nrender==2`（两台固定相机）；不符即停手。
+- 采集窗**必须**按**现有脚本的真实字段**核两处（不得用计划里不存在的字段自核；dry-run 计划**不含** `cam_res`/`nrender`）：
+  - **dry-run 计划**：`plan.model_static.cameras` 顺序/模式/名字逐项为 `[[0, 0, "cam-persp"], [1, 0, "cam-hinge"], [2, 3, "cam-track"]]`，且 `plan.cam_active_fixed_only == [true, true, false]`；
+  - **采集产物** `capture.json.context.resolved`：`nrender == 2`、`cam_id_map == [0, 1]`、`cam_res == [[320, 240], [320, 240]]`，且 `recipe.cameras` 恰 2 条（slot 0/1，含 `sensorsize`/`intrinsic`）。
+  - 任一项不符即停手。
 
 ### 9.3 采集窗内自查顺序（写死）
 
 1. **两次采集逐位一致**（逐文件 sha256，rgb/depth/seg 各 6 个 world×相机键）；
 2. **C1**：`cam-persp` 相邻 world 的 `max_channel|Δrgb|≥1/255` 像素数，两对都 ≥576；
 3. **C2**：`cam-hinge` 相邻 world 的 depth 与 seg 变化像素数，两对都 ≥576；
-4. 元数据四项（`command`/`captured_at`/`reference_tag`/`per_world_scope`）+ **两台相机快照**（§2.4）+ `cam_active=[true,true,false]` 自核；
+4. 元数据四项（`command`/`captured_at`/`reference_tag`/`per_world_scope`）+ **两台相机快照**（§2.4：`recipe.cameras` 2 条且含 `sensorsize`/`intrinsic`）+ `context.resolved` 的 `nrender==2` / `cam_id_map==[0,1]` / `cam_res==[[320,240],[320,240]]` 自核；
 5. 既有参考 `legacy_reference_untouched = true`；
 6. 以上全部通过才落库；任一步失败 → 停手报用户（不落库为验收材料、不重试、不调阈值）；
 7. 采集证据（基线/floor/monitor/日志/两次一致标记/判别力计数/capture.json）提交后进入验证前置。
@@ -254,7 +265,7 @@ fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
 ### 10.2 窗口材料与纪律（写死）
 
 - 新实体进入 guards：既有 perworld suite 96 条（11 exe + 83 输入 + 2 条 criterion v2.2 清单）基础上，**新增 1 个 exe**（`render_per_world_light`），**新增输入 ≤12 条**，其中**必须包含**：新 tag 5 文件（rgb/depth/seg/state/capture.json，双相机内容但仍是 5 个文件）、场景变体 `scene-a-light/scene.xml` 1、采集脚本 `scripts/capture_render_perworld.py` 1、采集元数据模块 `scripts/perworld_capture_meta.py` 1（P0-1 refit helper 所在）、备选模块 `scripts/perworld_light_prep.py` 1、本 `spec.md` 1（合计 10 条必需）；其余至多 2 条可放冻结器/证据输入。**最终条目数以验证窗卡冻结清单为准，且不得少冻结上述 10 条必需输入**；旧 suite 副本与既有冻结件**只读保留**。
-- 参考体积 ≈ 11.07 MB（5 文件），冻结清单必须如实记录字节数。
+- 参考体积 ≈ **11.08 MB**（11,076,054 B，5 文件），冻结清单必须如实记录字节数。
 - 验证窗纪律：开窗前 5 分钟三点基线、signed floor = baseline_free − 3072 MiB（取严）、常规 monitor 60/60（util<40）、树干净、`cargo test --no-run` exit 0；窗口内**零编译**（冻结后只允许 `--features cuda-probe` 口径构建/运行）；冻结 exe live==guard==stash；单次运行、失败即停；证据归档（baseline/monitor/entity log/guards 副本 + manifest）。
 
 ### 10.3 实现形态与设备脱钩面（写死前提）
@@ -281,22 +292,26 @@ S-2 签名前，下列**六项**必须在采集脚本/采集窗卡/场景变体�
 3. **`per_world_scope` 文案**：必须为新覆盖口径（覆盖 per-world 灯位姿 + per-world geom 位姿），采集后自核；旧口径字符串出现即拒（v2 已实现）。
 4. **`recipe.task_id` / `reference_tag`**：选 **(b) 新增 `reference_tag`**（默认=参考目录名，`--reference-tag` 覆盖），`task_id`/`task_id_source` 保留（v2 已实现；v3 采集必须显式 `--reference-tag nw3-light-hinge02040`）。
 5. **场景变体相机改动已 verified**（v3 新增）：`scene-a-light/scene.xml` 的 `cam-hinge` 按 §2.1 写死值加入、`cam-persp`/`cam-track`/灯/几何逐字不变；改卡 verified 且场景 sha 与采集窗材料一致；`fixtures/render-bvh/scene-a/` 零改动。
-6. **采集脚本双相机行为验证已 verified**（v3 新增）：dry-run 与（零 GPU 可核部分）显示 `nrender==2`、`cam_active==[true,true,false]`、`cam_res==[[320,240],[320,240],[240,180]]`，参考产物键名按 `*_cam0`/`*_cam1` 生成、两遍采集逐位一致逻辑不受相机数影响。
+6. **采集脚本双相机行为与相机快照补全已 verified**（v3 新增）：
+   - ① dry-run 显示 `model_static.cameras` 顺序/模式为 persp/hinge/track（索引 0/1/2），且 `cam_active_fixed_only == [true, true, false]`；
+   - ② 参考产物 / 采集前材料显示 `nrender == 2`、`cam_id_map == [0,1]`、`cam_res == [[320,240],[320,240]]`；
+   - ③ **`camera_recipe` 补 `sensorsize` 与 `intrinsic` 两字段并自核**（现脚本未产出，属本项必须落实；未补则 §9.3 第 4 步会失败）；
+   - ④ 参考产物键名按 `*_cam0`/`*_cam1` 生成、两遍逐位一致逻辑不受相机数影响。
 
 ## 12. GO 清单（Chief 级）
 
 | # | 窗口 | 前置 |
 | --- | --- | --- |
-| **G-L0** | **pilot（authoring，1 个，不落库）** | S-1 已签 + **场景变体相机改动 verified** + **采集脚本双相机验证 verified** + P0-1 refit verified + 材料读前预审 PASS + 基线/floor（pilot 视作 authoring 例外时按 S-2 预批口径）+ monitor 60/60 + 零编译；**通过条件 = C1 与 C2 两套均 `pass-margin`（两对 world 均 ≥576）**；失败即停、不重试、不落库 |
+| **G-L0** | **pilot（authoring，1 个，不落库；在 S-2 之前执行）** | **顺序写死：G-L0 先于 S-2**（S-2 的前置包含 pilot 结论，两者不得倒序）。前置：S-1 已签 + **场景变体相机改动 verified** + **采集脚本双相机验证 verified** + P0-1 refit verified + 材料读前预审 PASS + 开窗前 5 分钟内三点基线 + **常规 monitor 阈值（util<40、60/60）** + signed floor 取严 + 零编译。**authoring 例外（util<60）不适用于 pilot**（只在 G-L1 由 S-2 预批）；pilot 在常规阈值下达不到 monitor 条件 → 停手报用户，**不得为开 pilot 先签 S-2 放宽**。**通过条件 = C1 与 C2 两套均 `pass-margin`（两对 world 均 ≥576）**；失败即停、不重试、不落库 |
 | **G-L1** | 采集窗（authoring，1 个） | S-1 + S-2 已签 + **G-L0 pilot pass-margin** + 本 spec/receipt/manifest 落库 + §11.1 六项前置全部落实 + QA 只读复核 + 基线/floor 取严 + 材料贴群 |
 | **G-L2** | 验证窗（1 个） | 采集证据 verified（两次采集逐位一致 + **C1 与 C2 均 ≥576**）+ 判据实体实现 verified + QA 复核 PASS + guards 冻结（含新 exe + 双相机参考 5 文件）+ 基线/floor + 零编译纪律 |
 
 ## 13. 已知风险（如实登记）
 
 1. **只有两灯可判别**：`spot` 恒 0（几何事实）；若用户要求三灯可判别，需改场景变体 + 新 spec + 重签。
-2. **双相机成本**：参考体积 ≈ 11.07 MB、guards 输入 10 条必需（≤12）、实体判两台相机；**这是完整覆盖两套判别力的必要成本，不做取舍**。
+2. **双相机成本**：参考体积 ≈ **11.08 MB**（11,076,054 B）、guards 输入 10 条必需（≤12）、实体判两台相机；**这是完整覆盖两套判别力的必要成本，不做取舍**。
 3. **C2 依赖 refit**：若采集/实现遗漏每 world refit，几何视角 depth/seg 会退化为 0（C2 失败）；refit 已在 P0-1 verified，但采集窗必须自核 refit 实际执行（调用计数/日志）。
-4. **`cam-hinge` 近景**：相机距 tri 几何中心 ≈0.65 m，`near` 0.025，几何在 0/20/40° 下均在视野内；若实测出现近平面裁剪/自遮挡，按 §8 停手报用户，不得现场改相机。
+4. **`cam-hinge` 近景**：相机距 tri 几何中心实测 **0.689 m**（QA 2026-11-07 复核；初稿写 ≈0.65 m 为估计值），`near` 0.025，几何在 0/20/40° 下均在视野内；若实测出现近平面裁剪/自遮挡，按 §8 停手报用户，不得现场改相机。
 5. **灯驱动的阴影敏感**：`sun`/`spot` 为 castshadow 灯，灯位姿变化会改变阴影；若实测阴影数值抖动导致判据不可满足，只能停手报用户（不得改 recipe/关阴影），由用户决定是否出新参考范围。
 6. **host-only 假设**：若实现被迫改内核，成本与证据重放范围显著上升（见 §10.3）。
 7. **world 数少**：3 world 只证明两段位形差异被正确渲染，不构成连续动画/多 world 大规模覆盖。
@@ -318,6 +333,7 @@ S-2 签名前，下列**六项**必须在采集脚本/采集窗卡/场景变体�
 | v1 | 2026-11-06 | 初版草案（sha256 `1821be98…` / 16,625 B） | 备选准备片 `2026-11-06-render-perworld-l-v2-light-prep` |
 | v2 | 2026-11-06 | ① §2.2 recipe 拆分「仅 parameters 逐字同 / scene_xml 与 script sha 必然变」；② §2.3 改为实际编码（rgb/depth/seg 每 world 独立键、state 按 nworld 首维堆叠）；③ §10.2 guards 条数明确；④ 新增 §11.1 采集窗前置四项；⑤ §12 G-L1 引用上述前置。**判据语义、阈值、失败条件、非声明均未变。** | QA 读前预审 PASS（O1/O4/O5 签名前改、O2/O3 进前置） |
 | **v3** | **2026-11-07** | ① **双相机**：`cam-persp` 保留（照明视角）+ 新增固定相机 `cam-hinge`（几何视角，pos/quat/fovy 30/320×240 写死），`cam_active=[true,true,false]`；② **判别力拆两套**：§6 改 C1（`cam-persp` rgb，`max_channel|Δrgb|≥1/255` 计数）+ C2（`cam-hinge` depth/seg 变化像素），阈值仍 384/576、两套都必须实测达标；③ §2.3 布局/体积改双相机（≈11.07 MB）；④ §3 事实地基改为两套判别力的 CPU 预测量 + 视野事实（附 L v1 参考 B 类降级依据）；⑤ §8 失败条件扩到两台相机与 C1/C2；⑥ §9.3 自查顺序加入 C1/C2 与双相机自核；⑦ §10.2 guards 必需输入 9→10（加 `perworld_capture_meta.py`）；⑧ §11.1 前置 4→6（加场景相机卡、采集脚本双相机验证）；⑨ §12 新增 **G-L0 pilot**（C1&C2 双 pass-margin 才继续）并同步 G-L1/G-L2；⑩ §13 风险补双相机成本、C2 依赖 refit、近景相机、饱和区。**判据 A/B、阈值数值、criterion v2.2 非继承、非声明不变。** | 用户 2026-11-07 拍板「rgb 变化 + 换相机都做，两套判别力同时覆盖」；P0-1 refit verified（`e34df3b7`）；L v1 参考 B 类降级（`c318cebb`） |
+| **v3（预审修订 rev2）** | **2026-11-07** | ① **O1**：§2.1 写死 `cam-hinge` **插入位置/索引顺序**（cam-persp 之后、cam-track 之前；索引 0/1/2 = persp/hinge/track），改位置视为改参考范围；② **O2**：§9.2/§9.3 自查改用**脚本真实字段**（dry-run `model_static.cameras` + `cam_active_fixed_only`；采集后 `context.resolved` 的 `nrender`/`cam_id_map`/`cam_res` + `recipe.cameras` 2 条），删去对计划中不存在的 `cam_res`/`nrender` 字段的自核；③ **O3**：§2.4/§11.1-6 明确要求 `camera_recipe` **补 `sensorsize`/`intrinsic`** 并自核；④ O4 depth 倍数改正 62×/59× 并补 QA 复算差异；⑤ O5 体积统一 **11.08 MB（11,076,054 B）**；⑥ O6 §12 明示 G-L0 **在 S-2 之前**执行、authoring 例外不适用于 pilot；⑦ O7 manifest 补 `# base dir:` 行，§13 近景距离改实测 0.689 m。**C1/C2 定义、阈值、失败条件、非声明不变。** | QA 读前预审（2026-11-07，PASS-with-observations 0 阻断；O1–O3 建议签名前改） |
 
 ## 15. 非声明
 

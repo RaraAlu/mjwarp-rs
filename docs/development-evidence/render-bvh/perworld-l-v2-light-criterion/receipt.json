@@ -10,9 +10,9 @@
   "date": "2026-11-07",
   "spec": {
     "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
-    "sha256": "4bfc521baf632a536d224d925aed78e8d10d3d529fa32fc2a16d0dd28e62ac25",
-    "bytes": 32970,
-    "lines": 327,
+    "sha256": "34bf4b0c95899b04eb00afd2648ba3142307e4e1ec3945e34f83274b04dff36f",
+    "bytes": 37346,
+    "lines": 343,
     "sections": 15
   },
   "supersedes": {
@@ -48,8 +48,47 @@
         "recipe.parameters carve-out: only cam_active changes from [true,false] to [true,true]; before/after must be recorded"
       ],
       "unchanged": "criteria A/B semantics, threshold numbers 384/576 (now applied to both C1 and C2), criterion v2.2 non-inheritance, fact that spot has zero discriminability, S-1/S-2/S-3 structure, non-claim"
+    },
+    {
+      "version": "v3 (pre-signature revision rev2)",
+      "date": "2026-11-07",
+      "task": "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "basis": "QA read-only pre-review 2026-11-07 (PASS-with-observations, 0 blocking; O1-O3 recommended before signature)",
+      "items": [
+        "O1: section 2.1 pins cam-hinge insertion position (after cam-persp, before cam-track; camera indices 0/1/2 = persp/hinge/track); moving it is a reference-scope change",
+        "O2: sections 9.2/9.3 self-checks now use the script's real fields (dry-run plan.model_static.cameras + cam_active_fixed_only; capture context.resolved nrender/cam_id_map/cam_res; recipe.cameras 2 entries) instead of the non-existent plan cam_res/nrender",
+        "O3: sections 2.4/11.1-6 require camera_recipe to add sensorsize and intrinsic (currently missing) with self-check; cam-hinge sensorsize=[0,0] and default intrinsic recorded truthfully as fovy path",
+        "O4: depth multiples corrected to 62x/59x and QA independent recomputation difference (<=0.2%) recorded in section 3.4",
+        "O5: volume unified to about 11.08 MB (11,076,054 B) in sections 2.3/10.2/13",
+        "O6: section 12 states G-L0 runs BEFORE S-2 and the authoring exception (util<60) does not apply to the pilot",
+        "O7: manifest adds a '# base dir:' line; section 13 camera distance corrected to measured 0.689 m"
+      ],
+      "unchanged": "C1/C2 definitions, thresholds 384/576, failure conditions, non-claims, criterion v2.2 non-inheritance"
     }
   ],
+  "prereview": {
+    "reviewer": "QA",
+    "date": "2026-11-07",
+    "mode": "read-only, CPU independent recomputation, zero GPU, no card, no repo writes",
+    "verdict": "PASS-with-observations (0 blocking)",
+    "observations": [
+      {"id": "O1", "severity": "medium", "topic": "cam-hinge insertion order / camera index semantics not pinned", "disposition": "fixed in section 2.1 before signature"},
+      {"id": "O2", "severity": "medium", "topic": "section 9.2 self-check referenced dry-run fields cam_res/nrender that the plan does not contain", "disposition": "fixed in sections 9.2/9.3 to use real fields"},
+      {"id": "O3", "severity": "medium", "topic": "section 2.4 camera snapshot fields are not produced by camera_recipe (missing sensorsize/intrinsic)", "disposition": "fixed in sections 2.4/11.1-6 as a script precondition"},
+      {"id": "O4", "severity": "low", "topic": "depth multiples 59x vs 62x/59x", "disposition": "fixed in section 3.4 (with QA recomputation difference)"},
+      {"id": "O5", "severity": "low", "topic": "volume 11.07 vs 11.08 MB", "disposition": "fixed to 11.08 MB (11,076,054 B)"},
+      {"id": "O6", "severity": "low", "topic": "G-L0 vs S-2 ordering ambiguity", "disposition": "fixed in section 12: G-L0 before S-2; authoring exception does not apply to the pilot"},
+      {"id": "O7", "severity": "low", "topic": "manifest missing base-dir line", "disposition": "fixed in manifest"}
+    ],
+    "independently_verified": [
+      "dual-camera model compilation matches section 2.1 (mode 0, fovy 30, sensorsize [0,0], 320x240; cam-persp/cam-track/lights/geometry verbatim; fovy path confirmed)",
+      "C1/C2 definitions, 384/576 thresholds, [384,576) stop band, diagnostics cannot substitute",
+      "recipe parameters carve-out: only cam_active changes from [true,false] to [true,true]",
+      "fact base reproducible: hit/miss and seg parity with the L v1 reference, cam-persp floor 59,805 / bg 16,995 / geometry 0 px, cam-hinge per-world class totals 76,800, C2 seg 16,041/16,755 exact, C2 depth within 0.2%",
+      "guards: 10 mandatory inputs, total <=12, 1 new exe, volume 11,076,054 B",
+      "supersedes sha of v2 verified, receipt version/status/effective correct, manifest self-check, section 14.1 complete, non-claims kept"
+    ]
+  },
   "basis": {
     "prep_slice": "2026-11-06-render-perworld-l-v2-light-prep (b0b8cc02)",
     "p0_1_fix": "2026-11-07-render-perworld-l-v2-capture-perworld-refresh (verified, e34df3b7; QA check PASS 3e08be09)",
