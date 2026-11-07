@@ -10,9 +10,9 @@
   "date": "2026-11-07",
   "spec": {
     "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
-    "sha256": "34bf4b0c95899b04eb00afd2648ba3142307e4e1ec3945e34f83274b04dff36f",
-    "bytes": 37346,
-    "lines": 343,
+    "sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "bytes": 39379,
+    "lines": 344,
     "sections": 15
   },
   "supersedes": {
@@ -45,7 +45,7 @@
         "Fact base: view composition (cam-persp floor 59,805 + bg 16,995, zero geometry pixels at every hinge angle tested; cam-hinge moving geometry 24k-31k px), C1 prediction 55,581/55,839 px, C2 prediction depth 35,812/33,947 and seg 16,041/16,755 px; all labelled CPU predictions pending pilot",
         "P0-1 refit written as prerequisite (without it C2 degenerates to 0)",
         "Failure conditions extended to both cameras and C1/C2; self-check order, guard inputs (9 -> 10), S-2 preconditions (4 -> 6), GO list (new G-L0 pilot) synchronized",
-        "recipe.parameters carve-out: only cam_active changes from [true,false] to [true,true]; before/after must be recorded"
+        "recipe.parameters carve-out: only cam_active changes - old reference [true,false] (scene-a, 2 cameras) -> [true,true,false] (scene-a-light, 3 cameras, cam-track disabled); before/after must be recorded as a 3-entry list"
       ],
       "unchanged": "criteria A/B semantics, threshold numbers 384/576 (now applied to both C1 and C2), criterion v2.2 non-inheritance, fact that spot has zero discriminability, S-1/S-2/S-3 structure, non-claim"
     },
@@ -64,6 +64,22 @@
         "O7: manifest adds a '# base dir:' line; section 13 camera distance corrected to measured 0.689 m"
       ],
       "unchanged": "C1/C2 definitions, thresholds 384/576, failure conditions, non-claims, criterion v2.2 non-inheritance"
+    },
+    {
+      "version": "v3 (pre-signature revision rev3)",
+      "date": "2026-11-07",
+      "task": "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "basis": "QA second-round minimal review 2026-11-07: 2 blocking items with the same root cause (camera entry count) + 5 low observations",
+      "items": [
+        "BLOCK-1: cam_active before/after corrected to old reference [true,false] (scene-a, 2 cameras) -> [true,true,false] (scene-a-light, 3 cameras; cam-track disabled); the earlier 2-entry wording was wrong and self-contradictory",
+        "BLOCK-2: removed the remaining 3-entry cam_res wording (section 2.1 'triple' -> active-cameras-only 2 entries; receipt precondition 6 now matches section 9.2 verbatim)",
+        "LOW-1: section 9.2 now distinguishes 'render behaviour needs no script change' from 'camera snapshot fields need a script change (section 11.1-6 item 3)'",
+        "LOW-2: G-L0 floor is now computed on the spot with the section 10.2 formula and recorded in pilot material; the user-signed floor belongs to S-2 (no circular dependency)",
+        "LOW-3: section 11.1 adds item 7 = G-L0 pilot result; S-2 preconditions and G-L1 wording synced",
+        "LOW-4: go_list.G-L0 synced with the rev2 constraints (runs before S-2; authoring exception not applicable)",
+        "LOW-5: criteria.render_per_world.depth ULP parenthetical removed (now f32 bit-pattern equality, no ULP tolerance)"
+      ],
+      "unchanged": "C1/C2 definitions, camera ownership of C1/C2, thresholds 384/576, [384,576) stop band, failure conditions, non-claims, criterion v2.2 non-inheritance"
     }
   ],
   "prereview": {
@@ -83,11 +99,27 @@
     "independently_verified": [
       "dual-camera model compilation matches section 2.1 (mode 0, fovy 30, sensorsize [0,0], 320x240; cam-persp/cam-track/lights/geometry verbatim; fovy path confirmed)",
       "C1/C2 definitions, 384/576 thresholds, [384,576) stop band, diagnostics cannot substitute",
-      "recipe parameters carve-out: only cam_active changes from [true,false] to [true,true]",
+      "recipe parameters carve-out: only cam_active changes - old reference [true,false] (2 cameras) -> [true,true,false] (3 cameras, cam-track disabled)",
       "fact base reproducible: hit/miss and seg parity with the L v1 reference, cam-persp floor 59,805 / bg 16,995 / geometry 0 px, cam-hinge per-world class totals 76,800, C2 seg 16,041/16,755 exact, C2 depth within 0.2%",
       "guards: 10 mandatory inputs, total <=12, 1 new exe, volume 11,076,054 B",
       "supersedes sha of v2 verified, receipt version/status/effective correct, manifest self-check, section 14.1 complete, non-claims kept"
-    ]
+    ],
+    "second_round": {
+      "date": "2026-11-07",
+      "verdict": "2 blocking items (same root cause: camera entry count) + 5 low observations",
+      "blocking": [
+        "cam_active before/after was written with 2 entries [true,true]; correct is 3 entries [true,true,false] (spec section 2.2 and receipt revision text)",
+        "cam_res still carried a 3-entry wording (spec section 2.1 'triple' and receipt precondition 6) that conflicts with the active-cameras-only 2-entry convention"
+      ],
+      "low_observations": [
+        "section 9.2 'no script change' wording too broad vs camera_recipe field addition",
+        "G-L0 referenced the S-2 signed floor (circular dependency)",
+        "section 11.1 said six items while S-2 also needs the G-L0 pilot result",
+        "receipt go_list.G-L0 not synced with rev2 constraints",
+        "receipt depth criterion carried a max_ulp<=4 parenthetical conflicting with the bit-level rule"
+      ],
+      "disposition": "all fixed in spec rev3 + receipt before signature; new sha re-reviewed"
+    }
   },
   "basis": {
     "prep_slice": "2026-11-06-render-perworld-l-v2-light-prep (b0b8cc02)",
@@ -162,7 +194,7 @@
     "render_per_world": {
       "applies_to": ["cam-persp", "cam-hinge"],
       "rgb": "bit-level, max_byte_diff = 0",
-      "depth": "bit-level mismatched = 0 (max_ulp <= 4 by construction)",
+      "depth": "f32 bit-pattern equality, mismatched = 0 (no ULP tolerance, no allowlist)",
       "seg": "pixel pair (id, type) exact",
       "two_run_sha256": "equal per world per camera"
     },
@@ -214,11 +246,11 @@
     "per_world_scope wording must be the new coverage statement (per-world light poses + per-world geom poses); old wording rejected",
     "recipe.task_id handled via reference_tag (default = reference dir name; --reference-tag override), task_id/task_id_source retained",
     "scene variant camera change verified (cam-hinge exactly as section 2.1; cam-persp/cam-track/lights/geometry verbatim; scene-a untouched) and scene sha recorded",
-    "capture-script two-camera behavior verified (dry-run: nrender==2, cam_active==[true,true,false], cam_res==[[320,240],[320,240],[240,180]]; per-camera key naming; two-capture determinism unaffected)"
+    "capture-script two-camera behavior verified (dry-run: model_static.cameras order/mode [[0,0,'cam-persp'],[1,0,'cam-hinge'],[2,3,'cam-track']] and cam_active_fixed_only==[true,true,false]; captured: context.resolved nrender==2, cam_id_map==[0,1], cam_res==[[320,240],[320,240]] (active cameras only), recipe.cameras==2 entries with sensorsize/intrinsic; per-camera key naming; two-capture determinism unaffected)"
   ],
   "go_list": {
-    "G-L0": "pilot (authoring, 1 window, not committed): S-1 signed + scene camera change verified + capture-script two-camera verification verified + P0-1 refit verified + QA pre-review PASS + baseline/floor + monitor 60/60 + zero compile; PASS = BOTH C1 and C2 pass-margin (>=576 on both adjacent pairs); fail -> stop, no retry, do not commit",
-    "G-L1": "capture window (authoring, 1): S-1 + S-2 signed + G-L0 pass-margin + spec/receipt/manifest landed + six S-2 preconditions + QA review + baseline/floor strict + material posted",
+    "G-L0": "pilot (authoring, 1 window, not committed; runs BEFORE S-2 - S-2 depends on the pilot result): S-1 signed + scene camera change verified + capture-script two-camera verification verified + P0-1 refit verified + QA pre-review PASS + 3-point baseline within 5 minutes before the window + regular monitor thresholds (util<40, 60/60 - the authoring exception util<60 does NOT apply to the pilot) + floor computed strictly from the section 10.2 formula (baseline_free - 3072 MiB) and recorded in the pilot material (the user-signed floor belongs to S-2) + zero compile; PASS = BOTH C1 and C2 pass-margin (>=576 on both adjacent pairs); fail -> stop, no retry, do not commit",
+    "G-L1": "capture window (authoring, 1): S-1 + S-2 signed + G-L0 pass-margin + spec/receipt/manifest landed + six S-2 preconditions + G-L0 pilot result (7th precondition) + QA review + baseline/floor strict + material posted",
     "G-L2": "validation window (1): capture evidence verified (two captures bitwise identical + C1 and C2 both >=576) + entity implementation verified + QA review PASS + guards freeze (1 new exe + 5 two-camera reference files) + baseline/floor + zero compile"
   },
   "signatures_required": [
