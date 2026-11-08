@@ -32,10 +32,13 @@ pub const HEIGHT: usize = 240;
 pub const WIDTH: usize = 320;
 pub const PIXELS: usize = HEIGHT * WIDTH;
 pub const GEOM_GROUPS: [i32; 4] = [0, 1, 2, 3];
-pub const REFERENCE_DIR: &str =
-    "../fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/";
+/// 参考目录（运行时路径，以 `CARGO_MANIFEST_DIR` 解析——不能用相对 `../fixtures`，那会依赖测试进程 cwd）。
+#[rustfmt::skip]
+pub fn reference_dir() -> std::path::PathBuf { std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040") }
 pub const ACCEPT: usize = 384;
 pub const MARGIN: usize = 576;
+/// C1 阈值（spec v3 §6 原文）：f32 通道差提升到 f64 后与 `1/255` 比较（同 G-L0 `readout_c1_c2.py`）。
+pub const RGB_THRESHOLD: f64 = 1.0 / 255.0;
 
 fn array(value: &serde_json::Value) -> &[serde_json::Value] {
     value.as_array().expect("数组")
@@ -311,33 +314,29 @@ pub struct CCounts {
 
 pub const PAIRS: [(usize, usize); 2] = [(0, 1), (1, 2)];
 
-fn rgb_channel_bytes(packed: u32) -> [i32; 3] {
-    [
-        ((packed >> 16) & 0xFF) as i32,
-        ((packed >> 8) & 0xFF) as i32,
-        (packed & 0xFF) as i32,
-    ]
-}
-
+/// C1 像素判据（spec v3 §6）：f32 逐通道差取 `max`，提升 f64 后与 `1/255` 严格比较。
+/// 254↔255 饱和边界步进在 f32 下差 0.00392150879 < 1/255，**不计**；只有量化字节差法才会计入。
 #[rustfmt::skip]
-fn rgb_max_channel_delta(left: u32, right: u32) -> i32 {
-    rgb_channel_bytes(left).iter().zip(rgb_channel_bytes(right)).map(|(a, b)| (a - b).abs()).max().unwrap_or(0)
+pub fn rgb_above_threshold(left: [f32; 3], right: [f32; 3]) -> bool {
+    (0..3).map(|channel| (left[channel] as f64 - right[channel] as f64).abs()).fold(0.0f64, f64::max) >= RGB_THRESHOLD
 }
 
-/// 判据 C：参考侧自算 C1/C2 + 诊断项。
+/// 判据 C：参考侧自算 C1/C2 + 诊断项（C1 用原始 f32 rgb，不用量化字节）。
 #[rustfmt::skip]
 pub fn criterion_c(reference: &Reference) -> CCounts {
     let mut counts = CCounts::default();
     for (pair_index, (left, right)) in PAIRS.iter().enumerate() {
         let (campersp_l, campersp_r) = (&reference.frames[*left][0], &reference.frames[*right][0]);
         let (camhinge_l, camhinge_r) = (&reference.frames[*left][1], &reference.frames[*right][1]);
+        let (rgbpersp_l, rgbpersp_r) = (&reference.rgb_f32[*left][0], &reference.rgb_f32[*right][0]);
+        let (rgbhinge_l, rgbhinge_r) = (&reference.rgb_f32[*left][1], &reference.rgb_f32[*right][1]);
         for pixel in 0..PIXELS {
-            if rgb_max_channel_delta(campersp_l.rgb[pixel], campersp_r.rgb[pixel]) >= 1 { counts.c1_rgb_changed[pair_index] += 1; }
+            if rgb_above_threshold(rgbpersp_l[pixel], rgbpersp_r[pixel]) { counts.c1_rgb_changed[pair_index] += 1; }
             if campersp_l.depth[pixel].to_bits() != campersp_r.depth[pixel].to_bits() { counts.diag_campersp_depth[pair_index] += 1; }
             if campersp_l.seg[pixel] != campersp_r.seg[pixel] { counts.diag_campersp_seg[pair_index] += 1; }
             if camhinge_l.depth[pixel].to_bits() != camhinge_r.depth[pixel].to_bits() { counts.c2_depth_changed[pair_index] += 1; }
             if camhinge_l.seg[pixel] != camhinge_r.seg[pixel] { counts.c2_seg_changed[pair_index] += 1; }
-            if rgb_max_channel_delta(camhinge_l.rgb[pixel], camhinge_r.rgb[pixel]) >= 1 { counts.diag_camhinge_rgb[pair_index] += 1; }
+            if rgb_above_threshold(rgbhinge_l[pixel], rgbhinge_r[pixel]) { counts.diag_camhinge_rgb[pair_index] += 1; }
         }
     }
     counts
@@ -383,6 +382,117 @@ pub fn sha256_frames(frames: &[Vec<Frame>]) -> [String; 3] {
 pub fn isolation_changed(base: &[Vec<Frame>], moved: &[Vec<Frame>]) -> Vec<Vec<bool>> {
     (0..WORLDS).map(|world| (0..ACTIVE_CAMERA_COUNT)
         .map(|cam| base[world][cam] != moved[world][cam]).collect()).collect()
+}
+
+// 参考 provenance 自核（spec v3 §2.1/§2.2/§9.3-4）：G-L2 输入必须在场，缺/错即失败。
+pub const SCENE_SHA256: &str = "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716";
+pub const SCENE_BYTES: u64 = 5_134;
+pub const LEGACY_MANIFEST_ENTRIES: u64 = 112;
+#[rustfmt::skip]
+pub const CAMERA_KEYS: [&str; 10] = ["slot", "mujoco_cam_id", "name", "mode", "xpos", "xquat", "fovy", "resolution", "sensorsize", "intrinsic"];
+/// spec v3 §2.1 写死的两台相机：`(name, pos, quat, fovy, sensorsize, intrinsic)`。fovy 由
+/// `focalpixel=160 320×240 sensorsize 0.036 0.024` 推出（2·atan(0.5·0.024/0.016)）；sensorsize/intrinsic 是 3.15 f32 位型值。
+#[rustfmt::skip] #[allow(clippy::type_complexity)] // spec §2.1 相机期望值六元组
+pub const EXPECTED_CAMERAS: [(&str, [f64; 3], [f64; 4], f64, [f64; 2], [f64; 4]); 2] = [
+    ("cam-persp", [1.2, -1.1, 0.8], [0.9, 0.1, -0.2, 0.3], 73.73979461915735,
+     [0.036f32 as f64, 0.024f32 as f64], [0.018f32 as f64, 0.016f32 as f64, 0.0, 0.0]),
+    ("cam-hinge", [-0.0925, 0.4981, 0.8296], [-0.211088, -0.149763, 0.558924, 0.787792], 30.0,
+     [0.0, 0.0], [0.01f32 as f64, 0.01f32 as f64, 0.0, 0.0]),
+];
+#[rustfmt::skip]
+fn json_numbers(value: &serde_json::Value) -> Vec<f64> { value.as_array().expect("数组").iter().map(|item| item.as_f64().expect("数值")).collect() }
+#[rustfmt::skip]
+fn close(actual: f64, expected: f64) -> bool { (actual - expected).abs() <= 1e-6 }
+#[rustfmt::skip]
+fn normalize_quat(quat: &[f64]) -> Vec<f64> {
+    let norm = quat.iter().map(|value| value * value).sum::<f64>().sqrt();
+    quat.iter().map(|value| value / norm).collect()
+}
+/// `per_world_scope.covers`/`does_not_cover` 归一化（与 G-L0 readout 的 `scope_text` 同口径：
+/// 字符串保持原样、列表逐元素 join；2026-11-08 readout 修复的同一缺陷不复现）。
+#[rustfmt::skip]
+fn scope_text(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(text) => text.clone(),
+        serde_json::Value::Array(items) => items.iter().map(|item| item.as_str().unwrap_or_default()).collect::<Vec<_>>().join(" "),
+        _ => String::new(),
+    }
+}
+#[rustfmt::skip]
+fn argv_has(argv: &[String], needle: &str) -> bool { argv.iter().any(|item| item == needle || item.ends_with(needle)) }
+
+/// 参考 provenance 自核：值与 §2.1/§2.2 写死内容比对（比仅查字段存在更强）+ command/scope/交叉核对。
+#[rustfmt::skip]
+pub fn check_capture_provenance(capture: &serde_json::Value) {
+    assert_eq!(capture["two_captures_bitwise_identical"], serde_json::json!(true), "参考两跑逐位一致标记");
+    assert!(!capture["captured_at"].as_str().unwrap_or_default().trim().is_empty(), "参考 captured_at 为空");
+    assert_eq!(capture["reference_tag"].as_str(), Some("nw3-light-hinge02040"), "参考 tag");
+    let scene = &capture["recipe"]["scene_xml"];
+    assert_eq!(scene["sha256"].as_str(), Some(SCENE_SHA256), "参考场景 sha");
+    assert_eq!(scene["bytes"].as_u64(), Some(SCENE_BYTES), "参考场景 bytes");
+    let argv: Vec<String> = capture["command"]["argv"].as_array().expect("command.argv").iter()
+        .map(|item| item.as_str().expect("argv 字符串").to_string()).collect();
+    assert!(!argv.is_empty(), "command.argv 为空");
+    for needle in ["capture_render_perworld.py", "--scene", "--reference-tag", "nw3-light-hinge02040",
+                   "--repeat", "2", "--worlds", "3", "--use-fast-math", "false", "--use-shadows", "true",
+                   "fixtures/render-bvh/scene-a-light/scene.xml"] {
+        assert!(argv_has(&argv, needle), "command.argv 缺 {needle}");
+    }
+    let covers = scope_text(&capture["per_world_scope"]["covers"]);
+    for token in ["per-world light poses", "per-world geom poses", "light_xpos/light_xdir", "geom_xpos/geom_xmat"] {
+        assert!(covers.contains(token), "per_world_scope.covers 缺 {token}");
+    }
+    let resolved = &capture["context"]["resolved"];
+    assert_eq!(resolved["nrender"].as_u64(), Some(ACTIVE_CAMERA_COUNT as u64), "参考 nrender");
+    assert_eq!(resolved["cam_id_map"], serde_json::json!([0, 1]), "参考 cam_id_map");
+    assert_eq!(resolved["cam_res"], serde_json::json!([[320, 240], [320, 240]]), "参考 cam_res");
+    assert_eq!(resolved["nworld"].as_u64(), Some(WORLDS as u64), "参考 nworld");
+    assert_eq!(capture["parameters"]["cam_active"], serde_json::json!([true, true, false]), "参考 cam_active");
+    let legacy = resolved["legacy_manifest_entries"].as_u64().or_else(|| capture["legacy_reference_files"].as_u64());
+    assert_eq!(legacy, Some(LEGACY_MANIFEST_ENTRIES), "参考 legacy manifest 条目数");
+    if !capture["legacy_reference_untouched"].is_null() {
+        assert_eq!(capture["legacy_reference_untouched"], serde_json::json!(true), "参考 legacy 未改动标记");
+    }
+    let cameras = capture["recipe"]["cameras"].as_array().expect("recipe.cameras");
+    assert_eq!(cameras.len(), ACTIVE_CAMERA_COUNT, "recipe.cameras 条数");
+    for (slot, camera) in cameras.iter().enumerate() {
+        let (name, pos, quat, fovy, sensorsize, intrinsic) = EXPECTED_CAMERAS[slot];
+        assert_eq!(camera.as_object().expect("camera 对象").len(), CAMERA_KEYS.len(), "cameras[{slot}] 字段数");
+        for key in CAMERA_KEYS { assert!(camera.get(key).is_some(), "cameras[{slot}] 缺字段 {key}"); }
+        assert_eq!(camera["slot"].as_u64(), Some(slot as u64), "cameras[{slot}] slot");
+        assert_eq!(camera["mujoco_cam_id"].as_u64(), Some(slot as u64), "cameras[{slot}] mujoco_cam_id");
+        assert_eq!(camera["name"].as_str(), Some(name), "cameras[{slot}] name");
+        assert_eq!(camera["mode"].as_u64(), Some(0), "cameras[{slot}] mode");
+        assert_eq!(camera["resolution"], serde_json::json!([320, 240]), "cameras[{slot}] resolution");
+        for (index, value) in json_numbers(&camera["xpos"]).iter().enumerate() {
+            assert!(close(*value, pos[index]), "cameras[{slot}] xpos[{index}]");
+        }
+        let actual_quat = normalize_quat(&json_numbers(&camera["xquat"]));
+        for (index, value) in normalize_quat(&quat).iter().enumerate() {
+            assert!(close(actual_quat[index], *value), "cameras[{slot}] xquat[{index}]");
+        }
+        assert!(close(camera["fovy"].as_f64().expect("fovy"), fovy), "cameras[{slot}] fovy");
+        for (index, value) in json_numbers(&camera["sensorsize"]).iter().enumerate() {
+            assert!(close(*value, sensorsize[index]), "cameras[{slot}] sensorsize[{index}]");
+        }
+        for (index, value) in json_numbers(&camera["intrinsic"]).iter().enumerate() {
+            assert!(close(*value, intrinsic[index]), "cameras[{slot}] intrinsic[{index}]");
+        }
+    }
+}
+
+/// 参考可用时：实体 C1 计数必须等于 `capture.json` 记录的 C1（spec v3 §2.3；字段不存在则跳过）。
+/// 返回是否做了比对（便于 GPU 用例打印）。
+#[rustfmt::skip]
+pub fn check_capture_c1(capture: &serde_json::Value, counts: &CCounts) -> bool {
+    let recorded = capture["discriminability"]["c1_rgb_changed_px"].as_array()
+        .or_else(|| capture["c1_rgb_changed_px"].as_array())
+        .or_else(|| capture["readout"]["c1_rgb_changed_px"].as_array());
+    let Some(recorded) = recorded else { return false };
+    let expected: Vec<u64> = counts.c1_rgb_changed.iter().map(|value| *value as u64).collect();
+    let actual: Vec<u64> = recorded.iter().map(|item| item.as_u64().expect("C1 计数")).collect();
+    assert_eq!(actual, expected, "实体 C1 计数必须等于 capture.json 记录（spec v3 §2.3）");
+    true
 }
 
 #[cfg(test)]

@@ -20,7 +20,7 @@ use mjwarp_rs::render::kernel::{MegakernelRenderer, render_per_world_with_lights
 use mjwarp_rs::render::{WorldScenePoses, resolve_context};
 use mjwarp_rs::runtime::TransferSession;
 
-use light::{ACTIVE_CAMERA_COUNT, PIXELS, REFERENCE_DIR, Verdict, WORLDS};
+use light::{ACTIVE_CAMERA_COUNT, PIXELS, Verdict, WORLDS};
 
 // ---------------------------------------------------------------------------
 // 参考 npz 最小解析（ZIP_STORED + npy v1/v2/v3 头；不引第三方依赖、不新增夹具）
@@ -113,6 +113,9 @@ pub struct ReferenceState {
 pub struct Reference {
     /// `[world][cam]`，cam 顺序 = 启用相机顺序（cam-persp、cam-hinge）。
     pub frames: Vec<Vec<Frame>>,
+    /// 原始 f32 rgb（`[world][cam][pixel] = [r,g,b]`，未被量化成 8-bit）：判据 C 的 C1 口径必须用它，
+    /// 因为 spec v3 §6 比较的是 f32 `max_channel|Δrgb| ≥ 1/255`，量化回字节会引入 254↔255 饱和步进误差。
+    pub rgb_f32: Vec<Vec<Vec<[f32; 3]>>>,
     pub state: ReferenceState,
     pub capture: serde_json::Value,
 }
@@ -161,100 +164,41 @@ fn read_file(dir: &std::path::Path, name: &str) -> Result<Vec<u8>, String> {
 }
 
 /// 读参考目录；目录/文件缺失 -> `Err`（调用方必须显式报「未执行」）。
+#[rustfmt::skip]
 pub fn load_reference(dir: &std::path::Path) -> Result<Reference, String> {
     if !dir.is_dir() {
-        return Err(format!(
-            "reference missing (G-L1 capture pending): {} (required rgb/depth/seg/state npz + capture.json)",
-            dir.display()
-        ));
+        return Err(format!("reference missing (G-L1 capture pending): {} (required rgb/depth/seg/state npz + capture.json)", dir.display()));
     }
     let rgb = npz::members(&read_file(dir, "rgb.npz")?);
     let depth = npz::members(&read_file(dir, "depth.npz")?);
     let seg = npz::members(&read_file(dir, "seg.npz")?);
     let state = npz::members(&read_file(dir, "state.npz")?);
-    let capture: serde_json::Value = serde_json::from_slice(&read_file(dir, "capture.json")?)
-        .map_err(|error| format!("capture.json: {error}"))?;
+    let capture: serde_json::Value = serde_json::from_slice(&read_file(dir, "capture.json")?).map_err(|error| format!("capture.json: {error}"))?;
     let mut frames = Vec::with_capacity(WORLDS);
+    let mut rgb_f32 = Vec::with_capacity(WORLDS);
     for world in 0..WORLDS {
         let mut row = Vec::with_capacity(ACTIVE_CAMERA_COUNT);
+        let mut rgb_row = Vec::with_capacity(ACTIVE_CAMERA_COUNT);
         for cam in 0..ACTIVE_CAMERA_COUNT {
+            let rgb_values = f32_member(&rgb, &format!("rgb_w{world}_cam{cam}.npy"));
             let depth_values = f32_member(&depth, &format!("depth_w{world}_cam{cam}.npy"));
             let seg_values = i32_member(&seg, &format!("seg_w{world}_cam{cam}.npy"));
+            assert_eq!(rgb_values.len(), 3 * PIXELS);
             assert_eq!(depth_values.len(), PIXELS);
             assert_eq!(seg_values.len(), 2 * PIXELS);
-            row.push(Frame {
-                rgb: packed_rgb(&f32_member(&rgb, &format!("rgb_w{world}_cam{cam}.npy"))),
-                depth: depth_values,
-                seg: seg_values
-                    .chunks(2)
-                    .map(|pair| [pair[0], pair[1]])
-                    .collect(),
-            });
+            rgb_row.push(rgb_values.chunks(3).map(|pixel| [pixel[0], pixel[1], pixel[2]]).collect());
+            row.push(Frame { rgb: packed_rgb(&rgb_values), depth: depth_values,
+                             seg: seg_values.chunks(2).map(|pair| [pair[0], pair[1]]).collect() });
         }
         frames.push(row);
+        rgb_f32.push(rgb_row);
     }
     Ok(Reference {
-        frames,
-        state: ReferenceState {
-            geom_xpos: f32_member(&state, "geom_xpos.npy"),
-            geom_xmat: f32_member(&state, "geom_xmat.npy"),
-            light_xpos: f32_member(&state, "light_xpos.npy"),
-            light_xdir: f32_member(&state, "light_xdir.npy"),
-        },
+        frames, rgb_f32,
+        state: ReferenceState { geom_xpos: f32_member(&state, "geom_xpos.npy"), geom_xmat: f32_member(&state, "geom_xmat.npy"),
+                                light_xpos: f32_member(&state, "light_xpos.npy"), light_xdir: f32_member(&state, "light_xdir.npy") },
         capture,
     })
-}
-
-/// 判据 B 的数据面 + 参考 provenance 自核（G-L2 输入必须在场）。
-fn check_capture_provenance(capture: &serde_json::Value) {
-    assert_eq!(
-        capture["two_captures_bitwise_identical"],
-        serde_json::json!(true),
-        "参考两跑逐位一致标记"
-    );
-    let captured_at = capture["captured_at"].as_str().unwrap_or_default();
-    assert!(!captured_at.trim().is_empty(), "参考 captured_at 为空");
-    assert_eq!(
-        capture["reference_tag"].as_str(),
-        Some("nw3-light-hinge02040"),
-        "参考 tag"
-    );
-    let resolved = &capture["context"]["resolved"];
-    assert_eq!(
-        resolved["nrender"].as_u64(),
-        Some(ACTIVE_CAMERA_COUNT as u64),
-        "参考 nrender"
-    );
-    assert_eq!(
-        resolved["cam_id_map"],
-        serde_json::json!([0, 1]),
-        "参考 cam_id_map"
-    );
-    assert_eq!(
-        resolved["cam_res"],
-        serde_json::json!([[320, 240], [320, 240]]),
-        "参考 cam_res"
-    );
-    let cameras = capture["recipe"]["cameras"]
-        .as_array()
-        .expect("recipe.cameras");
-    assert_eq!(cameras.len(), ACTIVE_CAMERA_COUNT, "recipe.cameras 条数");
-    for camera in cameras {
-        for key in [
-            "slot",
-            "mujoco_cam_id",
-            "name",
-            "mode",
-            "xpos",
-            "xquat",
-            "fovy",
-            "resolution",
-            "sensorsize",
-            "intrinsic",
-        ] {
-            assert!(camera.get(key).is_some(), "recipe.cameras 缺字段 {key}");
-        }
-    }
 }
 
 /// 世界隔离用：深拷贝 state 并仅改 world1 的几何位姿 + 灯位姿。
@@ -272,86 +216,90 @@ fn moved_world1(state: &ReferenceState) -> ReferenceState {
 }
 
 #[test]
+#[rustfmt::skip]
 fn missing_reference_reports_explicit_not_executed_error() {
-    let dir =
-        std::path::Path::new("../fixtures/render-bvh/scene-a-light/perworld/definitely-missing");
-    let error = match load_reference(dir) {
-        Ok(_) => panic!("缺失参考必须返回 Err"),
-        Err(error) => error,
-    };
-    assert!(
-        error.contains("reference missing"),
-        "错误必须显式说明参考缺失：{error}"
-    );
+    let dir = light::reference_dir().parent().expect("参考根").join("definitely-missing");
+    let error = match load_reference(&dir) { Ok(_) => panic!("缺失参考必须返回 Err"), Err(error) => error };
+    assert!(error.contains("reference missing"), "错误必须显式说明参考缺失：{error}");
     assert!(!error.contains("panic"), "不得用 panic 代替显式错误");
 }
 
-#[test]
-fn capture_provenance_self_check_rejects_bad_or_missing_fields() {
-    let good = serde_json::json!({
+/// spec v3 §2.1/§2.2 写死内容的完整 capture.json 样本（值取自 pinned 3.15 的 pilot attempt 3）。
+fn good_capture() -> serde_json::Value {
+    serde_json::json!({
         "two_captures_bitwise_identical": true,
         "captured_at": "2026-11-08T19:00:00+08:00",
         "reference_tag": "nw3-light-hinge02040",
-        "context": {"resolved": {"nrender": 2, "cam_id_map": [0, 1],
-                    "cam_res": [[320, 240], [320, 240]]}},
-        "recipe": {"cameras": [
-            {"slot": 0, "mujoco_cam_id": 0, "name": "cam-persp", "mode": 0, "xpos": [0, 0, 0],
-             "xquat": [0, 0, 0, 1], "fovy": 60, "resolution": [320, 240],
-             "sensorsize": [0, 0], "intrinsic": [0, 0, 0, 0]},
-            {"slot": 1, "mujoco_cam_id": 1, "name": "cam-hinge", "mode": 0, "xpos": [0, 0, 0],
-             "xquat": [0, 0, 0, 1], "fovy": 30, "resolution": [320, 240],
-             "sensorsize": [0, 0], "intrinsic": [0, 0, 0, 0]}
-        ]}
-    });
-    check_capture_provenance(&good);
+        "legacy_reference_untouched": true,
+        "command": {"argv": ["python.exe", "capture_render_perworld.py", "--scene",
+            "fixtures/render-bvh/scene-a-light/scene.xml", "--out-root", "out", "--out-dir", "out/tag",
+            "--reference-tag", "nw3-light-hinge02040", "--worlds", "3", "--hinge-deg", "0,20,40",
+            "--use-fast-math", "false", "--use-shadows", "true", "--seed", "20261030", "--repeat", "2"]},
+        "per_world_scope": {"covers": "per-world light poses (light_xpos/light_xdir) AND per-world geom \
+            poses (geom_xpos/geom_xmat) with nworld > 1", "does_not_cover": "AA x perworld"},
+        "parameters": {"cam_active": [true, true, false]},
+        "recipe": {
+            "scene_xml": {"path": "fixtures/render-bvh/scene-a-light/scene.xml",
+                "sha256": "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716", "bytes": 5134},
+            "cameras": [
+                {"slot": 0, "mujoco_cam_id": 0, "name": "cam-persp", "mode": 0,
+                 "xpos": [1.2, -1.1, 0.8],
+                 "xquat": [0.9233805168766387, 0.10259783520851541, -0.20519567041703082, 0.3077935056255462],
+                 "fovy": 73.73979461915735, "resolution": [320, 240],
+                 "sensorsize": [0.035999998450279236, 0.024000000208616257],
+                 "intrinsic": [0.017999999225139618, 0.01600000075995922, 0.0, 0.0]},
+                {"slot": 1, "mujoco_cam_id": 1, "name": "cam-hinge", "mode": 0,
+                 "xpos": [-0.0925, 0.4981, 0.8296],
+                 "xquat": [-0.2110880661810797, -0.14976304695424203, 0.5589241752358911, 0.7877922469914213],
+                 "fovy": 30.0, "resolution": [320, 240], "sensorsize": [0.0, 0.0],
+                 "intrinsic": [0.009999999776482582, 0.009999999776482582, 0.0, 0.0]}
+            ]
+        },
+        "context": {"resolved": {"nworld": 3, "nrender": 2, "cam_id_map": [0, 1],
+            "cam_res": [[320, 240], [320, 240]], "legacy_manifest_entries": 112}}
+    })
+}
+
+#[test]
+#[rustfmt::skip]
+fn capture_provenance_self_check_rejects_bad_or_missing_fields() {
+    light::check_capture_provenance(&good_capture());
     type Mutation = Box<dyn Fn(&mut serde_json::Value)>;
     let mutations: Vec<(&str, Mutation)> = vec![
-        (
-            "two-run flag",
-            Box::new(|value: &mut serde_json::Value| {
-                value["two_captures_bitwise_identical"] = serde_json::json!(false)
-            }),
-        ),
-        (
-            "captured_at",
-            Box::new(|value: &mut serde_json::Value| value["captured_at"] = serde_json::json!("")),
-        ),
-        (
-            "tag",
-            Box::new(|value: &mut serde_json::Value| {
-                value["reference_tag"] = serde_json::json!("wrong")
-            }),
-        ),
-        (
-            "nrender",
-            Box::new(|value: &mut serde_json::Value| {
-                value["context"]["resolved"]["nrender"] = serde_json::json!(1)
-            }),
-        ),
-        (
-            "camera fields",
-            Box::new(|value: &mut serde_json::Value| {
-                value["recipe"]["cameras"][0]
-                    .as_object_mut()
-                    .unwrap()
-                    .remove("intrinsic");
-            }),
-        ),
+        ("two-run flag", Box::new(|v: &mut serde_json::Value| v["two_captures_bitwise_identical"] = serde_json::json!(false))),
+        ("captured_at", Box::new(|v: &mut serde_json::Value| v["captured_at"] = serde_json::json!(""))),
+        ("tag", Box::new(|v: &mut serde_json::Value| v["reference_tag"] = serde_json::json!("wrong"))),
+        ("scene sha", Box::new(|v: &mut serde_json::Value| v["recipe"]["scene_xml"]["sha256"] = serde_json::json!("00"))),
+        ("scene bytes", Box::new(|v: &mut serde_json::Value| v["recipe"]["scene_xml"]["bytes"] = serde_json::json!(5135))),
+        ("nrender", Box::new(|v: &mut serde_json::Value| v["context"]["resolved"]["nrender"] = serde_json::json!(1))),
+        ("nworld", Box::new(|v: &mut serde_json::Value| v["context"]["resolved"]["nworld"] = serde_json::json!(2))),
+        ("cam_id_map", Box::new(|v: &mut serde_json::Value| v["context"]["resolved"]["cam_id_map"] = serde_json::json!([0, 2]))),
+        ("cam_res", Box::new(|v: &mut serde_json::Value| v["context"]["resolved"]["cam_res"] = serde_json::json!([[320, 240], [240, 180]]))),
+        ("cam_active", Box::new(|v: &mut serde_json::Value| v["parameters"]["cam_active"] = serde_json::json!([true, false, false]))),
+        ("legacy entries", Box::new(|v: &mut serde_json::Value| v["context"]["resolved"]["legacy_manifest_entries"] = serde_json::json!(107))),
+        ("camera field missing", Box::new(|v: &mut serde_json::Value| { v["recipe"]["cameras"][0].as_object_mut().unwrap().remove("intrinsic"); })),
+        ("camera fovy", Box::new(|v: &mut serde_json::Value| v["recipe"]["cameras"][0]["fovy"] = serde_json::json!(60.0))),
+        ("camera sensorsize", Box::new(|v: &mut serde_json::Value| v["recipe"]["cameras"][0]["sensorsize"] = serde_json::json!([0.0, 0.0]))),
+        ("camera intrinsic", Box::new(|v: &mut serde_json::Value| v["recipe"]["cameras"][1]["intrinsic"] = serde_json::json!([0.02, 0.02, 0.0, 0.0]))),
+        ("camera quat", Box::new(|v: &mut serde_json::Value| v["recipe"]["cameras"][1]["xquat"] = serde_json::json!([0.0, 0.0, 0.0, 1.0]))),
+        ("camera order", Box::new(|v: &mut serde_json::Value| v["recipe"]["cameras"].as_array_mut().unwrap().swap(0, 1))),
+        ("command argv", Box::new(|v: &mut serde_json::Value| v["command"]["argv"] = serde_json::json!(["python.exe"]))),
+        ("scope covers", Box::new(|v: &mut serde_json::Value| v["per_world_scope"]["covers"] = serde_json::json!("light poses only"))),
+        ("legacy untouched", Box::new(|v: &mut serde_json::Value| v["legacy_reference_untouched"] = serde_json::json!(false))),
     ];
     for (label, mutate) in mutations.iter() {
-        let mut bad = good.clone();
+        let mut bad = good_capture();
         mutate(&mut bad);
-        let result = std::panic::catch_unwind(|| check_capture_provenance(&bad));
-        assert!(result.is_err(), "provenance 自核必须拒绝 {label}");
+        assert!(std::panic::catch_unwind(|| light::check_capture_provenance(&bad)).is_err(), "provenance 自核必须拒绝 {label}");
     }
 }
 
 #[test]
 #[ignore = "G-L2 验证窗冻结 exe：需要 G-L1 采集参考（目录不存在时显式报未执行，不静默 skip）"]
 fn gpu_per_world_light_matches_reference() {
-    let reference = load_reference(std::path::Path::new(REFERENCE_DIR))
+    let reference = load_reference(&light::reference_dir())
         .unwrap_or_else(|error| panic!("not executed: {error}"));
-    check_capture_provenance(&reference.capture);
+    light::check_capture_provenance(&reference.capture);
 
     let session = TransferSession::new(0).expect("本用例需要 NVIDIA 驱动与 cuda-probe");
     let fields = light::render_fields();
@@ -384,6 +332,11 @@ fn gpu_per_world_light_matches_reference() {
         verdict,
         Verdict::PassMargin,
         "参考侧判别力必须 pass-margin（两套两对 ≥576），实际 {verdict:?}"
+    );
+    // 参考可用时：实体 C1 计数必须等于 capture.json 记录的 C1（spec v3 §2.3；字段不存在则跳过）。
+    println!(
+        "capture.json C1 交叉核对执行 = {}",
+        light::check_capture_c1(&reference.capture, &counts)
     );
 
     // ---- 产品渲染（Card H：per-world 灯位姿逐位透传）----
@@ -486,4 +439,31 @@ fn gpu_per_world_light_matches_reference() {
         changed[1].iter().any(|value| *value),
         "world1 变化必须影响其输出"
     );
+}
+
+/// 本机人工交叉核对（Chief 2026-11-08 F1 要求）：用 G-L0 pilot attempt 3 的参考 npz 校验 C1 口径
+/// 与 `readout_c1_c2.py` 逐值一致。**pilot 产物只在 `target/`、不入库**，故 `#[ignore]`，手动执行：
+///   cargo test --locked --features cuda-probe --test render_per_world_light -- --ignored pilot_c1
+#[test]
+#[ignore = "pilot 参考在 target/（不入库）：本机人工交叉核对 C1=38,285/40,644"]
+#[rustfmt::skip]
+fn pilot_c1_crosscheck_matches_readout() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/render-bvh/perworld-l-v2-gl0");
+    let reference = load_reference(&root.join("pilot-out/nw3-light-hinge02040")).unwrap_or_else(|error| panic!("not executed: {error}"));
+    light::check_capture_provenance(&reference.capture);
+    let counts = light::criterion_c(&reference);
+    let verdict = light::verdict(&counts);
+    println!("pilot C1={:?} C2 depth={:?} seg={:?} verdict={verdict:?}",
+             counts.c1_rgb_changed, counts.c2_depth_changed, counts.c2_seg_changed);
+    assert_eq!(counts.c1_rgb_changed, [38_285, 40_644], "C1 必须与 readout_c1_c2.py 的 f32 1/255 口径逐值一致（254↔255 饱和步进不计）");
+    assert_eq!(counts.c2_depth_changed, [35_828, 33_883], "C2 depth 与 pilot readout 一致");
+    assert_eq!(counts.c2_seg_changed, [16_041, 16_754], "C2 seg 与 pilot readout 一致");
+    assert_eq!(verdict, Verdict::PassMargin);
+    // 修复后 readout 产物在场时再交叉一次（不入库文件，存在才比）。
+    if let Ok(bytes) = std::fs::read(root.join("window/readout.json")) {
+        let readout: serde_json::Value = serde_json::from_slice(&bytes).expect("readout.json");
+        let recorded: Vec<u64> = ["0->1", "1->2"].iter()
+            .map(|pair| readout["c1_cam_persp"][pair]["rgb_changed_px"].as_u64().expect("readout C1")).collect();
+        assert_eq!(recorded, vec![38_285, 40_644], "readout.json C1 交叉核对");
+    }
 }

@@ -31,11 +31,21 @@ fn empty_state() -> ReferenceState {
 }
 
 fn reference(frames: Vec<Vec<Frame>>) -> Reference {
+    let rgb_f32 = frames
+        .iter()
+        .map(|row| row.iter().map(|_| vec![[0.0f32; 3]; PIXELS]).collect())
+        .collect();
     Reference {
         frames,
+        rgb_f32,
         state: empty_state(),
         capture: serde_json::Value::Null,
     }
+}
+
+/// 设置参考侧原始 f32 rgb（判据 C 的 C1 只消费它，不消费量化字节）。
+fn set_rgb(reference: &mut Reference, world: usize, cam: usize, pixel: usize, value: [f32; 3]) {
+    reference.rgb_f32[world][cam][pixel] = value;
 }
 
 fn counts(values: [usize; 6]) -> CCounts {
@@ -111,34 +121,28 @@ fn zero_c2_set_fails_even_when_c1_is_large() {
 // ---- 判据 C 统计方向与相机归属 ----
 
 #[test]
+#[rustfmt::skip]
 fn criterion_c_counts_c1_on_cam_persp_and_c2_on_cam_hinge() {
-    let mut frames = vec![vec![base_frame(), base_frame()]; WORLDS];
-    // cam-persp：相邻 world 对 rgb 各差 1 个字节（≥1/255），depth/seg 不变。
-    frames[1][0].rgb[7] = 0xFF10_2031; // blue +1（0->1 变化）
-    frames[2][0].rgb[7] = 0xFF10_2032; // blue +2（1->2 变化）
+    // cam-persp：相邻 world 对 rgb_f32 各差 1/255 步进（f32 下 ≥ 1/255），depth/seg 不变。
+    let mut reference = reference(vec![vec![base_frame(), base_frame()]; WORLDS]);
+    set_rgb(&mut reference, 1, 0, 7, [0.5, 0.5, 0.5 + 1.0 / 255.0]);
+    set_rgb(&mut reference, 2, 0, 7, [0.5, 0.5, 0.5 + 3.0 / 255.0]);
     // cam-hinge：相邻 world 对 depth 位型 + seg 变化；rgb 不变（诊断项应为 0）。
-    frames[1][1].depth[11] = f32::from_bits(1.0f32.to_bits().wrapping_add(1));
-    frames[2][1].depth[11] = f32::from_bits(1.0f32.to_bits().wrapping_add(2));
-    frames[1][1].seg[13] = [3, 5];
-    frames[2][1].seg[13] = [4, 5];
-    let counts = criterion_c(&reference(frames));
-    assert_eq!(
-        counts.c1_rgb_changed,
-        [1, 1],
-        "C1 只统计 cam-persp 的 rgb 变化像素"
-    );
+    reference.frames[1][1].depth[11] = f32::from_bits(1.0f32.to_bits().wrapping_add(1));
+    reference.frames[2][1].depth[11] = f32::from_bits(1.0f32.to_bits().wrapping_add(2));
+    reference.frames[1][1].seg[13] = [3, 5];
+    reference.frames[2][1].seg[13] = [4, 5];
+    let counts = criterion_c(&reference);
+    assert_eq!(counts.c1_rgb_changed, [1, 1], "C1 只统计 cam-persp 的 rgb 变化像素");
     assert_eq!(counts.c2_depth_changed, [1, 1], "C2 depth 只统计 cam-hinge");
     assert_eq!(counts.c2_seg_changed, [1, 1], "C2 seg 只统计 cam-hinge");
-    assert_eq!(
-        counts.diag_campersp_depth,
-        [0, 0],
-        "cam-persp depth 诊断应为 0"
-    );
+    assert_eq!(counts.diag_campersp_depth, [0, 0], "cam-persp depth 诊断应为 0");
     assert_eq!(counts.diag_campersp_seg, [0, 0], "cam-persp seg 诊断应为 0");
     assert_eq!(counts.diag_camhinge_rgb, [0, 0], "cam-hinge rgb 诊断应为 0");
 }
 
 #[test]
+#[rustfmt::skip]
 fn criterion_c_rejects_camera_swapped_reference() {
     // 反向构造：几何变化在 cam-persp、rgb 变化在 cam-hinge -> C1/C2 必须判 0（不得互换归属）。
     let mut frames = vec![vec![base_frame(), base_frame()]; WORLDS];
@@ -146,57 +150,51 @@ fn criterion_c_rejects_camera_swapped_reference() {
     frames[2][0].depth[3] = 3.0;
     frames[1][0].seg[3] = [1, 5];
     frames[2][0].seg[3] = [2, 5];
-    frames[1][1].rgb[5] = 0xFF11_2030;
-    frames[2][1].rgb[5] = 0xFF12_2030;
-    let counts = criterion_c(&reference(frames));
-    assert_eq!(
-        counts.c1_rgb_changed,
-        [0, 0],
-        "cam-hinge 的 rgb 变化不得计入 C1"
-    );
-    assert_eq!(
-        counts.c2_depth_changed,
-        [0, 0],
-        "cam-persp 的 depth 变化不得计入 C2"
-    );
-    assert_eq!(
-        counts.c2_seg_changed,
-        [0, 0],
-        "cam-persp 的 seg 变化不得计入 C2"
-    );
+    let mut reference = reference(frames);
+    set_rgb(&mut reference, 1, 1, 5, [0.6, 0.5, 0.5]);
+    set_rgb(&mut reference, 2, 1, 5, [0.7, 0.5, 0.5]);
+    let counts = criterion_c(&reference);
+    assert_eq!(counts.c1_rgb_changed, [0, 0], "cam-hinge 的 rgb 变化不得计入 C1");
+    assert_eq!(counts.c2_depth_changed, [0, 0], "cam-persp 的 depth 变化不得计入 C2");
+    assert_eq!(counts.c2_seg_changed, [0, 0], "cam-persp 的 seg 变化不得计入 C2");
     assert_eq!(counts.diag_camhinge_rgb, [1, 1], "cam-hinge rgb 只进诊断项");
     assert_eq!(counts.diag_campersp_depth, [1, 1]);
-    assert_eq!(
-        verdict(&counts),
-        Verdict::NonDiscriminating,
-        "互换后必须拒绝通过"
-    );
+    assert_eq!(verdict(&counts), Verdict::NonDiscriminating, "互换后必须拒绝通过");
 }
 
 #[test]
-fn criterion_c_rgb_threshold_is_one_byte_and_uses_max_channel() {
-    let mut frames = vec![vec![base_frame(), base_frame()]; WORLDS];
-    // world1: 像素 0 无变化（Δ=0），像素 1 蓝通道 +1（≥1/255 -> 计数 1）
-    frames[1][0].rgb[0] = 0xFF10_2030;
-    frames[1][0].rgb[1] = 0xFF10_2031;
-    // world2 相对 world1：像素 2 红通道 -2（|Δ|=2 -> 计数 1）
-    frames[2][0] = frames[1][0].clone();
-    frames[2][0].rgb[2] = 0xFF0E_2031;
-    let counts = criterion_c(&reference(frames));
-    assert_eq!(
-        counts.c1_rgb_changed,
-        [1, 1],
-        "1/255 阈值按字节整数比较且取通道最大差"
-    );
+#[rustfmt::skip]
+fn criterion_c_c1_counts_f32_threshold_1_over_255_not_byte_steps() {
+    // F1 回归：C1 必须逐位复刻 spec v3 §6 / G-L0 readout 的 f32 `max_channel|Δrgb| ≥ 1/255`，
+    // 不得把 rgb 量化回 8-bit 再比字节差（254↔255 饱和步进会被字节法多算）。
+    let step = 1.0f32 / 255.0f32; // 0.003921568859_3685627（f32 舍入后 > 1/255）
+    assert!(rgb_above_threshold([0.0, 0.0, 0.0], [0.0, 0.0, step]), "1/255 步进必须计入");
+    assert!(rgb_above_threshold([0.0, 0.0, 0.0], [0.0, 0.0, 2.0 * step]), "2/255 步进必须计入");
+    assert!(!rgb_above_threshold([0.0, 0.0, 0.0], [0.0, 0.0, step * 0.5]), "半步不得计入");
+    assert!(!rgb_above_threshold([1.0, 1.0, 1.0], [254.0f32 / 255.0f32, 1.0, 1.0]),
+        "254/255 -> 1.0 的 f32 差 0.00392150879 < 1/255，饱和步进不计");
+    let mut reference = reference(vec![vec![base_frame(), base_frame()]; WORLDS]);
+    // 对 0->1：像素 1 蓝 +1/255 计；像素 2 红 +2/255 计（取通道最大差）；像素 3 饱和步进不计。
+    set_rgb(&mut reference, 1, 0, 1, [0.0, 0.0, step]);
+    set_rgb(&mut reference, 2, 0, 1, [0.0, 0.0, 2.0 * step]);
+    set_rgb(&mut reference, 1, 0, 2, [2.0 * step, 0.0, 0.0]);
+    set_rgb(&mut reference, 0, 0, 3, [254.0f32 / 255.0f32, 1.0, 1.0]);
+    set_rgb(&mut reference, 1, 0, 3, [1.0, 1.0, 1.0]);
+    for cam in 0..ACTIVE_CAMERA_COUNT { for pixel in 0..PIXELS {
+        let value = reference.rgb_f32[1][cam][pixel];
+        set_rgb(&mut reference, 2, cam, pixel, value);
+    } }
+    assert_eq!(criterion_c(&reference).c1_rgb_changed, [2, 0], "只有 f32 语义下的 2 个像素计入");
 }
 
 #[test]
+#[rustfmt::skip]
 fn criterion_c_pair_order_is_world_major() {
     // 只有 pair(1->2) 有变化：pairs 顺序必须是 [0->1, 1->2]。
-    let mut frames = vec![vec![base_frame(), base_frame()]; WORLDS];
-    frames[2][0].rgb[9] = 0xFF10_2031;
-    frames[2][1].depth[9] = 3.0;
-    let counts = criterion_c(&reference(frames));
+    let mut reference = reference(vec![vec![base_frame(), base_frame()]; WORLDS]);
+    set_rgb(&mut reference, 2, 0, 9, [0.7, 0.5, 0.5]);
+    reference.frames[2][1].depth[9] = 3.0;
+    let counts = criterion_c(&reference);
     assert_eq!(counts.c1_rgb_changed, [0, 1], "第一对不变、第二对变化");
     assert_eq!(counts.c2_depth_changed, [0, 1]);
 }
@@ -443,4 +441,25 @@ fn npz_parser_reads_members_and_npy_header() {
     assert_eq!(data.len(), 8);
     assert!(std::panic::catch_unwind(|| crate::npz::member(&members, "missing.npy")).is_err());
     assert!(std::panic::catch_unwind(|| crate::npz::members(b"not-a-zip")).is_err());
+}
+
+// ---- O2：capture provenance 值与 C1 交叉核对 ----
+
+#[test]
+#[rustfmt::skip]
+fn capture_c1_cross_check_requires_recorded_counts_match() {
+    let counts = CCounts { c1_rgb_changed: [38_285, 40_644], ..CCounts::default() };
+    let mut capture = serde_json::json!({"discriminability": {"c1_rgb_changed_px": [38_285, 40_644]}});
+    assert!(check_capture_c1(&capture, &counts), "有字段就必须比对且一致");
+    assert!(!check_capture_c1(&serde_json::json!({}), &counts), "字段不存在则跳过");
+    capture["discriminability"]["c1_rgb_changed_px"] = serde_json::json!([38_285, 40_645]);
+    assert!(std::panic::catch_unwind(|| check_capture_c1(&capture, &counts)).is_err(), "C1 不一致必须拒绝");
+}
+
+#[test]
+#[rustfmt::skip]
+fn capture_scope_text_handles_string_and_list() {
+    assert_eq!(scope_text(&serde_json::json!("per-world light poses")), "per-world light poses");
+    assert_eq!(scope_text(&serde_json::json!(["per-world light poses", "AND geom"])), "per-world light poses AND geom");
+    assert_eq!(scope_text(&serde_json::json!(3)), "");
 }
