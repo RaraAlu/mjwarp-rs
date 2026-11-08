@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts-check",
+  "title": {
+    "zh": "QA 复核：capture.json §2.4 判别力计数卡（`311b5a84`）——5 字段/两对 world/bitwise+magnitude 结构齐全、公式逐位复刻 readout、独立复算全项吻合；两遍一致后计算、行数 490/379、dry-run unexpected=0、自检 16/16 → 可进 S-2 材料前置",
+    "en": "QA review of the capture.json section 2.4 discriminability-counts card (311b5a84): fields/structure complete, formulas bit-identical to readout, independent recompute matches, computed after two-capture identity, dry-run unexpected=0, selfcheck 16/16 - can enter S-2 material prerequisites"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 卡 `2026-11-08-render-perworld-l-v2-capture-discriminability-counts`（提交 **`311b5a84`**，parent `b0556af1`）做只读独立复核：① 对照已签 spec v3 §2.4 原文逐字段核 `capture.json` 新增的 5 组判别力计数（C1 magnitude+bitwise、C2 depth/seg、两个诊断项），结构 `{\"0->1\":…, \"1->2\":…}`、键名与 spec 一致、相机归属写死、无多余冒充；② 逐行核公式与 G-L0 `readout_c1_c2.py` 同口径（f64 差取 max ≥1/255、`view(int32)` 位型、depth 位型、seg pair any）；③ 用 pilot 保留 npz 独立复算全部计数并与 `readout.json` 逐项比；④ 核写入时机（两遍逐位一致校验之后）、`perworld_capture_meta.py::discriminability_counts` 实现、主脚本 1 import/1 call、行数 ≤500、无新模块、默认 dry-run 逐叶 unexpected=0、`--worlds 1` 不变、模块自检 16/16；⑤ 边界/证据/manifest/四门禁。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Read-only independent review of commit 311b5a84 adding the spec section 2.4 discriminability counts to capture.json: field/structure conformance, formula equivalence with the readout, independent recompute on the retained pilot reference, call ordering, line counts and module wiring, dry-run default behavior, boundaries, evidence and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§2.4 字段与结构齐全**：顶层 5 组键 `c1_rgb_changed_px`（每对 world 含 `magnitude` + `bitwise` 两个计数）、`c2_depth_changed_px`、`c2_seg_changed_px`（两对 world 标量）、`campersp_depth_seg_changed_px`（每对 `depth`+`seg`）、`camhinge_rgb_changed_px`（每对 `magnitude`+`bitwise`）；键名与 spec §2.4 逐字对齐；结构 `{\"0->1\": …, \"1->2\": …}`；无缺项、无多余冒充、相机归属写死（C1=cam0/cam-persp、C2=cam1/cam-hinge、诊断不冒充）✅。",
+    "**口径逐位复刻 readout**：`magnitude = count_nonzero(np.abs(x.astype(f64)-y.astype(f64)).max(axis=-1) >= 1/255)`；`bitwise = count_nonzero(np.any(x.view(int32) != y.view(int32), axis=-1))`；C2 depth `view(int32)` 位型、seg `np.any(s0!=s1, axis=-1)`；与 `readout_c1_c2.py`（`4a054aba…`）同式、无自创等价式 ✅。",
+    "**pilot npz 独立复算逐项吻合**：C1 magnitude **38,285 / 40,644**、bitwise **43,604 / 41,815**；C2 depth **35,828 / 33,883**、seg **16,041 / 16,754**；诊断 cam-persp depth/seg **0/0、0/0**；诊断 cam-hinge rgb magnitude **50,363 / 52,329**、bitwise **54,380 / 54,250** —— 与 `readout.json`（sha `7138f238…`）及卡内 `artifacts/crosscheck-pilot-counts.json` 逐项一致 ✅。",
+    "**写入时机/实现/规模**：计数在**两遍采集逐位一致**校验（数组相等 + npz 字节哈希相等，line 447）**之后**计算（line 453）；`discriminability_counts` 定义仅 `scripts/perworld_capture_meta.py`（line 169），主脚本恰 1 import + 1 call；行数 **490 / 379** ≤500；未新建模块文件；`verify_capture_metadata` 增加 5 组结构与 rgb 两计数键校验 ✅。",
+    "**默认行为不变与自检**：默认 dry-run 与显式 light-scene dry-run 逐叶对照 only `/recipe/script/{sha256,bytes}` 变、`unexpected=0`、`cameras` 3 条、`cam_active_fixed_only=[true,true,false]`、legacy 112、不建 out_dir；`--worlds 1` 两版 exit 1、stderr 逐字同；`python -B scripts/perworld_capture_meta.py` → **SELFCHECK PASS 16/16**（新增 discriminability 正/负例）✅。",
+    "**边界/证据/门禁**：`311b5a84` 只动两脚本 + 本卡证据 + 卡/runs；`fixtures/`、`src/`、`tests/`、spec 目录零 diff；manifest **11/11** 独立重算；编码卫生；四门禁复跑 fmt/clippy/clippy-cuda exit 0、unit **1387 passed / 0 failed / 402 ignored**（当前 HEAD 含后续实体 fix；本卡自身 run 记录为 1386/0/402，差异来自后一提交新增测试）✅。",
+    "**非声明在位**：README/receipt 不宣称采集有效性/判别力恢复/任何渲染数值结论；pilot 数据明确非入库、本卡只证口径一致 ✅。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-capture-discriminability-counts"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-discriminability-counts-check/"
+    ],
+    "resources": [],
+    "priority": 79
+  },
+  "note": "Chief 2026-11-08 派工：capture.json §2.4 判别力计数卡复核（G-L1 前必须合规项，快出；零 GPU）。复核目标 311b5a84。结论：PASS → 可进 S-2 材料前置。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T13:58:00.000Z",
+  "updated_at": "2026-11-08T13:58:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-discriminability-counts-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts-check"
+    }
+  ]
+}
