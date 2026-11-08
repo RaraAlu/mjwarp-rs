@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts",
+  "title": {
+    "zh": "perworld L v2 采集脚本补写 spec §2.4 判别力计数（C1 bitwise+magnitude / C2 depth+seg / 两诊断项；逐位复刻 G-L0 readout；零 GPU）",
+    "en": "Per-world L v2 capture script writes the spec §2.4 discriminability counts (C1 bitwise+magnitude / C2 depth+seg / two diagnostic items; bit-identical to the G-L0 readout; GPU-free)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "已签 spec v3 §2.4 要求 `capture.json` 记录判别力计数：`c1_rgb_changed_px`（两对 world，含 bitwise 与 `max_channel|Δrgb|≥1/255` 两个计数）、`c2_depth_changed_px`、`c2_seg_changed_px`，以及诊断项 `campersp_depth_seg_changed_px`、`camhinge_rgb_changed_px`。现捕获脚本不写这些字段，G-L1 会产出不合规 capture.json（QA 复核 0c770bb2 的观察项 ②）。本卡在 `scripts/perworld_capture_meta.py` 实现计数函数，主脚本在**两遍采集逐位一致校验之后**调用并把结果以 `{\"0->1\": ..., \"1->2\": ...}` 结构写入 capture.json；口径逐位复刻 G-L0 pilot 判读脚本 `readout_c1_c2.py`（`4a054aba…`）：rgb 解包→逐通道 f32 差→提升 f64→取 max→`>= 1/255`；depth 位型不等；seg pair 不等；诊断项同式；相机归属写死（C1=cam0/cam-persp，C2=cam1/cam-hinge）不得互换。用 pilot attempt 3 保留数据做 CPU 交叉核对（数据在 target/、不入库），并保证默认行为不变（dry-run 对照 unexpected=0）。",
+    "en": "Signed spec v3 §2.4 requires capture.json to record the reference-side discriminability counts (C1 rgb with both bitwise and max_channel|drgb|>=1/255 counts, C2 depth/seg, and the two diagnostic items). The capture script does not write them yet, so G-L1 would produce a non-conforming capture.json (QA observation 2 on 0c770bb2). This card implements the count function in scripts/perworld_capture_meta.py and calls it from the main script after the two-capture bitwise-identity check, writing the results as {\"0->1\": ..., \"1->2\": ...}; the computation is bit-identical to the G-L0 pilot readout readout_c1_c2.py (unpack, f32 diffs promoted to f64, max channel, >= 1/255; depth bit inequality; seg pair inequality; same diagnostics; camera ownership fixed). A CPU cross-check on the retained pilot attempt-3 data (under target/, not committed) and an unchanged default behavior (dry-run leaf diff unexpected=0) are required."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§2.4 字段与结构**：`capture.json` 新增 `c1_rgb_changed_px`（两对 world，含 `bitwise` 与 `magnitude` 两个计数）、`c2_depth_changed_px`、`c2_seg_changed_px`、诊断项 `campersp_depth_seg_changed_px`（含 depth/seg）与 `camhinge_rgb_changed_px`（含 bitwise/magnitude）；每个字段以 `{\"0->1\": ..., \"1->2\": ...}` 结构写出；只在**两遍采集逐位一致校验通过之后**计算并写入。",
+    "**计算口径**：逐位复刻 G-L0 `readout_c1_c2.py`（sha `4a054aba…`/16,711 B）的 `c1_counts`/`c2_counts`/`diagnostics`：`np.abs(x.astype(np.float64) - y.astype(np.float64)).max(axis=-1) >= 1/255`、`x.view(np.int32) != y.view(np.int32)`、`np.any(seg0 != seg1, axis=-1)`；不得自创等价式，不得把 rgb 量化回 8-bit 再比字节差。",
+    "**实现位置与行数**：计数函数放 `scripts/perworld_capture_meta.py`（现 270 行、尚有余量），主脚本 import 并恰调用 1 次；两个 `.py` 均 ≤500 行（git-blob 换行口径）；不新建模块文件。",
+    "**CPU 交叉核对（零 GPU，pilot attempt 3 数据在 target/、不入库）**：新函数在 `target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040/` 上必须逐项等于 readout：C1 magnitude **38,285 / 40,644**、C1 bitwise **43,604 / 41,815**、C2 depth **35,828 / 33,883**、C2 seg **16,041 / 16,754**、诊断 cam-persp depth/seg **0 / 0**、诊断 cam-hinge rgb magnitude **50,363 / 52,329**（bitwise 同 readout）；原始输出与对照表写进本卡证据。",
+    "**自证与默认行为不变**：模块 `python -B scripts/perworld_capture_meta.py` 自检含 positive/negative（两对 world、两台相机、1/255 计入、254↔255 饱和步进不计、缺数组拒绝）；默认/显式 `--dry-run` 与 HEAD 逐叶对照 **unexpected=0**（只允许 `recipe.script` sha/bytes 变化），`--worlds 1 --dry-run` 行为不变。",
+    "**边界与门禁**：只动 `scripts/capture_render_perworld.py`、`scripts/perworld_capture_meta.py` + 本卡证据；`unchanged fixtures/`、`unchanged src/`、`unchanged tests/`、spec 目录不变；零 GPU、不采集、不建 CUDA；四门禁 fmt/clippy/clippy-cuda/unit 全过；证据 README/receipt/manifest、UTF-8/LF/无 BOM、manifest 自核。",
+    "**非声明**：本卡只补 capture.json 的计数记录与 CPU 自证；不宣称采集有效性、不宣称判别力恢复、不宣称渲染数值结论；真实计数内容以 G-L1 真渲染参考为准（本卡只在 pilot 保留数据上交叉核对口径）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-window"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_capture_meta.py",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-discriminability-counts/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Chief 2026-11-08 派工（QA 复核 0c770bb2 PASS 的两条低观察之一，必须在 G-L1 前补）：已签 spec v3 §2.4 要求 capture.json 记录判别力计数，脚本未写 → G-L1 会产出不合规 capture.json。本卡按 readout_c1_c2.py 逐位复刻实现、pilot 保留数据 CPU 交叉核对、dry-run 默认行为不变、零 GPU 不采集；只动两个 scripts 脚本 + 本卡证据。数据在 target/、不入库。",
+  "revision": {
+    "before": "bd33d5853a3e94553ca44dd89e1885cc31a4518b",
+    "after": null
+  },
+  "created_at": "2026-11-08T13:33:00.000Z",
+  "updated_at": "2026-11-08T13:33:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-discriminability-counts/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "判别力已恢复",
+        "采集有效性通过"
+      ]
+    }
+  ]
+}
