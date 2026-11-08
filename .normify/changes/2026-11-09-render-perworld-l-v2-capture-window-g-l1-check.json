@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-09-render-perworld-l-v2-capture-window-g-l1-check",
+  "title": {
+    "zh": "QA 独立采后复核：G-L1 采集窗（`6951c3fe`）——参考 5 文件 sha/bytes 与总量 11,078,239 逐位吻合、自建脚本复算 C1/C2 与 readout/capture 全项一致、§2.4 对账 OK、refit/provenance/零编译与树状态成立、authoring 例外合规（60/60、util 14–40、floor 未放松）、旧 suite/spec/S-2 只读、manifest 43/43 → G-L1 证据可用于 S-3 冻结/验证窗",
+    "en": "QA independent post-capture review of the G-L1 window (6951c3fe): reference five-file sha/bytes and 11,078,239 B total exact, own-script C1/C2 recompute matches readout/capture item by item, section 2.4 reconciliation OK, refit/provenance/zero-compile/tree states hold, authoring exception compliant (60/60, util 14-40, floor not relaxed), spec/S-2/old-suite read-only, manifest 43/43 - G-L1 evidence is usable for S-3 freeze/validation window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-L1 采集窗（窗卡 `2026-11-09-render-perworld-l-v2-capture-window-g-l1`，收口提交 **`6951c3fe`**，parent `6f9201e3`）做独立采后复核：① 参考 5 文件实测 sha/bytes/总量；② **自建脚本**从参考 npz 重算 C1 magnitude/bitwise、C2 depth/seg、诊断项并与 readout.json、capture.json 三方对账；③ §2.4 五组计数对账、files_sha256、两跑逐位一致、legacy 112、captured_at/tag/scope、cameras 2×10 字段、resolved、cam-hinge fovy；④ refit counter 序列/计数/capture_exit、wall、环境 provenance、零编译与树状态；⑤ 窗口纪律与事故（attempt1 不成立、attempt2 常规 monitor longest_clean=22 → 用户预批 authoring 例外、floor 未放松、唯一一次采集、估 11,076,054 vs 实 11,078,239）；⑥ 卡/边界/证据/门禁。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Independent post-capture review of the G-L1 window: reference identities and total bytes, own-script recompute of C1/C2 against readout and capture, section 2.4 reconciliation and metadata, refit/execution provenance, window discipline and incidents including the pre-approved authoring exception, boundaries, evidence and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**参考文件与总量**：rgb `602574c213d848ddc674244b11ac518fe42e54cf373f43784e143292e960493f`/5,531,026、depth `82eec6dab866f5ba54e3df0f3592d7198efb6ab5fc832627d98f4d56f079e92d`/1,844,650、seg `c3f09b16b6c02f972d5f7b535a39a94a6850bc1362e8399543cdb384781142f0`/3,687,826、state `a1c5a32154370551923a8a4ef394c62d5f9e0d9dbb468e707f77175f8c0c6aca`/2,486、capture.json `8b53e1221faf9c524b9f42640764a850d7e723de61ebc84342ee6b63137720a9`/12,251；总量 **11,078,239 B**；工作树与 `6951c3fe` blob 逐位相同 ✅。",
+    "**自建脚本独立复算（参考 npz）**：C1 magnitude **38,285 / 40,644**、bitwise **43,604 / 41,815**；C2 depth **35,828 / 33,883**、seg **16,041 / 16,754**；诊断 cam-persp depth/seg **0/0**、cam-hinge rgb magnitude **50,363 / 52,329**（bitwise 54,380 / 54,250）；与 readout.json 及 capture.json 三方**逐项一致** ✅。",
+    "**§2.4 与元数据对账**：capture.json 五组计数 == readout（`window/counts-crosscheck.txt` 内容可复算、逐对 OK）；`files_sha256` 与实际一致；`two_captures_bitwise_identical=true`、`legacy_reference_untouched=true`（legacy 112）、`captured_at=2026-11-09T00:02:00+08:00`、tag、`per_world_scope.covers` 覆盖 light+geom、`recipe.cameras` 2 条×10 字段（cam-hinge sensorsize `[0,0]`、fovy 30）、`resolved` nworld=3/nrender=2/cam_id_map `[0,1]`/cam_res 320×240×2、`cam_active=[true,true,false]` ✅。",
+    "**refit/执行 provenance**：`refit_calls=2`、`render_calls=2`、序列 `refit→render→refit→render`、`pattern_ok=true`、`capture_exit_code=0`（wall 2.02 s）；采集 argv 含 `--repeat 2 --worlds 3 --reference-tag nw3-light-hinge02040`；环境 python 3.12.13/warp 1.15.0/mujoco 3.15.0/numpy 2.5.4/upstream `71da24d9`/RTX 4070 Ti SUPER driver 596.36；T0 HEAD `4f6fe313`、树 clean、锁 owner=Backend、build 进程 0；采集后 git status 仅新增参考目录、零编译 ✅。",
+    "**窗口纪律与事故如实**：attempt1 monitor exit 20（longest_clean 24、free_min 8,153 < 10,230）→ 未采集、停手（记录在 `target/…/attempt1/`）；attempt2 常规 monitor exit 20（354 samples、longest_clean **22**、util 16–43%）；authoring 例外（用户 2026-11-08 预批）`-MaxUtil 60` → exit 0、**60/60 clean**、util **14–40%**、`compute_filtered=0`、`build=0`、`exception_load_bearing=true`、**每个 clean 样本 free ≥ 10,230**（post-hoc，floor 未放松）；采集前 shell 引号错误在**执行前**失败（exit 1、0.01 s、无 GPU/无写入），修正后**唯一一次**采集；baseline 13,029×3 → onspot 9,957 → `floor_effective=max(10,230, 9,957)=10,230`；实测总量 11,078,239 vs spec 估算 11,076,054（estimate vs actual，冻结以实测为准）✅。",
+    "**卡/边界/证据/门禁**：窗卡 verified，`unchanged` = `src/`/`tests/`/`scripts/` + spec/S-2/pilot 目录（**不含 fixtures**，fixtures 仅新增参考 5 文件）；`6951c3fe` 54 文件（5 参考 + 证据 48 + 卡/runs），`src/tests/scripts` 零 diff、spec/S-2 材料零 diff、既有 fixtures 零改动；证据 manifest **43/43** 独立重算；编码卫生；四门禁 fmt/clippy/clippy-cuda exit 0、unit **1387/0/402** ✅。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-09-render-perworld-l-v2-capture-window-g-l1",
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-signature-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1-check/"
+    ],
+    "resources": [],
+    "priority": 84
+  },
+  "note": "Chief 2026-11-09 派工：G-L1 参考采集独立采后复核（W0 关键证据、S-3 fill 锚点；零 GPU）。复核目标 6951c3fe。结论：PASS → G-L1 采集证据可用于 S-3 冻结/验证窗。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-09T01:05:00.000Z",
+  "updated_at": "2026-11-09T01:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-09-render-perworld-l-v2-capture-window-g-l1-check"
+    }
+  ]
+}
