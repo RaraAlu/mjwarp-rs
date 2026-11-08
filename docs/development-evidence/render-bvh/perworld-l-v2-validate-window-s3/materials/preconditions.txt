@@ -1,13 +1,13 @@
 # G-L2 S-3 preconditions (spec v3 section 12 G-L2 + section 10.2)
 # Every row must be green before the user signs S-3 and before the validation window opens.
-# Rows marked PENDING-FREEZE / PENDING-QA / PENDING-REFRESH are filled by the freeze stage / the G-L1 QA
-# review / the entity verification refresh respectively.
+# Only PENDING-FREEZE remains (filled by the freeze stage). PENDING-QA and PENDING-REFRESH were filled on 2026-11-09:
+# G-L1 QA review ef1bcce3 / HEAD 6365a7c5; entity final bab01507 with the QA chain 7d089165 / 6a75ceee / be12145e.
 
 | # | precondition | status | anchor |
 | --- | --- | --- | --- |
 | P0 | S-1 signed and spec frozen | GREEN | spec v3 sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B; S-1 receipt status=effective; signature card ...-spec-v3-signature (QA 5e82feed) |
-| P1 | G-L1 capture evidence verified: two captures bitwise identical + C1 and C2 both pairs >=576 + metadata/dual-camera/legacy/section 2.4 counts self-checks | GREEN (QA PENDING-QA) | window card 2026-11-09-render-perworld-l-v2-capture-window-g-l1; closeout commit 6951c3fe; evidence docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/ (README d7517c29b64de21045ea07e8ccf6288c51fcb6df2fcb7102bc378571b437a4d6/11360 B, receipt da780949adb6aabdadfa30c9942bc6f25569797644fc962931bc5292e8f27fbc/10952 B, manifest 43/43); readout verdict=pass-margin |
-| P2 | criterion entity render_per_world_light implemented and verified + QA review PASS | entity usable (section 2.4 dict adaptation fix PASS be12145e) | PENDING-REFRESH: final verified commit + QA PASS |
+| P1 | G-L1 capture evidence verified: two captures bitwise identical + C1 and C2 both pairs >=576 + metadata/dual-camera/legacy/section 2.4 counts self-checks | GREEN + QA PASS (0 blocking) | window card 2026-11-09-render-perworld-l-v2-capture-window-g-l1; closeout commit 6951c3fe; evidence docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/ (README d7517c29b64de21045ea07e8ccf6288c51fcb6df2fcb7102bc378571b437a4d6/11360 B, receipt da780949adb6aabdadfa30c9942bc6f25569797644fc962931bc5292e8f27fbc/10952 B, manifest 43/43); readout verdict=pass-margin; QA post-capture review card 2026-11-09-render-perworld-l-v2-capture-window-g-l1-check (verified), evidence ef1bcce3, HEAD after wording fix 6365a7c5; three-way recompute (own script / readout / capture section 2.4) item-by-item consistent; reference five files sha/bytes re-measured 11,078,239 B |
+| P2 | criterion entity render_per_world_light implemented and verified + QA review PASS | GREEN | entity implementation final commit bab01507; QA chain initial 7d089165 + F1/O2 6a75ceee + section 2.4 dictionary adaptation be12145e (PASS, usable for the G-L2 freeze); criteria A/B/C and thresholds unchanged; tests/support/render_bvh/light.rs 499/500 lines (no headroom) |
 | P3 | guards frozen: 107 = 12 exe + 93 inputs + 2 outline lists (96 + 1 new exe + 10 mandatory inputs, optional 0) | list fixed; freezer landed and self-checked; real freeze PENDING-FREEZE | materials/guards-freeze-list.txt, artifacts/freezer-selfcheck.txt |
 | P4 | three-point baseline + S-3b signed floor | suggested measured 2026-11-09 (baseline_free 13,028 / signed floor 9,956); user value re-measured within 5 minutes before the window | materials/baseline-suggestion.txt |
 | P5 | regular monitor 60/60 util<40 (compute_filtered=0, build=0) | executed at the window | materials/window-discipline.txt |

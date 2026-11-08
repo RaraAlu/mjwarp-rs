@@ -2,7 +2,7 @@
 
 - 任务：`2026-11-09-render-perworld-l-v2-validate-window-s3-fill`（owner Arch、p80；**材料卡已 verified**，fill 轮由 fill 卡承载；**验证窗未开**）
 - 依据：**已签 spec v3（S-1）** `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md` sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / **39,379 B** / 344 行 / 15 节；逐条对齐 **§10.1（判据实体）**、**§10.2（窗口材料与纪律）**、**§4/§5/§6（判据 A/B/C 与 C1/C2）**、**§8（失败条件）**、**§9.3（自查顺序）**、**§12 G-L2**
-- **fill 状态（2026-11-09）**：G-L1 已收口，8 组 `PENDING-G-L1` 中可填的 6 组已填实；剩余 **`PENDING-FREEZE`**（12 个 live exe 的 sha/bytes 与最终 aggregate，冻结时产出）、**`PENDING-QA`**（G-L1 采后 QA 复核锚点）、**`PENDING-REFRESH`**（实体最终 verified 锚点）。
+- **fill 状态（2026-11-09，最终批）**：8 组依赖 G-L1 的占位**全部填实**（含 `PENDING-QA` = G-L1 采后复核 `ef1bcce3`/`6365a7c5`、`PENDING-REFRESH` = 实体 `bab01507`）；**剩余仅 `PENDING-FREEZE`**（12 个 live exe 的 sha/bytes + stash、`aggregate_sha256`、guards JSON sha，属窗口冻结阶段产物）。
 - 本材料 **CPU、零 GPU、零采集**；**不 start 窗口卡**、不碰 `src/` / `fixtures/` / `tests/`；本 fill 轮**新增一个冻结器脚本**（见 §2.6，`unchanged scripts/` 除外该新文件）。
 
 ## 1. 前置核对表（缺项禁签 / 禁开窗）
@@ -10,8 +10,8 @@
 | # | 前置 | 当前状态 | 证据锚点 |
 | --- | --- | --- | --- |
 | P0 | **S-1 已签且 spec 冻结** | ✅ | spec v3 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d`/39,379 B；S-1 receipt `status=effective`；签名卡 `…-spec-v3-signature`、QA `5e82feed` |
-| P1 | **G-L1 采集证据 verified**：两跑逐位一致 + C1/C2 两套两对 ≥576 + 元数据/双相机/legacy/§2.4 计数自核 | ✅ **G-L1 已收口**（QA 采后复核 `PENDING-QA`） | 窗卡 `2026-11-09-render-perworld-l-v2-capture-window-g-l1`；提交 **`6951c3fe`**；证据 `docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/`（README `d7517c29…`/11,360 B、receipt `da780949…`/10,952 B、manifest **43/43**）；readout `verdict=pass-margin`；`two_captures_bitwise_identical=true`；`legacy_reference_untouched=true` |
-| P2 | **判据实体 `render_per_world_light` 实现 verified + QA PASS** | 实体可用（§2.4 字典适配 fix 复核 PASS `be12145e`）；最终锚点 `PENDING-REFRESH` | 最终以 verified 提交为准 |
+| P1 | **G-L1 采集证据 verified**：两跑逐位一致 + C1/C2 两套两对 ≥576 + 元数据/双相机/legacy/§2.4 计数自核 | ✅ **G-L1 已收口 + QA 采后复核 PASS（0 阻断）** | 窗卡 `2026-11-09-render-perworld-l-v2-capture-window-g-l1`；提交 **`6951c3fe`**；证据 `docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/`（README `d7517c29…`/11,360 B、receipt `da780949…`/10,952 B、manifest **43/43**）；readout `verdict=pass-margin`；`two_captures_bitwise_identical=true`；`legacy_reference_untouched=true`；**QA 采后复核卡** `2026-11-09-render-perworld-l-v2-capture-window-g-l1-check`（verified；证据 **`ef1bcce3`**、措辞更正后 HEAD **`6365a7c5`**；三方复算（自建脚本 / readout / capture §2.4）逐项一致；参考 5 文件 sha/bytes 实测 11,078,239 B 全对） |
+| P2 | **判据实体 `render_per_world_light` 实现 verified + QA PASS** | ✅ 实体实现最终提交 **`bab01507`**；QA 链 初查 `7d089165` + F1/O2 复核 `6a75ceee` + §2.4 字典适配复核 `be12145e`（PASS，可用于 G-L2 冻结）；判据 A/B/C 与阈值未动；`tests/support/render_bvh/light.rs` **499/500 行**（无余量，后续改动须先减行） | exe 名 `render_per_world_light` |
 | P3 | **guards 冻结**：1 新 exe + 10 必需输入（可选 0）→ **107 条** | 清单写死 §2；冻结器已落（CPU 自检 PASS）；**实际冻结 `PENDING-FREEZE`** | `materials/guards-freeze-list.txt`、`artifacts/freezer-selfcheck.txt` |
 | P4 | **三点基线 + S-3b signed floor**（用户签） | **suggested 已测**（§3.3）；用户签名值 `PENDING` 开窗前 5 分钟实测 | §3.3、`materials/baseline-suggestion.txt` |
 | P5 | **常规 monitor 60/60 util<40**（`compute_filtered=0`、`build=0`） | 窗口时执行 | §3 |
@@ -65,6 +65,7 @@
 
 - 旧 suite `guards-perworld-s1.json`（`ca3ecd5c…`/38,659 B，96 条，aggregate `8a4ddc50…`）与其 stash `target/render-bvh/perworld-s1-window/frozen-exes/`（11 文件）**只读保留**；不重冻、不改写、不复用为本次证据。
 - 冻结器在冻结后复查旧 suite sha 不变；**实测旧 stash 有 1 条漂移**（`render_shadow_reference.exe`：记录 101,102,921 B/`ce5139…`，实际 100,859,152 B/`4500bb…`，最后写入 2026-11-03T23:09:54+08:00），属**预存在事实**，只报不修；G-L2 会重建并重新 stash 自己的 12 个 exe，因此旧 stash 仅历史参照。**冻结器在 `-Execute` 遇到该漂移会拒绝，除非 Chief 裁定后加 `-AllowOldStashDrift`。**
+- **Chief 裁定（2026-11-09）**：该漂移属**预存在已知项**；旧 stash 仅历史只读参照、**不作本次证据**；G-L2 会重建并重新 stash 自己的 12 个 exe；窗口冻结时 Backend 可带显式 `-AllowOldStashDrift` 并**记录理由**（冻结器默认仍拒绝）；**旧 guards JSON 不得改动**（sha `ca3ecd5c…`/38,659 B，冻结前后一致）；QA 预审确认该口径。
 - 历史清单 `guards.json` / `guards-r02-skybox.json` / `guards-r08-rgb-hetero.json` / `guards-sdf-validate.json` 同样只读。
 
 ### 2.5 aggregate 与 guards JSON
@@ -78,7 +79,7 @@
 - 脚本：`scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1`（`14d82190…` / 20,802 B；ASCII-only）
 - 默认 **dry-run/结构自检**：不跑 cargo、不构建、不 stash、不写 guards JSON；只写 `target/render-bvh/perworld-l2-window/freeze-plan-dryrun.json`。已跑出 **SELFCHECK PASS 13/13**（`artifacts/freezer-selfcheck.txt`），其中旧 suite 96 条 aggregate 独立复算一致、旧 suite sha 基准一致、10 条必需输入 sha/bytes 逐条一致、参考总量 11,078,239 B、`capture.json.files_sha256` 一致、12+93+2=107、新 exe 唯一且与旧 11 条不重名、新 stash 目录与旧只读 stash 不同。
 - `-Execute`（**窗口期**，monitor PASS 后、body 前，Backend 执行）：唯一允许 `cargo test --locked --no-run` 的位置；解析 12 个 exe、stash、计算 aggregate、写 guards JSON、复查旧 suite 未变与 `live==guard==stash`。
-- **旧 stash 漂移**：`-Execute` 默认拒绝，需 Chief 裁定 + `-AllowOldStashDrift`。
+- **旧 stash 漂移**：Chief 2026-11-09 已裁定为预存在已知项（见 §2.4）；`-Execute` 默认拒绝，窗口期 Backend 可带显式 `-AllowOldStashDrift` 并在窗口证据记录理由。
 
 ## 3. 窗口纪律（spec §10.2，写死）
 
@@ -120,25 +121,29 @@ baseline（三点原文 + `baseline_free`/`onspot_floor`/`signed_floor`/`floor_e
 
 ## 6. QA 预审重点（完整预审在 fill 后，10 项）
 
-1. 与已签 spec §10.1/§10.2/§12 G-L2 逐条对齐；2. guards 算术 **107**（12+93+2）、10 条必需输入逐条 sha/bytes 与实测一致、可选 0、旧 suite/stash 只读且漂移已如实记录；3. 冻结器行为（dry-run 不构建、`-Execute` 唯一构建点、aggregate 先验算法复算、`live==guard==stash`、旧 suite 冻结后复查、漂移默认拒绝）；4. 纪律：冻结在 monitor 后/body 零编译、三点基线 5 分钟内、`floor_effective=max` 且区分采样 min、monitor 60/60 util<40、失败即停、authoring 例外不适用；5. 实体预期覆盖 A/B/C + 384/576 + G-L1 实测计数对账 + world 隔离 + v2.2 非继承 + refit；6. §2.4 对账要求 `Compared`；7. PENDING 剩余仅 `PENDING-FREEZE`/`PENDING-QA`/`PENDING-REFRESH` 且落点明确；8. 双签摘要 S-3a/S-3b 可分、S-3b 标 suggested、不得复用 S-2 数值；9. 边界（CPU/零 GPU/不改代码，除新增冻结器脚本；四门禁；manifest 卫生）；10. 非声明（不宣称验收通过/采集有效/上游等价/渲染结论）。
+1. 与已签 spec §10.1/§10.2/§12 G-L2 逐条对齐；2. guards 算术 **107**（12+93+2）、10 条必需输入逐条 sha/bytes 与实测一致、可选 0、旧 suite/stash 只读且漂移已如实记录；3. 冻结器行为（dry-run 不构建、`-Execute` 唯一构建点、aggregate 先验算法复算、`live==guard==stash`、旧 suite 冻结后复查、漂移默认拒绝）；4. 纪律：冻结在 monitor 后/body 零编译、三点基线 5 分钟内、`floor_effective=max` 且区分采样 min、monitor 60/60 util<40、失败即停、authoring 例外不适用；5. 实体预期覆盖 A/B/C + 384/576 + G-L1 实测计数对账 + world 隔离 + v2.2 非继承 + refit；6. §2.4 对账要求 `Compared`；7. PENDING 剩余仅 `PENDING-FREEZE`（12 exe sha/bytes + aggregate + guards JSON sha）且落点明确，`PENDING-QA`/`PENDING-REFRESH` 已填且锚点可核；8. 双签摘要 S-3a/S-3b 可分、S-3b 标 suggested、不得复用 S-2 数值；9. 边界（CPU/零 GPU/不改代码，除新增冻结器脚本；四门禁；manifest 卫生）；10. 非声明（不宣称验收通过/采集有效/上游等价/渲染结论）。
 
-## 7. S-3 双签摘要（**草案，QA 完整预审 PASS 后再定稿**）
+## 7. S-3 双签摘要（**定稿待审版，2026-11-09；尚未签署**）
 
 | 签名项 | 内容 |
 | --- | --- |
-| **S-3a（验证窗计划）** | G-L2 单次验证窗、执行者 Backend（唯一写者）；guards 冻结 = **107 条**（旧 96 + 1 新 exe `render_per_world_light` + 10 条必需输入，可选 0），旧 suite/stash 只读；参考 5 文件 **11,078,239 B**（sha 见表 §2.3）；冻结在 monitor 后、body 零编译、`live==guard==stash`、单次失败即停 |
+| **S-3a（验证窗计划）** | G-L2 单次验证窗、执行者 Backend（唯一写者）；guards 冻结 = **107 条**（12 exe + 93 输入 + 2 条 v2.2 清单；旧 96 + 1 新 exe `render_per_world_light` + 10 条必需输入，可选 0），旧 suite/stash 只读；参考 5 文件 **11,078,239 B**（sha 见表 §2.3）；实体 `render_per_world_light` 最终 `bab01507`（QA 链 `7d089165`/`6a75ceee`/`be12145e`），判据 A/B/C 与 **§2.4 对账要求 `check_capture_c1` 必须输出 `Compared`（`Skipped` = 停手）**；冻结在 monitor 后、body 零编译、`live==guard==stash`、单次失败即停 |
 | **S-3b（基线 + signed floor）** | `suggested`：`baseline_free = 13,028 MiB`、`signed floor = 9,956 MiB`（2026-11-09 零 GPU 三点实测）；开窗前 5 分钟内现场重测并按 **`floor_effective = max(signed, 现场)`（更高更严）**；**不复用 S-2 的 13,302/10,230** |
 | **失败条款** | 任一判据/计数/元数据/legacy/冻结件/编译纪律/monitor 失败 → 停手报用户；不重试、不改阈值/参考/相机、不换冻结件 |
 | **证据与 QA** | 证据目录 `…/perworld-l-v2-validate-window-g-l2/`；QA 材料完整预审 + 窗口后 QA 复核；窗口记录同 pilot/S-2 格式 |
 | **签名不构成开窗** | 仍需 QA PASS + Chief G-L2 token + 现场 floor 取更高 + monitor 60/60 + 零编译 |
 
-## 8. 剩余 PENDING（本 fill 后）
+**已知事实（旧 stash 漂移）**：旧 suite stash 的 `render_shadow_reference.exe` 漂移（记录 `ce5139…`/101,102,921 B vs 实际 `4500bb…`/100,859,152 B，写入晚 8 分钟）属**预存在已知项**；旧 stash 仅历史只读参照、**不作本次证据**；G-L2 重建并重新 stash 自己的 12 个 exe；窗口冻结可带显式 `-AllowOldStashDrift` 并记录理由；**旧 guards JSON 不得改动**。
+
+> **定稿说明**：本摘要为**可预审的定稿版**，仍需 QA 完整预审 PASS 后交用户签署；**不得据此声称已签**，签署前不产生生效效力。
+
+## 8. 剩余 PENDING（仅冻结阶段）
 
 | # | 待填项 | 落点 |
 | --- | --- | --- |
-| 1 | **`PENDING-FREEZE`**：12 个 live exe 的 path/bytes/sha、新 guards JSON 的 `aggregate_sha256` 与 `guards_sha256` | §2.2/§2.5、receipt `guards` |
-| 2 | **`PENDING-QA`**：G-L1 采后复核卡锚点（QA PASS 后由 fix 填入） | §1 P1、receipt `preconditions[P1]` |
-| 3 | **`PENDING-REFRESH`**：实体最终 verified 提交 + QA PASS 锚点 | §1 P2、receipt `preconditions[P2]` |
+| 1 | **`PENDING-FREEZE`**：12 个 live exe 的 path/bytes/sha + stash、新 guards JSON 的 `aggregate_sha256` 与 `guards_sha256` | §2.2/§2.5、receipt `guards` |
+
+`PENDING-QA`（G-L1 采后复核 `ef1bcce3`/`6365a7c5`）与 `PENDING-REFRESH`（实体 `bab01507` + QA 链）已在本批填实，不再占位。
 
 > **本材料在 G-L2 窗口前必须保持声明**：S-3 未签、guards 未冻结、窗口卡未登记（G-L2 执行窗另卡）；不得宣称采集有效 / 灯验收 / 上游等价 / 任何渲染数值结论。
 
