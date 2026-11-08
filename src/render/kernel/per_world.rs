@@ -9,6 +9,9 @@
 //! - 方案 L-2（每 world 另建 context + D2D 拷贝）与 L-3（抽 `megakernel_args.rs`）不采用：
 //!   前者违背「零 D2D / 零第二套 context」前提，后者超出本片写入面。
 //! - v1 只覆盖 per-world geom 位姿；灯仍模型级单份（v1 不注入 per-world 灯）。
+//! - L v2（spec v3 §10.3）：[`render_per_world_with_lights`] 在每次 world 发射前把该 world 的
+//!   灯位姿（[`WorldLightPoses`]，f32 位型 = 采集侧 `state.npz` 原值）逐位透传到内核
+//!   `light_xpos_in`/`light_xdir_in`；内核灯数组仍 1-D、`.cu`/81 槽零改动。
 //! - AA：`nsamples > 1` 显式拒绝（`LauncherError::Unsupported`），不静默按单样本渲染。
 
 use crate::model::render::RenderFields;
@@ -20,6 +23,7 @@ use crate::render::rays::RayBuffer;
 use crate::runtime::launcher::LauncherError;
 
 use super::megakernel::MegakernelRenderer;
+use super::world_light::WorldLightPoses;
 
 /// AA / `spp>1` 守卫：per-world 入口只接受 `nsamples == 1`（纯函数，CPU 可单测）。
 pub fn reject_multi_sample(nsamples: usize) -> Result<(), LauncherError> {
@@ -31,7 +35,7 @@ pub fn reject_multi_sample(nsamples: usize) -> Result<(), LauncherError> {
     }
 }
 
-/// 逐 world 渲染一帧（方案 L v1）。
+/// 逐 world 渲染一帧（方案 L v1：只注入 per-world geom 位姿；灯仍模型级单份）。
 ///
 /// 前置：`context.resolved().output.nsamples == 1`；`scene_poses.worlds()` 等于 context 的
 /// `nworld`；`scene_poses.leaves()` 等于每 world 的 leaf 数（各 world 的 leaf geom 次序一致）。
@@ -45,11 +49,71 @@ pub fn render_per_world(
     camera_poses: &[CameraPose],
     rays: &RayBuffer,
 ) -> Result<(), LauncherError> {
+    render_per_world_impl(
+        renderer,
+        context,
+        fields,
+        model,
+        scene_poses,
+        None,
+        camera_poses,
+        rays,
+    )
+}
+
+/// 逐 world 渲染一帧 + L v2 **per-world 灯位姿**（spec v3 §10.3；`.cu`/81 槽零改动）。
+///
+/// 与 [`render_per_world`] 的唯一差别：每次 world 发射前把 `light_poses.world_slice(world)`
+/// 的 [`super::megakernel_arrays::LightDataPose`]（`xpos`/`xdir` f32 位型 = 采集侧
+/// `state.npz` 的 `light_xpos`/`light_xdir` 原值；不 FK 推导、不 f64 重算、`xdir` 不重归一化）
+/// 重传到内核 `light_xpos_in`/`light_xdir_in` 两个 1-D 实参。
+///
+/// 灯数必须等于 `fields.light_type` 长度，且 `light_poses.worlds()` 必须等于 context 的
+/// `nworld`（否则 `InvalidArray`，不 panic）；其余前置/失败恢复语义与 [`render_per_world`] 相同。
+// 8 参数：per-world 灯位姿必须显式传入（同 `render_with_flex` 的 8 参数先例）。
+#[allow(clippy::too_many_arguments)]
+pub fn render_per_world_with_lights(
+    renderer: &MegakernelRenderer,
+    context: &mut RenderContext,
+    fields: &RenderFields,
+    model: &CameraModel,
+    scene_poses: &WorldScenePoses,
+    light_poses: &WorldLightPoses,
+    camera_poses: &[CameraPose],
+    rays: &RayBuffer,
+) -> Result<(), LauncherError> {
+    render_per_world_impl(
+        renderer,
+        context,
+        fields,
+        model,
+        scene_poses,
+        Some(light_poses),
+        camera_poses,
+        rays,
+    )
+}
+
+/// 两个 per-world 入口的共享实现：`lights = None` 即 v1（geom-only）路径，行为逐字节不变。
+#[allow(clippy::too_many_arguments)]
+fn render_per_world_impl(
+    renderer: &MegakernelRenderer,
+    context: &mut RenderContext,
+    fields: &RenderFields,
+    model: &CameraModel,
+    scene_poses: &WorldScenePoses,
+    lights: Option<&WorldLightPoses>,
+    camera_poses: &[CameraPose],
+    rays: &RayBuffer,
+) -> Result<(), LauncherError> {
     let resolved = context.resolved();
     reject_multi_sample(resolved.output.nsamples)?;
     let worlds = resolved.nworld;
     if scene_poses.worlds() != worlds {
         return Err(LauncherError::InvalidArray("scene_pose_worlds"));
+    }
+    if let Some(lights) = lights {
+        validate_light_worlds(lights, worlds)?;
     }
     let leaf_meta: Vec<(u32, i32)> = context
         .scene()
@@ -69,8 +133,19 @@ pub fn render_per_world(
             outcome = Err(error);
             break;
         }
-        if let Err(error) = renderer.render_world(context, fields, model, camera_poses, rays, world)
-        {
+        let rendered = match lights {
+            Some(lights) => renderer.render_world_with_lights(
+                context,
+                fields,
+                model,
+                camera_poses,
+                rays,
+                world,
+                lights,
+            ),
+            None => renderer.render_world(context, fields, model, camera_poses, rays, world),
+        };
+        if let Err(error) = rendered {
             outcome = Err(error);
             break;
         }
@@ -86,6 +161,14 @@ pub fn render_per_world(
         outcome = Err(error);
     }
     outcome
+}
+
+/// per-world 灯入口的 world 数校验（纯函数，CPU 单测覆盖；不发 GPU）。
+fn validate_light_worlds(lights: &WorldLightPoses, worlds: usize) -> Result<(), LauncherError> {
+    if lights.worlds() != worlds {
+        return Err(LauncherError::InvalidArray("per_world_light_worlds"));
+    }
+    Ok(())
 }
 
 /// 把 `leaf_meta` 压成「每个 leaf 在其 world 组内的槽位」；并校验各 world 的 leaf 数/geom 次序一致。
@@ -234,5 +317,22 @@ mod tests {
         let caller = caller_poses(&poses, &slots, &[(0, 7), (1, 9)]).unwrap();
         assert_eq!(caller[0].xpos, [0.0, 0.25, 0.5]);
         assert_eq!(caller[1].xpos, [11.0, 11.25, 11.5]);
+    }
+
+    fn light_pose(seed: f32) -> super::super::megakernel_arrays::LightDataPose {
+        super::super::megakernel_arrays::LightDataPose {
+            xpos: [seed, seed + 1.0, seed + 2.0],
+            xdir: [0.0, 0.0, -1.0],
+        }
+    }
+
+    #[test]
+    fn validates_per_world_light_world_count_without_panic() {
+        let lights = WorldLightPoses::new(3, 3, vec![light_pose(0.0); 9]).unwrap();
+        assert!(matches!(
+            validate_light_worlds(&lights, 2),
+            Err(LauncherError::InvalidArray("per_world_light_worlds"))
+        ));
+        assert!(validate_light_worlds(&lights, 3).is_ok());
     }
 }

@@ -1,0 +1,7 @@
+# Card H interface (one line)
+`render_per_world_with_lights(renderer, context, fields, model, scene_poses, light_poses: &WorldLightPoses, camera_poses, rays)`：
+逐 world 发射前把该 world 的 `LightDataPose{xpos,xdir}`（f32 位型 = 采集侧 `state.npz`
+的 `light_xpos`/`light_xdir` 原值，不 FK、不 f64 重算、xdir 不重归一化）逐位透传到内核
+1-D 实参 `light_xpos_in`/`light_xdir_in`；`.cu`、81 槽签名与内核身份零改动。
+默认 `render_per_world`（geom-only v1）签名/行为不变；`light_mode!=0`/`light_bodyid!=0`
+拒绝面只在默认路径保留；`nsamples>1` 仍 Unsupported。

@@ -1,0 +1,681 @@
+diff --git a/src/render/kernel/megakernel.rs b/src/render/kernel/megakernel.rs
+index 8412c36c..e19c35c0 100644
+--- a/src/render/kernel/megakernel.rs
++++ b/src/render/kernel/megakernel.rs
+@@ -35,6 +35,7 @@ use super::megakernel_arrays::{
+     channel_flags, floats, geom_data_poses, ints, light_data_poses, pack_flex_scene, reals,
+     shading_words,
+ };
++use super::world_light::{WorldLightPoses, flatten_light_poses, select_world_lights};
+ use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
+ 
+ // 拆分①：上传段以 `#[path]` 在本文件内声明为子模块（卡片 scope；`lighting.rs` 同款先例）。
+@@ -59,6 +60,8 @@ const BLOCK: u32 = 256;
+ struct RenderPass<'a> {
+     /// `Some(world)` = 逐 world 发射（方案 L v1）；`None` = 全 world 一次发射。
+     world: Option<usize>,
++    /// L v2：per-world 灯位姿；`Some` 时每次发射前按 `world` 逐位透传（spec v3 §10.3）。
++    lights: Option<&'a WorldLightPoses>,
+     /// 宿主 flex 通道；`None` 与 S7b2 等价（S7b2 的 1 元素占位）。
+     flex: Option<&'a FlexHostInputs<'a>>,
+     /// R06-S3c：2D/3D flex mesh 通道（真实 shell/elem 拓扑）；`None` 只走 1D/无 flex 路径。
+@@ -114,6 +117,7 @@ impl MegakernelRenderer {
+             rays,
+             RenderPass {
+                 world: None,
++                lights: None,
+                 flex: None,
+                 flex_mesh: None,
+             },
+@@ -145,6 +149,7 @@ impl MegakernelRenderer {
+             rays,
+             RenderPass {
+                 world: None,
++                lights: None,
+                 flex,
+                 flex_mesh,
+             },
+@@ -170,6 +175,36 @@ impl MegakernelRenderer {
+             rays,
+             RenderPass {
+                 world: Some(world),
++                lights: None,
++                flex: None,
++                flex_mesh: None,
++            },
++        )
++    }
++
++    /// 单 world 发射 + L v2 per-world 灯位姿：灯位姿按 `world` 从 `lights` 逐位透传
++    /// （spec v3 §10.3；内核灯数组仍 1-D、`.cu`/81 槽零改动）。
++    // 8 参数：per-world 灯位姿必须显式传入（同 `render_with_flex` 的 8 参数先例）。
++    #[allow(clippy::too_many_arguments)]
++    pub(crate) fn render_world_with_lights(
++        &self,
++        context: &RenderContext,
++        fields: &RenderFields,
++        model: &CameraModel,
++        camera_poses: &[CameraPose],
++        rays: &RayBuffer,
++        world: usize,
++        lights: &WorldLightPoses,
++    ) -> Result<(), LauncherError> {
++        self.render_impl(
++            context,
++            fields,
++            model,
++            camera_poses,
++            rays,
++            RenderPass {
++                world: Some(world),
++                lights: Some(lights),
+                 flex: None,
+                 flex_mesh: None,
+             },
+@@ -187,6 +222,7 @@ impl MegakernelRenderer {
+     ) -> Result<(), LauncherError> {
+         let RenderPass {
+             world,
++            lights,
+             flex,
+             flex_mesh,
+         } = pass;
+@@ -212,7 +248,9 @@ impl MegakernelRenderer {
+             return Err(LauncherError::Unsupported("S7b3 不含 splat"));
+         }
+         // R05-S2：hfield 求交已接入（`gtype==1` 由设备侧分派到 mesh BVH）；
+-        if ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
++        // L v2：per-world 灯入口自带逐 world 灯位姿，不经 `light_mode`/`light_bodyid` 的
++        // identity-body 推导（拒绝面只在默认路径保留，不全局放开）。
++        if lights.is_none() && ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
+             return Err(LauncherError::Unsupported(
+                 "S7b3 只支持 light_mode=0（固定灯）的 data 位姿推导",
+             ));
+@@ -336,15 +374,18 @@ impl MegakernelRenderer {
+         // ---- 场景 geom data 位姿（从打包后的 scene 布局反解 leaf→geom） ----
+         let (geom_xpos, geom_xmat) = geom_data_poses(&scene, ngeom)?;
+ 
+-        // ---- 灯 data 位姿（固定灯：identity body 旋转；见文件头） ----
+-        let light_poses = light_data_poses(fields)
+-            .map_err(|error| LauncherError::Driver(format!("light-poses: {error}")))?;
+-        let mut light_xpos = Vec::with_capacity(3 * light_poses.len());
+-        let mut light_xdir = Vec::with_capacity(3 * light_poses.len());
+-        for pose in &light_poses {
+-            light_xpos.extend_from_slice(&pose.xpos);
+-            light_xdir.extend_from_slice(&pose.xdir);
+-        }
++        // ---- 灯 data 位姿：L v2 per-world 入口按 world 逐位透传；默认路径仍由 fields 推导 ----
++        let (light_xpos, light_xdir) = match lights {
++            Some(lights) => {
++                let world = world.ok_or(LauncherError::InvalidArray("per_world_light_world"))?;
++                select_world_lights(lights, world, ints(fields, "light_type")?.len())?
++            }
++            None => {
++                let light_poses = light_data_poses(fields)
++                    .map_err(|error| LauncherError::Driver(format!("light-poses: {error}")))?;
++                flatten_light_poses(&light_poses)
++            }
++        };
+ 
+         // ---- 输出布局/相机布局/射线 ----
+         // R08-RGB：通道开关按激活相机逐项填充（81 槽 51/52/53 本就是 per-render bool 数组）。
+diff --git a/src/render/kernel/mod.rs b/src/render/kernel/mod.rs
+index f3120796..0c2c52b5 100644
+--- a/src/render/kernel/mod.rs
++++ b/src/render/kernel/mod.rs
+@@ -34,11 +34,13 @@ pub mod per_world;
+ pub mod renderer;
+ mod world_arrays;
+ pub mod world_camera;
++mod world_light;
+ 
+ pub use megakernel::MegakernelRenderer;
+ pub use megakernel_arrays::{LightDataPose, light_data_poses};
+-pub use per_world::{reject_multi_sample, render_per_world};
++pub use per_world::{reject_multi_sample, render_per_world, render_per_world_with_lights};
+ pub use renderer::DepthSegRenderer;
++pub use world_light::{WorldLightError, WorldLightPoses};
+ 
+ use crate::runtime::launcher::{
+     BlockRule, LaunchDims, LauncherError, PrecisionGate, RenderArg, RenderArgKind, RenderElem,
+diff --git a/src/render/kernel/per_world.rs b/src/render/kernel/per_world.rs
+index 3045d115..37e7ea83 100644
+--- a/src/render/kernel/per_world.rs
++++ b/src/render/kernel/per_world.rs
+@@ -9,6 +9,9 @@
+ //! - 方案 L-2（每 world 另建 context + D2D 拷贝）与 L-3（抽 `megakernel_args.rs`）不采用：
+ //!   前者违背「零 D2D / 零第二套 context」前提，后者超出本片写入面。
+ //! - v1 只覆盖 per-world geom 位姿；灯仍模型级单份（v1 不注入 per-world 灯）。
++//! - L v2（spec v3 §10.3）：[`render_per_world_with_lights`] 在每次 world 发射前把该 world 的
++//!   灯位姿（[`WorldLightPoses`]，f32 位型 = 采集侧 `state.npz` 原值）逐位透传到内核
++//!   `light_xpos_in`/`light_xdir_in`；内核灯数组仍 1-D、`.cu`/81 槽零改动。
+ //! - AA：`nsamples > 1` 显式拒绝（`LauncherError::Unsupported`），不静默按单样本渲染。
+ 
+ use crate::model::render::RenderFields;
+@@ -20,6 +23,7 @@ use crate::render::rays::RayBuffer;
+ use crate::runtime::launcher::LauncherError;
+ 
+ use super::megakernel::MegakernelRenderer;
++use super::world_light::WorldLightPoses;
+ 
+ /// AA / `spp>1` 守卫：per-world 入口只接受 `nsamples == 1`（纯函数，CPU 可单测）。
+ pub fn reject_multi_sample(nsamples: usize) -> Result<(), LauncherError> {
+@@ -31,7 +35,7 @@ pub fn reject_multi_sample(nsamples: usize) -> Result<(), LauncherError> {
+     }
+ }
+ 
+-/// 逐 world 渲染一帧（方案 L v1）。
++/// 逐 world 渲染一帧（方案 L v1：只注入 per-world geom 位姿；灯仍模型级单份）。
+ ///
+ /// 前置：`context.resolved().output.nsamples == 1`；`scene_poses.worlds()` 等于 context 的
+ /// `nworld`；`scene_poses.leaves()` 等于每 world 的 leaf 数（各 world 的 leaf geom 次序一致）。
+@@ -44,6 +48,63 @@ pub fn render_per_world(
+     scene_poses: &WorldScenePoses,
+     camera_poses: &[CameraPose],
+     rays: &RayBuffer,
++) -> Result<(), LauncherError> {
++    render_per_world_impl(
++        renderer,
++        context,
++        fields,
++        model,
++        scene_poses,
++        None,
++        camera_poses,
++        rays,
++    )
++}
++
++/// 逐 world 渲染一帧 + L v2 **per-world 灯位姿**（spec v3 §10.3；`.cu`/81 槽零改动）。
++///
++/// 与 [`render_per_world`] 的唯一差别：每次 world 发射前把 `light_poses.world_slice(world)`
++/// 的 [`super::megakernel_arrays::LightDataPose`]（`xpos`/`xdir` f32 位型 = 采集侧
++/// `state.npz` 的 `light_xpos`/`light_xdir` 原值；不 FK 推导、不 f64 重算、`xdir` 不重归一化）
++/// 重传到内核 `light_xpos_in`/`light_xdir_in` 两个 1-D 实参。
++///
++/// 灯数必须等于 `fields.light_type` 长度，且 `light_poses.worlds()` 必须等于 context 的
++/// `nworld`（否则 `InvalidArray`，不 panic）；其余前置/失败恢复语义与 [`render_per_world`] 相同。
++// 8 参数：per-world 灯位姿必须显式传入（同 `render_with_flex` 的 8 参数先例）。
++#[allow(clippy::too_many_arguments)]
++pub fn render_per_world_with_lights(
++    renderer: &MegakernelRenderer,
++    context: &mut RenderContext,
++    fields: &RenderFields,
++    model: &CameraModel,
++    scene_poses: &WorldScenePoses,
++    light_poses: &WorldLightPoses,
++    camera_poses: &[CameraPose],
++    rays: &RayBuffer,
++) -> Result<(), LauncherError> {
++    render_per_world_impl(
++        renderer,
++        context,
++        fields,
++        model,
++        scene_poses,
++        Some(light_poses),
++        camera_poses,
++        rays,
++    )
++}
++
++/// 两个 per-world 入口的共享实现：`lights = None` 即 v1（geom-only）路径，行为逐字节不变。
++#[allow(clippy::too_many_arguments)]
++fn render_per_world_impl(
++    renderer: &MegakernelRenderer,
++    context: &mut RenderContext,
++    fields: &RenderFields,
++    model: &CameraModel,
++    scene_poses: &WorldScenePoses,
++    lights: Option<&WorldLightPoses>,
++    camera_poses: &[CameraPose],
++    rays: &RayBuffer,
+ ) -> Result<(), LauncherError> {
+     let resolved = context.resolved();
+     reject_multi_sample(resolved.output.nsamples)?;
+@@ -51,6 +112,9 @@ pub fn render_per_world(
+     if scene_poses.worlds() != worlds {
+         return Err(LauncherError::InvalidArray("scene_pose_worlds"));
+     }
++    if let Some(lights) = lights {
++        validate_light_worlds(lights, worlds)?;
++    }
+     let leaf_meta: Vec<(u32, i32)> = context
+         .scene()
+         .leaves()
+@@ -69,8 +133,19 @@ pub fn render_per_world(
+             outcome = Err(error);
+             break;
+         }
+-        if let Err(error) = renderer.render_world(context, fields, model, camera_poses, rays, world)
+-        {
++        let rendered = match lights {
++            Some(lights) => renderer.render_world_with_lights(
++                context,
++                fields,
++                model,
++                camera_poses,
++                rays,
++                world,
++                lights,
++            ),
++            None => renderer.render_world(context, fields, model, camera_poses, rays, world),
++        };
++        if let Err(error) = rendered {
+             outcome = Err(error);
+             break;
+         }
+@@ -88,6 +163,14 @@ pub fn render_per_world(
+     outcome
+ }
+ 
++/// per-world 灯入口的 world 数校验（纯函数，CPU 单测覆盖；不发 GPU）。
++fn validate_light_worlds(lights: &WorldLightPoses, worlds: usize) -> Result<(), LauncherError> {
++    if lights.worlds() != worlds {
++        return Err(LauncherError::InvalidArray("per_world_light_worlds"));
++    }
++    Ok(())
++}
++
+ /// 把 `leaf_meta` 压成「每个 leaf 在其 world 组内的槽位」；并校验各 world 的 leaf 数/geom 次序一致。
+ ///
+ /// `leaf_meta[i] = (world 分组, MuJoCo geom_id)`。任一 world 缺 leaf、分组越界或同槽位 geom 不一致
+@@ -235,4 +318,21 @@ mod tests {
+         assert_eq!(caller[0].xpos, [0.0, 0.25, 0.5]);
+         assert_eq!(caller[1].xpos, [11.0, 11.25, 11.5]);
+     }
++
++    fn light_pose(seed: f32) -> super::super::megakernel_arrays::LightDataPose {
++        super::super::megakernel_arrays::LightDataPose {
++            xpos: [seed, seed + 1.0, seed + 2.0],
++            xdir: [0.0, 0.0, -1.0],
++        }
++    }
++
++    #[test]
++    fn validates_per_world_light_world_count_without_panic() {
++        let lights = WorldLightPoses::new(3, 3, vec![light_pose(0.0); 9]).unwrap();
++        assert!(matches!(
++            validate_light_worlds(&lights, 2),
++            Err(LauncherError::InvalidArray("per_world_light_worlds"))
++        ));
++        assert!(validate_light_worlds(&lights, 3).is_ok());
++    }
+ }
+diff --git a/src/render/kernel/world_light.rs b/src/render/kernel/world_light.rs
+new file mode 100644
+index 00000000..aeb5a1ae
+--- /dev/null
++++ b/src/render/kernel/world_light.rs
+@@ -0,0 +1,371 @@
++//! L v2：host 逐 world 灯位姿容器与逐 world 透传选择（spec v3 §10.3；`.cu`/81 槽零改动）。
++//!
++//! 机制：内核灯数组仍是 **1-D vec3**（`render_megakernel.cu` 37/38 槽
++//! `light_xpos_in`/`light_xdir_in`），per-world 发射时内核 `worldid` 恒 0 →
++//! 每次发射前把目标 world 的灯位姿重传到这两个数组即可；不新增 2-D 灯数组、
++//! 不改单发射结构、不改 81 槽签名（内核身份不变）。
++//!
++//! 数据口径（与 spec v3 §10.3 / §5 一致）：逐 world 的 [`LightDataPose`] 的
++//! `xpos`/`xdir` 为 **f32 位型**，直接取采集侧 `state.npz` 的 `light_xpos`/
++//! `light_xdir` 原值；**不做 FK 推导、不做 f64 重算**。`xdir` 已是上游
++//! `normalize` 结果，本模块**逐位透传、不重新归一化**（重归一化可能改变末位，
++//! 破坏与参考的位级对齐）。
++//!
++//! 默认单 world 路径的 [`super::megakernel_arrays::light_data_poses`] 语义不变：
++//! 仍要求 `light_mode == 0` / `light_bodyid == 0`，归一化沿用
++//! `crate::math::fma::fma_f32` 序列；该拒绝面只在默认路径生效，不因本入口全局放开。
++//!
++//! 所有校验在发射前返回显式错误，不 panic。
++
++use crate::runtime::launcher::LauncherError;
++
++use super::megakernel_arrays::LightDataPose;
++
++/// 逐 world 灯位姿的显式错误（不发 GPU、不 panic）。
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum WorldLightError {
++    /// `worlds == 0`。
++    WorldCountZero,
++    /// `lights == 0`。
++    LightCountZero,
++    /// 位姿条目数不等于 `worlds × lights`。
++    CountMismatch { expected: usize, actual: usize },
++    /// world 下标越界。
++    WorldOutOfRange { world: usize, worlds: usize },
++    /// 灯下标越界。
++    LightOutOfRange { light: usize, lights: usize },
++    /// 计数乘加溢出。
++    CountOverflow { field: &'static str },
++}
++
++impl std::error::Error for WorldLightError {}
++
++impl std::fmt::Display for WorldLightError {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::WorldCountZero => write!(formatter, "nworld 必须 >= 1"),
++            Self::LightCountZero => write!(formatter, "nlight 必须 >= 1"),
++            Self::CountMismatch { expected, actual } => write!(
++                formatter,
++                "per-world 灯位姿条目数 {actual} != nworld×nlight {expected}"
++            ),
++            Self::WorldOutOfRange { world, worlds } => {
++                write!(formatter, "world {world} 越界（worlds={worlds}）")
++            }
++            Self::LightOutOfRange { light, lights } => {
++                write!(formatter, "灯下标 {light} 越界（lights={lights}）")
++            }
++            Self::CountOverflow { field } => write!(formatter, "{field} 计数溢出"),
++        }
++    }
++}
++
++/// `nworld × nlight` 灯位姿；world-major（`world * nlight + light`）。
++///
++/// 每个条目是采集侧 `state.npz` 的 `light_xpos`/`light_xdir` f32 原值
++/// （见模块文档的数据口径）。
++#[derive(Clone, Debug, PartialEq)]
++pub struct WorldLightPoses {
++    worlds: usize,
++    lights: usize,
++    poses: Vec<LightDataPose>,
++}
++
++impl WorldLightPoses {
++    /// 校验 `worlds >= 1`、`lights >= 1` 且 `poses.len() == worlds × lights`。
++    pub fn new(
++        worlds: usize,
++        lights: usize,
++        poses: Vec<LightDataPose>,
++    ) -> Result<Self, WorldLightError> {
++        if worlds == 0 {
++            return Err(WorldLightError::WorldCountZero);
++        }
++        if lights == 0 {
++            return Err(WorldLightError::LightCountZero);
++        }
++        let expected = worlds
++            .checked_mul(lights)
++            .ok_or(WorldLightError::CountOverflow {
++                field: "world_light_poses",
++            })?;
++        if poses.len() != expected {
++            return Err(WorldLightError::CountMismatch {
++                expected,
++                actual: poses.len(),
++            });
++        }
++        Ok(Self {
++            worlds,
++            lights,
++            poses,
++        })
++    }
++
++    /// world 数。
++    pub fn worlds(&self) -> usize {
++        self.worlds
++    }
++
++    /// 每 world 灯数。
++    pub fn lights(&self) -> usize {
++        self.lights
++    }
++
++    /// `(world, light)` 的位姿（拷贝）。
++    pub fn get(&self, world: usize, light: usize) -> Result<LightDataPose, WorldLightError> {
++        if world >= self.worlds {
++            return Err(WorldLightError::WorldOutOfRange {
++                world,
++                worlds: self.worlds,
++            });
++        }
++        if light >= self.lights {
++            return Err(WorldLightError::LightOutOfRange {
++                light,
++                lights: self.lights,
++            });
++        }
++        Ok(self.poses[self.index(world, light)?])
++    }
++
++    /// 某 world 的灯位姿切片（长度 = `lights`）。
++    pub fn world_slice(&self, world: usize) -> Result<&[LightDataPose], WorldLightError> {
++        if world >= self.worlds {
++            return Err(WorldLightError::WorldOutOfRange {
++                world,
++                worlds: self.worlds,
++            });
++        }
++        let start = self.index(world, 0)?;
++        let end = start
++            .checked_add(self.lights)
++            .ok_or(WorldLightError::CountOverflow {
++                field: "world_light_poses",
++            })?;
++        Ok(&self.poses[start..end])
++    }
++
++    fn index(&self, world: usize, light: usize) -> Result<usize, WorldLightError> {
++        world
++            .checked_mul(self.lights)
++            .and_then(|base| base.checked_add(light))
++            .ok_or(WorldLightError::CountOverflow {
++                field: "world_light_poses",
++            })
++    }
++}
++
++/// 逐 world 展平为内核 1-D 数组（`light_xpos_in`/`light_xdir_in`），顺序 = world 内灯序。
++pub(crate) fn flatten_light_poses(poses: &[LightDataPose]) -> (Vec<f32>, Vec<f32>) {
++    let mut xpos = Vec::with_capacity(3 * poses.len());
++    let mut xdir = Vec::with_capacity(3 * poses.len());
++    for pose in poses {
++        xpos.extend_from_slice(&pose.xpos);
++        xdir.extend_from_slice(&pose.xdir);
++    }
++    (xpos, xdir)
++}
++
++/// per-world 灯入口选灯：校验灯数与 `fields.light_type` 长度一致、world 在范围内，
++/// 并展平该 world 的 1-D 数组；错误映射为可诊断 [`LauncherError`]（不 panic）。
++pub(crate) fn select_world_lights(
++    lights: &WorldLightPoses,
++    world: usize,
++    nlight: usize,
++) -> Result<(Vec<f32>, Vec<f32>), LauncherError> {
++    if lights.lights() != nlight {
++        return Err(LauncherError::InvalidArray("per_world_light_count"));
++    }
++    let slice = lights
++        .world_slice(world)
++        .map_err(|error| LauncherError::Driver(format!("per-world lights: {error}")))?;
++    Ok(flatten_light_poses(slice))
++}
++
++#[cfg(test)]
++mod tests {
++    use crate::model::render::{FieldData, RENDER_FIELDS, RenderFieldKind, RenderFields};
++
++    use super::super::megakernel_arrays::light_data_poses;
++    use super::*;
++
++    const MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-a/model-312.json");
++
++    /// 既有 `fixtures/render-bvh/scene-a/s7b/rgb.json` 的 `light_data_check` 位型基准：
++    /// pinned 3.15 forward 的 `d.light_xpos`/`d.light_xdir`（xpos_bits, xdir_bits）。
++    const LIGHT_DATA_CHECK: [([u32; 3], [u32; 3]); 3] = [
++        (
++            [1065353216, 1065353216, 1077936128],
++            [3201800005, 3198974212, 3210188613],
++        ),
++        ([1053609165, 1056964608, 1067030938], [0, 0, 3212836864]),
++        ([0, 0, 1073741824], [0, 0, 3212836864]),
++    ];
++
++    fn light_pose(seed: f32) -> LightDataPose {
++        LightDataPose {
++            xpos: [seed, seed + 1.0, seed + 2.0],
++            xdir: [0.0, 0.0, -1.0],
++        }
++    }
++
++    fn field_data() -> Vec<FieldData> {
++        let model: serde_json::Value = serde_json::from_str(MODEL).expect("model-312.json");
++        let arrays = &model["arrays"];
++        RENDER_FIELDS
++            .iter()
++            .map(|spec| {
++                let values = arrays[spec.name]["values"].as_array().expect("渲染字段");
++                match spec.kind {
++                    RenderFieldKind::Index => FieldData::Index(
++                        values.iter().map(|v| v.as_i64().unwrap() as i32).collect(),
++                    ),
++                    RenderFieldKind::Num => {
++                        FieldData::Num(values.iter().map(|v| v.as_f64().unwrap()).collect())
++                    }
++                    RenderFieldKind::Flag => {
++                        FieldData::Flag(values.iter().map(|v| v.as_u64().unwrap() as u8).collect())
++                    }
++                    RenderFieldKind::Size => {
++                        FieldData::Size(values.iter().map(|v| v.as_i64().unwrap()).collect())
++                    }
++                    RenderFieldKind::Float => FieldData::Float(
++                        values.iter().map(|v| v.as_f64().unwrap() as f32).collect(),
++                    ),
++                }
++            })
++            .collect()
++    }
++
++    #[test]
++    fn keeps_world_major_light_poses_and_round_trips_bits() {
++        let poses: Vec<LightDataPose> = (0..12)
++            .map(|index| light_pose(index as f32 * 0.5))
++            .collect();
++        let world = WorldLightPoses::new(3, 4, poses.clone()).unwrap();
++        assert_eq!((world.worlds(), world.lights()), (3, 4));
++        for (index, expected) in poses.iter().enumerate() {
++            let actual = world.get(index / 4, index % 4).unwrap();
++            assert_eq!(
++                actual.xpos.map(f32::to_bits),
++                expected.xpos.map(f32::to_bits)
++            );
++            assert_eq!(
++                actual.xdir.map(f32::to_bits),
++                expected.xdir.map(f32::to_bits)
++            );
++        }
++        let slice = world.world_slice(2).unwrap();
++        assert_eq!(slice.len(), 4);
++        assert_eq!(
++            slice[0].xpos.map(f32::to_bits),
++            poses[8].xpos.map(f32::to_bits)
++        );
++    }
++
++    #[test]
++    fn rejects_count_mismatch_zero_sides_and_overflow_without_panic() {
++        assert!(matches!(
++            WorldLightPoses::new(3, 3, vec![light_pose(0.0); 8]),
++            Err(WorldLightError::CountMismatch {
++                expected: 9,
++                actual: 8
++            })
++        ));
++        assert_eq!(
++            WorldLightPoses::new(0, 3, Vec::new()),
++            Err(WorldLightError::WorldCountZero)
++        );
++        assert_eq!(
++            WorldLightPoses::new(3, 0, Vec::new()),
++            Err(WorldLightError::LightCountZero)
++        );
++        assert!(matches!(
++            WorldLightPoses::new(usize::MAX, 2, Vec::new()),
++            Err(WorldLightError::CountOverflow { .. })
++        ));
++    }
++
++    #[test]
++    fn rejects_out_of_range_world_and_light() {
++        let world = WorldLightPoses::new(2, 3, vec![light_pose(0.0); 6]).unwrap();
++        assert_eq!(
++            world.get(2, 0),
++            Err(WorldLightError::WorldOutOfRange {
++                world: 2,
++                worlds: 2
++            })
++        );
++        assert_eq!(
++            world.get(0, 3),
++            Err(WorldLightError::LightOutOfRange {
++                light: 3,
++                lights: 3
++            })
++        );
++        assert!(world.world_slice(2).is_err());
++    }
++
++    #[test]
++    fn flattens_target_world_in_light_order_with_verbatim_bits() {
++        let poses = vec![
++            light_pose(1.0),
++            light_pose(2.0),
++            light_pose(10.0),
++            light_pose(20.0),
++        ];
++        let world = WorldLightPoses::new(2, 2, poses).unwrap();
++        let (xpos, xdir) = flatten_light_poses(world.world_slice(1).unwrap());
++        assert_eq!(
++            xpos.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
++            [10.0f32, 11.0, 12.0, 20.0, 21.0, 22.0]
++                .iter()
++                .map(|value| value.to_bits())
++                .collect::<Vec<_>>()
++        );
++        assert_eq!(xdir.len(), 6);
++        assert_eq!(xdir[2].to_bits(), (-1.0f32).to_bits());
++    }
++
++    #[test]
++    fn select_world_lights_rejects_light_count_mismatch_and_bad_world() {
++        let world = WorldLightPoses::new(2, 3, vec![light_pose(0.0); 6]).unwrap();
++        assert!(matches!(
++            select_world_lights(&world, 0, 2),
++            Err(LauncherError::InvalidArray("per_world_light_count"))
++        ));
++        assert!(matches!(
++            select_world_lights(&world, 2, 3),
++            Err(LauncherError::Driver(_))
++        ));
++        assert!(select_world_lights(&world, 1, 3).is_ok());
++    }
++
++    #[test]
++    fn default_path_light_data_poses_keep_golden_bits() {
++        let fields = RenderFields::new(field_data());
++        let poses = light_data_poses(&fields).expect("默认路径灯位姿");
++        assert_eq!(poses.len(), LIGHT_DATA_CHECK.len());
++        for (pose, (xpos_bits, xdir_bits)) in poses.iter().zip(LIGHT_DATA_CHECK) {
++            assert_eq!(pose.xpos.map(f32::to_bits), xpos_bits, "xpos 位型回归");
++            assert_eq!(pose.xdir.map(f32::to_bits), xdir_bits, "xdir 位型回归");
++        }
++    }
++
++    #[test]
++    fn default_path_still_rejects_tracked_lights() {
++        for (field, replacement) in [
++            ("light_mode", FieldData::Index(vec![1, 0, 0])),
++            ("light_bodyid", FieldData::Index(vec![4, 0, 0])),
++        ] {
++            let mut data = field_data();
++            data[RenderFields::index_of(field).expect(field)] = replacement;
++            let fields = RenderFields::new(data);
++            assert!(
++                light_data_poses(&fields).is_err(),
++                "默认路径必须拒绝 {field} != 0（拒绝面不因 per-world 灯入口全局放开）"
++            );
++        }
++    }
++}

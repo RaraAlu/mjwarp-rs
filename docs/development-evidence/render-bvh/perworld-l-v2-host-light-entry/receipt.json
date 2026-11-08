@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-host-light-entry",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-08-render-perworld-l-v2-host-light-entry",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "host-render-entry",
+  "positioning": "spec v3 §10.3 host-only per-world light entry: WorldLightPoses container + render_per_world_with_lights; re-upload the target world's 1-D light poses before each launch; zero .cu / 81-slot / kernel-identity change; GPU-free, no capture",
+  "source": {
+    "spec": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "spec_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "spec_bytes": 39379,
+    "section": "§10.3 实现形态与设备脱钩面（host-only per-world 灯位姿；`.cu` 零改动、内核身份不变）",
+    "base_revision": "2e207e32925e6f68b38c2545f560966ed916e7c9"
+  },
+  "changes": {
+    "interface": "render_per_world_with_lights(renderer, context, fields, model, scene_poses, light_poses: &WorldLightPoses, camera_poses, rays) -> Result<(), LauncherError>",
+    "mechanism": "per-world 发射前把 light_poses.world_slice(world) 的 LightDataPose{xpos,xdir} 展平重传到内核 1-D 实参 light_xpos_in/light_xdir_in（render_megakernel.cu 37/38 槽）；不新增 2-D 灯数组、不改单发射结构、不改 81 槽签名",
+    "data_source": "采集侧 state.npz 的 light_xpos/light_xdir f32 原值（capture_render_perworld.py::state_arrays）；不做 FK 推导、不做 f64 重算；xdir 逐位透传不重归一化",
+    "default_path": "render_per_world（geom-only v1）签名/行为不变（共享 impl lights=None）；light_mode!=0/light_bodyid!=0 拒绝仅保留在默认路径；nsamples>1 仍 Unsupported",
+    "validation": {
+      "WorldLightPoses::new": "worlds>=1 / lights>=1 / poses.len()==worlds×lights / checked_mul 溢出（WorldLightError，不 panic）",
+      "get_world_slice": "world/light 越界返回 WorldLightError",
+      "entry": "world 数不匹配 -> InvalidArray(\"per_world_light_worlds\")；灯数不匹配 vs fields.light_type -> InvalidArray(\"per_world_light_count\")",
+      "restore": "沿用既有 loop 语义：失败尽力恢复调用前场景位姿"
+    },
+    "files": {
+      "src/render/kernel/world_light.rs": {"lines_before": 0, "lines_after": 371, "new": true},
+      "src/render/kernel/per_world.rs": {"lines_before": 238, "lines_after": 338},
+      "src/render/kernel/megakernel.rs": {"lines_before": 456, "lines_after": 497},
+      "src/render/kernel/mod.rs": {"lines_before": 477, "lines_after": 479},
+      "src/render/kernel/megakernel_arrays.rs": {"lines_before": 411, "lines_after": 411, "unchanged": true},
+      ".normify/modules/mjwarp/render/kernel.md": {"note": "模块源登记：新增 world_light.rs（normify module source --add）"}
+    },
+    "line_ratchet": "全部 .rs <= 500 行（git-blob 换行口径）"
+  },
+  "verification": {
+    "unit_tests": {
+      "log": "logs/unit-tests.log",
+      "commands": [
+        "cargo test --locked --lib world_light  (8 passed / 0 failed, exit 0)",
+        "cargo test --locked --lib per_world  (6 passed / 1 ignored, exit 0)",
+        "cargo test --locked --lib slot_40_is_bool_scalar_in_frozen_signature  (1 passed, exit 0)"
+      ],
+      "new_tests": [
+        "world_light::keeps_world_major_light_poses_and_round_trips_bits",
+        "world_light::rejects_count_mismatch_zero_sides_and_overflow_without_panic",
+        "world_light::rejects_out_of_range_world_and_light",
+        "world_light::flattens_target_world_in_light_order_with_verbatim_bits",
+        "world_light::select_world_lights_rejects_light_count_mismatch_and_bad_world",
+        "world_light::default_path_light_data_poses_keep_golden_bits",
+        "world_light::default_path_still_rejects_tracked_lights",
+        "per_world::validates_per_world_light_world_count_without_panic"
+      ],
+      "default_path_golden": "light_data_poses xpos/xdir 位型 == fixtures/render-bvh/scene-a/s7b/rgb.json 的 light_data_check（pinned 3.15 forward）"
+    },
+    "kernel_identity": {
+      "artifact": "artifacts/kernel-identity.json",
+      "cuda_zero_diff": true,
+      "cuda_files_identical": true,
+      "megakernel_slots": 81,
+      "entry_unchanged": "render_megakernel / 81 槽签名未改动"
+    },
+    "boundaries": {
+      "artifact": "artifacts/boundaries.json",
+      "changed_matches_expected": true,
+      "unchanged_fixtures": true,
+      "unchanged_scripts": true,
+      "unchanged_spec_dir": true
+    },
+    "stop_clause_check": "未发现必须改内核的情形（无需 2-D 灯数组/单次发射 K/AA×perworld/多相机新内核路径）；灯重传仅发生在 host 侧既有 1-D 实参上传 -> 不触发停手"
+  },
+  "boundaries": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "no_cuda_context": true,
+    "criteria_unchanged": true,
+    "fixtures_scripts_spec_unchanged": true
+  },
+  "g_l2_dependency": "G-L2 实体（render_per_world_light）依赖本卡接口：GPU 端到端渲染数值与判据 A/B/C 由该实体在采集参考上承担；本卡不跑、不宣称。",
+  "non_claims": {
+    "statement": "Host interface + data plane only: no rendering-pass claim, no light-pose-coverage claim, no per-world L v2 acceptance, no upstream-implementation equivalence, no rendering numeric conclusion. End-to-end rendering numbers belong to the G-L2 entity."
+  }
+}

@@ -2,7 +2,7 @@
 uid = "bc631296"
 id = "mjwarp.render.kernel"
 tags = ["engine", "render", "kernel", "gpu"]
-fingerprint = "f1eef4d21684ca6a683e64871e7fb4c4b0d0fb8b4e049b603ae9f966e0c687b4"
+fingerprint = "59e4ac3fad841e20b61ae3a0b4482f77494fae62004d8d9abf08921465f6f096"
 
 [name]
 zh = "渲染内核与内核实参"
@@ -86,6 +86,9 @@ path = "src/render/kernel/flex_channel/tests.rs"
 
 [[source]]
 path = "src/render/kernel/megakernel_args.rs"
+
+[[source]]
+path = "src/render/kernel/world_light.rs"
 
 [[apis]]
 protocol = "rpc"

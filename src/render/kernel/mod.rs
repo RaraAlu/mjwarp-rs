@@ -34,11 +34,13 @@ pub mod per_world;
 pub mod renderer;
 mod world_arrays;
 pub mod world_camera;
+mod world_light;
 
 pub use megakernel::MegakernelRenderer;
 pub use megakernel_arrays::{LightDataPose, light_data_poses};
-pub use per_world::{reject_multi_sample, render_per_world};
+pub use per_world::{reject_multi_sample, render_per_world, render_per_world_with_lights};
 pub use renderer::DepthSegRenderer;
+pub use world_light::{WorldLightError, WorldLightPoses};
 
 use crate::runtime::launcher::{
     BlockRule, LaunchDims, LauncherError, PrecisionGate, RenderArg, RenderArgKind, RenderElem,

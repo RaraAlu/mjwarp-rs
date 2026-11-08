@@ -35,6 +35,7 @@ use super::megakernel_arrays::{
     channel_flags, floats, geom_data_poses, ints, light_data_poses, pack_flex_scene, reals,
     shading_words,
 };
+use super::world_light::{WorldLightPoses, flatten_light_poses, select_world_lights};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
 // 拆分①：上传段以 `#[path]` 在本文件内声明为子模块（卡片 scope；`lighting.rs` 同款先例）。
@@ -59,6 +60,8 @@ const BLOCK: u32 = 256;
 struct RenderPass<'a> {
     /// `Some(world)` = 逐 world 发射（方案 L v1）；`None` = 全 world 一次发射。
     world: Option<usize>,
+    /// L v2：per-world 灯位姿；`Some` 时每次发射前按 `world` 逐位透传（spec v3 §10.3）。
+    lights: Option<&'a WorldLightPoses>,
     /// 宿主 flex 通道；`None` 与 S7b2 等价（S7b2 的 1 元素占位）。
     flex: Option<&'a FlexHostInputs<'a>>,
     /// R06-S3c：2D/3D flex mesh 通道（真实 shell/elem 拓扑）；`None` 只走 1D/无 flex 路径。
@@ -114,6 +117,7 @@ impl MegakernelRenderer {
             rays,
             RenderPass {
                 world: None,
+                lights: None,
                 flex: None,
                 flex_mesh: None,
             },
@@ -145,6 +149,7 @@ impl MegakernelRenderer {
             rays,
             RenderPass {
                 world: None,
+                lights: None,
                 flex,
                 flex_mesh,
             },
@@ -170,6 +175,36 @@ impl MegakernelRenderer {
             rays,
             RenderPass {
                 world: Some(world),
+                lights: None,
+                flex: None,
+                flex_mesh: None,
+            },
+        )
+    }
+
+    /// 单 world 发射 + L v2 per-world 灯位姿：灯位姿按 `world` 从 `lights` 逐位透传
+    /// （spec v3 §10.3；内核灯数组仍 1-D、`.cu`/81 槽零改动）。
+    // 8 参数：per-world 灯位姿必须显式传入（同 `render_with_flex` 的 8 参数先例）。
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn render_world_with_lights(
+        &self,
+        context: &RenderContext,
+        fields: &RenderFields,
+        model: &CameraModel,
+        camera_poses: &[CameraPose],
+        rays: &RayBuffer,
+        world: usize,
+        lights: &WorldLightPoses,
+    ) -> Result<(), LauncherError> {
+        self.render_impl(
+            context,
+            fields,
+            model,
+            camera_poses,
+            rays,
+            RenderPass {
+                world: Some(world),
+                lights: Some(lights),
                 flex: None,
                 flex_mesh: None,
             },
@@ -187,6 +222,7 @@ impl MegakernelRenderer {
     ) -> Result<(), LauncherError> {
         let RenderPass {
             world,
+            lights,
             flex,
             flex_mesh,
         } = pass;
@@ -212,7 +248,9 @@ impl MegakernelRenderer {
             return Err(LauncherError::Unsupported("S7b3 不含 splat"));
         }
         // R05-S2：hfield 求交已接入（`gtype==1` 由设备侧分派到 mesh BVH）；
-        if ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
+        // L v2：per-world 灯入口自带逐 world 灯位姿，不经 `light_mode`/`light_bodyid` 的
+        // identity-body 推导（拒绝面只在默认路径保留，不全局放开）。
+        if lights.is_none() && ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
             return Err(LauncherError::Unsupported(
                 "S7b3 只支持 light_mode=0（固定灯）的 data 位姿推导",
             ));
@@ -336,15 +374,18 @@ impl MegakernelRenderer {
         // ---- 场景 geom data 位姿（从打包后的 scene 布局反解 leaf→geom） ----
         let (geom_xpos, geom_xmat) = geom_data_poses(&scene, ngeom)?;
 
-        // ---- 灯 data 位姿（固定灯：identity body 旋转；见文件头） ----
-        let light_poses = light_data_poses(fields)
-            .map_err(|error| LauncherError::Driver(format!("light-poses: {error}")))?;
-        let mut light_xpos = Vec::with_capacity(3 * light_poses.len());
-        let mut light_xdir = Vec::with_capacity(3 * light_poses.len());
-        for pose in &light_poses {
-            light_xpos.extend_from_slice(&pose.xpos);
-            light_xdir.extend_from_slice(&pose.xdir);
-        }
+        // ---- 灯 data 位姿：L v2 per-world 入口按 world 逐位透传；默认路径仍由 fields 推导 ----
+        let (light_xpos, light_xdir) = match lights {
+            Some(lights) => {
+                let world = world.ok_or(LauncherError::InvalidArray("per_world_light_world"))?;
+                select_world_lights(lights, world, ints(fields, "light_type")?.len())?
+            }
+            None => {
+                let light_poses = light_data_poses(fields)
+                    .map_err(|error| LauncherError::Driver(format!("light-poses: {error}")))?;
+                flatten_light_poses(&light_poses)
+            }
+        };
 
         // ---- 输出布局/相机布局/射线 ----
         // R08-RGB：通道开关按激活相机逐项填充（81 槽 51/52/53 本就是 per-render bool 数组）。
