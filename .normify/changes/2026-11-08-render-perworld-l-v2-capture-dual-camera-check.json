@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-dual-camera-check",
+  "title": {
+    "zh": "QA 复核：B 采集脚本 camera_recipe 10 字段（实算 f64 位级 / 纯搬 487-270-160 / 19-19 自证 / dry-run unexpected=0 / 28-28 manifest）+ A 场景卡旧 sha 普查修正（四单位可复算）",
+    "en": "QA review: B camera_recipe 10 fields (independent f64 bit-level check, pure move 487-270-160, 19-19 self-proof, dry-run unexpected=0, manifest 27-27) plus A scene-card old-sha census fix (four-unit reproducible)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 两片做**独立复核**（只读，零 GPU）：**B（主）** `2026-11-08-render-perworld-l-v2-capture-dual-camera`（verified；登记 `3b984af3` → start `19d5fb51` → 实现 **`b98b39ff`**）：① `camera_recipe` 10 字段（spec v3 §2.4/§11.1-6③：slot/mujoco_cam_id/name/mode/xpos/xquat/fovy/resolution + sensorsize/intrinsic），值必须与 pinned MuJoCo 模型数组逐位一致（f64 位型，不换算），仅 active 相机，cam-hinge fovy 路径说明如实；② 行数 500→487 / 244→270 / light_prep 160，纯搬（旧函数整体移入 `perworld_capture_meta.py`，逻辑仅加 2 字段），import 1 次、调用 1 次、未新建模块文件；③ 执行方自证脚本独立重跑 19/19、模块自检 14/14；④ 默认/显式 dry-run 逐叶对照 unexpected=0（仅 `/recipe/script/{sha256,bytes}`）、`--worlds 1` exit 1 / stderr 逐字 / 不建 out_dir、legacy 107/112、cameras 3 条、cam_active=[true,true,false]；⑤ 消费者 `tests/`+`src/` 对 `camera_recipe` 0 引用、无 8 键封闭消费者、如实标注「dry-run 不产 camera_recipe，10 字段实拍等 G-L1」；⑥ manifest 28/28、编码卫生、diff 面。**A（轻核）** 场景/相机卡 O1 证据层 fix `e8a07167`：只动 2 artifact + 卡 + manifest，`old_sha_registration_refs 0→1`，README/receipt 未动，普查四单位（occurrence/line/full64/abbreviated）在 pinned rev 可复算。四门禁复跑 unit 1359/0。**只读 + 只写本卡证据目录。**",
+    "en": "Independent read-only review of two slices: B camera_recipe 10-field change at b98b39ff (bit-level f64 equality against pinned MuJoCo arrays, pure move, line counts 487/270/160, self-proof scripts re-run, dry-run/worlds1 behavior, consumer inventory, manifest 28/28) and A scene-camera old-sha census fix e8a07167 (two artifacts + manifest only, registration refs 0->1, four-unit census reproducible at pinned revisions). Four gates re-run."
+  },
+  "modules": {},
+  "acceptance": [
+    "**B 10 字段与 f64 位型**：独立脚本（pinned venv MuJoCo 3.15.0）对 scene-a-light（active [0,1]）与 scene-a（active [0]）构造 stub rc 调 `perworld_capture_meta.camera_recipe`，逐相机断言 10 键且顺序固定；xpos/xquat/sensorsize/intrinsic/fovy 与 `mjm.cam_*` 用 `struct.pack('<d')` 逐位相等（0 差异）；resolution 与 stub cam_res 一致；name/mode/mujoco_cam_id/slot 一致；仅 active 相机（cam_id_map 语义未变）；cam-hinge `sensorsize=[0,0]`、默认 intrinsic、fovy 路径说明如实。",
+    "**B 纯搬与行数**：git-blob 换行口径 主脚本 **487**、`perworld_capture_meta.py` **270**、`perworld_light_prep.py` **160**（均 ≤500）；`19d5fb51..b98b39ff` 对 `scripts/` 仅 2 个既有文件（+0 新文件）；旧 `camera_recipe` 整段删除、新函数体逐行相同仅加 2 字段（+docstring +模块 docstring 第 5 条），无其它逻辑改动；`camera_recipe` import 恰 1 处、调用恰 1 处（dry-run 路径之前不触达）。",
+    "**B 自证与默认行为**：执行方 `verify_camera_recipe.py` 独立重跑 **SUMMARY PASS 19/19**；模块自检 **SELFCHECK PASS 14/14**；默认与显式 dry-run 用同 argv 复跑并与执行方 before 日志逐叶对照，**unexpected=0**（仅 `/recipe/script/{sha256,bytes}`）；`--worlds 1` exit 1、stderr 逐字同（104 B）、stdout 0、out_dir 未创建；默认 legacy 107、显式 112；显式 cameras 3 条、`cam_active_fixed_only=[true,true,false]`。",
+    "**B 消费者与边界**：`git grep camera_recipe -- src/ tests/` **0 命中**；无 8 键封闭消费者；README 如实标注「dry-run 不产出 camera_recipe，真实 10 字段内容等 G-L1」；`src/`/`tests/`/`fixtures/` 对该提交零 diff；证据 manifest **28/28**、全部 UTF-8/LF/无 BOM/裸 CR·TAB 0。",
+    "**A 轻核**：`e8a07167` 只动 `artifacts/old-sha-references.txt`、`artifacts/scene-identity.json`、`manifest.txt`、卡 JSON、runs；`old_sha_registration_refs` **0→1**；scene-camera 的 README/receipt 未动（`card_registration_refs: 1` 口径不变）；`perworld-l-v2-light-criterion/`（spec/receipt/README/manifest）本提交零 diff；scene-camera manifest **15/15** 重算通过。",
+    "**A 普查可复算**：`git grep -a -o -n -E '4db66e2c[0-9a-f]*' <rev>` 四单位独立复算：rev `3d546fbe` total **21 occ / 21 lines**（historical 9/9/7 文件：full64 8 + abbreviated 1；registration 1/1 full64 1；card_evidence 11/11/7 文件：full64 9 + abbreviated 2）；rev `d38661a5` total **29 occ / 28 lines**，review_artifacts 8 occ/7 lines/3 文件（full64 1 + abbreviated 7）——与 artifact 记录逐项一致，分类规则（historical/registration/card_evidence/review_artifacts）与 pinned revision 处置可复核。",
+    "**门禁与结论格式**：四门禁独立复跑全过（unit 1359 过/0 败）；结论 `PASS` / `阻断` + 观察分级；证据落 `docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera-check/`（manifest 自核、LF/无 BOM）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+      "2026-11-08-render-perworld-l-v2-scene-camera"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera-check/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Chief 2026-11-08 17:4x 派工：B（主）双相机 camera_recipe 卡 + A（轻核）场景卡 O1 普查修正一起复核。复核目标提交 b98b39ff / e8a07167；复核时 HEAD 已前进到 ef7a8877（G-L0 pilot 材料卡），b98b39ff..HEAD 只新增 pilot 卡与证据，未触及被复核面。只读 + 只写本卡证据；零 GPU；不改被复核内容。",
+  "revision": {
+    "before": "5537ce7205efa4795342e55c92064651a2db751d",
+    "after": null
+  },
+  "created_at": "2026-11-08T09:52:24.114Z",
+  "updated_at": "2026-11-08T09:52:24.114Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-dual-camera-check"
+    }
+  ]
+}
