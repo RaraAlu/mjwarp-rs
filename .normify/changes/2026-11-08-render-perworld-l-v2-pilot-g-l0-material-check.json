@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check",
+  "title": {
+    "zh": "QA G-L0 材料读前预审：PASS（8/8 项通过；可开 G-L0，等待 Chief 窗口条件）——前置表/逐字命令/判读口径/脚本 6-6 自证+负对照/七项自核/窗口纪律/证据 12-12",
+    "en": "QA G-L0 material pre-review: PASS (8/8; may open G-L0 once Chief window conditions hold) - preconditions, verbatim command, decision rule, script 6-6 selftest plus negative control, seven self-checks, window discipline, manifest 12-12"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的 G-L0 pilot 材料卡 `2026-11-08-render-perworld-l-v2-pilot-g-l0-material`（verified；`ef7a8877`）做**读前预审**（只读、零 GPU、不写被审内容）：逐条对齐**已签 spec v3 原文** §9.3/§10.2/§11.1/§12 G-L0；独立核 ① 前置 P1–P4 + B 卡 QA PASS 是否为 pilot 前置；② `materials/command.txt` 逐字命令（out-root 必须在 `target/`、禁 `fixtures/.../perworld/`、`--reference-tag nw3-light-hinge02040`、`--repeat 2`、显式 `MJWARP_CAPTURE_AT`+N1 ISO8601 校验、pinned 环境、产物不入库、失败清理）；③ 判读口径与 §6 一致（C1/C2、两对、576/384、诊断项不判、不得换相机/冒充）；④ 脚本代码级复核 + 独立重跑 `--selftest`（应 6/6）+ 1-ULP-only 拒绝 + 仅 C1 拒绝 + L v1 参考负对照 C1 0/0 + wrapper dry-run 负例 exit 4/空序列；⑤ 采后自核七项；⑥ 窗口纪律（floor 公式、signed floor 属 S-2、常规 monitor、例外不适用、零编译、失败即停）；⑦ 证据 12/12、编码、材料期 unchanged src/fixtures/scripts；⑧ 口径不扩张。**结论若 PASS 即「可开 G-L0（等待 Chief 窗口条件）」；只读 + 只写本卡证据。**",
+    "en": "Pre-review of the G-L0 pilot material against the signed spec v3 sections 9.3/10.2/11.1/12: preconditions, verbatim command and isolation, decision rule, script code review plus independently re-run selftests, seven post-capture self-checks, window discipline, evidence hygiene, and no-scope-expansion check."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置表完整且无缺项**：P1 S-1 已签/effective（spec `bb064fe0…`/39,379 B）、P2 场景变体 verified（`4b354054…`/5,134 B）、P3 采集脚本双相机 verified（`camera_recipe` 10 字段）并**明确 B 卡 QA PASS 为 pilot 前置**、P4 P0-1 refit verified、P5 本材料 QA 预审、P6–P10 基线与 floor/monitor/零编译/token；任一红项=禁开，且写明「不得提前签 S-2 换 authoring 例外」。",
+    "**逐字命令与隔离**：`command.txt` 的 dry-run 与采集命令 out-root 均在 `target/render-bvh/perworld-l-v2-gl0/`（明确禁止写 `fixtures/render-bvh/scene-a-light/perworld/`），`--reference-tag nw3-light-hinge02040`、`--repeat 2`、`--worlds 3 --hinge-deg 0,20,40`、`--use-fast-math false --use-shadows true`、`--seed 20261030`；N1 要求显式非空 `MJWARP_CAPTURE_AT` 并先做 ISO8601 校验（实测 valid=0 / invalid=1 / empty=1）；pinned venv 3.12.13 / warp 1.15 / mujoco 3.15 / mujoco_warp 3.15 / numpy 2.5.4 / 同 GPU；产物不入库、失败只清 target 临时树。",
+    "**判读口径与 §6 逐字一致**：C1 = `cam-persp` 两对相邻 world 的 `max_channel|Δrgb|≥1/255` 计数；C2 = `cam-hinge` depth f32 位型变化 + seg (id,type) pair 变化；两套两对 ≥576 = pass-margin、[384,576)=insufficient 停手、<384=non-discriminating 拒通过；诊断项只记不判；不得换相机归属、不得互相冒充、不得改阈值/相机/recipe。",
+    "**脚本代码级复核与独立重跑**：`readout_c1_c2.py`（305 行、`456da2dc…`/13,366 B）与 `run_pilot_with_refit_counter.py`（107 行、`f90f896a…`/4,389 B）均 authoring-only、零 GPU、只读 pilot 产物、**产品路径 0 引用**（`git grep` src/tests/scripts 无命中），写盘仅 `--json-out`/`--counter-out`；我独立重跑 `--selftest` = **SUMMARY PASS 6/6**（含 1-ULP-only 被 1/255 规则拒绝、仅 C1 达标被拒因 C2 必须同时达标）；L v1 参考 rgb 负对照 C1 = **0/0（bitwise 也 0）**；wrapper dry-run 透传 **exit 4 + 空序列**（并写出 counter JSON，不会静默通过）；退出码 0/3/2 与 4 可判读。",
+    "**采后自核七项齐备**：两跑逐位一致（`two_captures_bitwise_identical` + 逐文件 sha）、refit 实际执行（计数/顺序 refit→render→refit→render）、每 world 每相机 seg (id,type) 集合、per-world rgb/depth/seg 摘要、元数据四项 + 双相机快照（nrender==2 / cam_id_map==[0,1] / cam_res==[[320,240],[320,240]] / recipe.cameras 2×10 字段含 sensorsize/intrinsic，cam-hinge 走 fovy 路径）、树 clean/fixtures 未动；readout 的 metadata_selfcheck 覆盖 §9.3-4 全部字段。",
+    "**窗口纪律与 §10.2/§12 对齐**：G-L0 先于 S-2；三点基线在开窗前 5 分钟内；`pilot_floor = baseline_free − 3072 MiB` 现场计算并记录（用户签的 signed floor 属 S-2，不是 G-L0 前置）；常规 monitor `-Required 60 -MaxMinutes 30 -MaxUtil 40`、60/60 util<40、脚本内部 10240 MiB 仅下界；**authoring 例外 util<60 不适用于 pilot**、达不到就停手不得先签 S-2；零编译+指纹；失败即停、不重试、不落库。",
+    "**证据卫生与边界**：材料 `manifest.txt` **12/12** 自核、首行 `#` + `# base dir:`、encoding 干净（无 BOM/裸 CR/TAB）；README `7d5fd874…`/10,982 B、receipt `bf3c1f3a…`/8,146 B 与 manifest 一致；`ef7a8877` 只改本卡/证据/runs，`src/`/`fixtures/`/`scripts/` 零 diff；材料期无采集/开窗/GPU。",
+    "**口径不扩张**：全文无「pilot 可省/阈值可调/失败可重试/放宽/跳过」等扩张措辞（仅否定式「不重试、不放宽」）；authoring 例外只出现在「不适用于 pilot」语境；材料明确不构成 G-L0 启动、不是签名对象、不宣称判别力/采集有效/灯验收/上游等价。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-material-check/"
+    ],
+    "resources": [],
+    "priority": 65
+  },
+  "note": "Chief 2026-11-08 17:5x 派工：G-L0 材料读前预审（开 pilot 前最后一道关卡）。复核对象材料卡 `2026-11-08-render-perworld-l-v2-pilot-g-l0-material`（ef7a8877）。只读 + 只写本卡证据；零 GPU；不改被审材料与任何卡状态。",
+  "revision": {
+    "before": "8b29be349aaed034b393fc8ce6aa3fc7f7b884e3",
+    "after": null
+  },
+  "created_at": "2026-11-08T09:59:51.772Z",
+  "updated_at": "2026-11-08T09:59:51.772Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-material-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check"
+    }
+  ]
+}
