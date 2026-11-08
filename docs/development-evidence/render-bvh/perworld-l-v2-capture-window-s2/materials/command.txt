@@ -1,0 +1,83 @@
+# G-L1 perworld L v2 light capture window - verbatim commands (S-2 signed plan; single attempt)
+# Signed spec: spec.md sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B
+# Executor: Backend (sole writer). All commands from repo root D:\Rust\mjwarp-rs, pinned venv python.
+# This window writes the FORMAL reference root fixtures/render-bvh/scene-a-light/perworld/ (allowed here;
+# the pilot used target/). NO command in this file was executed while producing the material card.
+
+# --- 0) Preconditions (material section 1): P0-P7 green, S-2 dual-signed, Chief G-L1 token in hand ---
+
+# --- 1) T0 freeze + fingerprints (before any GPU work; Get-FileHash because sha256sum is unavailable) ---
+git rev-parse HEAD
+git status --porcelain                       # must be empty
+powershell -NoProfile -File scripts/validate/repo-write-lock.ps1 -Action status   # owner=Backend during the window
+Get-Process | Where-Object { $_.ProcessName -match 'cargo|rustc|nvcc|cl$' }       # must be empty (zero compile)
+(Get-FileHash -Algorithm SHA256 fixtures/render-bvh/scene-a-light/scene.xml).Hash
+#   must be 4B354054116DDB81C6209ED10C021D133EA30D6FD82C1A6F866BAFFF9F625716 (5,134 B, 86 lines)
+Get-ChildItem scripts/capture_render_perworld.py,scripts/perworld_capture_meta.py,scripts/perworld_light_prep.py |
+  ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash, $_.Name }
+#   record actual values (pilot baseline: capture_render_perworld.py 55B91F23.../23,483 B)
+Get-ChildItem docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py |
+  ForEach-Object { "$((Get-FileHash -Algorithm SHA256 $_.FullName).Hash)  readout_c1_c2.py" }
+#   repaired readout baseline: 4A054ABA.../16,711 B
+git -C target/mjwarp-parallel/upstream rev-parse HEAD          # 71da24d9...
+git -C target/mjwarp-parallel/upstream status --porcelain      # must be empty
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import sys,warp,mujoco,mujoco_warp,numpy;print(sys.version.split()[0],warp.__version__,mujoco.__version__,mujoco_warp.__version__,numpy.__version__)"
+#   expected 3.12.13 / 1.15.0 / 3.15.0 / 3.15.0 / 2.5.4
+Test-Path fixtures/render-bvh/scene-a-light/perworld   # record: MUST be False (fresh reference root)
+
+# --- 2) N1: MJWARP_CAPTURE_AT = the concrete ISO8601 value fixed by the S-2 window card (no placeholder) ---
+$env:MJWARP_CAPTURE_AT = '<exact ISO8601 fixed in the S-2 window card>'
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import os,datetime; v=os.environ['MJWARP_CAPTURE_AT']; datetime.datetime.fromisoformat(v.replace('Z','+00:00')); assert v.strip(); print('CAPTURE_AT_OK', v)"
+# record verbatim in window/token-capture-at.txt
+
+# --- 3) Dry-run (CPU only; must not create the out-dir; run before the monitor) ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --dry-run \
+  --scene fixtures/render-bvh/scene-a-light/scene.xml \
+  --out-root fixtures/render-bvh/scene-a-light/perworld \
+  --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 \
+  --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 \
+  --use-fast-math false --use-shadows true --seed 20261030 --repeat 2
+# Expected: exit 0; model_static.cameras [[0,0,"cam-persp"],[1,0,"cam-hinge"],[2,3,"cam-track"]];
+# cam_active_fixed_only [true,true,false]; legacy_manifest_entries 112; no out-dir created.
+
+# --- 4) Window discipline: strict monitor first, then three-point baseline within 5 minutes, then GO ---
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl1/monitor.csv
+# exit 0 AND longest_clean>=60 AND all clean samples util<40 AND compute_filtered=0 AND build=0 => window exists.
+# exit != 0 (incl. exit 20) => window does NOT exist: stop, report user; not a window failure, no retry.
+# Authoring exception (user pre-approved 2026-11-08) ONLY if regular util<40 cannot be met:
+#   rerun with -MaxUtil 60, record every sample, exception_load_bearing=true, free>=floor_effective still mandatory;
+#   it applies to this capture window only and still requires the S-2 dual signature (it is not an early unlock).
+# No other CUDA process may run during the monitor: compute_filtered must stay 0.
+# Then three samples ~5 s apart, within 5 minutes before the capture:
+nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
+nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
+# baseline_free = min(free); onspot_floor = baseline_free - 3072; floor_effective = min(signed floor, onspot_floor)
+# accept only if every point free >= floor_effective and util<40; record all values in window/baseline-*.txt
+
+# --- 5) Formal capture: ONE attempt, no retry, through the refit counter wrapper ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B \
+  docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/run_pilot_with_refit_counter.py \
+  --counter-out target/render-bvh/perworld-l-v2-gl1/refit-counter.json \
+  -- --scene fixtures/render-bvh/scene-a-light/scene.xml \
+  --out-root fixtures/render-bvh/scene-a-light/perworld \
+  --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 \
+  --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 \
+  --use-fast-math false --use-shadows true --seed 20261030 --repeat 2
+# Expected: wrapper exit 0; refit x2 / render x2; sequence refit->render->refit->render; capture exit 0.
+
+# --- 6) Post-capture readout (same repaired script; C1/C2 per spec section 6) ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B \
+  docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py \
+  --pilot-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 \
+  --json-out target/render-bvh/perworld-l-v2-gl1/readout.json
+# exit 0 = pass-margin (both sets, both pairs >=576); 3 = insufficient/non-discriminating => STOP, do not commit.
+
+# --- 7) Evidence copies + explicit legacy assertion ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import json,pathlib; c=json.loads(pathlib.Path('fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/capture.json').read_text(encoding='utf-8')); print('legacy_reference_untouched', c['legacy_reference_untouched']); assert c['legacy_reference_untouched'] is True"
+# copy window/evidence per evidence-checklist.txt; record sha256+bytes of the five reference files.
+
+# --- 8) Failure handling (fail-stop, no retry) ---
+# If the capture fails BEFORE writing any reference file: clean only the newly created out-dir tree
+#   (pre-check at step 1 proved it did not exist), then verify git status --porcelain -- fixtures/ is empty.
+# If the capture wrote files but the readout/metadata check fails: keep everything as-is (do NOT delete
+#   evidence), stop, report user; do not commit the reference. Never touch existing references.

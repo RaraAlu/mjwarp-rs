@@ -1,0 +1,30 @@
+# G-L1 monitor plan (regular thresholds + the user's 2026-11-08 pre-approved authoring exception)
+
+## Regular path (default, use this whenever it passes)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl1/monitor.csv
+
+- Window exists only if: exit 0 AND longest_clean >= 60 AND all 60 clean samples util < 40 AND
+  compute_filtered = 0 AND build = 0.
+- exit != 0 (including the built-in exit 20 = not ready within -MaxMinutes 30) => the window does NOT
+  exist: stop, report the user, wait for a new token; this is not a window failure and there is no retry.
+- free >= floor_effective on every sample (operator-enforced; the script's hard-coded 10,240 MiB bound is
+  a lower bound only, not the signed floor).
+- No other CUDA process may run during the monitor; compute_filtered must stay 0 on the clean run.
+
+## Authoring exception (pre-approved by the user on 2026-11-08; scope restricted)
+
+- Use ONLY if the regular util < 40 % threshold cannot be met (external/authoring load).
+- Rerun with `-MaxUtil 60`; record every sample; set exception_load_bearing=true in the record.
+- Applies to THIS capture window (G-L1) only. It does NOT apply to the pilot (G-L0, already closed) and does
+  NOT apply to the validation window (G-L2).
+- It does NOT replace the S-2 dual signature: the window still needs S-2a (plan) + S-2b (baseline+signed
+  floor) signed by the user before it opens; the exception is not an early unlock.
+- free >= floor_effective is still mandatory on every sample; a 60-threshold clean run must be reported as
+  an exception run, never as a regular util<40 pass.
+- Failure under the exception is still fail-stop: no retry, no further relaxation.
+
+## Evidence
+
+monitor.csv (raw, explicit -OutCsv), monitor-summary.json (derived counts), monitor-exit-code.txt (exit +
+longest_clean line). The 60/60 strictness and compute_filtered=0/build=0 must be derivable from the CSV.

@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
+  "kind": "window-material-s2",
+  "title": "S-2 capture window material (per-world L v2 light, G-L1): 6+1 preconditions, plan, discipline incl. pre-approved authoring exception, post-capture checks, user dual-sign summary",
+  "status": "material_draft_pending_qa_prereview_and_user_dual_sign",
+  "signed_object": false,
+  "owner": "Arch",
+  "date": "2026-11-08",
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "bytes": 39379,
+    "lines": 344,
+    "sections": 15,
+    "signature": "S-1 signed 2026-11-08, receipt status=effective, spec_frozen=true"
+  },
+  "preconditions": [
+    {
+      "id": "P0",
+      "item": "S-1 signed and frozen",
+      "anchor": "spec v3 bb064fe0.../39,379 B; receipt status=effective; signature card ba420eb6; QA 5e82feed"
+    },
+    {
+      "id": "P1",
+      "item": "section 11.1-1 command field",
+      "anchor": "capture-meta card b0af1be4 (QA 6419eb40); pilot capture.json command"
+    },
+    {
+      "id": "P2",
+      "item": "section 11.1-2 captured_at + explicit MJWARP_CAPTURE_AT",
+      "anchor": "capture-meta card; pilot value 2026-11-08T19:00:00+08:00 (window/token-capture-at.txt)"
+    },
+    {
+      "id": "P3",
+      "item": "section 11.1-3 per_world_scope new wording",
+      "anchor": "pilot metadata-selfcheck: scope checks true, failed=[]"
+    },
+    {
+      "id": "P4",
+      "item": "section 11.1-4 task_id / reference_tag",
+      "anchor": "capture-meta card; pilot reference_tag=nw3-light-hinge02040"
+    },
+    {
+      "id": "P5",
+      "item": "section 11.1-5 scene variant verified",
+      "anchor": "scene card 3d546fbe; sha 4b354054.../5,134 B/86 lines; QA d38661a5; O1 fix e8a07167; QA 241a2e36"
+    },
+    {
+      "id": "P6",
+      "item": "section 11.1-6 capture script dual-camera verified incl. camera_recipe 10 fields",
+      "anchor": "dual-camera card b98b39ff; QA PASS 241a2e36"
+    },
+    {
+      "id": "P7",
+      "item": "ITEM 7: G-L0 pilot result = pass-margin",
+      "anchor": "pilot window card closeout 268380d8 + addenda 66bac4f6; README f5d52348.../9,228 B; receipt e4204f8f.../6,845 B; manifest 36/36; C1 38,285/40,644; C2 depth 35,828/33,883; seg 16,041/16,754; verdict pass-margin; readout fix QA 0abaeebb"
+    }
+  ],
+  "plan": {
+    "executor": "Backend (sole writer; lock owner=Backend)",
+    "attempts": 1,
+    "repeat": 2,
+    "two_captures_bitwise_identical_required": true,
+    "out_root": "fixtures/render-bvh/scene-a-light/perworld/",
+    "out_dir": "fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/",
+    "reference_tag": "nw3-light-hinge02040",
+    "worlds": 3,
+    "hinge_deg": [
+      0,
+      20,
+      40
+    ],
+    "seed": 20261030,
+    "use_fast_math": false,
+    "use_shadows": true,
+    "capture_at": "explicit MJWARP_CAPTURE_AT fixed by the S-2 window card (N1 validated)",
+    "refit_evidence": "capture runs through run_pilot_with_refit_counter.py (refit x2 / render x2, order refit->render->refit->render)",
+    "environment": {
+      "python": "3.12.13",
+      "warp": "1.15.0",
+      "mujoco": "3.15.0",
+      "mujoco_warp": "3.15.0",
+      "numpy": "2.5.4",
+      "upstream_revision": "71da24d9 (editable)",
+      "gpu": "RTX 4070 Ti SUPER / 596.36 / SM89"
+    },
+    "products": {
+      "files": [
+        "rgb.npz",
+        "depth.npz",
+        "seg.npz",
+        "state.npz",
+        "capture.json"
+      ],
+      "bytes": {
+        "rgb.npz": 5531048,
+        "depth.npz": 1844672,
+        "seg.npz": 3687848,
+        "state.npz": 2486,
+        "capture.json": "about 10000"
+      },
+      "total": "about 11.08 MB (11,076,054 B estimate)"
+    }
+  },
+  "window_discipline": {
+    "baseline": "three samples within 5 minutes before the capture; baseline_free = min(free)",
+    "onspot_floor": "baseline_free - 3072 MiB computed on the spot",
+    "signed_floor_stricter_wins": "floor_effective = min(user-signed floor, onspot floor)",
+    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40; exit 0, 60/60 util<40, compute_filtered=0, build=0; no other CUDA process during the monitor; internal 10,240 MiB is only a lower bound",
+    "authoring_exception": {
+      "pre_approved_by": "user",
+      "pre_approved_at": "2026-11-08",
+      "scope": "capture window (G-L1) only; regular util<40 not met => authoring-only util<60, every sample recorded",
+      "limits": "still requires the S-2 dual signature before opening; not applicable to the pilot or the validation window; does not relax the floor; fail-stop, no retry"
+    },
+    "zero_compile": "build before the window and record the fingerprint; no cargo/nvcc inside; warp JIT expected",
+    "single_attempt_fail_stop": true
+  },
+  "post_capture_checks": [
+    "two captures bitwise identical (per-file sha256; capture.json flag)",
+    "C1 cam-persp both world pairs >=576 (max_channel |delta rgb| >= 1/255)",
+    "C2 cam-hinge depth bit-change and seg pair-change both pairs >=576",
+    "metadata four items + dual-camera snapshot (nrender==2 / cam_id_map==[0,1] / cam_res==[[320,240],[320,240]] / recipe.cameras 2x10 fields)",
+    "legacy_reference_untouched == true",
+    "refit counter pattern ok",
+    "seg visible (id,type) sets per world per camera",
+    "[384,576) insufficient margin => stop; <384 non-discriminating => refuse; commit only on full pass"
+  ],
+  "dual_sign_summary": {
+    "s2a_plan": "single authoring capture window, executor Backend, formal reference root under fixtures/, five files about 11.08 MB, tag/seed/fastmath/shadows/capture-at as above",
+    "s2b_baseline_and_signed_floor": {
+      "suggested_reading": "2026-11-08 19:14 +08:00 GPU-free three-point: free 13,302 / 13,302 / 13,302 MiB",
+      "baseline_free_mib": 13302,
+      "suggested_signed_floor_mib": 10230,
+      "rule": "at the window recompute within 5 minutes and take min(signed floor, onspot floor)"
+    },
+    "authoring_exception": "pre-approved 2026-11-08 for this capture window only; still needs the dual signature; no early unlock",
+    "failure_clauses": "any failure: stop, report user, no retry, no threshold/camera/recipe/reference change; before commit clean only the newly created out-dir",
+    "evidence_qa": "evidence dir perworld-l-v2-capture-window-g-l1/; QA material pre-review + post-capture QA review"
+  },
+  "materials": [
+    "README.md",
+    "receipt.json",
+    "manifest.txt",
+    "materials/preconditions.txt",
+    "materials/window-plan.txt",
+    "materials/command.txt",
+    "materials/baseline-sop.txt",
+    "materials/baseline-suggestion.txt",
+    "materials/monitor-plan.txt",
+    "materials/evidence-checklist.txt",
+    "materials/qa-prereview-checklist.txt",
+    "materials/signature-summary.txt",
+    "materials/group-message-template.txt"
+  ],
+  "tools": {
+    "readout_c1_c2.py": {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py",
+      "sha256": "4a054abafbec8e3a2567f75b7e71f5cec82c3cbd88d1d412e8a44f445370ad8b",
+      "bytes": 16711,
+      "reuse": "same repaired readout as the pilot; --pilot-dir points at the formal reference dir; C1/C2 per spec section 6"
+    },
+    "refit_counter": {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/run_pilot_with_refit_counter.py",
+      "sha256": "f90f896acdf5d4012dd46f02bb8ad4da9e1be50b397f9b7cdd47bad9f46f4560",
+      "bytes": 4389
+    }
+  },
+  "boundary": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "fixtures_unchanged": true,
+    "src_unchanged": true,
+    "scripts_unchanged": true,
+    "tests_unchanged": true,
+    "signed_object": false
+  },
+  "awaiting": {
+    "qa_prereview": "pending",
+    "user_s2_dual_sign": "pending (S-2a plan + S-2b baseline/signed floor)",
+    "chief_g_l1_token": "pending after QA PASS + S-2 signed + window conditions"
+  },
+  "non_claim": [
+    "material only; not a G-L1 start (needs QA PASS + user S-2 dual signature + Chief token)",
+    "no capture validity / per-world light acceptance / upstream equivalence / render numeric claims",
+    "suggested baseline readings are pre-window references, not signed values; the window recomputes and uses the stricter floor"
+  ]
+}

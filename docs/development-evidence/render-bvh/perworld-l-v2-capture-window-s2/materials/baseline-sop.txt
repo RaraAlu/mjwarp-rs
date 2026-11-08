@@ -1,0 +1,19 @@
+# G-L1 baseline / floor SOP (S-2b: plan baseline + signed floor; on-the-spot recompute, stricter wins)
+
+1. Timing: the three-point baseline runs AFTER the strict monitor passed and within 5 minutes before the
+   capture (the monitor takes several minutes; do not baseline first and then wait for the monitor).
+2. Three samples, ~5 s apart, all recorded verbatim:
+   nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
+   nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
+   Also record build process count (must be 0), `git status --porcelain` (empty), `git rev-parse HEAD`.
+3. baseline_free = min(memory.free of the three samples)  [MiB]
+   onspot_floor  = baseline_free - 3072                    [MiB]
+   floor_effective = min(signed_floor_from_S2, onspot_floor)   <-- STRICTER WINS (S-2 signed floor vs on-the-spot)
+4. Acceptance for all three baseline points: free >= floor_effective; util < 40 %; no task CUDA process;
+   build processes 0; tree clean. After the window, also verify every monitor clean sample had
+   free >= floor_effective (post-hoc; the script's 10,240 MiB bound is not the floor).
+5. Record in window/baseline-three-points.txt: the raw three samples, baseline_free, onspot_floor,
+   signed_floor, floor_effective, and the min() arithmetic.
+6. Any failure: do not open/continue; stop, report user; no retry, no threshold change, no relaxation.
+   The authoring exception (util<60, pre-approved 2026-11-08) never relaxes the floor: free >= floor_effective
+   is mandatory on every sample even under the exception.

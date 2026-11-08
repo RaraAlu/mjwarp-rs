@@ -1,0 +1,50 @@
+# S-2 user dual-sign summary - per-world L v2 light capture window (G-L1)
+# Paste-ready for the signature card. Signs NOTHING here; only the user's card choice signs.
+
+Reference document: docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/README.md
+Spec (S-1, already signed 2026-11-08): docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md
+  sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B / 344 lines / 15 sections
+
+## S-2a - capture window PLAN
+- One authoring capture window (G-L1), single attempt, fail-stop; executor Backend (sole writer).
+- Formal reference root: fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
+  (five files: rgb/depth/seg/state/capture.json, total ~11.08 MB; committed only after all gates pass).
+- Command: --scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld
+  --out-dir .../nw3-light-hinge02040 --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40
+  --use-fast-math false --use-shadows true --seed 20261030 --repeat 2, with explicit MJWARP_CAPTURE_AT (N1 checked).
+- Pinned environment: venv 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 (editable 71da24d9) /
+  numpy 2.5.4 / RTX 4070 Ti SUPER driver 596.36 SM89.
+
+## S-2b - baseline + signed floor
+- Suggested baseline (GPU-free reading 2026-11-08 19:14, materials/baseline-suggestion.txt):
+  free 13,302 / 13,302 / 13,302 MiB -> baseline_free = 13,302 MiB.
+- Suggested signed floor = 13,302 - 3,072 = 10,230 MiB.
+- Stricter-wins rule at the window: floor_effective = min(signed floor, on-the-spot floor); the window must
+  re-measure the three-point baseline within 5 minutes before the capture and use the stricter value.
+- The window must show free >= floor_effective on all baseline points and all monitor samples.
+
+## Authoring exception (pre-approved by the user on 2026-11-08; scope restricted)
+- If the regular util < 40 % threshold cannot be met, an authoring-only util < 60 % monitor run is allowed for
+  THIS capture window only; every sample recorded, exception_load_bearing=true.
+- It does NOT replace the S-2 dual signature (the window cannot open before S-2a+S-2b are signed), does NOT
+  apply to the pilot or the validation window, and does NOT relax the floor.
+
+## Failure clauses
+- Any capture/readout/metadata/legacy/refit or monitor failure: stop immediately, report the user; no retry,
+  no threshold/camera/recipe change, no reference swap. Before commit, a failed run cleans only the newly
+  created out-dir (existing references are never touched).
+
+## Evidence and QA
+- Evidence dir: docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/
+- QA: material pre-review (this card) + post-capture QA review; window records mirror the pilot format.
+- Gates before commit: two captures bitwise identical; C1 both pairs >=576; C2 depth and seg both pairs >=576;
+  metadata four items + dual-camera 10-field snapshot; refit counter pattern ok; legacy untouched.
+  [384,576) = insufficient margin (stop); <384 = non-discriminating (refuse).
+
+## Suggested signature-card fields
+- Window: G-L1 per-world L v2 light capture window
+- Basis: spec v3 sha256 bb064fe0..., 39,379 B (S-1 signed 2026-11-08)
+- S-2a: plan summary above (executor Backend, single attempt, formal reference root, five files ~11.08 MB)
+- S-2b: baseline_free 13,302 MiB; signed floor 10,230 MiB; stricter-wins rule at the window
+- Authoring exception: capture-window-only util<60 fallback, per-sample recorded, no early unlock, no pilot/L2 use
+- Failure clauses and evidence/QA arrangement as above

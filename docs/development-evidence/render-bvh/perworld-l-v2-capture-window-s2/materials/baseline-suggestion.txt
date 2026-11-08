@@ -1,0 +1,24 @@
+# G-L1 suggested baseline readings (GPU-free measurement while authoring the S-2 material)
+# Date: 2026-11-08 19:14 +08:00, host DARKSEA, nvidia-smi only (no compute, no capture).
+# IMPORTANT: these are SUGGESTED values for the S-2 dual signature. The window MUST recompute the
+# three-point baseline within 5 minutes before the capture and take the STRICTER of the signed floor and
+# the on-the-spot floor (floor_effective = min(signed_floor, onspot_floor)).
+
+point1 ts=2026-11-08T19:14:34.859+08:00  used 2760 MiB, free 13302 MiB, util 3 %, temp 26 C
+point2 ts=2026-11-08T19:14:39.900+08:00  used 2760 MiB, free 13302 MiB, util 2 %, temp 26 C
+point3 ts=2026-11-08T19:14:44.939+08:00  used 2760 MiB, free 13302 MiB, util 3 %, temp 26 C
+
+baseline_free = min(free) = 13302 MiB
+suggested signed floor = 13302 - 3072 = 10230 MiB
+
+Context recorded with this reading:
+- Build processes: none (Get-Process cargo,rustc,cl,nvcc,link -> empty).
+- nvidia-smi --query-compute-apps lists desktop/overlay/editor processes with [N/A] memory; the monitor's
+  team-pattern filter (python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl.exe|render_|mjwarp)
+  is what counts as compute_filtered; the strict requirement is compute_filtered=0 on all 60 clean samples.
+- This reading was taken after the G-L0 pilot closed; it is not a window-time measurement.
+
+Signature usage: sign the plan (S-2a) and the baseline+signed floor (S-2b) with the numbers above; at the
+window, recompute and use the stricter floor. If the on-the-spot floor is stricter than 10230, the window
+uses the on-the-spot value; if the signed floor is stricter (e.g. user signs a lower number), the signed
+value wins.

@@ -1,0 +1,45 @@
+# G-L1 capture window plan (per-world L v2 light) - S-2a plan summary
+
+- Window: ONE authoring capture window (G-L1), single attempt, fail-stop, no retry.
+- Executor: Backend (sole writer; repo-write-lock owner=Backend during the window). Arch: read-only design
+  and peer evidence. QA: material pre-review + post-capture review.
+- Spec basis: signed spec v3 sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B.
+
+## Command surface (verbatim in materials/command.txt)
+
+- scene: fixtures/render-bvh/scene-a-light/scene.xml  (sha 4b354054.../5,134 B)
+- out-root: fixtures/render-bvh/scene-a-light/perworld/   (FORMAL reference root; committed on success)
+- out-dir:  fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/
+- tag: --reference-tag nw3-light-hinge02040
+- worlds/hinge: --worlds 3 --hinge-deg 0,20,40
+- recipe flags: --use-fast-math false --use-shadows true --seed 20261030 --repeat 2
+- capture time: explicit MJWARP_CAPTURE_AT (value fixed by the S-2 window card; N1 validated first)
+- refit evidence: capture runs through the refit counter wrapper (refit x2 / render x2, order refit->render->refit->render)
+
+## Environment (pinned; recorded at T0)
+
+venv Python 3.12.13; warp 1.15.0; mujoco 3.15.0; mujoco_warp 3.15.0 (editable, upstream 71da24d9, no PyPI
+wheel); numpy 2.5.4; GPU NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36, SM89; use_fast_math=false.
+
+## Products (committed on success)
+
+| file | bytes |
+| --- | --- |
+| rgb.npz | 5,531,048 |
+| depth.npz | 1,844,672 |
+| seg.npz | 3,687,848 |
+| state.npz | 2,486 |
+| capture.json | ~10,000 |
+| total | ~11.08 MB |
+
+## Gates before commit
+
+1) two captures bitwise identical; 2) C1 both world pairs >=576; 3) C2 depth and seg both pairs >=576;
+4) metadata four items + dual-camera 10-field snapshot; 5) legacy_reference_untouched=true; 6) refit
+counter pattern ok; 7) tree clean and only the new reference dir added. Any failure => do not commit,
+stop, report; [384,576) is insufficient margin, <384 is non-discriminating.
+
+## Out of scope
+
+No AA/single-launch performance, no validation window (G-L2), no product-render comparison here; the
+reference produced by this window is the input for the G-L2 entity.

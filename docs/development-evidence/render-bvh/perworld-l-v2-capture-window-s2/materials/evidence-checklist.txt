@@ -1,0 +1,33 @@
+# G-L1 capture window evidence checklist (copied into the G-L1 evidence dir after the window)
+
+window/preconditions.txt          P0-P7 anchors checked at window time (material table filled with actuals)
+window/t0-freeze.txt              HEAD, lock, tree state, build-process check, fingerprints (Get-FileHash)
+window/token-capture-at.txt       the exact MJWARP_CAPTURE_AT value + N1 three-state check
+window/dryrun.json                dry-run plan (3 cameras, cam_active_fixed_only [T,T,F], legacy 112, no out-dir)
+window/monitor.csv                monitor raw CSV (explicit -OutCsv)
+window/monitor-summary.json       samples/clean/util range/compute_filtered_max/build_max
+window/monitor-exit-code.txt      exit code + longest_clean line (and exception flag if applicable)
+window/baseline-three-points.txt  three samples + compute-apps + git/head
+window/baseline.txt               baseline_free, onspot_floor, signed_floor, floor_effective arithmetic
+window/capture-stdout.log         wrapper/capture stdout
+window/capture-stderr.log         stderr (empty or explained)
+window/capture-exit-code.txt      exit code + wall time + exact command line
+window/capture.json               copy of the reference capture.json (provenance: command/captured_at/scope/context/recipe.cameras/files sha)
+window/refit-counter.json         wrapper output (refit x2 / render x2, order refit->render->refit->render)
+window/readout.json               C1/C2 counters + per-world summary + metadata self-check + verdict
+window/readout-stdout.log / readout-exit-code.txt
+window/files-sha256.txt           sha256+bytes of the five reference files + capture.json comparison
+window/metadata-selfcheck.json    metadata four items + dual-camera 10-field snapshot checks
+window/seg-geom-sets.json         per world per camera visible (id,type) sets
+window/legacy-selfcheck.txt       explicit capture.json.legacy_reference_untouched == true assertion
+window/environment-provenance.txt pinned versions/upstream/GPU-driver/use_fast_math
+window/zero-compile-fingerprint.txt zero compile + HEAD/tree/build-process record
+window/git-before.txt / git-after.txt   HEAD + git status before/after (must be clean; only the new reference dir added)
+window/post-gpu.txt               post-window GPU state
+window/window-incidents.txt       any incident + ruling (empty if none)
+
+Hygiene: UTF-8 / LF / no BOM; manifest first line '#' plus '# base dir:'; per-file sha256+bytes; bare
+CR/TAB self-check.
+
+Commit rule: commit the five reference files + capture.json ONLY after every gate in window-plan.txt passes;
+on failure do not commit the reference, keep the evidence as-is and report.
