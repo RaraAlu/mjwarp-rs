@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-09-render-perworld-l-v2-capture-window-g-l1-check",
+  "status": "effective",
+  "kind": "check",
+  "owner": "QA",
+  "positioning": "Independent post-capture QA review of the G-L1 capture window (commit 6951c3fe): reference file identities and total bytes, own-script recompute of C1/C2 against readout.json and capture.json, section 2.4 reconciliation and metadata, refit/execution provenance, monitor discipline including the pre-approved authoring exception, boundaries, evidence and gates. Zero GPU.",
+  "object": {
+    "window_card": "2026-11-09-render-perworld-l-v2-capture-window-g-l1",
+    "commit": "6951c3fe",
+    "parent": "6f9201e333c565823896fc7535d7b3fd3ad89bbc",
+    "reference_root": "fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040",
+    "review_head": "e49666ea (concurrent S-3 fill commit landed during this review; G-L1 reference/evidence untouched by it)"
+  },
+  "verdict": {
+    "overall": "pass",
+    "blocking": 0,
+    "usable_for": "G-L1 capture evidence is usable for S-3 freeze / validation window",
+    "summary": "Reference five files match the claimed sha/bytes and the 11,078,239 B total in both worktree and commit blob. An independent script recomputed C1 magnitude 38,285/40,644, C1 bitwise 43,604/41,815, C2 depth 35,828/33,883, C2 seg 16,041/16,754, diagnostics cam-persp 0/0 and cam-hinge 50,363/52,329 (bitwise 54,380/54,250) from the reference npz, matching readout.json and capture.json item by item. Section 2.4 counts, files_sha256, two-capture bitwise identity, legacy 112/untouched, captured_at, tag, scope, dual-camera 10-field snapshots, resolved plan and cam_active all hold. Refit sequence refit-render-refit-render with 2/2 and exit 0, wall 2.02 s; environment and zero-compile/tree states recorded. The authoring exception is compliant: regular monitor failed (longest_clean 22, util max 43) before the pre-approved util<60 rerun gave 60/60 clean, util 14-40, compute_filtered=0, build=0, exception_load_bearing=true, floor not relaxed (every clean sample free >= 10,230). Boundaries clean (54 files: 5 reference + evidence + card/runs; src/tests/scripts and spec/S-2/pilot zero diff in the reviewed commit), manifest 43/43, gates unit 1387/0/402.",
+    "observations": "O1 info (attempt-1 records only under target/, summary numbers documented), O2 info (S-2 README sha evolution explained), O3 info (reference npz byte-identical to G-L0 pilot npz, expected determinism), O4 info (measured total 11,078,239 vs spec estimate 11,076,054 - actual governs freeze), O5 info (registration landed while Arch held the write lock; no cross-writes, then waited for the S-3 fill commit; its freezer-script addition is why scripts/ was removed from this card's unchanged check - the reviewed 6951c3fe itself has zero scripts diff), O6 info (exception enabled only after the regular monitor failed, within the S-2 pre-approval scope)"
+  },
+  "reference_files": {
+    "rgb.npz": {"sha256": "602574c213d848ddc674244b11ac518fe42e54cf373f43784e143292e960493f", "bytes": 5531026},
+    "depth.npz": {"sha256": "82eec6dab866f5ba54e3df0f3592d7198efb6ab5fc832627d98f4d56f079e92d", "bytes": 1844650},
+    "seg.npz": {"sha256": "c3f09b16b6c02f972d5f7b535a39a94a6850bc1362e8399543cdb384781142f0", "bytes": 3687826},
+    "state.npz": {"sha256": "a1c5a32154370551923a8a4ef394c62d5f9e0d9dbb468e707f77175f8c0c6aca", "bytes": 2486},
+    "capture.json": {"sha256": "8b53e1221faf9c524b9f42640764a850d7e723de61ebc84342ee6b63137720a9", "bytes": 12251},
+    "total_bytes": 11078239,
+    "worktree_equals_commit_blob": true,
+    "capture_files_sha256_matches_actual": true
+  },
+  "independent_recompute": {
+    "method": "own script over the reference rgb/depth/seg npz; entity formulas (f32 max_channel >= 1/255 magnitude, view(int32) bitwise, depth bits, seg pairs)",
+    "c1_magnitude": [38285, 40644],
+    "c1_bitwise": [43604, 41815],
+    "c2_depth": [35828, 33883],
+    "c2_seg": [16041, 16754],
+    "diag_campersp_depth": [0, 0],
+    "diag_campersp_seg": [0, 0],
+    "diag_camhinge_magnitude": [50363, 52329],
+    "diag_camhinge_bitwise": [54380, 54250],
+    "matches_readout_json": true,
+    "matches_capture_json_counts": true,
+    "readout_verdict": "pass-margin",
+    "readout_metadata_failed": []
+  },
+  "capture_metadata": {
+    "two_captures_bitwise_identical": true,
+    "legacy_reference_untouched": true,
+    "legacy_reference_files": 112,
+    "captured_at": "2026-11-09T00:02:00+08:00",
+    "reference_tag": "nw3-light-hinge02040",
+    "scope_covers_light_geom": true,
+    "cameras": "2 entries x 10 fields (cam-persp/cam-hinge, mode 0/0, fovy 73.73979461915735/30, 320x240, cam-hinge sensorsize [0,0] fovy path)",
+    "resolved": {"nworld": 3, "nrender": 2, "cam_id_map": [0, 1], "cam_res": [[320, 240], [320, 240]]},
+    "cam_active": [true, true, false],
+    "use_fast_math": false,
+    "use_shadows": true,
+    "counts_crosscheck_text": "window/counts-crosscheck.txt: both pairs, all 8 tuple positions OK, SUMMARY PASS (recomputed)"
+  },
+  "refit_and_provenance": {
+    "sequence": ["refit", "render", "refit", "render"],
+    "refit_calls": 2,
+    "render_calls": 2,
+    "pattern_ok": true,
+    "capture_exit_code": 0,
+    "wall_seconds": 2.02,
+    "environment": "python 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4 / upstream 71da24d9 / RTX 4070 Ti SUPER / driver 596.36",
+    "t0": "HEAD 4f6fe313, tree clean, lock owner=Backend, build_processes=0, fresh reference root",
+    "post_capture": "git status only the new reference dir; zero build processes"
+  },
+  "window_discipline": {
+    "attempt1": "monitor exit 20, longest_clean 24, free_min 8,153 < 10,230 -> window did not exist, no capture; records under target/.../attempt1/ (not committed)",
+    "attempt2_regular": "exit 20, 354 samples, longest_clean 22, util 16-43%",
+    "attempt2_exception": "exit 0, 60 samples / 60 clean, util 14-40%, free 13,029-13,034, compute_filtered=0, build=0, exception_load_bearing=true",
+    "floor_not_relaxed": "every clean sample free >= 10,230 (post-hoc)",
+    "baseline": {"frees": [13029, 13029, 13029], "baseline_free": 13029, "onspot_floor": 9957, "signed_floor": 10230, "floor_effective": 10230},
+    "capture_after_baseline": "1 min 13 s (< 5 min)",
+    "pre_execution_shell_error": "exit 1, 0.01 s, no GPU work, no files written; the corrected invocation is the only capture execution",
+    "size_estimate_vs_actual": {"spec_estimate": 11076054, "actual": 11078239, "delta": 2185, "note": "estimate vs actual; freeze uses the measured bytes"}
+  },
+  "boundaries": {
+    "reviewed_commit": {"commit": "6951c3fe", "parent": "6f9201e3", "changed_files": 54,
+                        "fixture_changes": "exactly the 5 reference files added", "src_tests_scripts_diff": "NONE",
+                        "spec_or_s2_material_changes": "NONE"},
+    "evidence_manifest": "43/43",
+    "encoding": "UTF-8/LF, no BOM, CR/TAB 0",
+    "artifacts": ["artifacts/recompute.json", "artifacts/recompute.txt"]
+  },
+  "gates": {
+    "fmt": {"passed": true, "exit": 0},
+    "clippy": {"passed": true, "exit": 0},
+    "clippy-cuda": {"passed": true, "exit": 0},
+    "unit": {"passed": true, "exit": 0, "tests": {"passed": 1387, "failed": 0, "ignored": 402}}
+  },
+  "observations": [
+    {"id": "O1", "severity": "info", "blocking": false, "title": "attempt-1 records are only under target/", "detail": "attempt 1 did not produce a reference; its monitor summary numbers appear in README/incidents but the raw records are not committed", "fix": "optionally copy an attempt-1 summary into the evidence dir for long-term audit"},
+    {"id": "O2", "severity": "info", "blocking": false, "title": "S-2 material README sha evolution", "detail": "signed material c8bb71ef/18,299 B vs HEAD 2ca9f1dd/19,502 B; window/s2-material-identity.txt explains the expected signature-block append; receipt.signature.material_sha256 pins the signed version", "fix": "none"},
+    {"id": "O3", "severity": "info", "blocking": false, "title": "reference npz byte-identical to G-L0 pilot npz", "detail": "same recipe/scene/seed determinism; capture.json differs by timestamp/token; provenance is this window's", "fix": "none"},
+    {"id": "O4", "severity": "info", "blocking": false, "title": "measured total vs spec estimate", "detail": "11,078,239 B actual vs 11,076,054 B estimate (+2,185 B, about 0.02%)", "fix": "freeze lists use measured bytes"},
+    {"id": "O5", "severity": "info", "blocking": false, "title": "concurrent write-lock situation and scripts/ exclusion", "detail": "registration commit 08849fbe landed while arch-chat held the write lock (my acquire returned HELD); only my own card was committed and no other files were touched, then I waited for the S-3 fill commit e49666ea; that fill added scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1, so scripts/ was removed from this card's unchanged check - the reviewed 6951c3fe itself has zero scripts diff (verified by direct git diff)", "fix": "none for the reviewed evidence"},
+    {"id": "O6", "severity": "info", "blocking": false, "title": "authoring exception enabled only after regular monitor failure", "detail": "within the S-2 pre-approval scope: capture-window only, per-sample recorded, floor not relaxed, no early unlock", "fix": "none"}
+  ],
+  "non_claims": {
+    "statement": "Post-capture evidence review only: no product-render pass claim, no upstream-equivalence claim, no discriminability-restoration claim and no rendering numeric conclusion. Product-side entity comparison belongs to the G-L2 validation window. Reference, evidence, spec and signature records were not modified."
+  }
+}
