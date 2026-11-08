@@ -1,0 +1,21 @@
+# G-L2 window discipline (spec v3 section 10.2; fail-stop)
+
+1. Freeze timing: guards are frozen AFTER the regular monitor passes and BEFORE the window body; the body is
+   zero-compile (no cargo/nvcc). After the freeze only the section 10.2 cuda-probe regime build/run form is
+   permitted; never a plain build.
+2. Three-point baseline: three nvidia-smi samples about 5 s apart, all within 5 minutes before the run.
+   baseline_free = min(free of the three samples)   <- SAMPLING rule: worst of the three samples.
+3. Floor: onspot_floor = baseline_free - 3072 MiB; signed_floor comes from the user's S-3b signature.
+   floor_effective = max(signed_floor, onspot_floor)  <- STRICTER = HIGHER, because acceptance is
+   free >= floor_effective; taking min() would relax the requirement.
+   Every baseline point, every monitor sample and the spot checks during the run must satisfy free >= floor_effective.
+4. Monitor (regular thresholds; the authoring exception does NOT apply to the validation window):
+   scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv <path>
+   exit 0, longest_clean >= 60, every clean sample util<40, compute_filtered=0, build=0; no other CUDA
+   process during the monitor. The script's internal 10,240 MiB bound is only a lower bound, not the floor.
+5. Tree/HEAD: git status --porcelain empty before the window; HEAD recorded; no commit inside the window.
+6. Zero-compile proof: cargo test --no-run exit 0 in the freeze stage with cargo-artifacts.jsonl kept; build
+   process count 0 recorded before the body; git status empty again after the body.
+7. Frozen exe triple check: live == guard == stash for every entry (path/bytes/sha256). Any mismatch => stop.
+8. Single run, fail-stop: no retry, no threshold/reference/camera change, no frozen-artifact swap; keep logs and
+   artifacts as they are, stop and report the user.

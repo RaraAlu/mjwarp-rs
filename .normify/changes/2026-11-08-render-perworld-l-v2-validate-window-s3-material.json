@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-validate-window-s3-material",
+  "title": {
+    "zh": "S-3 验证窗材料（perworld L v2 灯 G-L2）：guards 冻结清单（96+1 新 exe+10..12 输入）/ 窗口纪律 / 实体预期 / 证据清单 / QA 预审重点 / 双签摘要草案；PENDING-G-L1 占位，零 GPU；卡仅因 normify 提交规则 start，验证窗未开",
+    "en": "S-3 validation window material (per-world L v2 light, G-L2): guards freeze list (96 + 1 new exe + 10..12 inputs), window discipline, entity expectations, evidence checklist, QA pre-review focus, draft dual-sign summary; PENDING-G-L1 placeholders; GPU-free; card started only because normify refuses work commits on proposed cards, the validation window is not started"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按已签 spec v3 §10.1/§10.2/§12 G-L2 写死 S-3 验证窗材料：① guards 冻结清单（既有 perworld suite 96 = 11 exe + 83 输入 + 2 条 v2.2 清单；新增 1 exe `render_per_world_light`；新增输入 10 条必需、≤12，合计 107..109；旧 suite 与 stash 只读保留；aggregate 沿用算法）；② 窗口纪律（冻结在 monitor 后/body 零编译、三点基线 5 分钟内、`floor_effective=max(signed,现场)`、monitor 60/60 util<40、树 clean、`cargo test --no-run` exit 0、live==guard==stash、单次失败即停）；③ 实体预期（判据 A/B/C、C1/C2 两对 ≥576、§2.4 计数与实体对账、两跑 sha、world 隔离、[384,576) 停手/<384 拒）；④ 证据清单 + QA 预审重点 + 双签摘要草案。**G-L1 未收口**：参考 sha/bytes、guards JSON、exe 指纹、baseline/floor 建议值等一律 `PENDING-G-L1`，G-L1 后填入、冻结前定稿；签名卡字段在 G-L1 完成前不定稿。**本卡只承载材料：验证窗未开、零 GPU、不改 src/fixtures/scripts/tests。**按 normify 硬规则（proposed 卡不能提交工作），材料落地需 start；待 G-L1 收口后填 PENDING、跑门禁再收口。",
+    "en": "Write the S-3 validation-window material per signed spec v3 sections 10.1/10.2/12 G-L2: guards freeze list (existing 96-entry perworld suite, plus one new exe render_per_world_light, plus 10 mandatory and at most 12 new inputs => 107..109; old suite and stash read-only; same aggregate algorithm), window discipline (freeze after monitor, zero compile in the body, three-point baseline within 5 minutes, floor_effective = max(signed, onspot), regular monitor 60/60 util<40, clean tree, cargo test --no-run exit 0, live == guard == stash, single fail-stop attempt), entity expectations (criteria A/B/C, C1/C2 >=576 on both pairs, section 2.4 counts vs entity counts, two-run sha, world isolation, [384,576) stop / <384 refuse), evidence checklist, QA pre-review focus and draft dual-sign summary. Everything that needs G-L1 output stays an explicit PENDING-G-L1 placeholder. The card carries the material only: the validation window is not started, GPU-free, src/fixtures/scripts/tests untouched. normify refuses work commits on proposed cards, so the card was started to land the material; PENDING values are filled and gates re-run after the G-L1 closeout."
+  },
+  "modules": {},
+  "acceptance": [
+    "**卡与范围**：卡 id `2026-11-08-render-perworld-l-v2-validate-window-s3-material`，owner Arch，p80；写入范围仅 `docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/` + 本卡文件；不碰 `src/`/`fixtures/`/`scripts/`/`tests/`。**本卡不是验证窗卡**：窗口仍被 G-L1 收口 + 用户 S-3 双签 + Chief token 挡住；start 仅为满足 normify「proposed 不能提交工作」的落库规则。",
+    "**guards 冻结清单**：96（11 exe + 83 输入 + 2 条 criterion v2.2 清单）→ 新增 1 exe `render_per_world_light` + 10 条必需输入（新 tag 5 文件、`scene-a-light/scene.xml`、`capture_render_perworld.py`、`perworld_capture_meta.py`、`perworld_light_prep.py`、`spec.md`）、至多 12 条，合计 107..109；旧 suite 副本与 stash 只读保留；aggregate 沿用 96 条算法；参考体积 ≈11.08 MB/5 文件。",
+    "**窗口纪律写死**：冻结在常规 monitor PASS 后、body 前；body 零编译（`cargo test --no-run` exit 0 于冻结阶段并留 artifacts）；三点基线在开窗前 5 分钟内，`baseline_free=min(三点)`（采样取严）与 `floor_effective=max(signed,现场)`（更高更严）分别写明；monitor 60/60 util<40、`compute_filtered=0`、`build=0`；树 clean；`live==guard==stash`；单次运行失败即停；authoring 例外不适用验证窗。",
+    "**实体执行预期**：判据 A（两台相机、逐 world rgb 0 字节差/depth 位级全等/seg 全等/两跑 sha）、B（light_xpos/light_xdir 位级相等 0 例外）、C（C1/C2 两对 ≥576；[384,576) 停手、<384 拒）；§2.4 计数与实体计数两对 world 逐项相等且 `check_capture_c1` 须 Compared；world 隔离；诊断项只记录；不继承 criterion v2.2；C2 依赖 refit。",
+    "**PENDING-G-L1 占位齐全**：参考 5 文件 sha/bytes、G-L1 证据锚点、guards JSON 路径/条目数/aggregate、新 exe 指纹/stash、S-3b suggested baseline+signed floor、实体最终 verified 锚点（PENDING-REFRESH）、可选输入 0..2（PENDING-DECIDE）逐项列出且写明「G-L1 收口后填入、冻结前定稿」；签名卡字段在 G-L1 完成前不定稿。",
+    "**卫生与边界**：材料 manifest 自核（首行 `#` + `# base dir:`、逐文件 sha256+bytes）、UTF-8/LF/无 BOM；零 GPU、不采集、不 start 窗口卡；四门禁在材料提交时运行（本卡为 proposed，门禁按登记提交流程记录即可）。",
+    "**非声明**：不宣称采集有效 / per-world 灯验收 / 上游等价 / 任何渲染数值结论；本材料不是 G-L2 启动（需 G-L1 收口 + 实体 QA PASS + 用户 S-3 双签 + Chief token）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-signature",
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-08 派工：G-L1 attempt 1 窗口未成立（外部负载，fail-stop），趁等待做 S-3/G-L2 验证窗材料。**本卡不是验证窗卡**：窗口仍被 G-L1 收口 + 用户 S-3 双签 + Chief token 挡住，未开窗、零 GPU。normify 硬规则：proposed 卡不能提交工作（commit-msg 钩子拒绝），落地材料必须 start；故本卡按治理 start 后落库材料，待 G-L1 收口后填 PENDING、跑门禁再收口。",
+  "revision": {
+    "before": "5d764c2ac436c468e5b89016df9972870ae919fd",
+    "after": null
+  },
+  "created_at": "2026-11-08T14:55:00.000Z",
+  "updated_at": "2026-11-08T14:52:39.190Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-validate-window-s3-material"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "采集已有效",
+        "灯位姿已覆盖",
+        "上游等价"
+      ]
+    }
+  ]
+}

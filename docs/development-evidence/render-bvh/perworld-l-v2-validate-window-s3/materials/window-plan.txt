@@ -1,0 +1,16 @@
+# G-L2 validation-window plan (S-3a summary; single attempt, fail-stop)
+
+- Window: ONE validation window (G-L2), single attempt, fail-stop, no retry.
+- Executor: Backend (sole writer; repo-write-lock owner=Backend during the window). Arch: read-only design/peer
+  evidence. QA: material pre-review + post-window review.
+- Spec basis: signed spec v3 sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B (sections 10.1, 10.2, 4-6, 8, 9.3, 12 G-L2).
+- Reference under validation: the G-L1 reference set, five files about 11.08 MB (measured sha/bytes PENDING-G-L1).
+- Entities: 12 frozen executables = 11 from the perworld suite (including render_per_world) + render_per_world_light.
+- Guard inputs: 83 existing + 10..12 new (10 mandatory, see materials/guards-freeze-list.txt).
+- Criteria: A (per-world pixel equality, both cameras), B (light field bit equality), C (C1/C2 >=576 both pairs;
+  384 acceptance floor; [384,576) stop, <384 refuse).
+- Compile regime: cargo test --no-run exit 0 during the freeze stage; zero compile inside the window body.
+- Single run; any failure: stop, report the user, keep the scene, no retry, no threshold/reference/camera change,
+  never swap a frozen executable.
+- Out of scope: no re-authoring, no new reference, no AA / single-launch performance, no product-vs-reference
+  comparison beyond the frozen suites.

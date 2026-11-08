@@ -1,0 +1,19 @@
+# G-L2 S-3 preconditions (spec v3 section 12 G-L2 + section 10.2)
+# Every row must be green before the user signs S-3 and before the validation window opens.
+# Items marked PENDING-G-L1 can only be filled after the G-L1 capture window closes.
+
+| # | precondition | status | anchor |
+| --- | --- | --- | --- |
+| P0 | S-1 signed and spec frozen | GREEN | spec v3 sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B; S-1 receipt status=effective; signature card ...-spec-v3-signature, QA 5e82feed |
+| P1 | G-L1 capture evidence verified: two captures bitwise identical + C1 and C2 both pairs >=576 + metadata/dual-camera/legacy self-checks | PENDING-G-L1 | PENDING-G-L1: g-l1-evidence (window card id/commit, five reference files sha+bytes, capture.json counts) |
+| P2 | criterion entity render_per_world_light implemented and verified + QA review PASS | entity usable (dict adaptation fix PASS be12145e; check_capture_c1 explicit Compared/Skipped) | PENDING-REFRESH: entity-anchors (use the verified commit at G-L1 closeout) |
+| P3 | guards frozen: 96 + 1 new exe + 10..12 new inputs (10 mandatory) | list fixed here; freeze PENDING-G-L1 | PENDING-G-L1: l2-guards-json |
+| P4 | three-point baseline + S-3b signed floor | PENDING (measure within 5 minutes before the window; mark suggested before signing) | see materials/window-discipline.txt |
+| P5 | regular monitor 60/60 util<40 (compute_filtered=0, build=0) | executed at the window | materials/window-discipline.txt |
+| P6 | zero-compile regime: cargo test --no-run exit 0 during freeze, zero compile inside the body | executed at freeze | materials/window-discipline.txt |
+| P7 | tree clean, no uncommitted changes, HEAD recorded | executed at the window | materials/command.txt step 1 |
+| P8 | new reference volume about 11.08 MB / 5 files (measured values into the freeze list) | PENDING-G-L1 | PENDING-G-L1: reference-files |
+
+Missing any row => S-3 must not be signed and G-L2 must not open. No threshold/reference/camera/recipe
+change may be used to obtain a missing row, and old-suite frozen artifacts must never be reused as this
+window's evidence.

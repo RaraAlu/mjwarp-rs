@@ -1,0 +1,28 @@
+# QA read-only pre-review checklist - S-3 validation-window material
+# Scope: the material only (zero GPU, no window, no code change). Report PASS/observations; do not write repo files.
+# Every PENDING-G-L1 row must be an explicit placeholder; do not accept invented values.
+
+1. Spec alignment: material follows signed spec v3 sections 10.1 / 10.2 / 12 G-L2 / 4 / 5 / 6 / 8 / 9.3, not a
+   paraphrase; the quote of the guards arithmetic matches the spec text.
+2. Guards freeze: 96 + 1 new exe (render_per_world_light) + 10 mandatory inputs (up to 12) = 107..109 total;
+   the 10 mandatory rows are all present and match the spec list; the old perworld-s1 guards/stash are marked
+   read-only and are not reused; the aggregate algorithm is the same 96-entry algorithm; stash + triple-check
+   (live == guard == stash) stated.
+3. Window discipline: freeze after monitor and before the body; body zero-compile; cargo test --no-run exit 0 in
+   the freeze stage; three-point baseline within 5 minutes; onspot floor = baseline_free - 3072;
+   floor_effective = max(signed, onspot) with "higher = stricter" rationale and the sampling min distinction;
+   regular monitor 60/60 util<40, compute_filtered=0, build=0; authoring exception explicitly NOT applicable;
+   tree clean; single run fail-stop.
+4. Entity expectations: criteria A (both cameras, per world, byte/bit/seg equality + two-run sha), B (light field
+   bit equality), C (C1/C2 >=576 both pairs; 384 acceptance; [384,576) stop / <384 refuse); capture.json 2.4
+   counts vs entity counts item by item (Compared, not Skipped); world isolation; diagnostics-only items; v2.2
+   non-inheritance for the new entity.
+5. Evidence checklist covers baseline/monitor/guards/exes/entities/readout/counts/legacy/zero-compile/git/post-gpu/
+   incidents/manifest.
+6. Signature summary: S-3a and S-3b separable and complete; S-3b values marked suggested pending the window
+   measurement; failure clauses and evidence/QA arrangement stated; signing is explicitly not a window opening.
+7. PENDING list: every PENDING-G-L1 / PENDING-REFRESH / PENDING-DECIDE item listed with its location; no value
+   invented before G-L1 closes; no premature final signature card fields.
+8. Boundary: CPU only, zero GPU, no capture, fixtures/src/scripts/tests untouched, gates, material manifest.
+9. Non-claims: no capture validity / per-world light acceptance / upstream equivalence / render numeric claim;
+   material is not a G-L2 start (needs G-L1 closeout + entity QA PASS + user S-3 dual sign + Chief token).

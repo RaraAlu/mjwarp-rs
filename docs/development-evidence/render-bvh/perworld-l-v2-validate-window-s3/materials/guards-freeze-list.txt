@@ -1,0 +1,37 @@
+# G-L2 guards freeze list (spec v3 section 10.2, verbatim arithmetic)
+# Old perworld suite: docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/guards-perworld-s1.json
+#   counts: frozen_exes 11 + guard_inputs 83 + outline_lists 2 = 96
+# This window adds: 1 exe (render_per_world_light) + 10 mandatory inputs (up to 12) => total 107..109.
+# The old suite copy and its frozen-exe stash are READ-ONLY and must not be refrozen, edited or reused.
+
+## new exe (1)
+render_per_world_light
+  live:  target/debug/deps/render_per_world_light-<hash>.exe        PENDING-G-L1
+  stash: target/render-bvh/perworld-l2-window/frozen-exes/render_per_world_light.exe   PENDING-G-L1
+  check: live == guard == stash (path / bytes / sha256)
+
+## mandatory inputs (10, from spec section 10.2)
+1  fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/rgb.npz          PENDING-G-L1 (sha, bytes)
+2  fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/depth.npz        PENDING-G-L1
+3  fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/seg.npz          PENDING-G-L1
+4  fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/state.npz        PENDING-G-L1
+5  fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/capture.json     PENDING-G-L1
+6  fixtures/render-bvh/scene-a-light/scene.xml              sha 4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716 / 5,134 B
+7  scripts/capture_render_perworld.py                       sha f3af09ab992981f2dc5d7f2e3479aaf9eebb97df0d2a774b247c8e0772ad6f07 / 23,637 B / 490 lines
+8  scripts/perworld_capture_meta.py                         sha 3fdb85953681a1a695a9611fc48ddf0862318acf0e0767e831029a820127b87e / 19,154 B / 379 lines
+9  scripts/perworld_light_prep.py                           sha 9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c / 7,206 B / 160 lines
+10 docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md
+                                                           sha bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B
+
+## optional (at most 2; never a substitute for a mandatory row)
+PENDING-DECIDE: optional-inputs
+candidates: the L2 freezer script itself, the L2 guards JSON copy / evidence input
+
+## preserved read-only
+docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/guards-perworld-s1.json  (96 entries)
+target/render-bvh/perworld-s1-window/frozen-exes/                                             (old stash)
+scripts/validate/render-bvh/guards.json, guards-r02-skybox.json, guards-r08-rgb-hetero.json, guards-sdf-validate.json (history)
+
+## aggregate (same algorithm as the 96-entry suite)
+sha256 over the sha256 hex strings of all entries in repo-relative path-sorted order, concatenated with no separator
+PENDING-G-L1: l2-guards-json (suite name, counts, aggregate_sha256, frozen_exe_stash_dir)

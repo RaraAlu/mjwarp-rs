@@ -1,0 +1,42 @@
+# S-3 user dual-sign summary - per-world L v2 light validation window (G-L2)
+# DRAFT while G-L1 is open: PENDING-G-L1 rows must be filled before this file is finalised and before the card
+# is sent to the user. Signs NOTHING here; only the user's card choice signs.
+
+Reference document: docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/README.md
+Spec (S-1, signed 2026-11-08): docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md
+  sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B / 344 lines / 15 sections
+
+## S-3a - validation window PLAN
+- One validation window (G-L2), single attempt, fail-stop; executor Backend (sole writer).
+- Guards freeze: existing 96 entries + 1 new exe (render_per_world_light) + 10..12 new inputs
+  (10 mandatory: the five G-L1 reference files, scene-a-light/scene.xml, capture_render_perworld.py,
+  perworld_capture_meta.py, perworld_light_prep.py, spec.md); old perworld-s1 guards/stash read-only.
+- Reference under validation: the G-L1 five files about 11.08 MB (sha256/bytes PENDING-G-L1).
+- Freeze after the monitor, zero compile inside the body, cargo test --no-run exit 0 in the freeze stage,
+  live == guard == stash for every frozen executable.
+
+## S-3b - baseline + signed floor (values suggested until measured at the window)
+- Suggested baseline: PENDING-G-L1: signed-floor (three-point nvidia-smi reading, GPU-free, taken when the S-3
+  material is finalised).
+- baseline_free = min(three free samples); suggested signed floor = baseline_free - 3,072 MiB.
+- At the window the baseline is re-measured within 5 minutes before the run and the stricter (HIGHER) of the
+  signed floor and the on-the-spot floor is used: floor_effective = max(signed floor, on-the-spot floor).
+- free >= floor_effective must hold on every baseline point, every monitor sample and the spot checks.
+
+## Failure clauses
+- Any criterion A/B/C, capture-count cross-check, metadata, legacy, frozen-executable, compile-regime or monitor
+  failure: stop immediately, report the user; no retry, no threshold/reference/camera change, no frozen-artifact
+  swap. Keep logs and artifacts as they are.
+
+## Evidence and QA
+- Evidence dir: docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/ (PENDING-G-L1)
+- QA: material pre-review (this card) + post-window QA review; window records mirror the pilot/S-2 format.
+
+## Suggested signature-card fields (FINALISE ONLY AFTER G-L1 CLOSES)
+- Window: G-L2 per-world L v2 light validation window
+- Basis: spec v3 sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d, 39,379 B (S-1 signed 2026-11-08)
+- S-3a: plan summary above (guards 96 + 1 exe + 10..12 inputs; reference five files about 11.08 MB PENDING-G-L1)
+- S-3b (suggested, re-measured at the window with stricter = higher wins): baseline_free PENDING-G-L1 MiB;
+  signed floor PENDING-G-L1 MiB; floor_effective = max(signed, on-the-spot)
+- Failure clauses and evidence/QA arrangement as above; signing does not open the window (still needs QA PASS +
+  Chief G-L2 token + on-the-spot stricter floor + monitor 60/60 + zero compile)

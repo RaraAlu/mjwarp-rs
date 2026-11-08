@@ -1,0 +1,39 @@
+# G-L2 entity execution expectations (spec v3 sections 4, 5, 6, 8, 10.1)
+
+## criterion A - per-world rendering, both cameras
+For every world (0/1/2) and each camera (cam-persp, cam-hinge):
+- rgb: max_byte_diff == 0 (byte-identical; no <=1 LSB relaxation)
+- depth: mismatched_pixels == 0 and beyond_ulp == 0 (bit-identical f32)
+- seg: per-pixel (id, type) equality
+- two-run sha256 equal (rgb/depth/seg, per world, per camera)
+
+## criterion B - light field data plane
+state.npz light_xpos / light_xdir ([nworld, nlight, 3] f32) bit-equal to the product side per world, 0 exceptions.
+
+## criterion C - world discriminability (reference side, never product data)
+- C1: cam-persp adjacent world pairs (0->1, 1->2), count of max_channel |d rgb| >= 1/255
+- C2: cam-hinge adjacent pairs, depth bit-change count + seg pair-change count
+- acceptance floor 384; capture precondition >=576 on BOTH pairs and BOTH sets
+- [384, 576) => insufficient margin, stop; < 384 => non-discriminating, refuse
+
+## capture.json section 2.4 cross-check
+capture.json c1_rgb_changed_px (bitwise + magnitude), c2_depth_changed_px, c2_seg_changed_px, diagnostics
+campersp_depth_seg_changed_px / camhinge_rgb_changed_px must equal the entity's own counts item by item for both
+world pairs. The entity check_capture_c1 must report Compared; a Skipped result means the recorded evidence is
+incomplete (old array shape or missing field) => stop.
+
+## world isolation
+Changing only one world must leave the other worlds' outputs unchanged (asserted for both cameras). This is an
+extra assertion and never replaces criteria A-C.
+
+## diagnostics (record only, never judged)
+cam-persp depth/seg expected 0/0; cam-hinge rgb expected large. Neither may stand in for C1 or C2.
+
+## criterion v2.2 relation
+The 10 existing regression entities keep the two signed v2.2 outline lists (recipe 183 px / cfd1038a...;
+aa2 172 px / 14893fc6...) and the |ULP|<=128 wording. render_per_world_light does NOT inherit them and must not
+reference them or any allowlist to pass.
+
+## refit prerequisite
+C2 depends on the per-world refit (P0-1). If C2 degrades to 0, that is a section 8 failure: stop, do not change
+the capture or the camera on the spot.
