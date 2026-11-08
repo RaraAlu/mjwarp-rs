@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-light-criterion-signature-fix-check",
+  "title": {
+    "zh": "QA 最小复核：签名留证 fix 轮（O1 生效口径标签 / O2 S-2 预批去「连续」/ O3 signatures_required 已签状态；receipt 1fb51eca/22,778 B、manifest 3-3、spec 字节不变）",
+    "en": "QA minimal review of the signature-evidence fix round (O1 effective labels, O2 removal of the unapproved 'continuous' qualifier, O3 signed status in signatures_required; receipt 1fb51eca/22,778 B, manifest 3-3, spec bytes unchanged)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的签名留证 fix 轮提交 `ba420eb6`（`Normify-Fixes: 2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature`）做**最小只读复核**，只核三项闭环 + 不变项：① **O1**：receipt `kind` → `criterion-spec`、`title` → 含 signed 2026-11-08 的生效标题、新增 `pre_signature_label` 保留旧 `criterion-spec-draft`/“signable draft” 并注明仅供留史、`non_claim[0]` 改为「S-1 signed and effective 2026-11-08; S-2 and S-3 not signed; …spec header frozen…」；② **O2**：`s2_preapproval.text` 删去无批准依据的「连续」→ 逐字「常规 util<40 不达标时允许 authoring-only util<60」，其余四条件逐字保留，新增 `wording_note`「不得追加未获批准条件」，README §4 引用同步；③ **O3**：`signatures_required` S-1 → SIGNED 2026-11-08 and effective（含冻结 sha/bytes）、S-2 → NOT SIGNED（注明仅预批、六项前置仍适用）、S-3 → NOT SIGNED、pilot token 仍 Chief 级；④ **不变项**：receipt 新 sha `1fb51eca…`/22,778 B（旧 `7f79bdf1…`/21,935 B）、manifest 3/3、spec.md 三处（HEAD^ blob / HEAD blob / 工作树）均 `bb064fe0…`/39,379 B/344 行且 `HEAD^..HEAD` 对 spec 零 diff、`src/`/`tests/`/`fixtures/`/`scripts/` 零 diff、四门禁复跑 unit 1359/0。**只读 + 只写本卡证据目录；零 GPU；不改签名记录。**",
+    "en": "Minimal read-only review of fix commit ba420eb6: O1 effective labels plus pre_signature_label history plus non_claim[0]; O2 removal of the unapproved 'continuous' qualifier with wording_note and README sync; O3 signatures_required signed/not-signed status; invariants (receipt 1fb51eca/22,778 B, manifest 3/3, spec bytes unchanged in all three places, zero src/tests/fixtures/scripts diff, four gates re-run)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**O1 闭环**：receipt `kind=criterion-spec`、`title` 含 “v3, signed 2026-11-08”；`pre_signature_label` 块保留旧 kind/title 并注明「仅留史、生效标签为上两字段」；`non_claim[0]` 明确 S-1 已签生效、S-2/S-3 未签、spec 头注按冻结不动。全文不再有以 `criterion-spec-draft`/“signable draft” 表述当前状态的地方（仅留史块）。",
+    "**O2 闭环**：`s2_preapproval.text` 无「连续」（逐字为「常规 util<40 不达标时允许 authoring-only util<60」），四条件逐字保留，`not_extended` 不变；新增 `wording_note` 禁止追加未获批准条件；README §4 引用同步为该原文并写同一约束；除留史说明外，evidence 目录不再有「连续」出现在预批口径里。",
+    "**O3 闭环**：`signatures_required` 四项：S-1 = SIGNED 2026-11-08 and effective + 冻结 sha/bytes；S-2 = NOT SIGNED（dual sign: plan + baseline + signed floor；仅 authoring 例外预批，六项前置仍适用）；S-3 = NOT SIGNED；pilot token 仍 Chief 级、非用户签名。",
+    "**spec 字节不变**：`ba420eb6^:spec.md`、`ba420eb6:spec.md`、工作树三者 sha256 均 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d`、39,379 B、344 行；`HEAD^..HEAD` 对 `spec.md` 零 diff；receipt `signature.spec_scan` 的 before/after 字段仍相等。",
+    "**manifest 与边界**：receipt 新 sha `1fb51eca…`/22,778 B（旧 `7f79bdf1…`/21,935 B 独立重算确认）；manifest 3/3（spec+receipt+README，`# base dir:` 在位、不自列、UTF-8/LF/无 BOM/裸 CR·TAB 0）；`ba420eb6` 只含卡、runs、README/manifest/receipt，`src/`/`tests/`/`fixtures/`/`scripts/` 零 diff。",
+    "**门禁与结论格式**：四门禁独立复跑全过（unit 1359 过/0 败）；结论 `PASS` / `仍有项` + 逐条编号；证据落 `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-signature-fix-check/`（manifest 自核、LF/无 BOM）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature",
+      "2026-11-08-render-perworld-l-v2-light-criterion-signature-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-signature-fix-check/"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "Arch 2026-11-08 17:3x 请求最小复核 fix 轮；复核目标提交 ba420eb6。只读 + 只写本卡证据；零 GPU；不改签名记录（有项只报告）。与 2026-11-08-...-signature-check 卡分开登记，避免其 unchanged 基线因 fix 轮前移而误报。",
+  "revision": {
+    "before": "2264a88ef826fa0acf42ae3404bb5d825e4f8b69",
+    "after": null
+  },
+  "created_at": "2026-11-08T09:35:00.000Z",
+  "updated_at": "2026-11-08T09:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/README.md",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/manifest.txt"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion-signature-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-light-criterion-signature-fix-check"
+    }
+  ]
+}
