@@ -4,11 +4,16 @@ Command (run after the three-point baseline, before the capture):
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl0/monitor.csv
 
 Rules:
-- longest_clean must reach 60 and the process must exit 0.
+- longest_clean must reach 60 and the process must exit 0. **exit != 0 (including the built-in exit 20 =
+  not ready within -MaxMinutes 30) means the window does not exist**: stop, report Chief, wait for a new
+  token; that is not a pilot failure, and there is no retry and no relaxation.
 - Every one of the 60 clean samples must have util < 40 % (regular threshold; no exception for G-L0).
 - free >= pilot_floor on every sample. The script's internal 10,240 MiB bound is only a lower bound and
   does NOT replace the computed pilot_floor; if a sample lands in [10,240, pilot_floor) the operator MUST
   stop manually even while the script keeps running.
+- `-OutCsv` parent directory: the script auto-creates a missing parent (lines 31-34); it only throws when
+  `-OutCsv` has no parent segment at all (bare filename, line 30). The material still requires
+  `New-Item -ItemType Directory -Force target/render-bvh/perworld-l-v2-gl0` before starting the monitor.
 - build process count 0 and no task CUDA compute process on the clean samples.
 - Do NOT rerun with -MaxUtil 60 for G-L0. If the regular threshold cannot be met: stop and report
   Chief/user (spec 12 G-L0 forbids opening the pilot via an early S-2 authoring exception).

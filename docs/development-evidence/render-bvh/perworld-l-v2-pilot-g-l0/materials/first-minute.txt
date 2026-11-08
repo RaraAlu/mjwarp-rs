@@ -1,0 +1,60 @@
+# G-L0 pilot - the first minute after the Chief token arrives
+# Executor: Backend (window execution); Arch: read-only design / peer evidence. Zero-compile window.
+# Order is load-bearing: freeze state -> fingerprints -> env -> start monitor -> (monitor PASS) ->
+# three-point baseline within 5 minutes before capture -> floor -> capture.
+# Do NOT baseline first and then wait for the monitor: the baseline must be within 5 minutes of capture.
+
+## T0+0~15s  1) Freeze the state (record before anything else, so nothing can be mutated later)
+git rev-parse HEAD
+git status --porcelain                      # must be empty
+powershell -NoProfile -File scripts/validate/repo-write-lock.ps1 -Action status
+Get-Process | Where-Object { $_.ProcessName -match 'cargo|rustc|nvcc|cl$' }   # must be empty (zero compile)
+# Expected: HEAD=<window card records it>; tree clean; lock FREE or held by the operator; no build process.
+
+## T0+15~35s  2) Model / scene / script fingerprints (before any GPU work)
+$repo = 'D:\Rust\mjwarp-rs'
+(Get-FileHash -Algorithm SHA256 "$repo\fixtures\render-bvh\scene-a-light\scene.xml").Hash
+#   must equal 4B354054116DDB81C6209ED10C021D133EA30D6FD82C1A6F866BAFFF9F625716 (5,134 B, 86 lines)
+Get-ChildItem "$repo\scripts\capture_render_perworld.py","$repo\scripts\perworld_capture_meta.py","$repo\scripts\perworld_light_prep.py" |
+  ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash, $_.Name }
+#   record all three hashes; capture_render_perworld.py is 55B91F23E146DEF80196FD1142578E73B9FEF78D9FE28DBB45AD5AAF2937B45B
+#   (23,483 B) at the pilot material baseline - record the actual values in the report.
+git -C "$repo\target\mjwarp-parallel\upstream" rev-parse HEAD
+git -C "$repo\target\mjwarp-parallel\upstream" status --porcelain     # must be empty
+& "$repo\target\mjwarp-parallel\venv\Scripts\python.exe" -B -c "import sys,warp,mujoco,mujoco_warp,numpy;print(sys.version.split()[0],warp.__version__,mujoco.__version__,mujoco_warp.__version__,numpy.__version__)"
+#   expected 3.12.13 / 1.15.0 / 3.15.0 / 3.15.0 / 2.5.4
+# Zero-compile: the pilot needs no Rust binary; the fingerprint above is the whole identity record.
+#   If a build artifact is reused, record its hash too; never run cargo/nvcc inside the window.
+
+## T0+35~45s  3) N1: MJWARP_CAPTURE_AT must be the concrete ISO8601 value supplied by the Chief token
+$env:MJWARP_CAPTURE_AT = '<the exact ISO8601 value in the Chief token>'   # no placeholder, no default
+& "$repo\target\mjwarp-parallel\venv\Scripts\python.exe" -B -c "import os,datetime;v=os.environ['MJWARP_CAPTURE_AT'];datetime.datetime.fromisoformat(v.replace('Z','+00:00'));assert v.strip();print('CAPTURE_AT_OK',v)"
+# Record the exact value verbatim in the pilot report (window/token-capture-at.txt).
+# A missing/empty/invalid value fails before any GPU work; dry-run only echoes the env state.
+
+## T0+45s  4) Create the pilot temp root explicitly, then start the monitor (regular thresholds only)
+New-Item -ItemType Directory -Force -Path "$repo\target\render-bvh\perworld-l-v2-gl0" | Out-Null
+# Note: monitor-until-clean.ps1 auto-creates a missing -OutCsv parent (lines 31-34); it only throws when
+# -OutCsv has no parent segment at all (line 30). The explicit New-Item above is belt-and-braces.
+powershell -NoProfile -ExecutionPolicy Bypass -File "$repo\scripts\validate\render-bvh\monitor-until-clean.ps1" -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl0/monitor.csv
+# Semantics to record: exit 0 AND longest_clean >= 60 AND all clean samples util < 40.
+# exit != 0 (including exit 20 = not ready within -MaxMinutes 30) => THE WINDOW DOES NOT EXIST:
+#   stop, report Chief, wait for a new token. This is NOT a pilot failure; no retry, no relaxation.
+# The script's hard-coded free bound is 10,240 MiB (lower bound only): the operator must still apply
+# pilot_floor manually to every sample. The authoring exception util<60 does NOT apply to G-L0.
+
+## After monitor PASS, within 5 minutes before capture  5) Three-point baseline and the floor
+# three samples ~5 s apart, record verbatim:
+nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
+# ... three times ...
+nvidia-smi --query-compute-apps=pid,name --format=csv,noheader
+# baseline_free = min(memory.free of the three samples)   [MiB]
+# pilot_floor   = baseline_free - 3072                    [MiB]  (computed on the spot, written into the report)
+# accept only if: every point free >= pilot_floor; every point util < 40; no task CUDA process;
+#   build processes 0; tree clean. Also re-check after the fact that all 60 monitor clean samples had
+#   free >= pilot_floor (the script's 10,240 bound is not the floor).
+# User-signed signed floor belongs to S-2 and is NOT a G-L0 precondition; do not conflate them.
+
+## Then  6) Capture once (single attempt) through the refit counter wrapper, then readout
+# See materials/command.txt steps 3 and 4. Stop points: any util >= 40, free < pilot_floor, invalid env,
+# fingerprint mismatch, refit count != 2 or order mismatch, readout exit != 0, dirty tree.

@@ -8,9 +8,22 @@
 #   S-1 signed; scene variant verified; capture script dual-camera verified + QA PASS;
 #   P0-1 refit verified; this material passed QA read-only pre-review; Chief G-L0 token issued.
 
-# --- 1) N1: MJWARP_CAPTURE_AT must be explicit, non-empty ISO8601 (dry-run only echoes env state) ---
-$env:MJWARP_CAPTURE_AT = "<ISO8601 written in the window card, e.g. 2026-11-09T20:15:00+08:00>"
+# --- 1) N1: MJWARP_CAPTURE_AT must be the concrete ISO8601 value supplied by the Chief token ---
+#     No placeholder is kept in this material: the value comes from the token, is format-checked here,
+#     and is recorded verbatim in the pilot report (window/token-capture-at.txt).
+New-Item -ItemType Directory -Force -Path target/render-bvh/perworld-l-v2-gl0 | Out-Null
+$env:MJWARP_CAPTURE_AT = "<the exact ISO8601 value supplied by the Chief token>"
 target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import os,datetime; v=os.environ['MJWARP_CAPTURE_AT']; datetime.datetime.fromisoformat(v.replace('Z','+00:00')); assert v.strip(); print('CAPTURE_AT_OK', v)"
+
+# --- 1b) Fingerprints (before any GPU work); Get-FileHash because sha256sum is not available here ---
+(Get-FileHash -Algorithm SHA256 fixtures/render-bvh/scene-a-light/scene.xml).Hash
+#   must be 4B354054116DDB81C6209ED10C021D133EA30D6FD82C1A6F866BAFFF9F625716 (5,134 B, 86 lines)
+Get-ChildItem scripts/capture_render_perworld.py,scripts/perworld_capture_meta.py,scripts/perworld_light_prep.py |
+  ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash, $_.Name }
+#   capture_render_perworld.py at the pilot baseline: 55B91F23E146DEF80196FD1142578E73B9FEF78D9FE28DBB45AD5AAF2937B45B
+#   (23,483 B); record all three actual values in the report.
+# Zero compile: the pilot needs no Rust binary; do not run cargo/nvcc inside the window.
+# Full ordering (freeze -> fingerprints -> env -> monitor -> baseline -> capture) is in materials/first-minute.txt.
 
 # --- 2) Dry-run (CPU only; no products). Pilot out-root is under target/, NEVER fixtures/. ---
 target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --dry-run \
@@ -50,10 +63,18 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B \
 # Exit codes: 0 = pass-margin; 3 = insufficient ([384,576)) or non-discriminating (<384); 2 = error.
 # Material rule: any non-zero exit => STOP (keep evidence), report Chief/user, no retry, no threshold change.
 
+# --- 4b) Explicit legacy_reference_untouched assertion (defence in depth; the capture script also hard-fails) ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import json,pathlib; c=json.loads(pathlib.Path('target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040/capture.json').read_text(encoding='utf-8')); print('legacy_reference_untouched', c['legacy_reference_untouched']); assert c['legacy_reference_untouched'] is True"
+
 # --- 5) Baseline (within 5 minutes before the pilot) and monitor (regular thresholds only) ---
+# Monitor must run BEFORE the final three-point baseline (the baseline has to be within 5 minutes of the
+# capture, while the 60/60 monitor run takes several minutes). Order: monitor -> baseline -> capture.
 nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
 nvidia-smi --query-compute-apps=pid,name --format=csv,noheader
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl0/monitor.csv
+# exit 0 AND longest_clean >= 60 => window exists; exit != 0 (incl. exit 20 = not ready within 30 min)
+# => window does NOT exist: stop, report Chief, wait for a new token; not a pilot failure, no retry.
+# The script's hard-coded 10,240 MiB free bound is only a lower bound; still apply pilot_floor manually.
 # authoring exception (util<60) is NOT applicable to G-L0; see monitor-plan.txt.
 
 # --- 6) Cleanup on failure (fail-stop, no residue) ---

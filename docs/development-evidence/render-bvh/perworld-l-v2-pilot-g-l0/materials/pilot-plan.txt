@@ -7,7 +7,8 @@
 | --- | --- | --- |
 | P1 | S-1 signed: spec v3 sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B / 344 lines / 15 sections; receipt `status=effective`, `effective=true`, `signature.spec_frozen=true` | `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json` (`signature`); signature card `2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature` (`ba420eb6`); QA fix-check `2026-11-08-...-signature-fix-check` (`5e82feed`) |
 | P2 | Scene variant verified: `scene-a-light/scene.xml` has `cam-hinge` per spec 2.1 (index 0/1/2 = persp/hinge/track), sha `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716` / 5,134 B / 86 lines; `.gitattributes` LF rule added | card `2026-11-08-render-perworld-l-v2-scene-camera` (implementation `3d546fbe`); QA pre-review `2026-11-08-...-scene-camera-check` (`d38661a5`) |
-| P3 | Capture script dual-camera verified: `camera_recipe` 10 fields incl. `sensorsize`/`intrinsic`; main 500->487, meta 244->270, both <=500; default dry-run unexpected=0 | card `2026-11-08-render-perworld-l-v2-capture-dual-camera` (`b98b39ff`); **QA PASS required before the pilot** |
+| P3 | Capture script dual-camera verified: `camera_recipe` 10 fields incl. `sensorsize`/`intrinsic`; main 500->487, meta 244->270, both <=500; default dry-run unexpected=0 | card `2026-11-08-render-perworld-l-v2-capture-dual-camera` (`b98b39ff`) |
+| P3b | **B card QA PASS is a pilot precondition**: spec 12 G-L0 "capture script dual-camera verification verified" becomes true only after QA PASS (implementation-card verified is not QA PASS) | QA check card `2026-11-08-render-perworld-l-v2-capture-dual-camera-check` (evidence `241a2e36`, PASS); missing => do not open |
 | P4 | P0-1 refit verified: `refit_scene_bvh` called immediately before every `mjw.render`, one call covers all worlds | card `2026-11-07-render-perworld-l-v2-capture-perworld-refresh` (`e34df3b7`); QA `2026-11-07-...-capture-perworld-refresh-check` (`3e08be09`) |
 | P5 | This material passed QA read-only pre-review (0 blocking) | `docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/` + QA review record |
 | P6 | 3-point baseline within 5 minutes before the window; `baseline_free = min(free)` | `baseline-sop.txt` |
@@ -39,6 +40,16 @@ Diagnostics (record only, never judged, never substituted for C1/C2):
 `cam-persp` depth/seg change counts expected 0/0 (scene geometry fact, spec 3.2);
 `cam-hinge` rgb change counts expected large (geometry + light).
 
+Post-capture extra assertions (beyond the readout, for defence in depth):
+- `capture.json.legacy_reference_untouched == true` (the capture script hard-fails otherwise; assert it
+  explicitly in the pilot report as well - QA O2);
+- keep the refit counter JSON (`run_pilot_with_refit_counter.py` output) verbatim as the raw execution
+  evidence for refit/render count and order - the positive path can only be proven in the real window (O4).
+
+Pilot exception to spec section 9.3: steps 6 and 7 (commit the reference, submit capture evidence as
+reference material) do NOT apply to the pilot - section 12 G-L0 says the pilot is not committed. The
+pilot commits only summaries/counters/logs (see evidence-checklist.txt), never `fixtures/.../perworld/`.
+
 Expected order of magnitude (CPU predictions from spec 3.3/3.4, not measurements):
 C1 ~55,581/55,839; C2 depth ~35,812/33,947; C2 seg ~16,041/16,755.
 
@@ -46,6 +57,11 @@ C1 ~55,581/55,839; C2 depth ~35,812/33,947; C2 seg ~16,041/16,755.
 
 - Any capture error, missing env, metadata mismatch, refit-counter mismatch, non-zero readout exit,
   baseline/monitor failure, or tree dirty => STOP immediately.
+- **Monitor semantics**: exit 0 AND longest_clean >= 60 AND all clean samples util < 40 means the window
+  exists. exit != 0 (including the built-in exit 20 = not ready within `-MaxMinutes 30`) means the window
+  does NOT exist: stop, report Chief, wait for a new token. That is NOT a pilot failure; no retry, no
+  relaxation, no early S-2 authoring exception. The script's hard-coded free bound (10,240 MiB) is only a
+  lower bound - the operator still applies `pilot_floor` manually.
 - Do not retry, do not change thresholds/camera/recipe, do not delete evidence, do not commit npz.
 - Keep the temp pilot tree under `target/` for the report; the pilot is NOT committed as a reference.
 - Only after a pass-margin verdict: copy the evidence files listed in `evidence-checklist.txt` into the

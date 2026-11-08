@@ -3,7 +3,7 @@
   "task_id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
   "kind": "window-material",
   "title": "G-L0 pilot material (per-world L v2 light): dual-camera C1/C2 readout, window discipline, post-capture self-checks",
-  "status": "material_draft_pending_QA_prereview_and_chief_token",
+  "status": "material_ready_pending_chief_token_and_window",
   "signed_object": false,
   "owner": "Arch",
   "date": "2026-11-08",
@@ -52,7 +52,12 @@
     {
       "id": "P3",
       "item": "capture script dual-camera verified (camera_recipe 10 fields)",
-      "anchor": "card 2026-11-08-render-perworld-l-v2-capture-dual-camera (b98b39ff); QA PASS required before the pilot"
+      "anchor": "card 2026-11-08-render-perworld-l-v2-capture-dual-camera (implementation b98b39ff)"
+    },
+    {
+      "id": "P3b",
+      "item": "B card QA PASS is a pilot precondition: spec 12 G-L0's 'capture script dual-camera verification verified' becomes true only after QA PASS (implementation-card verified != QA PASS)",
+      "anchor": "QA check card 2026-11-08-render-perworld-l-v2-capture-dual-camera-check (evidence 241a2e36, PASS); missing => do not open"
     },
     {
       "id": "P4",
@@ -61,8 +66,8 @@
     },
     {
       "id": "P5",
-      "item": "this material passed QA read-only pre-review",
-      "anchor": "this directory + QA review record (pending)"
+      "item": "this material passed QA read-only pre-review (PASS 8/8)",
+      "anchor": "QA card 2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check (evidence 95c70bf0)"
     },
     {
       "id": "P6",
@@ -143,7 +148,7 @@
   "window_discipline": {
     "order": "G-L0 before S-2",
     "baseline": "3 samples within 5 minutes; baseline_free = min(free); pilot_floor = baseline_free - 3072 MiB computed on the spot",
-    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40; internal 10240 MiB is a lower bound only; operator stops below pilot_floor",
+    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40; window exists only if exit 0 AND longest_clean >= 60 AND all clean samples util < 40; exit != 0 (incl. built-in exit 20 = not ready within 30 min) means the window does NOT exist -> stop, report Chief, wait for a new token; not a pilot failure, no retry, no relaxation. The script's hard-coded 10,240 MiB free bound is only a lower bound; the operator still applies pilot_floor. New-Item the -OutCsv parent explicitly (the script auto-creates a missing parent at lines 31-34; line 30 only throws when there is no parent segment).",
     "zero_compile": "build before the window and record fingerprint; no cargo/nvcc inside the window",
     "exception": "authoring exception util<60 does not apply; a failed regular threshold stops the pilot and reports",
     "fail_stop": "keep evidence, clean only the pilot temp tree, no retry, no threshold change, no commit"
@@ -153,6 +158,7 @@
     "receipt.json",
     "manifest.txt",
     "materials/command.txt",
+    "materials/first-minute.txt",
     "materials/pilot-plan.txt",
     "materials/baseline-sop.txt",
     "materials/monitor-plan.txt",
@@ -174,13 +180,14 @@
       "bytes": 4389,
       "dryrun_smoke": "exit 4 with empty sequence (detects missing refit/render)"
     },
-    "reuse_decision": "new readout script required for v3 (C1 rgb + 1/255 rule + dual-camera ownership + metadata/seg self-checks); the v2 depth/seg-only discriminability_check.py is not reused; no product-path import"
+    "reuse_decision": "new readout script required for v3 (C1 rgb + 1/255 rule + dual-camera ownership + metadata/seg self-checks); the v2 depth/seg-only discriminability_check.py is not reused; no product-path import",
+    "first_minute": {
+      "path": "materials/first-minute.txt",
+      "sha256": "7e64db3dd44797007f57afb5d35733014f7cbd6f89487279127cd66ae9b64c5e",
+      "bytes": 5116,
+      "note": "order freeze -> fingerprints (Get-FileHash; sha256sum unavailable) -> N1 env from the token -> explicit New-Item dir -> monitor -> (PASS) -> 3-point baseline within 5 minutes -> floor -> capture"
+    }
   },
-  "awaiting_ack": [
-    "Chief G-L0 token (pilot is Chief-level; nothing user-signature level is added by this material)",
-    "pilot temp root stays under target/render-bvh/perworld-l-v2-gl0/ (not committed, never fixtures/.../perworld/) - change only if Chief asks",
-    "keep the pilot npz under target/ for QA re-read until the pilot card closes, then delete (only summaries/counters/logs are committed)"
-  ],
   "boundary": {
     "gpu_free": true,
     "no_capture": true,
@@ -196,5 +203,55 @@
     "no discriminability restoration / capture validity / per-world light acceptance / upstream equivalence claimed",
     "section 3 predictions are CPU estimates, not renderer measurements",
     "the pilot is not committed as a reference; G-L1 remains a separate signed window"
-  ]
+  ],
+  "qa_prereview": {
+    "card": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check",
+    "commit": "95c70bf0",
+    "verdict": "PASS 8/8, 0 blocking, 4 informational observations",
+    "observations": [
+      {
+        "id": "O1",
+        "topic": "P3 anchor lacked the QA card id/commit",
+        "disposition": "fixed: P3b added with QA card id + 241a2e36, README/pilot-plan updated"
+      },
+      {
+        "id": "O2",
+        "topic": "readout does not assert legacy_reference_untouched",
+        "disposition": "fixed: post-capture self-check item 8 + command.txt 4b explicit assertion"
+      },
+      {
+        "id": "O3",
+        "topic": "spec 9.3 steps 6/7 (commit reference/evidence) do not apply to the pilot",
+        "disposition": "fixed: stated explicitly in README section 4, pilot-plan, evidence-checklist"
+      },
+      {
+        "id": "O4",
+        "topic": "refit wrapper positive path only provable in the real window",
+        "disposition": "fixed: counter JSON kept verbatim as execution evidence (self-check item 9)"
+      }
+    ],
+    "independently_verified": [
+      "P1-P10 preconditions complete; P3b now explicit",
+      "verbatim commands isolated under target/; never fixtures/.../perworld/",
+      "readout script 305 lines / 456da2dc..., selftest 6/6; refit wrapper 107 lines / f90f896a..., negative path exit 4",
+      "dry-run reproduced: 3 cameras, cam_active_fixed_only [true,true,false], legacy 112, scene sha 4b354054.../5,134 B",
+      "manifest 12/12 at review time; hygiene clean; material commit had no src/fixtures/scripts diff"
+    ]
+  },
+  "chief_approvals": {
+    "date": "2026-11-08",
+    "approved_by": "Chief",
+    "items": [
+      "pilot temp root stays target/render-bvh/perworld-l-v2-gl0/ (never fixtures/render-bvh/scene-a-light/perworld/)",
+      "pilot npz stay under target/ for QA/Chief re-read, deleted after that review; only summaries/counters/logs are committed, npz never committed",
+      "token conditions: (1) material QA pre-review PASS [done: 95c70bf0], (2) B card QA PASS [done: 241a2e36], (3) Chief on-site checks right before the window: 3-point baseline within 5 minutes + regular monitor 60/60 util<40 (authoring exception not applicable) + zero-compile/build fingerprint + floor = baseline_free - 3072 MiB computed on the spot and recorded in the pilot material; (4) single G-L0 token only after all pass (fail-stop, no retry, nothing committed)",
+      "executor: Backend opens the window; Arch stays read-only design/peer evidence",
+      "window timing: GPU had external load (Chief observed util 87%, free 8,522 MiB, not a team task) - wait for a clean monitor before the token"
+    ]
+  },
+  "awaiting": {
+    "token": "pending: Chief issues a single G-L0 token after the on-site checks above",
+    "window_timing": "wait for the external GPU load to leave and the monitor to be clean",
+    "no_user_signature": "S-1 signed; S-2/S-3 still unsigned; this material is not a signing object"
+  }
 }

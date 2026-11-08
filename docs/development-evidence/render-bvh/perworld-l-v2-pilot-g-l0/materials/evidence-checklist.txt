@@ -3,9 +3,12 @@
 The pilot writes under `target/render-bvh/perworld-l-v2-gl0/` only. After a pass-margin verdict, the
 pilot card copies the files below into its own evidence directory; **npz/state files are not committed**.
 
-window/preconditions.txt            precondition table P1-P10 with the actual anchors checked at window time
+window/preconditions.txt            precondition table P1-P10 + P3b (B card QA PASS) with the actual anchors checked at window time
+window/first-minute.txt             copy of materials/first-minute.txt with the actual timestamps/values
+window/token-capture-at.txt         the exact MJWARP_CAPTURE_AT value supplied by the Chief token (verbatim)
 window/baseline-three-points.txt    raw three-sample nvidia-smi output + baseline_free + pilot_floor arithmetic
 window/monitor.csv                  monitor-until-clean CSV copy (explicit -OutCsv path)
+window/monitor-exit-code.txt        monitor exit code (0 = ready; non-zero incl. 20 = window does not exist)
 window/dryrun.json                  dry-run plan (must show 3 cameras, cam_active_fixed_only [true,true,false], legacy 112)
 window/capture-stdout.log           pilot capture stdout (final JSON summary)
 window/capture-stderr.log           pilot capture stderr (empty or explained)
@@ -20,10 +23,16 @@ window/seg-geom-sets.txt            per world per camera visible seg (id,type) s
 window/environment-provenance.txt   python/warp/mujoco/mujoco_warp/numpy versions, upstream sha+clean, GPU/driver, use_fast_math=false
 window/zero-compile-fingerprint.txt build fingerprint recorded before the window (no cargo/nvcc inside)
 window/git-before.txt / git-after.txt  HEAD + git status before/after (must stay clean; fixtures untouched)
+window/legacy-selfcheck.txt         explicit capture.json.legacy_reference_untouched == true assertion output
+window/refit-counter.json           raw output of run_pilot_with_refit_counter.py (kept verbatim; positive path only provable in the real window)
 window/post-gpu.txt                 post-run GPU state (used/free/util/temp; no task process)
 
 Hygiene: UTF-8 / LF / no BOM; manifest first line '#' plus '# base dir:'; per-file sha256+bytes;
 bare CR/TAB self-check.
+
+Pilot exception: spec section 9.3 steps 6-7 (commit the reference / submit capture evidence as reference
+material) do NOT apply to the pilot (section 12 G-L0: pilot is not committed). Only the window/* files
+above are committed; pilot npz stay under target/ for QA/Chief re-read and are deleted after that review.
 
 Fail-stop: on any failure keep the evidence as-is, remove only the pilot temp tree under target/,
 and report; no retry, no threshold change, no evidence deletion.
