@@ -1,0 +1,52 @@
+{
+  "task_id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-fix-check",
+  "owner": "QA",
+  "date": "2026-11-08",
+  "kind": "fix-review",
+  "verdict": "PASS",
+  "blocking": 0,
+  "observations": {"low": 1, "info": 1},
+  "gate_statement": "user S-2 dual-sign card may be issued",
+  "target": {
+    "fix_commit": "ade516b5a99ec773617b8b1c657c07bfd22f2aed",
+    "previous_material_commit": "1e27ff59",
+    "readme": {"old": "3215e4ee.../11612", "new_sha256": "d46e023068e162fa51a98edc41859a0d7fbe8a1c76fd2f3589157086724ee91a", "new_bytes": 13984},
+    "receipt": {"old": "9e116955.../8349", "new_sha256": "3692c374ab158f8f17fdf2d43ac2027087e822f183eab29f27fea4b691220f56", "new_bytes": 8864},
+    "manifest": {"sha256": "a2fd8c71f079e91a7e2c3e12d31df7bc896ed1e4fefbe2b2cf6f194956a86726", "bytes": 1341, "self_check": "12/12"}
+  },
+  "floor_merge_fix": {
+    "rule": "floor_effective = max(signed floor, onspot floor)",
+    "rationale": "acceptance is free >= floor_effective, so a HIGHER floor is stricter; min would relax it (signed 10,230 vs onspot 10,300 -> must use 10,300)",
+    "baseline_free_sampling_rule_kept_separate": "baseline_free = min(three free samples) is the sampling rule (worst of three), different semantics",
+    "covered_files": ["README.md section 3/5", "materials/baseline-sop.txt", "materials/signature-summary.txt", "materials/baseline-suggestion.txt", "materials/command.txt", "materials/qa-prereview-checklist.txt", "materials/evidence-checklist.txt", "receipt.json"],
+    "no_floor_effective_min_residue_in_signable_material": true,
+    "repo_wide_scan_hits_outside_material": ["material task-card acceptance text (historical, .normify/changes/...s2-material.json)", "previous QA review card/evidence recorded the pre-fix version"]
+  },
+  "o1_o2_o3_closure": {
+    "O1_s2b_line": "S-2b (suggested, re-measured at the window with stricter = higher wins): baseline_free 13,302 MiB; signed floor 10,230 MiB; floor_effective = max(signed floor, on-the-spot floor)",
+    "O2_p7_qa_anchor": "2026-11-08-...-pilot-g-l0-window-check (evidence c5a56639) added",
+    "O3_gl1_dir_unified": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/"
+  },
+  "boundaries": {
+    "commit_scope": "S-2 material evidence (README/receipt/manifest + 7 materials) + material card + runs",
+    "src_fixtures_scripts_tests_unchanged": true,
+    "encoding": "UTF-8/LF/no BOM/no bare CR/TAB",
+    "gpu_free": true
+  },
+  "gates": {
+    "recorded_in": ".normify/runs/2026-11-08-render-perworld-l-v2-capture-window-s2-material-fix-check/",
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": "1384 passed / 0 failed"
+  },
+  "observations": [
+    {"id": "O1", "severity": "low", "topic": "material task-card acceptance still says min", "detail": "the fix added addenda but left the acceptance text; the card is a historical task definition, not the signable material", "blocking": false, "recommendation": "correct the acceptance or add a note in a later normify fix; signable material is already consistent"},
+    {"id": "O2", "severity": "info", "topic": "previous QA review card recorded the pre-fix min wording", "detail": "it reviewed 1e27ff59; this card is the post-fix review", "blocking": false, "recommendation": "keep as history; cite this card for the current state"}
+  ],
+  "non_claims": [
+    "this review only judges the floor-merge correction, O1-O3 closure and evidence hygiene; it does not judge the G-L1 result",
+    "no capture validity, no per-world light acceptance, no upstream equivalence, no rendering numeric conclusion",
+    "not a G-L1 start; S-2 needs the user dual signature and G-L1 needs the Chief token"
+  ]
+}
