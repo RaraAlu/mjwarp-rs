@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts",
+  "status": "implemented",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "capture-discriminability-counts",
+  "positioning": "Signed spec v3 §2.4 requires capture.json to carry the reference-side discriminability counts (C1 bitwise+magnitude, C2 depth/seg, two diagnostic items). The capture script now computes them with a helper bit-identical to the G-L0 pilot readout and writes them after the two-capture bitwise-identity checks. GPU-free: no capture, no CUDA.",
+  "source": {
+    "spec": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "spec_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "sections": [
+      "§2.4 deterministic + provenance (discriminability counts)"
+    ],
+    "readout_script": {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py",
+      "sha256": "4a054abafbec8e3a2567f75b7e71f5cec82c3cbd88d1d412e8a44f445370ad8b",
+      "note": "computation is bit-identical: same unpack, f32->f64 max-channel diff >= 1/255, depth bits, seg pairs",
+      "bytes": 16711
+    }
+  },
+  "deliverables": {
+    "scripts/capture_render_perworld.py": {
+      "sha256": "f3af09ab992981f2dc5d7f2e3479aaf9eebb97df0d2a774b247c8e0772ad6f07",
+      "bytes": 23637,
+      "lines": 490
+    },
+    "scripts/perworld_capture_meta.py": {
+      "sha256": "3fdb85953681a1a695a9611fc48ddf0862318acf0e0767e831029a820127b87e",
+      "bytes": 19154,
+      "lines": 379
+    },
+    "evidence": {
+      "README.md": "narrative (fields/structure, readout parity, pilot cross-check, default behavior)",
+      "artifacts/crosscheck-pilot-counts.json": "pilot attempt-3 coordinates vs readout",
+      "artifacts/dryrun-compare.json": "HEAD vs working tree dry-run leaf compare",
+      "artifacts/script-static-checks.json": "helper placement / import / call-site static checks",
+      "logs/crosscheck-pilot-counts.log": "raw cross-check output (pilot npz under target/, not committed)",
+      "logs/dryrun-compare.log": "raw dry-run compare output",
+      "logs/selfcheck.log": "module CPU selfcheck output"
+    }
+  },
+  "before_after_lines": {
+    "scripts/capture_render_perworld.py": {
+      "before": 487,
+      "after": 490
+    },
+    "scripts/perworld_capture_meta.py": {
+      "before": 270,
+      "after": 379
+    }
+  },
+  "crosscheck": {
+    "generated_by": "materials/crosscheck_pilot_counts.py",
+    "pilot_dir": "target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040",
+    "pilot_data_committed": false,
+    "readout": "target/render-bvh/perworld-l-v2-gl0/window/readout.json",
+    "counts": "C1 magnitude 38285/40644, C1 bitwise 43604/41815, C2 depth 35828/33883, C2 seg 16041/16754, diagnostic cam-persp depth/seg 0/0, diagnostic cam-hinge rgb magnitude 50363/52329 (bitwise 54380/54250)",
+    "matches_readout_json": true
+  },
+  "default_behavior": {
+    "generated_by": "materials/compare_dryrun.py",
+    "unexpected": 0,
+    "only_expected_difference": "recipe.script.sha256/bytes",
+    "worlds_1": "exit 1 + identical stderr; no out_dir created (unchanged)"
+  },
+  "boundaries": {
+    "gpu_free": true,
+    "no_capture": true,
+    "unchanged": [
+      "fixtures/",
+      "src/",
+      "tests/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+    ]
+  },
+  "non_claims": {
+    "statement": "Only capture.json count recording + CPU self-check: no capture-validity claim, no discriminability-restoration claim, no rendering numeric conclusion. Real counts come from the G-L1 rendered reference; pilot coordinates are only a readout-parity cross-check."
+  }
+}

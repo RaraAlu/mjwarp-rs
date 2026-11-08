@@ -14,7 +14,13 @@ S-2 capture-window prerequisites:
    instead of parametrising `task_id`;
 5. `camera_recipe`: both active cameras' 10-field snapshot (spec v3 §2.4: the
    existing 8 fields plus the raw `sensorsize`/`intrinsic` model arrays, no
-   conversion; cam-hinge uses the fovy path and is not claimed to have intrinsics).
+   conversion; cam-hinge uses the fovy path and is not claimed to have intrinsics);
+6. `discriminability_counts`: the reference-side discriminability counts that
+   spec v3 §2.4 requires in `capture.json` (`c1_rgb_changed_px` with both the
+   bitwise and the `max_channel|drgb| >= 1/255` counts, `c2_depth_changed_px`,
+   `c2_seg_changed_px`, plus the two diagnostic items), bit-identical to the
+   G-L0 pilot readout `readout_c1_c2.py` (same unpack, same f32->f64 diff, same
+   per-pixel comparisons; no re-derived formula).
 
 Zero GPU: pure metadata helpers; the module also provides a CPU self-check with
 positive/negative cases (`python -B scripts/perworld_capture_meta.py`).
@@ -147,6 +153,53 @@ def camera_recipe(mjm, rc) -> list[dict]:
     return cameras
 
 
+DISCRIMINABILITY_PAIRS = ((0, 1), (1, 2))
+RGB_THRESHOLD = 1.0 / 255.0
+
+
+def _rgb_counts(left, right) -> dict:
+    """`max_channel|drgb| >= 1/255` magnitude count + bitwise-changed count (readout's c1_counts)."""
+    import numpy as np
+
+    delta = np.abs(left.astype(np.float64) - right.astype(np.float64)).max(axis=-1)
+    return {"magnitude": int(np.count_nonzero(delta >= RGB_THRESHOLD)),
+            "bitwise": int(np.count_nonzero(np.any(left.view(np.int32) != right.view(np.int32), axis=-1)))}
+
+
+def discriminability_counts(arrays: dict) -> dict:
+    """spec v3 §2.4 reference-side discriminability counts, bit-identical to `readout_c1_c2.py`.
+
+    `arrays` is the capture array map (`rgb_w{world}_cam{camera}` f32 (H,W,3),
+    `depth_w{world}_cam{camera}` f32 (H,W), `seg_w{world}_cam{camera}` i32 (H,W,2)).
+    C1 = cam0/cam-persp rgb, C2 = cam1/cam-hinge depth bits + seg pairs; the two
+    diagnostic items are cam-persp depth/seg and cam-hinge rgb (ownership never swapped).
+    Every field is keyed by world pair `{"0->1": ..., "1->2": ...}` (spec §2.4).
+    """
+    import numpy as np
+
+    required = [f"{kind}_w{world}_cam{cam}" for kind in ("rgb", "depth", "seg")
+                for pair in DISCRIMINABILITY_PAIRS for world in pair for cam in (0, 1)]
+    missing = [name for name in required if name not in arrays]
+    if missing:
+        fail(f"discriminability counts need the two-capture arrays; missing {missing}")
+    counts = {"c1_rgb_changed_px": {}, "c2_depth_changed_px": {}, "c2_seg_changed_px": {},
+              "campersp_depth_seg_changed_px": {}, "camhinge_rgb_changed_px": {}}
+    for left, right in DISCRIMINABILITY_PAIRS:
+        key = f"{left}->{right}"
+        counts["c1_rgb_changed_px"][key] = _rgb_counts(arrays[f"rgb_w{left}_cam0"], arrays[f"rgb_w{right}_cam0"])
+        counts["camhinge_rgb_changed_px"][key] = _rgb_counts(arrays[f"rgb_w{left}_cam1"], arrays[f"rgb_w{right}_cam1"])
+        depth_left, depth_right = arrays[f"depth_w{left}_cam1"], arrays[f"depth_w{right}_cam1"]
+        seg_left, seg_right = arrays[f"seg_w{left}_cam1"], arrays[f"seg_w{right}_cam1"]
+        counts["c2_depth_changed_px"][key] = int(np.count_nonzero(depth_left.view(np.int32) != depth_right.view(np.int32)))
+        counts["c2_seg_changed_px"][key] = int(np.count_nonzero(np.any(seg_left != seg_right, axis=-1)))
+        persp_depth_left, persp_depth_right = arrays[f"depth_w{left}_cam0"], arrays[f"depth_w{right}_cam0"]
+        persp_seg_left, persp_seg_right = arrays[f"seg_w{left}_cam0"], arrays[f"seg_w{right}_cam0"]
+        counts["campersp_depth_seg_changed_px"][key] = {
+            "depth": int(np.count_nonzero(persp_depth_left.view(np.int32) != persp_depth_right.view(np.int32))),
+            "seg": int(np.count_nonzero(np.any(persp_seg_left != persp_seg_right, axis=-1)))}
+    return counts
+
+
 def refit_scene_before_render(m, d, rc) -> None:
     """Refit the scene BVH from the current device data immediately before a render.
 
@@ -184,6 +237,18 @@ def verify_capture_metadata(capture: dict) -> None:
         fail("capture.json per_world_scope.does_not_cover still carries the old light-poses wording")
     if not str(capture.get("recipe", {}).get("task_id") or "").strip():
         fail("capture.json recipe.task_id is missing (task-id provenance source)")
+    for key in ("c1_rgb_changed_px", "c2_depth_changed_px", "c2_seg_changed_px",
+                "campersp_depth_seg_changed_px", "camhinge_rgb_changed_px"):
+        value = capture.get(key)
+        if not isinstance(value, dict) or sorted(value) != ["0->1", "1->2"]:
+            fail(f"capture.json {key} is missing or does not carry the 0->1 / 1->2 world pairs (spec v3 §2.4)")
+    for key in ("c1_rgb_changed_px", "camhinge_rgb_changed_px"):
+        for pair, value in capture[key].items():
+            if not isinstance(value, dict) or sorted(value) != ["bitwise", "magnitude"]:
+                fail(f"capture.json {key}[{pair}] must carry bitwise + magnitude counts (spec v3 §2.4)")
+    for pair, value in capture["campersp_depth_seg_changed_px"].items():
+        if not isinstance(value, dict) or sorted(value) != ["depth", "seg"]:
+            fail(f"capture.json campersp_depth_seg_changed_px[{pair}] must carry depth + seg counts")
 
 
 def _case(name: str, body) -> tuple[str, bool]:
@@ -226,6 +291,8 @@ def selfcheck() -> int:
         _case("capture-metadata-positive", lambda: verify_capture_metadata(_synthetic_capture(iso))),
         _case_expect_exit("capture-metadata-negative-empty-command", lambda: verify_capture_metadata(_synthetic_capture(iso, command={"argv": [], "rendered": ""})), "command is empty"),
         _case_expect_exit("capture-metadata-negative-old-scope", lambda: verify_capture_metadata(_synthetic_capture(iso, scope={"covers": SCOPE_COVERS, "does_not_cover": OLD_SCOPE_DOES_NOT_COVER})), "old light-poses wording"),
+        _case("discriminability-positive", lambda: _discriminability_case()),
+        _case_expect_exit("discriminability-negative-missing-array", lambda: _discriminability_negative(), "missing"),
     ]
     passed = sum(1 for _, ok in results if ok)
     print(f"SELFCHECK {'PASS' if passed == len(results) else 'FAIL'} {passed}/{len(results)}")
@@ -256,6 +323,47 @@ def _tag_override() -> None:
         fail("reference_tag CLI override failed")
 
 
+def _synthetic_counts() -> dict:
+    pair = {"0->1": {"magnitude": 1, "bitwise": 2}, "1->2": {"magnitude": 0, "bitwise": 0}}
+    return {"c1_rgb_changed_px": pair, "camhinge_rgb_changed_px": pair,
+            "c2_depth_changed_px": {"0->1": 1, "1->2": 0},
+            "c2_seg_changed_px": {"0->1": 1, "1->2": 0},
+            "campersp_depth_seg_changed_px": {"0->1": {"depth": 0, "seg": 0}, "1->2": {"depth": 0, "seg": 0}}}
+
+
+def _discriminability_case() -> None:
+    import numpy as np
+
+    arrays = {}
+    for world in range(3):
+        for cam in (0, 1):
+            arrays[f"rgb_w{world}_cam{cam}"] = np.zeros((2, 2, 3), dtype=np.float32)
+            arrays[f"depth_w{world}_cam{cam}"] = np.zeros((2, 2), dtype=np.float32)
+            arrays[f"seg_w{world}_cam{cam}"] = np.full((2, 2, 2), -1, dtype=np.int32)
+    # cam-persp：像素(0,0) 蓝 +1/255（magnitude+bitwise 都计）；像素(1,0) 254/255 -> 1.0 饱和步进（只 bitwise）。
+    arrays["rgb_w0_cam0"][1, 0] = [1.0, 0.0, 0.0]
+    arrays["rgb_w1_cam0"][0, 0] = [0.0, 0.0, 1.0 / 255.0]
+    arrays["rgb_w1_cam0"][1, 0] = [254.0 / 255.0, 0.0, 0.0]
+    # cam-hinge：depth 位型 + seg pair 变化（诊断项 cam-persp depth/seg 保持 0）。
+    arrays["depth_w1_cam1"][1, 1] = np.float32(1.0)
+    arrays["seg_w1_cam1"][0, 1] = np.array([3, 5], dtype=np.int32)
+    for cam in (0, 1):
+        for kind in ("rgb", "depth", "seg"):
+            arrays[f"{kind}_w2_cam{cam}"] = arrays[f"{kind}_w1_cam{cam}"].copy()
+    expected = {"c1_rgb_changed_px": {"0->1": {"magnitude": 1, "bitwise": 2}, "1->2": {"magnitude": 0, "bitwise": 0}},
+                "camhinge_rgb_changed_px": {"0->1": {"magnitude": 0, "bitwise": 0}, "1->2": {"magnitude": 0, "bitwise": 0}},
+                "c2_depth_changed_px": {"0->1": 1, "1->2": 0},
+                "c2_seg_changed_px": {"0->1": 1, "1->2": 0},
+                "campersp_depth_seg_changed_px": {"0->1": {"depth": 0, "seg": 0}, "1->2": {"depth": 0, "seg": 0}}}
+    counts = discriminability_counts(arrays)
+    if counts != expected:
+        fail(f"discriminability counts mismatch: {counts} != {expected}")
+
+
+def _discriminability_negative() -> None:
+    discriminability_counts({"rgb_w0_cam0": None})
+
+
 def _synthetic_capture(captured_at: str, command=None, scope=None) -> dict:
     return {
         "command": command if command is not None else command_line([sys.executable, "script.py"], pathlib.Path.cwd()),
@@ -263,6 +371,7 @@ def _synthetic_capture(captured_at: str, command=None, scope=None) -> dict:
         "reference_tag": "nw3-light-hinge02040",
         "per_world_scope": scope if scope is not None else per_world_scope(),
         "recipe": {"task_id": TASK_ID},
+        **_synthetic_counts(),
     }
 
 

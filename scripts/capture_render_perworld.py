@@ -50,7 +50,8 @@ import time
 import zipfile
 
 from perworld_light_prep import build_dry_run_plan
-from perworld_capture_meta import camera_recipe, capture_metadata, dry_run_echo, refit_scene_before_render, verify_capture_metadata
+from perworld_capture_meta import (camera_recipe, capture_metadata, discriminability_counts,
+                                   dry_run_echo, refit_scene_before_render, verify_capture_metadata)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCENE_DIR = ROOT / "fixtures/render-bvh/scene-a"
@@ -449,6 +450,7 @@ def main() -> int:
     shutil.rmtree(tmp_second, ignore_errors=True)
     recipe["capture_at_env"] = provenance["captured_at"]
     recipe["cameras"] = camera_recipe(mjm, rc)
+    discriminability = discriminability_counts(first["arrays"])
     capture = {
         **provenance,
         "schema": SCHEMA, "task_id": TASK_ID, "kind": "render-perworld-capture",
@@ -459,6 +461,7 @@ def main() -> int:
         "files_sha256": first_hashes,
         "environment": environment, "recipe": recipe, "parameters": PARAMS,
         "context": context_receipt(mjm, rc, first_hashes, first, 1),
+        **discriminability,
         "legacy_reference_untouched": legacy_manifest(out_root) == legacy_before,
         "legacy_reference_files": len(legacy_before),
         "reads_product_tree": False, "authoring_only": True,
