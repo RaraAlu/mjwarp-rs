@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-fix-r2-check",
+  "title": {
+    "zh": "QA 最小复核：S-2 材料 fix r2（`0b2b4cc4`）——P1a §2.4 计数前置三处齐全、脚本身份三值逐位吻合（pilot 旧值 OBSOLETE）、采后计数交叉命令语法与键名可执行、S-2b/例外/失败条款零改动、签名卡字段可用 → 可发新 S-2 双签卡",
+    "en": "QA minimal review of the S-2 material fix r2 (0b2b4cc4): P1a counts precondition present in all three places, script identity values exact with pilot values marked OBSOLETE, post-capture counts cross-check command syntactically valid with correct keys, S-2b/exception/failure clauses unchanged, signature fields usable - new user S-2 dual-sign card may be issued"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 S-2 采集窗材料 fix r2（提交 **`0b2b4cc4`**，parent `be12145e`）做最小复核：① P1a（§2.4 判别力计数）在 README §1 表 / `materials/preconditions.txt` / `receipt.json.preconditions` 三处齐全且字段/结构/锚点/数字与已签 spec §2.4 及我的复核一致；② 脚本身份三值独立重算逐位吻合（`capture_render_perworld.py` `f3af09ab…`/23,637 B/490、`perworld_capture_meta.py` `3fdb8595…`/19,154 B/379、`perworld_light_prep.py` `9fd5f8c2…`/7,206 B/160 行），pilot 旧值标 OBSOLETE 且 command 第 1 步改为现场记录；③ 采后自查增量可执行（README §4 第 6 步、command 6b 语法/键名/断言、evidence-checklist 的 `window/counts-crosscheck.txt`、window-plan 第 8 条门槛）；④ S-2b（13,302/10,230/max）与 authoring 例外、失败条款逐字未动；⑤ 签名卡字段（S-2a 已补 §2.4，其余仍在，「Signs NOTHING here」在位）；⑥ 边界/卫生/四门禁。**只读 + 只写本卡证据；零 GPU、不采集。**",
+    "en": "Minimal review of the S-2 material fix r2: P1a section 2.4 counts precondition in all three places, exact script identity with pilot values obsolete, executable post-capture counts cross-check, protected S-2b/exception/failure wording unchanged, signature-card fields usable, boundaries and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**P1a 三处齐全且与 §2.4 对齐**：README §1 表、`materials/preconditions.txt`、`receipt.json.preconditions` 均含 P1a，字段逐字含 `c1_rgb_changed_px`（两对 world 的 bitwise+magnitude）、`c2_depth_changed_px`、`c2_seg_changed_px`、诊断 `campersp_depth_seg_changed_px`/`camhinge_rgb_changed_px` 与结构 `{\"0->1\":…,\"1->2\":…}`；锚点 `311b5a84` + QA `fefe45a5`；pilot 交叉数字 38,285/40,644、43,604/41,815、35,828/33,883、16,041/16,754、0/0、50,363/52,329 与我的复核一致 ✅。",
+    "**脚本身份三值逐位吻合**：独立重算工作树 sha/bytes/行数——`capture_render_perworld.py` **`f3af09ab992981f2dc5d7f2e3479aaf9eebb97df0d2a774b247c8e0772ad6f07`/23,637 B/490 行**；`perworld_capture_meta.py` **`3fdb85953681a1a695a9611fc48ddf0862318acf0e0767e831029a820127b87e`/19,154 B/379 行**；`perworld_light_prep.py` **`9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c`/7,206 B/160 行**；pilot 旧值 `55b91f23…`/23,483 B、`296c2b12…`/12,508 B 标 OBSOLETE，`command.txt` 第 1 步改为现场 `Get-FileHash` 记录实际值 ✅。",
+    "**采后自查增量可执行**：README §4 第 6 步为「capture.json 的 C1/C2 计数与 readout 两对 world 逐项相等、不一致停手」；`command.txt` 6b 的 python -c **语法编译通过**、引用 capture 侧 5 组键（含 bitwise/magnitude）与 readout 侧 `c1_cam_persp`/`c2_cam_hinge`/`diagnostics_no_threshold` 键名正确、两对 world、`assert all(...)` 与 OK/MISMATCH 打印；`--pilot-dir`/`--json-out` 在读脚本中存在；`evidence-checklist.txt` 增 `window/counts-crosscheck.txt`；`window-plan.txt` 门槛第 8 条在位 ✅。",
+    "**S-2b 与例外/失败条款未被动**：`baseline_free=13,302`、signed floor `10,230`、`floor_effective = max(signed, 现场)`；authoring 例外（仅本采集窗、仍需 S-2 双签、floor 不放松、逐样本记录、pilot/L2 不适用）与失败条款（停手、不重试、不改阈值/相机/recipe、不换参考）——受保护子句在 diff 中 **0 行变更** ✅。",
+    "**签名卡字段可用**：S-2a 已补「capture.json 含 §2.4 判别力计数（卡 `311b5a84`/QA `fefe45a5`）」；S-2b/例外/失败条款与证据/QA 行仍在；`signature-summary.txt` 首部「Signs NOTHING here; only the user's card choice signs」在位；新增内容未改变签名结论口径 ✅。",
+    "**边界/卫生/门禁**：`0b2b4cc4` 仅 S-2 证据目录（9 文件）+ 卡 + 4 runs = **14 文件**；`src/`/`fixtures/`/`scripts/`/`tests/` 零 diff；manifest **12/12** 独立重算；README `c8bb71ef…`/18,299 B、receipt `79c7a88a…`/11,681 B、manifest `23aa135e…`/1,342 B；编码卫生（UTF-8/LF/无 BOM/裸 CR·TAB 0）；四门禁 fmt/clippy/clippy-cuda exit 0、unit **1387/0/402** ✅。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-material-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-material-fix-r2-check/"
+    ],
+    "resources": [],
+    "priority": 81
+  },
+  "note": "Chief 2026-11-08 派工：S-2 材料 fix r2 最小复核（用户新签名卡前最后一道，快出；零 GPU）。复核目标 0b2b4cc4。结论：PASS → 可发新 S-2 双签卡。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T14:45:00.000Z",
+  "updated_at": "2026-11-08T14:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-material-fix-r2-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-fix-r2-check"
+    }
+  ]
+}
