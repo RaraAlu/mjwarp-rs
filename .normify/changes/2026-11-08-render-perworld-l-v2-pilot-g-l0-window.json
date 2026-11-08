@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-window",
+  "title": {
+    "zh": "G-L0 pilot 执行窗（perworld L v2 灯）：双相机 C1/C2 判别力 pilot（authoring、单次、产物不入库）",
+    "en": "G-L0 pilot window execution (per-world L v2 light): dual-camera C1/C2 discriminability pilot (authoring, single run, nothing landed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按用户已签 spec v3（`bb064fe0…`/39,379 B）§12 G-L0 与材料卡 `2026-11-08-render-perworld-l-v2-pilot-g-l0-material`（QA 读前预审 PASS `95c70bf0`）执行**唯一一次** G-L0 pilot：窗口纪律（常规 monitor 60/60 util<40、monitor PASS 后 5 分钟内三点基线、`pilot_floor=baseline_free−3072 MiB` 现场算、零编译、单次运行、失败即停不重试、产物不入库）→ dry-run → 经 refit 计数 wrapper 采集（`--repeat 2`）→ `readout_c1_c2.py` 判读 C1/C2 并做采后自核 → 把 window/* 摘要证据归档到本卡证据目录（npz 保留 `target/` 供 QA/Chief 复读，不入库）。pilot 结论作为 S-2 采集窗前置第 7 项。",
+    "en": "Execute the single G-L0 pilot window per signed spec v3 section 12 and the QA-pre-reviewed pilot material: regular monitor 60/60 util<40, three-point baseline and floor (baseline_free - 3072 MiB) computed on the spot, zero-compile, dry-run, one capture through the refit-counter wrapper with --repeat 2, readout C1/C2 and post-capture self-checks, then archive summary evidence only; npz stay under target/ and are not committed. The pilot result becomes S-2 precondition item 7."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置全绿（任一红=禁开）**：S-1 已签 spec v3 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d`/39,379 B；场景变体 `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716`/5,134 B；采集脚本双相机 QA PASS（`2026-11-08-…-capture-dual-camera-check`，证据 `241a2e36`）；P0-1 refit verified（`e34df3b7` + QA `3e08be09`）；材料 QA 预审 PASS（`95c70bf0`）。",
+    "**执行者与写范围**：唯一写者 Backend（锁 owner 记录于窗口证据）；本卡 `files` 仅 `docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-window/`；窗口不写 `fixtures/`（正式参考根属 G-L1）、不写 `src/`、`tests/`、`scripts/`、不写材料目录。",
+    "**T0 冻结（窗口前）**：记录 HEAD、`git status --porcelain` 空、锁状态、无构建进程（cargo/rustc/nvcc）；记录场景/三脚本/上游/venv 指纹：scene `4B354054…`/5,134 B、`capture_render_perworld.py` `55B91F23E146DEF80196FD1142578E73B9FEF78D9FE28DBB45AD5AAF2937B45B`/23,483 B、upstream `71da24d9` clean、venv 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4；**窗口内零编译**（不得 cargo/nvcc）。",
+    "**N1 `MJWARP_CAPTURE_AT`**：显式非空 ISO8601，开窗前按 N1 校验（合法/非法/空三态），值逐字记录 `window/token-capture-at.txt`（来源=Chief token 给定值；token 未附值时先向 Chief 索取，不自行默认、不先采集）。",
+    "**monitor**：`monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl0/monitor.csv`；须 exit 0 且 longest_clean≥60、60 个干净样本 util<40；exit≠0（含 exit 20）=窗口不存在 → 停手报 Chief、等新 token（不算 pilot 失败、不重试、不放宽、不提前签 S-2 换 authoring 例外）。",
+    "**三点基线与 floor**：monitor PASS 后 5 分钟内三点采样（间隔约 5 s）记录 `memory.used/free/utilization/temperature` + compute-apps；`baseline_free=min(free)`、`pilot_floor=baseline_free−3072` 现场计算并写下算式；每点 free≥floor、util<40、无任务 CUDA 计算进程、build=0、树 clean；用户签的 signed floor 属 S-2，不与 pilot_floor 混用。",
+    "**dry-run（逐字命令，CPU）**：`capture_render_perworld.py --dry-run --scene fixtures/render-bvh/scene-a-light/scene.xml --out-root target/render-bvh/perworld-l-v2-gl0/pilot-out --out-dir target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040 --reference-tag nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true --seed 20261030 --repeat 2`；须 exit 0、不建 out_dir；`model_static.cameras == [[0,0,\"cam-persp\"],[1,0,\"cam-hinge\"],[2,3,\"cam-track\"]]`、`cam_active_fixed_only == [true,true,false]`、`legacy_manifest_entries == 112`。",
+    "**采集（单次、不重试）**：必须经 `run_pilot_with_refit_counter.py` wrapper（不得直调采集脚本），`--counter-out target/render-bvh/perworld-l-v2-gl0/refit-counter.json`；wrapper 须证明 refit×2 / render×2 且顺序 `refit→render→refit→render`（否则 exit 4 停手）；采集参数逐字同上（`--repeat 2`、seed 20261030、use_fast_math=false、use_shadows=true）；产物只写 `target/render-bvh/perworld-l-v2-gl0/`。",
+    "**判读 C1/C2（spec §6 写死）**：`readout_c1_c2.py --pilot-dir … --json-out target/render-bvh/perworld-l-v2-gl0/readout.json`；exit 0 且 verdict=`pass-margin` 才算通过：C1（cam-persp 相邻 world 0→1、1→2，`max_channel|Δrgb|≥1/255` 计数）两对均 ≥576；C2（cam-hinge depth f32 位型变化、seg (id,type) 变化）两对均 ≥576；任一 [384,576)=insufficient 停手、任一 <384=non-discriminating 拒通过；诊断项只记录不判、不得互换相机归属。",
+    "**采后自核**：① 两跑逐文件 sha 一致（rgb/depth/seg 各 6 个 world×相机键）；② `capture.json.legacy_reference_untouched == true` 显式断言；③ 元数据四项（`command` 非空、`captured_at` 非空 ISO8601、`reference_tag==nw3-light-hinge02040`、`per_world_scope` 新口径）；④ 双相机快照：`context.resolved.nrender==2`、`cam_id_map==[0,1]`、`cam_res==[[320,240],[320,240]]`、`recipe.cameras` 2 条各 10 字段（含 sensorsize/intrinsic，cam-hinge sensorsize=[0,0] 走 fovy）；⑤ 每 world 每相机 seg (id,type) 集合与 per-world rgb/depth/seg 摘要。",
+    "**证据归档（UTF-8/LF/无 BOM、manifest 首行 `#` + `# base dir:`、sha256+bytes 自核、裸 CR/TAB 自查）**：`docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-window/`：`README.md` + `receipt.json` + `manifest.txt` + `window/`（preconditions、first-minute、token-capture-at、baseline-three-points、monitor.csv、monitor-exit-code、dryrun.json、capture-stdout/stderr、capture-exit-code、capture.json、refit-counter.json、readout.json、readout-exit-code、files-sha256、metadata-selfcheck、seg-geom-sets、environment-provenance、zero-compile-fingerprint、git-before/after、legacy-selfcheck、post-gpu）；**npz 不入库**（保留 target/ 供 QA 复读后由 Chief 决定删除）。",
+    "**边界与非声明**：不落库参考（不写 `fixtures/render-bvh/scene-a-light/perworld/`）、不改 spec/判据/阈值/相机/recipe/帧设计、不重试、不放宽；只声明「pilot 的 C1/C2 判别力结论（pass-margin/insufficient/non-discriminating）」；**不声明** per-world 灯验收通过/上游等价/渲染数值等价/动画一致性；authoring 例外不适用于 pilot。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（收口重跑）；`unchanged src/, tests/, scripts/, fixtures/`、材料与 spec 目录不变。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check",
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera-check",
+      "2026-11-08-render-perworld-l-v2-scene-camera",
+      "2026-11-07-render-perworld-l-v2-capture-perworld-refresh-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-window/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Chief 2026-11-08 18:32 群留痕发 G-L0 pilot token（执行者 Backend；Arch 只读旁证；QA 复读；pilot 结论进 S-2 前置第 7 项）。窗口口径：常规 monitor 60/60 util<40（authoring 例外不适用）、monitor PASS 后 5 分钟内三点基线、floor=baseline_free−3072 MiB 现场算、单次运行、失败即停不重试、产物不入库。已知缺项：Chief 群留痕未附 token 的 `MJWARP_CAPTURE_AT` ISO8601 值；材料 N1 要求使用 token 给定值，故须先向 Chief 索取逐字值并记入 window/token-capture-at.txt，未取得前不采集。窗口产物只落 target/；证据仅摘要/计数/日志，npz 不入库；G-1 类负结果不删。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T10:34:00.000Z",
+  "updated_at": "2026-11-08T10:34:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "scripts/",
+        "fixtures/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-window/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-pilot-g-l0-window"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "灯位姿验收通过",
+        "上游等价",
+        "对外发布依据",
+        "判别力已恢复"
+      ]
+    }
+  ]
+}
