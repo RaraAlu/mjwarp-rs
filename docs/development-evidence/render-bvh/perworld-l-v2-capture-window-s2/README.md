@@ -2,7 +2,7 @@
 
 - 任务：`2026-11-08-render-perworld-l-v2-capture-window-s2-material`（owner Arch、p70）
 - 依据：**已签 spec v3**（S-1，2026-11-08）`docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md` sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B / 344 行 / 15 节；材料逐条对齐 **§11.1（S-2 前置六项 + 第 7 项 G-L0 结论）**、**§12 G-L1**、**§9.3（采集窗自查顺序）**、**§10.2（纪律）**、**§9.1/§9.2（环境与命令）**
-- 状态：**材料草案，待 QA 读前预审 PASS + 用户 S-2 双签 + Chief G-L1 token**
+- 状态：**QA 读前预审 PASS 后已 fix 收口**（fix 见 §8）；待**用户 S-2 双签 + Chief G-L1 token**
 - 本卡**零 GPU、不采集、不改 `fixtures/`**；G-L1 执行者为 **Backend（唯一写者）**，**单次、失败即停**
 - 关键数字：参考产物 **5 文件 ≈ 11.08 MB**；通过条件 **C1 与 C2 两套、两对 world 全部 ≥576**；[384,576) 停手、<384 拒通过
 
@@ -17,7 +17,7 @@
 | P4 | **§11.1-4 `recipe.task_id` / `reference_tag`**：保留 `task_id`/`task_id_source`，新增 `reference_tag`（本次显式 `nw3-light-hinge02040`） | capture-meta 卡；pilot `capture.json.reference_tag=nw3-light-hinge02040` |
 | P5 | **§11.1-5 场景变体 verified**：`cam-hinge` 按 §2.1、索引 0/1/2、LF 属性；场景 sha 与采集窗材料一致；`scene-a/` 零改动 | 场景卡 `2026-11-08-render-perworld-l-v2-scene-camera`（实现 `3d546fbe`）；sha **`4b354054…`/5,134 B/86 行**；QA `…-scene-camera-check`（`d38661a5`）；O1 普查修正 `e8a07167`；QA 复核 `241a2e36` |
 | P6 | **§11.1-6 采集脚本双相机 verified**（含 `camera_recipe` 10 字段 `sensorsize`/`intrinsic`） | `2026-11-08-render-perworld-l-v2-capture-dual-camera`（实现 `b98b39ff`）；QA PASS `…-capture-dual-camera-check`（`241a2e36`） |
-| **P7** | **第 7 项：G-L0 pilot 结论 = `pass-margin`**（pilot 先于 S-2；结论是 S-2 前置） | 窗卡 `2026-11-08-render-perworld-l-v2-pilot-g-l0-window`：收口 **`268380d8`** + addenda **`66bac4f6`**；README **`f5d52348…`/9,228 B**、receipt **`e4204f8f…`/6,845 B**、manifest **36/36**；C1 **38,285 / 40,644**；C2 depth **35,828 / 33,883**、seg **16,041 / 16,754**；`verdict=pass-margin`、`any_below_accept=false`；readout fix QA `0abaeebb`；npz 不入库（`target/…/pilot-out/` 供复读） |
+| **P7** | **第 7 项：G-L0 pilot 结论 = `pass-margin`**（pilot 先于 S-2；结论是 S-2 前置） | 窗卡 `2026-11-08-render-perworld-l-v2-pilot-g-l0-window`：收口 **`268380d8`** + addenda **`66bac4f6`**；README **`f5d52348…`/9,228 B**、receipt **`e4204f8f…`/6,845 B**、manifest **36/36**；C1 **38,285 / 40,644**；C2 depth **35,828 / 33,883**、seg **16,041 / 16,754**；`verdict=pass-margin`、`any_below_accept=false`；readout fix QA `0abaeebb`；**QA 收口独立复核卡** `…-pilot-g-l0-window-check`（证据 **`c5a56639`**，PASS 0 阻断）；npz 不入库（`target/…/pilot-out/` 供复读） |
 
 > 缺任一项 → **S-2 不得签**、G-L1 不得开；不得为凑条件改阈值/相机/recipe/参考范围。
 
@@ -40,9 +40,9 @@
 
 ## 3. 窗口纪律（§10.2 / §12 G-L1，写死）
 
-- **三点基线**：开窗前 **5 分钟内**三次采样（~5 s 间隔），`baseline_free = min(free)`。
+- **三点基线**：开窗前 **5 分钟内**三次采样（~5 s 间隔），`baseline_free = min(free)`（**采样取严**：三点取最差值；这是采样规则，与下面的 signed/现场合并规则不是一回事）。
 - **现场 floor** = `baseline_free − 3,072 MiB`（现场计算，写入窗口证据）。
-- **signed floor 取严**：`floor_effective = min(用户 S-2 签名的 signed floor, 现场 floor)`；窗口全程（基线三点 + monitor 全部样本 + 采集期间抽检）free ≥ `floor_effective`。
+- **signed floor 取严**：`floor_effective = max(用户 S-2 签名的 signed floor, 现场 floor)`；**判定依据**：验收条件是 `free ≥ floor_effective`，**floor 越高越严**，所以合并取**更高值**（取 `min` 等于放宽）；窗口全程（基线三点 + monitor 全部样本 + 采集期间抽检）free ≥ `floor_effective`。
 - **monitor**：`monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv <显式路径>`；**exit 0、60/60 全干净、util<40、`compute_filtered=0`、`build=0`**；monitor 期间**不得有其它 CUDA 进程**；脚本内部 10,240 MiB 只是下界、不替代 `floor_effective`。
 - **authoring 例外（用户 2026-11-08 已预批）**：仅当常规 `util<40` **不达标**时允许 authoring-only `-MaxUtil 60`；**仅本采集窗（G-L1）生效**；**仍需 S-2 双签后才可开窗**；逐样本记录、`exception_load_bearing=true`、free ≥ `floor_effective` 仍强制；**pilot 与验证窗不适用**；失败即停、不重试、不放宽。
 - **零编译**：窗口前完成构建并记录指纹；窗口内禁 `cargo`/`nvcc`（warp JIT 属预期）；采集前核 HEAD/树 clean。
@@ -65,14 +65,14 @@
 | 签名项 | 内容 |
 | --- | --- |
 | **S-2a（计划）** | G-L1 采集窗计划：执行者 Backend、**单次**、`--repeat 2` 两遍逐位一致、正式参考根 `fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/`、tag/seed/fastmath/shadows/`MJWARP_CAPTURE_AT` 如上；产物 5 文件 **≈11.08 MB** |
-| **S-2b（基线 + signed floor）** | **建议 baseline**（2026-11-08 零 GPU 三点实测，详见 `materials/baseline-suggestion.txt`）：used 2,760 MiB、free **13,302 MiB**、util 2–3%、26 °C → `baseline_free=13,302`、**signed floor = 10,230 MiB**；**取严规则**：开窗时现场重算，`floor_effective = min(signed floor 10,230, 现场 floor)` |
+| **S-2b（基线 + signed floor）** | **建议 baseline**（2026-11-08 零 GPU 三点实测，详见 `materials/baseline-suggestion.txt`）：used 2,760 MiB、free **13,302 MiB**、util 2–3%、26 °C → `baseline_free=13,302`、**signed floor = 10,230 MiB**（**suggested**：建议值，非签名值）；**取严规则**：开窗时现场重算，`floor_effective = max(signed floor 10,230, 现场 floor)`（**取严 = 取更高**） |
 | **authoring 例外** | 用户 2026-11-08 已预批：常规 `util<40` 不达标时允许 authoring-only `util<60`，**仅本采集窗生效**，仍需 S-2 双签，逐样本记录，失败即停、不重试、不放宽 |
 | **失败条款** | 任一采集/判读/元数据/legacy 失败 → 停手报用户，不重试、不改阈值/相机/recipe、不换参考；落库前失败只清本次新建 out-dir 残件 |
-| **证据/QA** | 证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/`；QA 读前预审本材料 + 采集后 QA 复核；窗口记录同 pilot 格式（基线与 monitor 用同一份原始记录） |
+| **证据/QA** | 证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/`（开窗卡命名时对齐此路径）；QA 读前预审本材料 + 采集后 QA 复核；窗口记录同 pilot 格式（基线与 monitor 用同一份原始记录） |
 
 **签名卡建议字段**：窗口名 `G-L1 perworld L v2 灯采集窗`；依据 spec v3 sha256 `bb064fe0…`/39,379 B（S-1 已签）；S-2a 计划摘要（上表第 1 行）；S-2b `baseline_free=13,302` / `signed floor=10,230`（取严说明）；authoring 例外条款（上表第 3 行）；失败条款；执行者 Backend / 单次 / 产物落正式参考根；证据与 QA 安排。
 
-> 现场约束：开窗时若外部 GPU 负载未退场或 monitor 不干净 → **不发 token/不开窗**；现场 floor 若比 10,230 更严则用现场值（取严）。
+> 现场约束：开窗时若外部 GPU 负载未退场或 monitor 不干净 → **不发 token/不开窗**；现场 floor 若比 10,230 更高（更严）则用现场值（取严 = 取更高者）。
 
 ## 6. 材料清单
 
@@ -95,4 +95,15 @@
 
 - **零 GPU、不采集、不改 `fixtures/`**；`unchanged src/`、`unchanged fixtures/`、`unchanged scripts/`、`unchanged tests/`；四门禁通过；材料 sha256/bytes 记 receipt+manifest。
 - 本材料**不构成 G-L1 启动**：需 QA 读前预审 PASS + **用户 S-2 双签**（计划 + 基线 + signed floor）+ Chief token；pilot 与验证窗规则不因本材料改变。
-- **不宣称**采集有效、per-world 灯验收、与上游等价、任何渲染数值结论；建议 baseline 仅是开窗前参考值（非签名值），signed floor 以 S-2 签名卡为准并在现场取严。
+- **不宣称**采集有效、per-world 灯验收、与上游等价、任何渲染数值结论；建议 baseline 仅是开窗前参考值（非签名值），signed floor 以 S-2 签名卡为准，并在现场取更高（更严）者。
+
+## 8. 修订记录（fix 轮，2026-11-08）
+
+QA 读前预审 PASS（卡 `…-capture-window-s2-material-check`，`7c76ad6b`，0 阻断 / 1 建议措辞 / 2 信息项）后，按 Chief 2026-11-08 派工做一次 fix，**不改任何判据、阈值、相机归属、recipe 或参考范围**：
+
+1. **floor 合并规则语义反转更正（判据级措辞，非阈值）**：`floor_effective` 由 `min(signed, onspot)` 改为 **`max(signed, onspot)`**。依据：验收条件是 `free ≥ floor_effective`，**floor 越高越严**；取 `min` 会放宽（例：signed 10,230 / 现场 10,300 → 必须按 10,300 卡，而不是 10,230）。同时写明 `baseline_free = min(三点 free)` 是**采样取严**（取最差样本），与 signed/现场合并规则不是同一件事。同句修正覆盖：`materials/baseline-sop.txt`、`materials/signature-summary.txt`、`materials/baseline-suggestion.txt`、`materials/command.txt`（执行单）、`materials/qa-prereview-checklist.txt`、`materials/evidence-checklist.txt`、本 README §3/§5、`receipt.json`。
+2. **QA O1**：`signature-summary.txt` 的签名卡字段行标注 **suggested**，并写死「开窗重测、**stricter = higher** wins」。
+3. **QA O2**：P7 锚点补 QA 收口独立复核卡 `2026-11-08-render-perworld-l-v2-pilot-g-l0-window-check`（证据 `c5a56639`，PASS 0 阻断）——本 README P7 行、`materials/preconditions.txt`、`receipt.json`。
+4. **QA O3**：G-L1 证据目录名核对为 `…/perworld-l-v2-capture-window-g-l1/`（README §5 / signature-summary / receipt 三处一致），并注明开窗卡命名时对齐。
+
+签名对象、前置项、计划、authoring 例外范围、失败条款、采后自检与 [384,576)/<384 口径均未改动；`unchanged src/, fixtures/, scripts/, tests/`，零 GPU、不采集。

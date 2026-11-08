@@ -19,8 +19,10 @@ Spec (S-1, already signed 2026-11-08): docs/development-evidence/render-bvh/perw
 - Suggested baseline (GPU-free reading 2026-11-08 19:14, materials/baseline-suggestion.txt):
   free 13,302 / 13,302 / 13,302 MiB -> baseline_free = 13,302 MiB.
 - Suggested signed floor = 13,302 - 3,072 = 10,230 MiB.
-- Stricter-wins rule at the window: floor_effective = min(signed floor, on-the-spot floor); the window must
-  re-measure the three-point baseline within 5 minutes before the capture and use the stricter value.
+- Stricter-wins rule at the window: floor_effective = max(signed floor, on-the-spot floor). Acceptance is
+  "free >= floor_effective", so a HIGHER floor is stricter; the window re-measures the three-point baseline
+  within 5 minutes before the capture and uses the higher (stricter) of the signed and the on-the-spot floor.
+  (baseline_free = min(three free samples) is the separate sampling rule: the worst of the three readings.)
 - The window must show free >= floor_effective on all baseline points and all monitor samples.
 
 ## Authoring exception (pre-approved by the user on 2026-11-08; scope restricted)
@@ -45,6 +47,7 @@ Spec (S-1, already signed 2026-11-08): docs/development-evidence/render-bvh/perw
 - Window: G-L1 per-world L v2 light capture window
 - Basis: spec v3 sha256 bb064fe0..., 39,379 B (S-1 signed 2026-11-08)
 - S-2a: plan summary above (executor Backend, single attempt, formal reference root, five files ~11.08 MB)
-- S-2b: baseline_free 13,302 MiB; signed floor 10,230 MiB; stricter-wins rule at the window
+- S-2b (suggested, re-measured at the window with stricter = higher wins): baseline_free 13,302 MiB;
+  signed floor 10,230 MiB; floor_effective = max(signed floor, on-the-spot floor)
 - Authoring exception: capture-window-only util<60 fallback, per-sample recorded, no early unlock, no pilot/L2 use
 - Failure clauses and evidence/QA arrangement as above

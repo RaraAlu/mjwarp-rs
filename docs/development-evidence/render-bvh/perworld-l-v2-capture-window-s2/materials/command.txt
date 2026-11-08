@@ -51,7 +51,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/
 # Then three samples ~5 s apart, within 5 minutes before the capture:
 nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
 nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
-# baseline_free = min(free); onspot_floor = baseline_free - 3072; floor_effective = min(signed floor, onspot_floor)
+# baseline_free = min(free) [sampling]; onspot_floor = baseline_free - 3072; floor_effective = max(signed floor, onspot_floor)
+#   (acceptance is free >= floor_effective, so the HIGHER floor is the stricter one; min() would relax it)
 # accept only if every point free >= floor_effective and util<40; record all values in window/baseline-*.txt
 
 # --- 5) Formal capture: ONE attempt, no retry, through the refit counter wrapper ---

@@ -3,7 +3,7 @@
   "task_id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
   "kind": "window-material-s2",
   "title": "S-2 capture window material (per-world L v2 light, G-L1): 6+1 preconditions, plan, discipline incl. pre-approved authoring exception, post-capture checks, user dual-sign summary",
-  "status": "material_draft_pending_qa_prereview_and_user_dual_sign",
+  "status": "material_qa_prereview_passed_fixed_pending_user_dual_sign",
   "signed_object": false,
   "owner": "Arch",
   "date": "2026-11-08",
@@ -54,7 +54,7 @@
     {
       "id": "P7",
       "item": "ITEM 7: G-L0 pilot result = pass-margin",
-      "anchor": "pilot window card closeout 268380d8 + addenda 66bac4f6; README f5d52348.../9,228 B; receipt e4204f8f.../6,845 B; manifest 36/36; C1 38,285/40,644; C2 depth 35,828/33,883; seg 16,041/16,754; verdict pass-margin; readout fix QA 0abaeebb"
+      "anchor": "pilot window card closeout 268380d8 + addenda 66bac4f6; README f5d52348.../9,228 B; receipt e4204f8f.../6,845 B; manifest 36/36; C1 38,285/40,644; C2 depth 35,828/33,883; seg 16,041/16,754; verdict pass-margin; QA closeout review card 2026-11-08-render-perworld-l-v2-pilot-g-l0-window-check (evidence c5a56639, PASS 0 blocking); readout fix QA 0abaeebb"
     }
   ],
   "plan": {
@@ -104,9 +104,9 @@
     }
   },
   "window_discipline": {
-    "baseline": "three samples within 5 minutes before the capture; baseline_free = min(free)",
+    "baseline": "three samples within 5 minutes before the capture; baseline_free = min(free) (sampling rule: worst of the three; separate from the signed/onspot merge)",
     "onspot_floor": "baseline_free - 3072 MiB computed on the spot",
-    "signed_floor_stricter_wins": "floor_effective = min(user-signed floor, onspot floor)",
+    "signed_floor_stricter_wins": "floor_effective = max(user-signed floor, onspot floor); acceptance is free >= floor_effective, so a HIGHER floor is stricter (min would relax it)",
     "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40; exit 0, 60/60 util<40, compute_filtered=0, build=0; no other CUDA process during the monitor; internal 10,240 MiB is only a lower bound",
     "authoring_exception": {
       "pre_approved_by": "user",
@@ -133,7 +133,7 @@
       "suggested_reading": "2026-11-08 19:14 +08:00 GPU-free three-point: free 13,302 / 13,302 / 13,302 MiB",
       "baseline_free_mib": 13302,
       "suggested_signed_floor_mib": 10230,
-      "rule": "at the window recompute within 5 minutes and take min(signed floor, onspot floor)"
+      "rule": "at the window recompute within 5 minutes and take max(signed floor, onspot floor): stricter = higher, because acceptance is free >= floor_effective"
     },
     "authoring_exception": "pre-approved 2026-11-08 for this capture window only; still needs the dual signature; no early unlock",
     "failure_clauses": "any failure: stop, report user, no retry, no threshold/camera/recipe/reference change; before commit clean only the newly created out-dir",
@@ -178,13 +178,13 @@
     "signed_object": false
   },
   "awaiting": {
-    "qa_prereview": "pending",
+    "qa_prereview": "PASSED 2026-11-08 (card 2026-11-08-render-perworld-l-v2-capture-window-s2-material-check, commit 7c76ad6b); a minimal QA re-check of this fix round is requested",
     "user_s2_dual_sign": "pending (S-2a plan + S-2b baseline/signed floor)",
     "chief_g_l1_token": "pending after QA PASS + S-2 signed + window conditions"
   },
   "non_claim": [
     "material only; not a G-L1 start (needs QA PASS + user S-2 dual signature + Chief token)",
     "no capture validity / per-world light acceptance / upstream equivalence / render numeric claims",
-    "suggested baseline readings are pre-window references, not signed values; the window recomputes and uses the stricter floor"
+    "suggested baseline readings are pre-window references, not signed values; the window recomputes and uses the higher (stricter) floor"
   ]
 }
