@@ -1,0 +1,28 @@
+G-L0 pilot window incidents and rulings (attempt 1/2 -> attempt 3)
+
+attempt 1 (18:29:38-18:34:38): monitor PASS + baseline OK, but the window was invalidated:
+  - a duplicate executor (dev-team group Backend session, lock owner=backend-group) ran the same window
+    and had registered the window card (8a2be34f) / acquired the write lock before this session;
+  - the foreign session left a step-2 dry-run artifact at 18:34:29 (voided; kept under
+    target/render-bvh/perworld-l-v2-gl0/window/foreign-184138/ and window-copies/, not in evidence);
+  - HEAD drifted 8bc589ac -> 7ffd4a82 (window-card JSON commits only; src/scripts/fixtures zero diff).
+
+attempt 2 (18:38-18:47): clean restart; the foreign session captured at 18:41:38-18:41:55 during our fresh
+  monitor (3 unclean monitor rows at 18:41:43/48/53 with compute_filtered=1), so the GO basis was invalid;
+  our GO capture at 18:48:04 failed before any GPU work because the foreign capture had left the out-dir
+  non-empty (wrapper exit 4, refit/render calls 0). Chief voided the foreign capture and aborted the window.
+
+Rulings: stale lock (previous_owner=backend-group pid=65080) broken by Chief; foreign capture/readout/dryrun
+  declared void and kept only as anomaly evidence under target/.../window/foreign-184138/ (NOT evidence);
+  attempt 1/2 records kept under target/.../window/attempt1-2/ (NOT evidence).
+
+Readout bug: the voided readout metadata_selfcheck failed because readout_c1_c2.py joined a string per
+  character (scope fix a9fbac22; QA minimal re-check 0abaeebb) -- not a capture problem.
+
+attempt 3 (18:58:55-19:05): T0 freeze at HEAD 0abaeebb, clean tree, lock owner=Backend; step-2 PASS;
+  strict fresh monitor 60/60 all-clean; baseline_free=13297, pilot_floor=10225; single wrapper capture
+  exit 0 with refit->render->refit->render; readout exit 0 / verdict pass-margin.
+
+Invariant: attempt-3 npz are bit-identical to the voided foreign capture (same inputs/script/--repeat 2 =
+  upstream determinism); provenance of the committed numbers is attempt 3 (its refit counter, captured_at
+  2026-11-08T19:00:00+08:00, command.argv, logs). npz are NOT committed (kept in target for QA re-read).
