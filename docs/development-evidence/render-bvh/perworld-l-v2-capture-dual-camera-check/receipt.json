@@ -1,0 +1,122 @@
+{
+  "task_id": "2026-11-08-render-perworld-l-v2-capture-dual-camera-check",
+  "owner": "QA",
+  "date": "2026-11-08",
+  "kind": "implementation-review",
+  "verdict": "PASS",
+  "blocking": 0,
+  "observations_informational": 3,
+  "targets": {
+    "B_main": {
+      "card": "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+      "registration_commit": "3b984af3",
+      "start_commit": "19d5fb51",
+      "implementation_commit": "b98b39ffa78dcc25fb9ec1dfb47d49df262a12ba"
+    },
+    "A_light": {
+      "card": "2026-11-08-render-perworld-l-v2-scene-camera",
+      "fix_commit": "e8a07167",
+      "prior_qa_observation": "O1 (old-sha artifact counts stale)"
+    },
+    "head_at_review": "ef7a887735b5d9866959976fa0f35fcc5b03b37d",
+    "head_note": "after b98b39ff only the G-L0 pilot material card and its evidence were added; reviewed surfaces untouched"
+  },
+  "B_camera_recipe": {
+    "fields_in_order": ["slot", "mujoco_cam_id", "name", "mode", "xpos", "xquat", "fovy", "resolution", "sensorsize", "intrinsic"],
+    "independent_bitcheck": {
+      "engine": "pinned venv MuJoCo 3.15.0 (CPU)",
+      "scenes": {
+        "scene-a-light": {"active_cameras": [0, 1], "records": 2, "problems": 0},
+        "scene-a": {"active_cameras": [0], "records": 1, "problems": 0}
+      },
+      "method": "struct.pack('<d') bitwise equality for xpos/xquat/sensorsize/intrinsic/fovy; resolution vs stub cam_res; name/mode/slot/mujoco_cam_id checked",
+      "active_cameras_only": true,
+      "cam_hinge_fovy_path_truthful": true
+    },
+    "line_counts": {
+      "scripts/capture_render_perworld.py": {"before": 500, "after": 487, "sha256_after": "55b91f23e146def80196fd1142578e73b9fef78d9fe28dbb45ad5aaf2937b45b"},
+      "scripts/perworld_capture_meta.py": {"before": 244, "after": 270, "sha256_after": "296c2b12e71871ff275d00c866d1c8e89610d62027c94cd05afb18daef493e49"},
+      "scripts/perworld_light_prep.py": {"before": 160, "after": 160, "sha256_after": "9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c"},
+      "all_le_500": true,
+      "new_files_under_scripts": 0
+    },
+    "pure_move": {
+      "old_function_removed_verbatim": true,
+      "logic_changed": "only the two spec-required fields added plus docstring/docstring item",
+      "import_count": 1,
+      "call_count": 1,
+      "call_is_after_dry_run_return": true
+    },
+    "self_proofs_reproduced": {
+      "verify_camera_recipe.py": "SUMMARY PASS 19/19",
+      "module_selfcheck": "SELFCHECK PASS 14/14"
+    },
+    "dry_run_compare": {
+      "default": {"before_exit": 0, "after_exit": 0, "unexpected": 0, "only": ["/recipe/script/sha256", "/recipe/script/bytes"], "legacy": 107},
+      "explicit": {"before_exit": 0, "after_exit": 0, "unexpected": 0, "only": ["/recipe/script/sha256", "/recipe/script/bytes"], "legacy": 112, "cameras": [[0, 0, "cam-persp"], [1, 0, "cam-hinge"], [2, 3, "cam-track"]], "cam_active_fixed_only": [true, true, false]},
+      "worlds1": {"before_exit": 1, "after_exit": 1, "stderr_identical": true, "stderr_bytes": 104, "stdout_bytes": 0, "out_dir_created": false},
+      "note": "after-side re-run with identical argv; classification done by QA, not taken from the implementer's fields"
+    },
+    "consumers": {"src_tests_camera_recipe_refs": 0, "closed_8_key_consumers": 0, "dry_run_camera_recipe_note_present": true},
+    "evidence": {"manifest_entries": 28, "self_check": "28/28", "encoding": "UTF-8/LF/no BOM/no bare CR/TAB"},
+    "boundary": {"src_tests_fixtures_unchanged": true, "gpu_free": true, "no_capture": true}
+  },
+  "A_old_sha_census": {
+    "fix_commit_scope": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/artifacts/old-sha-references.txt",
+      "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/artifacts/scene-identity.json",
+      "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/manifest.txt",
+      ".normify/changes/2026-11-08-render-perworld-l-v2-scene-camera.json",
+      ".normify/runs/2026-11-08-render-perworld-l-v2-scene-camera/*.json"
+    ],
+    "old_sha_registration_refs": {"before": 0, "after": 1},
+    "readme_receipt_untouched": true,
+    "light_criterion_dir_untouched": true,
+    "scene_camera_manifest": "15/15",
+    "census_independent": {
+      "command": "git grep -a -o -n -E '4db66e2c[0-9a-f]*' <rev>",
+      "units": ["occurrence", "line", "full64", "abbreviated"],
+      "rev_3d546fbe": {"total": "21 occ / 21 lines", "historical": "9 occ / 9 lines / 7 files (full64 8 + abbreviated 1)", "registration": "1 occ / 1 line (full64 1)", "card_evidence": "11 occ / 11 lines / 7 files (full64 9 + abbreviated 2)"},
+      "rev_d38661a5": {"total": "29 occ / 28 lines", "review_artifacts": "8 occ / 7 lines / 3 files (full64 1 + abbreviated 7)"},
+      "matches_artifact": true,
+      "classification_rules_documented": true,
+      "pinned_revisions_avoid_self_counting": true
+    }
+  },
+  "gates": {
+    "recorded_in": ".normify/runs/2026-11-08-render-perworld-l-v2-capture-dual-camera-check/",
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": "1359 passed / 0 failed"
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "info",
+      "topic": "perworld capture scripts are not registered as normify module sources",
+      "detail": "git grep for capture_render_perworld.py / perworld_capture_meta.py under .normify/modules returns none; pre-existing state, this card adds no new files so no registration is required",
+      "blocking": false
+    },
+    {
+      "id": "O2",
+      "severity": "info",
+      "topic": "dry-run cannot exercise camera_recipe",
+      "detail": "dry-run returns before the render path, so the 10-field content is proven on the CPU stub only until G-L1; the implementer states this truthfully",
+      "blocking": false
+    },
+    {
+      "id": "O3",
+      "severity": "info",
+      "topic": "earlier QA count (8) vs precise census (9 historical occurrences)",
+      "detail": "my earlier spoken count came from a binary-mode grep; A's four-unit census counts 8 full64 + 1 abbreviated = 9 historical occurrences. A's artifact reconciles this; my substantive conclusion (8 full64 records untouched) still holds",
+      "blocking": false
+    }
+  ],
+  "non_claims": [
+    "this review only checks that the two slices land signed spec v3 section 2.4 / 11.1-6 item 3 correctly",
+    "no discriminability restoration, no capture validity, no per-world light acceptance, no upstream equivalence, no rendering numeric conclusion",
+    "not a G-L0/G-L1/G-L2 start or pass",
+    "no change to the reviewed scripts, fixtures, evidence or any existing card status"
+  ]
+}
