@@ -1,0 +1,151 @@
+{
+  "task_id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check",
+  "owner": "QA",
+  "date": "2026-11-08",
+  "kind": "window-material-prereview",
+  "verdict": "PASS",
+  "blocking": 0,
+  "observations_informational": 4,
+  "gate_statement": "may open G-L0 once Chief window conditions hold (Chief token + 3-point baseline within 5 min + regular monitor 60/60 + on-the-spot floor + zero-compile fingerprint)",
+  "target": {
+    "material_card": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+    "material_commit": "ef7a887735b5d9866959976fa0f35fcc5b03b37d",
+    "readme_sha256_bytes": "7d5fd874ed95c79748300caa79ef13dc8a1007c261cb6c216416f22b5203288d / 10982",
+    "receipt_sha256_bytes": "bf3c1f3a11ed22a5609367e62d909408f573f32beb1b0d946a4b9cd23bbe4deb / 8146",
+    "manifest_self_check": "12/12",
+    "spec_signed": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39379 B / 344 lines / 15 sections",
+    "sections_checked": ["9.3", "10.2", "11.1", "12 G-L0"]
+  },
+  "preconditions": {
+    "P1_S1_signed_effective": true,
+    "P2_scene_variant_verified": {"sha256": "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716", "bytes": 5134},
+    "P3_capture_script_dual_camera_verified": true,
+    "B_card_QA_PASS_listed_as_pilot_prerequisite": true,
+    "P9_zero_compile": true,
+    "P10_chief_token": "pending (Chief-level)",
+    "no_early_S2_for_authoring_exception": true
+  },
+  "command_check": {
+    "out_root": "target/render-bvh/perworld-l-v2-gl0/pilot-out",
+    "forbidden_output_path_declared": "fixtures/render-bvh/scene-a-light/perworld/",
+    "reference_tag": "nw3-light-hinge02040",
+    "worlds": 3,
+    "hinge_deg": "0,20,40",
+    "repeat": 2,
+    "seed": 20261030,
+    "seed_matches_existing_reference": true,
+    "use_fast_math": false,
+    "use_shadows": true,
+    "capture_at_env": "explicit non-empty MJWARP_CAPTURE_AT with ISO8601 pre-check (N1)",
+    "n1_validation_observed": {"valid_exit": 0, "invalid_exit": 1, "empty_exit": 1},
+    "pinned_env": {"python": "3.12.13", "warp": "1.15.0", "mujoco": "3.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4", "upstream": "71da24d9", "gpu": "RTX 4070 Ti SUPER / 596.36 / SM89"},
+    "products_not_committed": true,
+    "failure_cleanup_limited_to_target": true
+  },
+  "dry_run_reproduction": {
+    "exit": 0,
+    "out_dir_created": false,
+    "model_static_cameras": [[0, 0, "cam-persp"], [1, 0, "cam-hinge"], [2, 3, "cam-track"]],
+    "cam_active_fixed_only": [true, true, false],
+    "legacy_manifest_entries": 112,
+    "effective_out_root": "target/render-bvh/perworld-l-v2-gl0/pilot-out",
+    "scene_sha256_bytes": "4b354054.../5134",
+    "script_sha256_bytes": "55b91f23.../23483",
+    "captured_at_env_echo": {"present": false, "non_empty": false},
+    "matches_material_expectations": true
+  },
+  "decision_rule": {
+    "C1": "cam-persp adjacent pairs (0->1, 1->2): max_channel |delta rgb| >= 1/255",
+    "C2": "cam-hinge adjacent pairs: depth f32 bit-changed pixels and seg (id,type) pair-changed pixels",
+    "thresholds": {"accept": 384, "collection_margin": 576},
+    "verdicts": {"pass-margin": "both sets, both pairs >= 576", "insufficient": "[384,576) -> stop", "non-discriminating": "<384 -> refuse"},
+    "diagnostics_recorded_not_judged": true,
+    "camera_ownership_not_swapped": true,
+    "no_threshold_or_camera_change": true
+  },
+  "scripts_review": {
+    "readout_c1_c2.py": {
+      "sha256": "456da2dc0112925ffc55d73aaf2860a5667ea293d7a50270a5a0ef821680e5fb",
+      "bytes": 13366,
+      "lines": 305,
+      "c1_magnitude_rule": "delta=max_channel |rgb(f64)|; count(delta >= 1/255)",
+      "c2_rule": "depth int32 bit compare; seg pair compare",
+      "metadata_selfcheck_covers": ["command/argv", "captured_at ISO8601", "reference_tag", "per_world_scope covers/no-old-wording", "parameters.cam_active==[true,true,false]", "context.resolved nrender/cam_id_map/cam_res", "recipe.cameras 2x10 fields", "cam-hinge sensorsize [0,0]", "two_captures_bitwise_identical", "files_sha256 4 keys"],
+      "authoring_only": true,
+      "product_path_refs": 0,
+      "writes": ["--json-out only"],
+      "exit_codes": {"0": "pass-margin", "3": "insufficient or non-discriminating", "2": "input/metadata error"}
+    },
+    "run_pilot_with_refit_counter.py": {
+      "sha256": "f90f896acdf5d4012dd46f02bb8ad4da9e1be50b397f9b7cdd47bad9f46f4560",
+      "bytes": 4389,
+      "lines": 107,
+      "patches": ["capture.refit_scene_before_render", "mujoco_warp.render"],
+      "expected_pattern": ["refit", "render", "refit", "render"],
+      "dryrun_negative_smoke": {"exit": 4, "sequence": [], "pattern_ok": false, "capture_exit_code": 0, "counter_written": true},
+      "authoring_only": true,
+      "product_path_refs": 0,
+      "writes": ["--counter-out only"]
+    },
+    "independent_selftest_reproduced": {
+      "readout": "SUMMARY PASS 6/6",
+      "cases": ["pass-both-sets", "insufficient-margin", "non-discriminating", "ulp-only-rejected", "identical-zero", "c1-only-rejected"],
+      "negative_control_Lv1_rgb": {"0->1": 0, "1->2": 0, "bitwise": 0}
+    }
+  },
+  "post_capture_selfchecks": {
+    "two_captures_bitwise": true,
+    "refit_execution_count_order": "refit x2 / render x2 / refit->render->refit->render",
+    "per_world_per_camera_seg_sets": true,
+    "per_world_summary": true,
+    "metadata_four_items": true,
+    "dual_camera_snapshot": true,
+    "tree_clean_fixtures_untouched": true,
+    "legacy_enforced_by_capture_hard_fail": true
+  },
+  "window_discipline": {
+    "G_L0_before_S_2": true,
+    "baseline_3_points_within_5min": true,
+    "floor_formula_on_the_spot": "baseline_free - 3072 MiB",
+    "signed_floor_belongs_to_S_2": true,
+    "monitor_regular_60_60_util_lt_40": true,
+    "authoring_exception_not_applicable": true,
+    "zero_compile_with_fingerprint": true,
+    "fail_stop_no_retry_no_relaxation_no_commit": true
+  },
+  "evidence_hygiene": {
+    "manifest": "12/12",
+    "base_dir_line": true,
+    "self_listed": false,
+    "encoding": "UTF-8/LF/no BOM/no bare CR/TAB",
+    "material_commit_scope": ["card", "runs", "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"],
+    "src_fixtures_scripts_unchanged": true,
+    "pilot_temp_tree_absent": true,
+    "gpu_free": true
+  },
+  "scope_expansion_scan": {
+    "expanded_wording_found": false,
+    "scan_terms": ["可省", "可调", "可重试", "放宽", "跳过", "降级", "豁免", "exception applies"],
+    "only_negated_usages": true,
+    "authoring_exception_only_in_not_applicable_context": true
+  },
+  "gates": {
+    "recorded_in": ".normify/runs/2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check/",
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": "1359 passed / 0 failed"
+  },
+  "observations": [
+    {"id": "O1", "severity": "info", "topic": "P3 anchor lacks the QA review card id/commit", "detail": "material says 'QA PASS required before the pilot' (correct) but does not cite 2026-11-08-...-capture-dual-camera-check / 241a2e36", "blocking": false, "recommendation": "add the QA card id+commit to P3 in the pilot window card"},
+    {"id": "O2", "severity": "info", "topic": "readout metadata self-check does not explicitly assert legacy_reference_untouched", "detail": "capture script hard-fails on a changed legacy reference and the evidence checklist records git-before/after, so coverage exists", "blocking": false, "recommendation": "add an explicit assert in the pilot window self-check"},
+    {"id": "O3", "severity": "info", "topic": "spec 9.3 items 6-7 (land / submit capture evidence) do not apply to the pilot", "detail": "section 12 says the pilot is not committed; the material states this repeatedly but the post-capture table does not map the exception explicitly", "blocking": false, "recommendation": "note '9.3-6/7 not applicable to the pilot (section 12)' in the window card"},
+    {"id": "O4", "severity": "info", "topic": "wrapper positive path can only be proven in the real pilot", "detail": "negative smoke (dry-run -> exit 4, empty sequence) reproduced; refit x2 / render x2 must be verified from the counter JSON in the window", "blocking": false, "recommendation": "keep the counter JSON verbatim as the execution evidence"}
+  ],
+  "non_claims": [
+    "this pre-review only judges material-vs-signed-spec consistency, script semantics and window executability; it does not judge the pilot outcome",
+    "no discriminability restoration, no capture validity, no per-world light acceptance, no upstream equivalence, no rendering numeric conclusion",
+    "not a G-L0 start; the pilot still needs the Chief token and the window conditions",
+    "no change to the reviewed material or any existing card status"
+  ]
+}
