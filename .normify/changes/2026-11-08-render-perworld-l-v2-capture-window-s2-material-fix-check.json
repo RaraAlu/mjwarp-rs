@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-fix-check",
+  "title": {
+    "zh": "QA 最小复核：S-2 材料 floor 合并语义更正（min→max）+ O1–O3 收口（adecb5 修正版；全文 max 一致、S-2b 已标 suggested、P7 锚点/G-L1 目录统一）→ 可发用户 S-2 双签卡",
+    "en": "QA minimal review of the S-2 material floor-merge semantic fix (min -> max) plus O1-O3 closure (ade516b5): max is consistent everywhere, S-2b suggested line correct, P7 anchor and G-L1 dir unified - user S-2 dual-sign card may be issued"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 S-2 材料 fix 提交 **`ade516b5`** 做最小复核：① `floor_effective` 由 `min(signed, onspot)` 更正为 **`max(signed, onspot)`**（判定依据：验收条件是 free ≥ floor_effective，floor 越高越严，取 min 等于放宽），并区分 `baseline_free = min(三点 free)` 的采样取严语义；覆盖 README §3/§5、baseline-sop、signature-summary、baseline-suggestion、command、qa-prereview-checklist、evidence-checklist、receipt；② 我的 O1–O3：S-2b 可粘贴行标 **suggested / re-measured at window with stricter = higher wins**、P7 锚点补 QA 收口复核卡 `c5a56639`、G-L1 证据目录名统一 `…perworld-l-v2-capture-window-g-l1/`；③ 独立全仓扫描 `floor_effective` 无残留 min 口径（仅采样规则/历史修订说明中的 min 属正确语义）；④ shutdown 边界（只动 S-2 材料证据+卡+runs）、manifest 12/12、编码、四门禁。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Minimal review of the S-2 material fix commit ade516b5: floor merge corrected from min to max with rationale, baseline_free sampling rule kept separately, O1-O3 addressed, repository-wide floor_effective scan, boundaries, manifest and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**floor 合并语义更正正确**：`floor_effective = max(signed floor, onspot floor)`（验收条件 free ≥ floor_effective ⇒ floor 越高越严；取 min 会放宽，例 signed 10,230 / 现场 10,300 → 必须按 10,300）；`baseline_free = min(三点 free)` 明确标注为**采样取严**（与合并规则不同语义）；README §3（L45）与 §5（L68）、`baseline-sop.txt`（L11/L20）、`signature-summary.txt`（L22-23/L51）、`baseline-suggestion.txt`（L5-6）、`command.txt`（L54-55）、`qa-prereview-checklist.txt`（L14）、`evidence-checklist.txt`（L11）、`receipt.json`（L109/L136）口径一致，全文无 `floor_effective = min` 残留 ✅。",
+    "**全仓 `git grep -a floor_effective` 扫描**：签核材料（S-2 目录）只有 max 口径 + 采样 min 说明；残留 min 仅出现在 ① 材料任务卡 acceptance 文本（`.normify/changes/…-s2-material.json`，历史任务定义）② 我上一版复核卡/证据（记录的是 fix 前版本 1e27ff59）——均不在可签材料内，见观察项 O1/O2。",
+    "**O1–O3 收口**：`signature-summary.txt` S-2b 可粘贴行现为 `S-2b (suggested, re-measured at the window with stricter = higher wins): baseline_free 13,302 MiB; signed floor 10,230 MiB; floor_effective = max(signed floor, on-the-spot floor)`；P7 锚点已补 QA 收口复核卡 `2026-11-08-…-pilot-g-l0-window-check`（证据 `c5a56639`）；G-L1 证据目录名在 README/signature-summary/receipt 统一为 `…perworld-l-v2-capture-window-g-l1/` ✅。",
+    "**新 sha/bytes 与 manifest**：README **`d46e023068e162fa51a98edc41859a0d7fbe8a1c76fd2f3589157086724ee91a`/13,984 B**（旧 `3215e4ee…`/11,612 B）；receipt **`3692c374ab158f8f17fdf2d43ac2027087e822f183eab29f27fea4b691220f56`/8,864 B**（旧 `9e116955…`/8,349 B）；manifest `a2fd8c71…`/1,341 B，**12/12** 独立重算通过；三文件 UTF-8/LF/无 BOM/裸 CR·TAB 0 ✅。",
+    "**边界**：`ade516b5` 仅动 S-2 材料证据（README/receipt/manifest + 7 个 materials 文件）+ 材料卡 + runs；`src/`、`fixtures/`、`scripts/`、`tests/` 零 diff；材料卡 addenda 已记录 min→max 更正理由 ✅。",
+    "**门禁**：四门禁独立复跑 fmt/clippy/clippy-cuda/unit。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-material-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-material-fix-check/"
+    ],
+    "resources": [],
+    "priority": 76
+  },
+  "note": "Chief 2026-11-08 19:4x 派工：S-2 材料 fix 最小复核（优先、快出）。复核目标提交 ade516b5（HEAD）。只读 + 只写本卡证据；零 GPU。",
+  "revision": {
+    "before": "9a685b950da8090c1c3328f8903c671c64444a87",
+    "after": null
+  },
+  "created_at": "2026-11-08T11:44:49.361Z",
+  "updated_at": "2026-11-08T11:44:49.361Z",
+  "checks": [
+    {"kind": "gate", "gate": "fmt"},
+    {"kind": "gate", "gate": "clippy"},
+    {"kind": "gate", "gate": "clippy-cuda"},
+    {"kind": "gate", "gate": "unit"},
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-material-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-fix-check"
+    }
+  ]
+}
