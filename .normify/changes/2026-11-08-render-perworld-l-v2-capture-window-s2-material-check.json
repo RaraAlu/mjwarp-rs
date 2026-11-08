@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-check",
+  "title": {
+    "zh": "QA 读前预审：S-2 采集窗材料（前置 6+1 / G-L1 计划 / 纪律含 authoring 例外 / §9.3 采后自查 / 双签摘要 / manifest 12-12）→ PASS，可发用户 S-2 双签卡",
+    "en": "QA pre-review of the S-2 capture-window material (6+1 preconditions, G-L1 plan, discipline incl. authoring exception, post-capture checks, dual-sign summary, manifest 12/12) - PASS, user S-2 dual-sign card may be issued"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的 S-2 采集窗材料卡 `2026-11-08-render-perworld-l-v2-capture-window-s2-material`（verified；落库 **`1e27ff59`**；README `3215e4ee…`/11,612 B、receipt `9e116955…`/8,349 B、manifest 12/12）做**读前预审**（只读、零 GPU）：逐条对照已签 spec v3 原文 §9.3/§10.2/§11.1/§12 G-L1，核 ① 前置 §11.1 六项 + 第 7 项 pilot=pass-margin 的锚点可核、缺项禁签；② G-L1 计划（Backend 单次、repeat 2、正式参考根 fixtures/.../scene-a-light/perworld/、tag/seed/fastmath/shadows、显式 MJWARP_CAPTURE_AT+N1、pinned 环境、5 文件 ≈11.08 MB）；③ 纪律（monitor 60/60 util<40 且 compute_filtered=0/build=0/无其它 CUDA、三点基线 5 分钟内、floor=baseline_free−3,072 现场算、signed floor 取严 floor_effective=min、authoring 例外逐字范围、零编译、单次失败即停、材料不得暗示 G-L1 已可开）；④ 采后自查 §9.3 顺序与 [384,576)/<384 处置、seg 集合与 refit 证据在列；⑤ 双签摘要可直接用、baseline 需标为建议值（19:14 三点 13,302 → signed floor 10,230 = 13,302−3,072）、现场重算+取严口径清楚；⑥ 边界/卫生（unchanged src/fixtures/scripts/tests、零 GPU、manifest 12/12、编码、diff 面）；⑦ 四门禁复跑。**只读 + 只写本卡证据。**",
+    "en": "Read-only pre-review of the S-2 capture-window material against signed spec v3 sections 9.3/10.2/11.1/12 G-L1: preconditions 6+1 with verifiable anchors, the G-L1 plan and isolation, window discipline including the pre-approved authoring exception, post-capture checks, the paste-ready dual-sign summary and suggested baseline, boundaries/hygiene and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置 6+1 齐备且锚点可核**：P0 S-1 已签/冻结（spec `bb064fe0…`/39,379 B、receipt effective）；P1 command（capture-meta 卡 `b0af1be4` + QA `6419eb40`）；P2 captured_at+显式 `MJWARP_CAPTURE_AT`（N1、pilot 值 `2026-11-08T19:00:00+08:00`）；P3 per_world_scope 新口径（pilot metadata failed=[]）；P4 `task_id`+`reference_tag`；P5 场景变体 verified（`4b354054…`/5,134 B、QA `d38661a5`/`241a2e36`）；P6 采集脚本双相机 10 字段 verified（`b98b39ff`、QA `241a2e36`）；**P7 pilot=pass-margin**（收口 `268380d8`+addenda `66bac4f6`、README `f5d52348…`/9,228 B、receipt `e4204f8f…`/6,845 B、C1 38,285/40,644、C2 35,828/33,883、16,041/16,754；我独立重算 npz 已确认）。缺项禁签、不得改阈值/相机/recipe/参考凑条件 ✅。",
+    "**G-L1 计划可执行**：执行者 Backend（唯一写者、窗口锁 owner=Backend）、单次、`--repeat 2` 两遍逐位一致；正式参考根 `fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/`（`Test-Path` 当前必须 False，我核为 ABSENT ✅）；`--reference-tag nw3-light-hinge02040`、`--worlds 3 --hinge-deg 0,20,40`、`--seed 20261030`、`--use-fast-math false`、`--use-shadows true`；显式 `MJWARP_CAPTURE_AT`+N1 校验；pinned venv 3.12.13/warp 1.15.0/mujoco 3.15.0/mjwarp 3.15.0（editable `71da24d9`）/numpy 2.5.4/RTX 4070 Ti SUPER 596.36 SM89；5 文件 ≈11.08 MB（11,076,054 B 口径）。",
+    "**窗口纪律与 authoring 例外**：monitor `-Required 60 -MaxMinutes 30 -MaxUtil 40`、exit 0、60/60 全干净、util<40、`compute_filtered=0`、`build=0`、monitor 期间无其它 CUDA 进程；三点基线在开窗前 5 分钟内；`floor=baseline_free−3,072` 现场计算；**signed floor 取严 `floor_effective=min(signed, 现场)`** 且基线/monitor/采集抽检全程 free ≥ floor_effective；**authoring 例外逐字范围**：仅本采集窗（G-L1）、常规 util<40 不达标时才允许、仍需 S-2 双签、逐样本记录且 `exception_load_bearing=true`、floor 不放松、失败即停不重试不放宽、pilot 与验证窗不适用；零编译+指纹；单次失败即停；材料状态行与 §7 明确「不构成 G-L1 启动（需 QA PASS+用户 S-2 双签+Chief token）」，未暗示已可开。",
+    "**采后自查 §9.3 顺序**：两跑逐位一致（逐文件 sha、rgb/depth/seg 各 6 键）→ C1 两对 ≥576 → C2 depth/seg 两对 ≥576 → 元数据四项+双相机快照 2×10 字段（nrender=2/cam_id_map=[0,1]/cam_res 320×240×2，cam-hinge fovy 路径）→ legacy_reference_untouched=true → 全过才落库、失败停手；[384,576)=余量不足停、<384=拒通过；诊断项只记不判；seg 可见集合与 refit counter 原样保留在列 ✅。",
+    "**双签摘要可直接用**：`materials/signature-summary.txt` 含 S-2a 计划/S-2b 基线+floor/例外条款/失败条款/签名卡建议字段，且自述「Signs NOTHING here; only the user card signs」；README §5 与 signature-summary 均把 baseline 标为**建议值**（19:14 三点 13,302/13,302/13,302 → baseline_free 13,302 → **signed floor 10,230 = 13,302−3,072**），并写「开窗前现场重算、取严」；`baseline-suggestion.txt` 记录原值与 context（build 进程空、compute_filtered 定义、非窗口时测量）。**建议改写 1 处措辞见 O1**。",
+    "**边界/卫生与门禁**：`1e27ff59` 仅新卡/runs/证据目录，`src/`、`fixtures/`、`scripts/`、`tests/` 与 pilot/spec 目录零 diff；材料 manifest **12/12** 独立重算通过、首行 `#`+`# base dir:`、编码卫生（无 BOM/裸 CR/TAB）；零 GPU、不采集、未改 fixtures；四门禁独立复跑 fmt/clippy/clippy-cuda/unit。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-window-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-material-check/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Chief 2026-11-08 19:2x 派工：S-2 采集窗材料读前预审（用户双签前最后一道关）。复核对象提交 1e27ff59；复核时 HEAD c5a56639（pilot 收口复核证据，未触及 S-2 材料）。只读 + 只写本卡证据；零 GPU。",
+  "revision": {
+    "before": "587853607e1bbda0847c7eb5df14856f290f7eb2",
+    "after": null
+  },
+  "created_at": "2026-11-08T11:22:16.091Z",
+  "updated_at": "2026-11-08T11:22:16.091Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-material-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-window-s2-material-check"
+    }
+  ]
+}
