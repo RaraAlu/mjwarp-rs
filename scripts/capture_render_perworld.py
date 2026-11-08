@@ -50,7 +50,7 @@ import time
 import zipfile
 
 from perworld_light_prep import build_dry_run_plan
-from perworld_capture_meta import capture_metadata, dry_run_echo, refit_scene_before_render, verify_capture_metadata
+from perworld_capture_meta import camera_recipe, capture_metadata, dry_run_echo, refit_scene_before_render, verify_capture_metadata
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCENE_DIR = ROOT / "fixtures/render-bvh/scene-a"
@@ -213,19 +213,6 @@ def build_world_qpos(mjm, world_deg: list[float]):
     for world, deg in enumerate(world_deg):
         out[world][adr] = float(np.deg2rad(deg))
     return out
-
-def camera_recipe(mjm, rc) -> list[dict]:
-    cameras = []
-    cam_res = rc.cam_res.numpy()
-    for slot, cam_id in enumerate(int(v) for v in rc.cam_id_map.numpy()):
-        name = mjm.camera(cam_id).name or f"cam{cam_id}"
-        cameras.append({"slot": slot, "mujoco_cam_id": int(cam_id), "name": name,
-                        "mode": int(mjm.cam_mode[cam_id]),
-                        "xpos": [float(v) for v in mjm.cam_pos[cam_id]],
-                        "xquat": [float(v) for v in mjm.cam_quat[cam_id]],
-                        "fovy": float(mjm.cam_fovy[cam_id]),
-                        "resolution": [int(cam_res[slot][0]), int(cam_res[slot][1])]})
-    return cameras
 
 def save_npz_deterministic(path: pathlib.Path, arrays: dict) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -5,7 +5,7 @@
     "zh": "perworld L v2 采集脚本双相机：camera_recipe 补 sensorsize/intrinsic 两字段（spec v3 §2.4/§11.1-6③；零 GPU）",
     "en": "Per-world L v2 capture script dual-camera: camera_recipe gains sensorsize/intrinsic fields (spec v3 §2.4 / §11.1 item 6-3; GPU-free)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "已签 spec v3 要求采集产物 `capture.json.recipe.cameras` 记录**两台相机快照**（10 字段：现有 8 字段 + `sensorsize` + `intrinsic`），并在 §11.1 第 6 项③ 把「`camera_recipe` 补 `sensorsize`/`intrinsic` 并自核」列为 S-2 采集窗前置。本卡只做**工具/元数据层**：① 把 `camera_recipe` 从 `scripts/capture_render_perworld.py`（现 500 行、函数在 :217-228）**纯搬到已有模块** `scripts/perworld_capture_meta.py`（现 244 行），主脚本只留 import + 一次调用，两文件均 ≤500 行（不新建模块文件）；② 函数补 `sensorsize`/`intrinsic`，取值**原样来自 pinned MuJoCo 模型数组**（不换算、不改 f32/f64 类型；`cam-hinge` 如实记录 `sensorsize=[0,0]`、`intrinsic=[0.01,0.01,0,0]` 并注明走 fovy 路径，不得声称有 intrinsics）；③ 零 GPU 自证：AST/静态断言 + pinned venv CPU stub 自证（scene-a-light 与 scene-a 两场景、每台 active 相机 10 键、键序确定、值逐位一致）+ 默认/显式 dry-run 逐叶对照 unexpected=0 + `--worlds 1` 行为不变 + 消费者盘点。**不采集、不开窗、零 GPU、不建 CUDA、不改判据/夹具/参考**；真实渲染上下文的 10 字段实拍内容等 G-L1 采集，本卡不宣称。",
     "en": "Signed spec v3 requires capture.json recipe.cameras to snapshot both cameras with 10 fields (8 current + sensorsize + intrinsic) and lists this as S-2 capture-window prerequisite §11.1 item 6-3. This card is tooling/metadata only: move camera_recipe into the existing perworld_capture_meta.py module (no new module file, both files <=500 lines), add the two raw model-array fields, and prove it on CPU (AST/static assertions, pinned-venv stub self-check on scene-a-light and scene-a, dry-run leaf comparisons with unexpected=0, --worlds 1 behaviour, consumer inventory). No capture, no window, zero GPU; no fixture/criteria/reference changes; real rendered camera snapshots await G-L1."
@@ -43,7 +43,8 @@
     "after": null
   },
   "created_at": "2026-11-08T09:43:00.000Z",
-  "updated_at": "2026-11-08T09:39:44.073Z",
+  "updated_at": "2026-11-08T09:45:06.731Z",
+  "closed_at": "2026-11-08T09:45:06.731Z",
   "checks": [
     {
       "kind": "gate",

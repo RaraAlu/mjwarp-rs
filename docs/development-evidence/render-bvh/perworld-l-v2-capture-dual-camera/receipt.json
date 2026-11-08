@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-08-render-perworld-l-v2-capture-dual-camera",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "authoring-script-tooling",
+  "positioning": "spec v3 §2.4 / §11.1-6③: camera_recipe gains sensorsize+intrinsic (10 fields) from raw pinned-MuJoCo model arrays; pure move into the existing perworld_capture_meta.py module (no new module file, both files <=500 lines); zero GPU, no capture",
+  "source": {
+    "spec": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "spec_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "spec_bytes": 39379,
+    "sections": ["§2.4 camera snapshots", "§11.1 item 6-3 camera_recipe sensorsize/intrinsic"],
+    "signature_record": "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature (023c69fa, effective)",
+    "base_revision": "19d5fb5143358191ee9af45ea3eac5144abd868d"
+  },
+  "changes": {
+    "camera_recipe": {
+      "location_before": "scripts/capture_render_perworld.py:217-228",
+      "location_after": "scripts/perworld_capture_meta.py:127-147",
+      "fields_in_order": ["slot", "mujoco_cam_id", "name", "mode", "xpos", "xquat", "fovy",
+                          "resolution", "sensorsize", "intrinsic"],
+      "added_fields": {
+        "sensorsize": "mjm.cam_sensorsize[cam_id] raw array value, no conversion",
+        "intrinsic": "mjm.cam_intrinsic[cam_id] raw array value, no conversion"
+      },
+      "active_cameras_only": "rc.cam_id_map (unchanged slot label semantics)",
+      "raw_model_values": {
+        "cam-persp": {
+          "sensorsize": [0.035999998450279236, 0.024000000208616257],
+          "intrinsic": [0.017999999225139618, 0.01600000075995922, 0.0, 0.0],
+          "fovy": 73.73979461915735,
+          "resolution": [320, 240]
+        },
+        "cam-hinge": {
+          "sensorsize": [0.0, 0.0],
+          "intrinsic": [0.009999999776482582, 0.009999999776482582, 0.0, 0.0],
+          "fovy": 30.0,
+          "resolution": [320, 240],
+          "path": "fovy (sensorsize [0,0], default intrinsic [0.01,0.01,0,0]); no intrinsics claimed"
+        }
+      },
+      "pure_move": "function logic and return structure unchanged except the two spec-required fields"
+    },
+    "files": {
+      "scripts/capture_render_perworld.py": {
+        "lines_before": 500, "lines_after": 487, "delta": -13,
+        "sha256_before": "6360e5d44da6508774ace481ee0c26b9dfb2bff71d194afaf38d109d940c522c",
+        "sha256_after": "55b91f23e146def80196fd1142578e73b9fef78d9fe28dbb45ad5aaf2937b45b",
+        "note": "1-line import gains camera_recipe; 12-line function removed plus 1 duplicated blank line (single-blank function spacing kept)"
+      },
+      "scripts/perworld_capture_meta.py": {
+        "lines_before": 244, "lines_after": 270, "delta": 26,
+        "sha256_before": "302661fd8f8d551f4329549dbbc5cd12a344556a96f034c59a1e425fcf91100c",
+        "sha256_after": "296c2b12e71871ff275d00c866d1c8e89610d62027c94cd05afb18daef493e49",
+        "note": "22-line function moved in (incl. docstring) plus 4-line module docstring item 5"
+      },
+      "scripts/perworld_light_prep.py": {
+        "lines_before": 160, "lines_after": 160, "unchanged": true,
+        "sha256_before": "9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c",
+        "sha256_after": "9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c"
+      },
+      "no_new_module_file": true
+    }
+  },
+  "verification": {
+    "static_assertions": {
+      "script": "scripts/verify_camera_recipe.py",
+      "log": "logs/verify-camera-recipe.log",
+      "summary": "SUMMARY PASS 19/19",
+      "checks": ["no def in main", "exactly one def in meta", "1 import from perworld_capture_meta",
+                 "1 call site", "10 append keys in fixed order", "meta top imports stay product/GPU-free",
+                 "only the two card scripts changed vs base", "no added file under scripts/",
+                 "line counts 500->487 and 244->270, both <=500"]
+    },
+    "cpu_stub": {
+      "environment": "pinned venv mujoco 3.15.0, CPU only (no CUDA)",
+      "scenes": {
+        "scene-a-light": {"path": "fixtures/render-bvh/scene-a-light/scene.xml", "active_cameras": [0, 1]},
+        "scene-a": {"path": "fixtures/render-bvh/scene-a/scene.xml", "active_cameras": [0]}
+      },
+      "assertions": "exactly 10 keys in fixed order per active camera; values bit-identical (struct.pack f64) to mjm.cam_pos/quat/fovy/sensorsize/intrinsic and stub cam_res; name/mode/mujoco_cam_id/slot consistent",
+      "negative_mutations_rejected": ["missing key", "extra key", "wrong value"]
+    },
+    "module_selfcheck": {
+      "command": "python -B scripts/perworld_capture_meta.py",
+      "log": "logs/module-selfcheck.log",
+      "summary": "SELFCHECK PASS 14/14"
+    },
+    "dry_run": {
+      "diff": "artifacts/dryrun-diff.json",
+      "unexpected_count": 0,
+      "allowed_changes": ["/recipe/script/sha256", "/recipe/script/bytes"],
+      "removed_count": 0,
+      "added_count": 0,
+      "cases": {
+        "default-dryrun": {"before_exit": 0, "after_exit": 0, "legacy_manifest_entries": 107},
+        "explicit-dryrun": {"before_exit": 0, "after_exit": 0, "legacy_manifest_entries": 112,
+                            "cameras": [[0, 0, "cam-persp"], [1, 0, "cam-hinge"], [2, 3, "cam-track"]],
+                            "cam_active_fixed_only": [true, true, false]},
+        "worlds1-dryrun": {"before_exit": 1, "after_exit": 1, "stderr_identical": true,
+                           "stdout_bytes": 0, "out_dir_created": false}
+      },
+      "note": "dry-run never executes the render path, so it does not produce camera_recipe; the 10-field content is proven on CPU stub only until G-L1"
+    },
+    "consumer_inventory": {
+      "artifact": "artifacts/consumer-inventory.md",
+      "closed_8_key_assertions": 0,
+      "tests_src_references_to_camera_recipe": 0,
+      "perworld_capture_json_parsers": 0,
+      "unchanged_tests": true,
+      "unchanged_src": true
+    }
+  },
+  "boundaries": {
+    "changed_paths": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_capture_meta.py",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera/"
+    ],
+    "unchanged": ["fixtures/", "src/", "tests/", "scripts/capture_render_hfield.py", "scripts/capture_render_sdf.py"],
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "no_reference_written": true,
+    "no_criteria_change": true
+  },
+  "g_l1_dependency": "G-L1 capture window materials depend on this card verified + QA pass; the 10-field actual capture.json.recipe.cameras content is produced only by the G-L1 render path (not by this card).",
+  "non_claims": {
+    "statement": "Tooling/metadata only: this card claims no discriminability restoration, no capture validity, no per-world light acceptance, no upstream-implementation equivalence, and no rendering numeric conclusion. The dry-run path does not produce camera_recipe; only CPU stub values plus static assertions are proven here."
+  }
+}

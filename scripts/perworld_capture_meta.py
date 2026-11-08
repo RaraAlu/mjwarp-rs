@@ -11,7 +11,10 @@ S-2 capture-window prerequisites:
    geom poses, with the host-only light semantics premise of spec v2 §10.3);
 4. reference identity: keep the script task id as the provenance source and add
    `reference_tag` (reference directory name by convention = spec §2.2 tag),
-   instead of parametrising `task_id`.
+   instead of parametrising `task_id`;
+5. `camera_recipe`: both active cameras' 10-field snapshot (spec v3 §2.4: the
+   existing 8 fields plus the raw `sensorsize`/`intrinsic` model arrays, no
+   conversion; cam-hinge uses the fovy path and is not claimed to have intrinsics).
 
 Zero GPU: pure metadata helpers; the module also provides a CPU self-check with
 positive/negative cases (`python -B scripts/perworld_capture_meta.py`).
@@ -119,6 +122,29 @@ def capture_metadata(argv, cwd, cli_tag, out_dir, env=None) -> dict:
         "task_id": TASK_ID,
         "task_id_source": TASK_ID_SOURCE,
     }
+
+
+def camera_recipe(mjm, rc) -> list[dict]:
+    """Both active cameras' snapshot: 10 fields, raw model arrays (spec v3 §2.4).
+
+    `sensorsize`/`intrinsic` are copied from the pinned-MuJoCo model arrays as-is
+    (no conversion, no f32/f64 change). `cam-hinge` keeps `sensorsize=[0,0]` and the
+    default `intrinsic=[0.01,0.01,0,0]`, i.e. it uses the fovy path - do not claim
+    that it has intrinsics.
+    """
+    cameras = []
+    cam_res = rc.cam_res.numpy()
+    for slot, cam_id in enumerate(int(v) for v in rc.cam_id_map.numpy()):
+        name = mjm.camera(cam_id).name or f"cam{cam_id}"
+        cameras.append({"slot": slot, "mujoco_cam_id": int(cam_id), "name": name,
+                        "mode": int(mjm.cam_mode[cam_id]),
+                        "xpos": [float(v) for v in mjm.cam_pos[cam_id]],
+                        "xquat": [float(v) for v in mjm.cam_quat[cam_id]],
+                        "fovy": float(mjm.cam_fovy[cam_id]),
+                        "resolution": [int(cam_res[slot][0]), int(cam_res[slot][1])],
+                        "sensorsize": [float(v) for v in mjm.cam_sensorsize[cam_id]],
+                        "intrinsic": [float(v) for v in mjm.cam_intrinsic[cam_id]]})
+    return cameras
 
 
 def refit_scene_before_render(m, d, rc) -> None:
