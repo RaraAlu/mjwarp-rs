@@ -305,6 +305,7 @@ pub fn criterion_b(state: &ReferenceState, lights: &WorldLightPoses) -> LightSta
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CCounts {
     pub c1_rgb_changed: [usize; 2],
+    pub c1_rgb_bitwise_changed: [usize; 2],
     pub c2_depth_changed: [usize; 2],
     pub c2_seg_changed: [usize; 2],
     pub diag_campersp_depth: [usize; 2],
@@ -321,6 +322,12 @@ pub fn rgb_above_threshold(left: [f32; 3], right: [f32; 3]) -> bool {
     (0..3).map(|channel| (left[channel] as f64 - right[channel] as f64).abs()).fold(0.0f64, f64::max) >= RGB_THRESHOLD
 }
 
+/// C1 位型变化（readout `x.view(np.int32) != y.view(np.int32)` 的逐像素等价：任一通道 f32 位型不同）。
+#[rustfmt::skip]
+pub fn rgb_bitwise_changed(left: [f32; 3], right: [f32; 3]) -> bool {
+    (0..3).any(|channel| left[channel].to_bits() != right[channel].to_bits())
+}
+
 /// 判据 C：参考侧自算 C1/C2 + 诊断项（C1 用原始 f32 rgb，不用量化字节）。
 #[rustfmt::skip]
 pub fn criterion_c(reference: &Reference) -> CCounts {
@@ -332,6 +339,7 @@ pub fn criterion_c(reference: &Reference) -> CCounts {
         let (rgbhinge_l, rgbhinge_r) = (&reference.rgb_f32[*left][1], &reference.rgb_f32[*right][1]);
         for pixel in 0..PIXELS {
             if rgb_above_threshold(rgbpersp_l[pixel], rgbpersp_r[pixel]) { counts.c1_rgb_changed[pair_index] += 1; }
+            if rgb_bitwise_changed(rgbpersp_l[pixel], rgbpersp_r[pixel]) { counts.c1_rgb_bitwise_changed[pair_index] += 1; }
             if campersp_l.depth[pixel].to_bits() != campersp_r.depth[pixel].to_bits() { counts.diag_campersp_depth[pair_index] += 1; }
             if campersp_l.seg[pixel] != campersp_r.seg[pixel] { counts.diag_campersp_seg[pair_index] += 1; }
             if camhinge_l.depth[pixel].to_bits() != camhinge_r.depth[pixel].to_bits() { counts.c2_depth_changed[pair_index] += 1; }
@@ -390,8 +398,7 @@ pub const SCENE_BYTES: u64 = 5_134;
 pub const LEGACY_MANIFEST_ENTRIES: u64 = 112;
 #[rustfmt::skip]
 pub const CAMERA_KEYS: [&str; 10] = ["slot", "mujoco_cam_id", "name", "mode", "xpos", "xquat", "fovy", "resolution", "sensorsize", "intrinsic"];
-/// spec v3 §2.1 写死的两台相机：`(name, pos, quat, fovy, sensorsize, intrinsic)`。fovy 由
-/// `focalpixel=160 320×240 sensorsize 0.036 0.024` 推出（2·atan(0.5·0.024/0.016)）；sensorsize/intrinsic 是 3.15 f32 位型值。
+/// spec v3 §2.1 写死的两台相机：`(name, pos, quat, fovy, sensorsize, intrinsic)`；fovy 由 focalpixel=160/320×240/sensorsize 0.036 0.024 推出，sensorsize/intrinsic 是 3.15 f32 位型值。
 #[rustfmt::skip] #[allow(clippy::type_complexity)] // spec §2.1 相机期望值六元组
 pub const EXPECTED_CAMERAS: [(&str, [f64; 3], [f64; 4], f64, [f64; 2], [f64; 4]); 2] = [
     ("cam-persp", [1.2, -1.1, 0.8], [0.9, 0.1, -0.2, 0.3], 73.73979461915735,
@@ -404,12 +411,8 @@ fn json_numbers(value: &serde_json::Value) -> Vec<f64> { value.as_array().expect
 #[rustfmt::skip]
 fn close(actual: f64, expected: f64) -> bool { (actual - expected).abs() <= 1e-6 }
 #[rustfmt::skip]
-fn normalize_quat(quat: &[f64]) -> Vec<f64> {
-    let norm = quat.iter().map(|value| value * value).sum::<f64>().sqrt();
-    quat.iter().map(|value| value / norm).collect()
-}
-/// `per_world_scope.covers`/`does_not_cover` 归一化（与 G-L0 readout 的 `scope_text` 同口径：
-/// 字符串保持原样、列表逐元素 join；2026-11-08 readout 修复的同一缺陷不复现）。
+fn normalize_quat(quat: &[f64]) -> Vec<f64> { let norm = quat.iter().map(|value| value * value).sum::<f64>().sqrt(); quat.iter().map(|value| value / norm).collect() }
+/// `per_world_scope.covers`/`does_not_cover` 归一化（与 G-L0 readout 的 `scope_text` 同口径：字符串原样、列表逐元素 join）。
 #[rustfmt::skip]
 fn scope_text(value: &serde_json::Value) -> String {
     match value {
@@ -428,14 +431,11 @@ pub fn check_capture_provenance(capture: &serde_json::Value) {
     assert!(!capture["captured_at"].as_str().unwrap_or_default().trim().is_empty(), "参考 captured_at 为空");
     assert_eq!(capture["reference_tag"].as_str(), Some("nw3-light-hinge02040"), "参考 tag");
     let scene = &capture["recipe"]["scene_xml"];
-    assert_eq!(scene["sha256"].as_str(), Some(SCENE_SHA256), "参考场景 sha");
-    assert_eq!(scene["bytes"].as_u64(), Some(SCENE_BYTES), "参考场景 bytes");
-    let argv: Vec<String> = capture["command"]["argv"].as_array().expect("command.argv").iter()
-        .map(|item| item.as_str().expect("argv 字符串").to_string()).collect();
+    assert_eq!((scene["sha256"].as_str(), scene["bytes"].as_u64()), (Some(SCENE_SHA256), Some(SCENE_BYTES)), "参考场景 sha/bytes");
+    let argv: Vec<String> = capture["command"]["argv"].as_array().expect("command.argv").iter().map(|item| item.as_str().expect("argv 字符串").to_string()).collect();
     assert!(!argv.is_empty(), "command.argv 为空");
-    for needle in ["capture_render_perworld.py", "--scene", "--reference-tag", "nw3-light-hinge02040",
-                   "--repeat", "2", "--worlds", "3", "--use-fast-math", "false", "--use-shadows", "true",
-                   "fixtures/render-bvh/scene-a-light/scene.xml"] {
+    for needle in ["capture_render_perworld.py", "--scene", "--reference-tag", "nw3-light-hinge02040", "--repeat", "2",
+                   "--worlds", "3", "--use-fast-math", "false", "--use-shadows", "true", "fixtures/render-bvh/scene-a-light/scene.xml"] {
         assert!(argv_has(&argv, needle), "command.argv 缺 {needle}");
     }
     let covers = scope_text(&capture["per_world_scope"]["covers"]);
@@ -443,56 +443,55 @@ pub fn check_capture_provenance(capture: &serde_json::Value) {
         assert!(covers.contains(token), "per_world_scope.covers 缺 {token}");
     }
     let resolved = &capture["context"]["resolved"];
-    assert_eq!(resolved["nrender"].as_u64(), Some(ACTIVE_CAMERA_COUNT as u64), "参考 nrender");
-    assert_eq!(resolved["cam_id_map"], serde_json::json!([0, 1]), "参考 cam_id_map");
-    assert_eq!(resolved["cam_res"], serde_json::json!([[320, 240], [320, 240]]), "参考 cam_res");
-    assert_eq!(resolved["nworld"].as_u64(), Some(WORLDS as u64), "参考 nworld");
+    assert_eq!((resolved["nrender"].as_u64(), resolved["nworld"].as_u64()), (Some(ACTIVE_CAMERA_COUNT as u64), Some(WORLDS as u64)), "参考 nrender/nworld");
+    assert_eq!((&resolved["cam_id_map"], &resolved["cam_res"]), (&serde_json::json!([0, 1]), &serde_json::json!([[320, 240], [320, 240]])), "参考 cam_id_map/cam_res");
     assert_eq!(capture["parameters"]["cam_active"], serde_json::json!([true, true, false]), "参考 cam_active");
-    let legacy = resolved["legacy_manifest_entries"].as_u64().or_else(|| capture["legacy_reference_files"].as_u64());
-    assert_eq!(legacy, Some(LEGACY_MANIFEST_ENTRIES), "参考 legacy manifest 条目数");
-    if !capture["legacy_reference_untouched"].is_null() {
-        assert_eq!(capture["legacy_reference_untouched"], serde_json::json!(true), "参考 legacy 未改动标记");
-    }
+    assert_eq!(resolved["legacy_manifest_entries"].as_u64().or_else(|| capture["legacy_reference_files"].as_u64()), Some(LEGACY_MANIFEST_ENTRIES), "参考 legacy manifest 条目数");
+    if !capture["legacy_reference_untouched"].is_null() { assert_eq!(capture["legacy_reference_untouched"], serde_json::json!(true), "参考 legacy 未改动标记"); }
     let cameras = capture["recipe"]["cameras"].as_array().expect("recipe.cameras");
     assert_eq!(cameras.len(), ACTIVE_CAMERA_COUNT, "recipe.cameras 条数");
     for (slot, camera) in cameras.iter().enumerate() {
         let (name, pos, quat, fovy, sensorsize, intrinsic) = EXPECTED_CAMERAS[slot];
         assert_eq!(camera.as_object().expect("camera 对象").len(), CAMERA_KEYS.len(), "cameras[{slot}] 字段数");
         for key in CAMERA_KEYS { assert!(camera.get(key).is_some(), "cameras[{slot}] 缺字段 {key}"); }
-        assert_eq!(camera["slot"].as_u64(), Some(slot as u64), "cameras[{slot}] slot");
-        assert_eq!(camera["mujoco_cam_id"].as_u64(), Some(slot as u64), "cameras[{slot}] mujoco_cam_id");
-        assert_eq!(camera["name"].as_str(), Some(name), "cameras[{slot}] name");
-        assert_eq!(camera["mode"].as_u64(), Some(0), "cameras[{slot}] mode");
+        assert_eq!((camera["slot"].as_u64(), camera["mujoco_cam_id"].as_u64()), (Some(slot as u64), Some(slot as u64)), "cameras[{slot}] slot/mujoco_cam_id");
+        assert_eq!((camera["name"].as_str(), camera["mode"].as_u64()), (Some(name), Some(0)), "cameras[{slot}] name/mode");
         assert_eq!(camera["resolution"], serde_json::json!([320, 240]), "cameras[{slot}] resolution");
-        for (index, value) in json_numbers(&camera["xpos"]).iter().enumerate() {
-            assert!(close(*value, pos[index]), "cameras[{slot}] xpos[{index}]");
-        }
-        let actual_quat = normalize_quat(&json_numbers(&camera["xquat"]));
-        for (index, value) in normalize_quat(&quat).iter().enumerate() {
-            assert!(close(actual_quat[index], *value), "cameras[{slot}] xquat[{index}]");
-        }
+        for (index, value) in json_numbers(&camera["xpos"]).iter().enumerate() { assert!(close(*value, pos[index]), "cameras[{slot}] xpos[{index}]"); }
+        let (actual_quat, expected_quat) = (normalize_quat(&json_numbers(&camera["xquat"])), normalize_quat(&quat));
+        for index in 0..4 { assert!(close(actual_quat[index], expected_quat[index]), "cameras[{slot}] xquat[{index}]"); }
         assert!(close(camera["fovy"].as_f64().expect("fovy"), fovy), "cameras[{slot}] fovy");
-        for (index, value) in json_numbers(&camera["sensorsize"]).iter().enumerate() {
-            assert!(close(*value, sensorsize[index]), "cameras[{slot}] sensorsize[{index}]");
-        }
-        for (index, value) in json_numbers(&camera["intrinsic"]).iter().enumerate() {
-            assert!(close(*value, intrinsic[index]), "cameras[{slot}] intrinsic[{index}]");
-        }
+        for (index, value) in json_numbers(&camera["sensorsize"]).iter().enumerate() { assert!(close(*value, sensorsize[index]), "cameras[{slot}] sensorsize[{index}]"); }
+        for (index, value) in json_numbers(&camera["intrinsic"]).iter().enumerate() { assert!(close(*value, intrinsic[index]), "cameras[{slot}] intrinsic[{index}]"); }
     }
 }
 
-/// 参考可用时：实体 C1 计数必须等于 `capture.json` 记录的 C1（spec v3 §2.3；字段不存在则跳过）。
-/// 返回是否做了比对（便于 GPU 用例打印）。
+/// 实体 C1 与 capture.json 记录的交叉核对结果（GPU 用例显式打印，不静默）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureC1Check {
+    Compared,
+    Skipped(&'static str),
+}
+
+/// 参考可用时：实体 C1（magnitude；capture 同时有 bitwise 时也比对）必须等于 capture.json 记录。
+/// spec v3 §2.4 结构为 `c1_rgb_changed_px = {"0->1": {magnitude, bitwise}, "1->2": ...}`；字段/世界对缺失
+/// 或仍是旧数组结构 → 返回 `Skipped(原因)`，由调用方显式打印（不得静默通过）。
 #[rustfmt::skip]
-pub fn check_capture_c1(capture: &serde_json::Value, counts: &CCounts) -> bool {
-    let recorded = capture["discriminability"]["c1_rgb_changed_px"].as_array()
-        .or_else(|| capture["c1_rgb_changed_px"].as_array())
-        .or_else(|| capture["readout"]["c1_rgb_changed_px"].as_array());
-    let Some(recorded) = recorded else { return false };
-    let expected: Vec<u64> = counts.c1_rgb_changed.iter().map(|value| *value as u64).collect();
-    let actual: Vec<u64> = recorded.iter().map(|item| item.as_u64().expect("C1 计数")).collect();
-    assert_eq!(actual, expected, "实体 C1 计数必须等于 capture.json 记录（spec v3 §2.3）");
-    true
+pub fn check_capture_c1(capture: &serde_json::Value, counts: &CCounts) -> CaptureC1Check {
+    let recorded = &capture["c1_rgb_changed_px"];
+    if recorded.is_null() { return CaptureC1Check::Skipped("capture.json 未记录 c1_rgb_changed_px（spec v3 §2.4；旧参考无此字段）"); }
+    if recorded.is_array() { return CaptureC1Check::Skipped("capture.json c1_rgb_changed_px 是旧数组结构；spec v3 §2.4 要求 {\"0->1\": ..., \"1->2\": ...} 字典，不做交叉核对"); }
+    let keys: Vec<String> = PAIRS.iter().map(|(left, right)| format!("{left}->{right}")).collect();
+    if keys.iter().any(|key| recorded[key.as_str()]["magnitude"].as_u64().is_none()) {
+        return CaptureC1Check::Skipped("capture.json c1_rgb_changed_px 缺 0->1/1->2 magnitude 计数");
+    }
+    for (index, key) in keys.iter().enumerate() {
+        assert_eq!(recorded[key.as_str()]["magnitude"].as_u64(), Some(counts.c1_rgb_changed[index] as u64), "实体 C1 magnitude 必须等于 capture.json 记录（pair {key}）");
+        if !recorded[key.as_str()]["bitwise"].is_null() {
+            assert_eq!(recorded[key.as_str()]["bitwise"].as_u64(), Some(counts.c1_rgb_bitwise_changed[index] as u64), "实体 C1 bitwise 必须等于 capture.json 记录（pair {key}）");
+        }
+    }
+    CaptureC1Check::Compared
 }
 
 #[cfg(test)]

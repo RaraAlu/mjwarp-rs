@@ -447,13 +447,35 @@ fn npz_parser_reads_members_and_npy_header() {
 
 #[test]
 #[rustfmt::skip]
-fn capture_c1_cross_check_requires_recorded_counts_match() {
-    let counts = CCounts { c1_rgb_changed: [38_285, 40_644], ..CCounts::default() };
-    let mut capture = serde_json::json!({"discriminability": {"c1_rgb_changed_px": [38_285, 40_644]}});
-    assert!(check_capture_c1(&capture, &counts), "有字段就必须比对且一致");
-    assert!(!check_capture_c1(&serde_json::json!({}), &counts), "字段不存在则跳过");
-    capture["discriminability"]["c1_rgb_changed_px"] = serde_json::json!([38_285, 40_645]);
-    assert!(std::panic::catch_unwind(|| check_capture_c1(&capture, &counts)).is_err(), "C1 不一致必须拒绝");
+fn capture_c1_cross_check_compares_spec_2_4_dict_counts() {
+    let counts = CCounts { c1_rgb_changed: [38_285, 40_644], c1_rgb_bitwise_changed: [43_604, 41_815], ..CCounts::default() };
+    let capture = serde_json::json!({"c1_rgb_changed_px": {
+        "0->1": {"magnitude": 38_285, "bitwise": 43_604},
+        "1->2": {"magnitude": 40_644, "bitwise": 41_815}}});
+    assert_eq!(check_capture_c1(&capture, &counts), CaptureC1Check::Compared, "字典结构两对数一致必须比对通过");
+    // capture 只记录 magnitude 时：仍比对 magnitude 两对（bitwise 缺省不比对）。
+    let magnitude_only = serde_json::json!({"c1_rgb_changed_px": {
+        "0->1": {"magnitude": 38_285}, "1->2": {"magnitude": 40_644}}});
+    assert_eq!(check_capture_c1(&magnitude_only, &counts), CaptureC1Check::Compared);
+    let mut bad_magnitude = capture.clone();
+    bad_magnitude["c1_rgb_changed_px"]["1->2"]["magnitude"] = serde_json::json!(40_645);
+    assert!(std::panic::catch_unwind(|| check_capture_c1(&bad_magnitude, &counts)).is_err(), "magnitude 不一致必须失败");
+    let mut bad_bitwise = capture.clone();
+    bad_bitwise["c1_rgb_changed_px"]["0->1"]["bitwise"] = serde_json::json!(0);
+    assert!(std::panic::catch_unwind(|| check_capture_c1(&bad_bitwise, &counts)).is_err(), "bitwise 不一致必须失败");
+}
+
+#[test]
+#[rustfmt::skip]
+fn capture_c1_cross_check_reports_explicit_skip_reasons() {
+    let counts = CCounts::default();
+    assert!(matches!(check_capture_c1(&serde_json::json!({}), &counts), CaptureC1Check::Skipped(_)), "缺字段必须显式跳过");
+    assert!(matches!(check_capture_c1(&serde_json::json!({"c1_rgb_changed_px": [38_285, 40_644]}), &counts),
+                     CaptureC1Check::Skipped(_)), "旧数组结构必须显式跳过并说明");
+    assert!(matches!(check_capture_c1(&serde_json::json!({"c1_rgb_changed_px": {"0->1": {"magnitude": 1}}}), &counts),
+                     CaptureC1Check::Skipped(_)), "缺 1->2 magnitude 必须显式跳过");
+    assert!(!matches!(check_capture_c1(&serde_json::json!({"c1_rgb_changed_px": {"0->1": {"magnitude": 0}, "1->2": {"magnitude": 0}}}), &counts),
+                      CaptureC1Check::Skipped(_)), "完整结构不得被当作跳过");
 }
 
 #[test]

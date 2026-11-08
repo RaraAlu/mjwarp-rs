@@ -333,9 +333,9 @@ fn gpu_per_world_light_matches_reference() {
         Verdict::PassMargin,
         "参考侧判别力必须 pass-margin（两套两对 ≥576），实际 {verdict:?}"
     );
-    // 参考可用时：实体 C1 计数必须等于 capture.json 记录的 C1（spec v3 §2.3；字段不存在则跳过）。
+    // 参考可用时：实体 C1（magnitude/bitwise）必须等于 capture.json 记录的 §2.4 计数；缺字段/旧结构显式打印原因。
     println!(
-        "capture.json C1 交叉核对执行 = {}",
+        "capture.json C1 交叉核对 = {:?}",
         light::check_capture_c1(&reference.capture, &counts)
     );
 
@@ -456,6 +456,15 @@ fn pilot_c1_crosscheck_matches_readout() {
     println!("pilot C1={:?} C2 depth={:?} seg={:?} verdict={verdict:?}",
              counts.c1_rgb_changed, counts.c2_depth_changed, counts.c2_seg_changed);
     assert_eq!(counts.c1_rgb_changed, [38_285, 40_644], "C1 必须与 readout_c1_c2.py 的 f32 1/255 口径逐值一致（254↔255 饱和步进不计）");
+    assert_eq!(counts.c1_rgb_bitwise_changed, [43_604, 41_815], "C1 bitwise 与 pilot readout 逐值一致");
+    // 旧 pilot capture.json 无 §2.4 字段 -> 显式打印跳过原因（不静默）；用真实 counts 构造 §2.4 字典 -> 必须比对通过。
+    let pilot_capture_check = light::check_capture_c1(&reference.capture, &counts);
+    println!("旧 pilot capture.json（无 §2.4 字段）C1 交叉核对 = {pilot_capture_check:?}");
+    assert!(matches!(pilot_capture_check, light::CaptureC1Check::Skipped(_)), "旧参考缺 §2.4 字段必须显式跳过");
+    let spec_c1 = serde_json::json!({"c1_rgb_changed_px": {
+        "0->1": {"magnitude": counts.c1_rgb_changed[0], "bitwise": counts.c1_rgb_bitwise_changed[0]},
+        "1->2": {"magnitude": counts.c1_rgb_changed[1], "bitwise": counts.c1_rgb_bitwise_changed[1]}}});
+    assert_eq!(light::check_capture_c1(&spec_c1, &counts), light::CaptureC1Check::Compared, "§2.4 字典结构与实体 counts 必须比对通过");
     assert_eq!(counts.c2_depth_changed, [35_828, 33_883], "C2 depth 与 pilot readout 一致");
     assert_eq!(counts.c2_seg_changed, [16_041, 16_754], "C2 seg 与 pilot readout 一致");
     assert_eq!(verdict, Verdict::PassMargin);

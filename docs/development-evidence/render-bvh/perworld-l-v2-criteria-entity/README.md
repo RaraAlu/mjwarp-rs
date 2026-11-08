@@ -13,9 +13,9 @@
 
 | 文件 | 行数 | 作用 |
 | --- | --- | --- |
-| `tests/render_per_world_light.rs` | **469**（F1/O2 修正前 489） | 实体：参考 npz 解析/加载（保留原始 f32 rgb）、capture provenance 自核、§4/§5/§6 + 两跑 sha + world 隔离的 `#[ignore]` GPU 用例、本机 pilot C1 交叉核对 |
-| `tests/support/render_bvh/light.rs` | **500**（修正前 390） | 测试期 3.15 dump → `RenderFields`/`SceneState`；Card H 产品段构造；判据 A/B/C 纯函数；两跑 sha / 隔离助手；capture provenance 值比对 |
-| `tests/support/render_bvh/light/tests.rs` | **465**（修正前 446） | CPU 合成自证（边界/方向/互换/阈值/负例/npz），由实体 `#[cfg(test)]` 挂载 |
+| `tests/render_per_world_light.rs` | **478**（§2.4 字典适配前 470；F1/O2 修正前 489） | 实体：参考 npz 解析/加载（保留原始 f32 rgb）、capture provenance 自核、§4/§5/§6 + 两跑 sha + world 隔离的 `#[ignore]` GPU 用例、本机 pilot C1 交叉核对 |
+| `tests/support/render_bvh/light.rs` | **499**（§2.4 字典适配前 500；F1/O2 修正前 390） | 测试期 3.15 dump → `RenderFields`/`SceneState`；Card H 产品段构造；判据 A/B/C 纯函数（C1 含 magnitude+bitwise）；两跑 sha / 隔离助手；capture provenance 值比对；C1 交叉核对（§2.4 字典） |
+| `tests/support/render_bvh/light/tests.rs` | **487**（§2.4 字典适配前 465；F1/O2 修正前 446） | CPU 合成自证（边界/方向/互换/阈值/负例/npz/C1 字典交叉核对），由实体 `#[cfg(test)]` 挂载 |
 | `tests/support/render_bvh/light/model-315.json` | 312,943 B | 离线 3.15 dumper 生成的产品格式模型 dump（**不进 fixtures**） |
 | `tests/support/render_bvh/light/model-315.provenance.json` | 2,209 B | dump provenance（见 §2） |
 
@@ -50,8 +50,8 @@
 
 ## 4. CPU 合成自证（零 GPU）
 
-日志：`logs/selfproof.log` → `15 passed; 0 failed; 2 ignored`（`cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1`，exit 0；
-F1/O2 修正前为 `13 passed; 1 ignored`）。用例如下（覆盖 Chief 要求）：
+日志：`logs/selfproof.log` → `16 passed; 0 failed; 2 ignored`（`cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1`，exit 0；
+F1/O2 修正前为 `13 passed; 1 ignored`；§2.4 字典适配前为 `15 passed; 2 ignored`）。用例如下（覆盖 Chief 要求）：
 
 - **verdict 边界 383/384/575/576**：`verdict_boundaries_383_384_575_576`（恰 576=pass-margin；575/384=insufficient；383=non-discriminating；六个集合逐个边界）。
 - **某套 0/0 时 C2 必失败**：`zero_c2_set_fails_even_when_c1_is_large`（C1 再大也不能救 C2 0/0）。
@@ -67,10 +67,12 @@ F1/O2 修正前为 `13 passed; 1 ignored`）。用例如下（覆盖 Chief 要�
 - **参考缺失显式报错**：实体 `missing_reference_reports_explicit_not_executed_error`；**强制 ignored 跑**见
   `logs/not-executed-check.log`（exit 101 + `not executed: reference missing (G-L1 capture pending)...`，属预期，非本卡失败）。
 - **capture provenance 自核负例（O2 扩到 20 项）**：`capture_provenance_self_check_rejects_bad_or_missing_fields`（两跑标记/captured_at/tag/scene sha/bytes/nrender/nworld/cam_id_map/cam_res/cam_active/legacy 计数/camera 字段缺失/fovy/sensorsize/intrinsic/quat/顺序/argv/scope/legacy 未改动，逐项必须被拒）。
-- **capture C1 交叉断言 / scope 形状**：`capture_c1_cross_check_requires_recorded_counts_match`（capture 记录 C1 时必须逐值一致，缺失则跳过）+
+- **capture C1 交叉断言（§2.4 字典）/ scope 形状**：`capture_c1_cross_check_compares_spec_2_4_dict_counts`（字典两对 magnitude+bitwise 一致通过；仅 magnitude 也通过；magnitude/bitwise 不一致必须失败）+
+  `capture_c1_cross_check_reports_explicit_skip_reasons`（缺字段/旧数组结构/缺 1->2 magnitude → 显式 `Skipped(原因)`，完整结构不得被当跳过）+
   `capture_scope_text_handles_string_and_list`（per_world_scope 字符串与列表两种形状同口径）。
 - **本机 pilot 交叉核对（`#[ignore]`，非默认门禁）**：`pilot_c1_crosscheck_matches_readout` 读 `target/…/pilot-out/nw3-light-hinge02040`
-  （pilot 产物不入库）→ C1 `[38_285, 40_644]`、C2 depth `[35_828, 33_883]`、seg `[16_041, 16_754]`、verdict pass-margin，并额外比对窗内 `window/readout.json`；见 `logs/c1-crosscheck.log` 与 `artifacts/c1-crosscheck.json`。
+  （pilot 产物不入库）→ C1 magnitude `[38_285, 40_644]`、C1 bitwise `[43_604, 41_815]`、C2 depth `[35_828, 33_883]`、seg `[16_041, 16_754]`、verdict pass-margin，
+  额外比对窗内 `window/readout.json`；旧 pilot capture.json（无 §2.4 字段）打印显式跳过原因，真实 counts 构造 §2.4 字典则必须 `Compared`；见 `logs/c1-crosscheck.log` 与 `artifacts/c1-crosscheck.json`。
 
 ## 5. 边界与门禁
 
@@ -78,7 +80,7 @@ F1/O2 修正前为 `13 passed; 1 ignored`）。用例如下（覆盖 Chief 要�
   `tests/support/render_bvh/light/tests.rs`、`tests/support/render_bvh/light/model-315.json`、
   `tests/support/render_bvh/light/model-315.provenance.json`、本证据目录。
 - `unchanged fixtures/`、`unchanged src/`、`unchanged scripts/`、spec 目录与 pilot 材料目录不变；零 GPU、不采集、不建 CUDA。
-- 四门禁 fmt/clippy/clippy-cuda/unit 全过（F1/O2 修正后 **unit 1386 过 / 0 败 / 402 ignored**；修正前 1384 过）；manifest 自核与编码卫生见 `manifest.txt`。
+- 四门禁 fmt/clippy/clippy-cuda/unit 全过（§2.4 字典适配后 **unit 1387 过 / 0 败 / 402 ignored**；F1/O2 修正后 1386 过；最初 1384 过）；manifest 自核与编码卫生见 `manifest.txt`。
 - 停手条款核查：**未触发**——实体完全基于 Card H 已有公开接口与现有 `src/` API，无需改内核/ABI/`src/`。
 
 ## 6. 非声明
@@ -97,7 +99,7 @@ pilot 结论（`pass-margin`，C1 38,285/40,644；C2 depth 35,828/33,883、seg 1
 | `materials/dump_model_315_light.py` | 离线 3.15 dumper（provenance 见其运行输出与 `artifacts/model-315.provenance.json`） |
 | `artifacts/model-315.provenance.json` | dump provenance 副本（与 `tests/support/…/light/model-315.provenance.json` 相同） |
 | `artifacts/c1-crosscheck.json` | F1 交叉核对：pilot 参考上 old（量化字节）/new（f32 1/255）C1、差集构成、pilot npz sha（npz 在 `target/`、不入库） |
-| `logs/selfproof.log` | CPU 合成自证原始输出（15 passed / 2 ignored，exit 0；F1/O2 修正后重跑） |
+| `logs/selfproof.log` | CPU 合成自证原始输出（16 passed / 2 ignored，exit 0；§2.4 字典适配后重跑） |
 | `logs/not-executed-check.log` | 强制 `--ignored` 跑 GPU 用例的显式「未执行」证据（预期失败，非卡失败） |
 | `logs/c1-crosscheck.log` | 本机 pilot C1 人工交叉核对原始输出（38,285/40,644；exit 0；pilot npz 在 `target/`、不入库） |
 
@@ -139,4 +141,22 @@ Chief 派工在 **G-L2 冻结前**修两处（**判据 A/B/C 阈值与 A/B/C 语
 
 **修正后状态**：行数 469 / 500 / 465（≤500）；自证 `15 passed / 0 failed / 2 ignored`；四门禁全过（unit 1386/0）；
 未跑 GPU、未采集，本卡仍**不宣称**任何渲染数值结论。
+
+## 9. C1 交叉核对适配 spec §2.4 字典结构（2026-11-08 第二次 fix，Chief 派工）
+
+背景：采集脚本已在卡 `2026-11-08-render-perworld-l-v2-capture-discriminability-counts`（`311b5a84`）里按 spec §2.4
+把 `c1_rgb_changed_px` 写成 `{"0->1": {magnitude, bitwise}, "1->2": ...}` 字典；而本实体旧 `check_capture_c1` 只认数组
+`[c1_0, c1_1]` → G-L2 会「显式跳过」，浪费一次交叉核对。本次只动 `tests/` 与本证据目录（判据/阈值/产品路径不动）。
+
+- **接口**：`check_capture_c1` → `CaptureC1Check { Compared, Skipped(&'static str) }`；逐对 world（0→1、1→2）
+  **断言实体 C1 magnitude == capture 的 magnitude**；capture 该对同时有 `bitwise` 时**也断言实体 C1 bitwise == capture bitwise**。
+  `CCounts` 新增 `c1_rgb_bitwise_changed`（raw f32 逐像素「任一通道位型不同」计数，等价 readout `x.view(int32)!=y.view(int32)`）。
+- **显式跳过（不静默）**：capture 无 `c1_rgb_changed_px`（旧参考）、值仍是旧数组结构、或两个 world 对缺 `magnitude` →
+  返回 `Skipped(原因)`；GPU 用例与 pilot 用例都打印 `Debug` 结果与原因。**旧数组结构=显式拒绝并说明**，不做静默兼容。
+- **自证**：`tests.rs` 两用例——字典两对 magnitude+bitwise 一致通过 / 仅 magnitude 也通过 / magnitude 或 bitwise 不一致必须 panic；
+  缺字段、旧数组、缺 1→2 magnitude 必须 `Skipped`，完整结构不得被当跳过。本机 pilot 用例：pilot attempt 3 旧 capture.json
+  打印显式跳过原因，另把真实 counts 构造成 §2.4 字典 → 必须 `Compared`；并新增 **C1 bitwise = 43,604 / 41,815** 对 readout 的核对。
+- **行数**：`tests/render_per_world_light.rs` 470→**478**、`light.rs` 500→**499**、`light/tests.rs` 465→**487**（均 ≤500；未新建模块源文件）。
+- **门禁**：四门禁 fmt/clippy/clippy-cuda/unit 全过；unit **1387 过 / 0 败 / 402 ignored**（+1 新自证）；证据 manifest 重算。
+
 

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "task_id": "2026-11-08-render-perworld-l-v2-criteria-entity",
-  "status": "implemented + F1/O2 fix",
+  "status": "implemented + F1/O2 fix + spec §2.4 dict adaptation",
   "committed_by": "Normify-Task: 2026-11-08-render-perworld-l-v2-criteria-entity",
   "slice": "P8-渲染与BVH",
   "owner": "Backend",
@@ -22,15 +22,15 @@
   },
   "deliverables": {
     "tests/render_per_world_light.rs": {
-      "lines": 469,
+      "lines": 478,
       "role": "entity: reference npz decode/load (raw f32 rgb kept for C1 + quantized bytes for A), capture provenance self-check, [ignore] GPU case (A/B/C + two-run sha + world isolation), ignored local pilot C1 cross-check"
     },
     "tests/support/render_bvh/light.rs": {
-      "lines": 500,
+      "lines": 499,
       "role": "3.15 dump -> RenderFields/SceneState; Card H product assembly; criteria A/B/C pure functions (C1 = f32 max-channel |dRGB| >= 1/255); sha/isolation helpers; capture provenance value checks"
     },
     "tests/support/render_bvh/light/tests.rs": {
-      "lines": 465,
+      "lines": 487,
       "role": "CPU synthetic self-proof (boundaries/direction/swap/negatives/npz)"
     },
     "tests/support/render_bvh/light/model-315.json": {
@@ -79,17 +79,18 @@
   "criteria_implementation": {
     "criterion_a": "two cameras x three worlds strict bit-level: rgb max_byte_diff==0 & mismatched_pixels==0; depth bit-equal mismatched==0 & beyond_ulp==0; seg (id,type) equal; no allowlist / no tolerance",
     "criterion_b": "reference state.npz light_xpos/light_xdir f32 bits vs product-side WorldLightPoses (bit-verbatim pass-through, no FK/f64/re-normalization): 0 exceptions",
-    "criterion_c": "reference-side self-computed: C1 cam-persp adjacent-world raw-f32 max_channel|dRGB| >= 1/255 px count (f32 diffs promoted to f64; bit-identical to G-L0 readout_c1_c2.py; byte-quantized |dbyte| >= 1 is NOT used; 254<->255-class adjacent-code steps are not counted); C2 cam-hinge depth bit-changed + seg pair-changed px count; thresholds ACCEPT=384 / MARGIN=576; pairs [(0,1),(1,2)]; camera attribution fixed (C1=cam0/cam-persp, C2=cam1/cam-hinge); diagnostics recorded only",
+    "criterion_c": "reference-side self-computed: C1 cam-persp adjacent-world raw-f32 max_channel|dRGB| >= 1/255 px count (f32 diffs promoted to f64; bit-identical to G-L0 readout_c1_c2.py; byte-quantized |dbyte| >= 1 is NOT used; 254<->255-class adjacent-code steps are not counted); C2 cam-hinge depth bit-changed + seg pair-changed px count; thresholds ACCEPT=384 / MARGIN=576; pairs [(0,1),(1,2)]; camera attribution fixed (C1=cam0/cam-persp, C2=cam1/cam-hinge); diagnostics recorded only; CCounts also records the C1 bitwise-changed count so it can be cross-checked against the spec §2.4 capture.json counts",
     "verdict": "any <384 -> NonDiscriminating; any <576 -> Insufficient; else PassMargin",
     "two_run_sha": "sha256 of rgb/depth/seg buffers across two product renders must be equal",
     "world_isolation": "change world1 geometry + light poses only: world0/world2 both cameras bit-identical, world1 at least one camera changes; not a substitute for A/B/C",
     "gating": "GPU case #[ignore]; forced --ignored run panics explicitly with 'not executed: reference missing (G-L1 capture pending)' (no silent skip); G-L2 frozen exe runs it for real",
-    "capture_provenance": "values vs spec §2.1/§2.2 (cam-persp/cam-hinge mode/fovy/resolution/pos/quat-normalized/sensorsize/intrinsic, scene sha256+bytes), command.argv shape, per_world_scope covers light+geom (string/list normalized like readout scope_text), resolved nworld/nrender/cam_id_map/cam_res/cam_active/legacy entries, optional C1 == capture-recorded C1"
+    "capture_provenance": "values vs spec §2.1/§2.2 (cam-persp/cam-hinge mode/fovy/resolution/pos/quat-normalized/sensorsize/intrinsic, scene sha256+bytes), command.argv shape, per_world_scope covers light+geom (string/list normalized like readout scope_text), resolved nworld/nrender/cam_id_map/cam_res/cam_active/legacy entries, optional C1 == capture-recorded C1",
+    "capture_c1_cross_check": "check_capture_c1 returns CaptureC1Check {Compared, Skipped(reason)}: per world pair it asserts entity C1 magnitude == capture.json magnitude and (when present) entity C1 bitwise == capture bitwise; missing field, legacy array shape or missing world pair returns Skipped(reason) printed explicitly by the GPU/pilot cases (never a silent pass)"
   },
   "self_proof": {
     "log": "logs/selfproof.log",
     "command": "cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1",
-    "result": "15 passed; 0 failed; 2 ignored (exit 0)",
+    "result": "16 passed; 0 failed; 2 ignored (exit 0)",
     "cases": [
       "verdict_boundaries_383_384_575_576",
       "zero_c2_set_fails_even_when_c1_is_large",
@@ -104,13 +105,14 @@
       "npz_parser_reads_members_and_npy_header",
       "missing_reference_reports_explicit_not_executed_error",
       "capture_provenance_self_check_rejects_bad_or_missing_fields",
-      "capture_c1_cross_check_requires_recorded_counts_match",
-      "capture_scope_text_handles_string_and_list"
+      "capture_scope_text_handles_string_and_list",
+      "capture_c1_cross_check_compares_spec_2_4_dict_counts",
+      "capture_c1_cross_check_reports_explicit_skip_reasons"
     ],
     "not_executed_check": "logs/not-executed-check.log (forced --ignored run: expected explicit failure with 'not executed: reference missing ...'; not a card failure)",
     "ignored_cases": [
       "gpu_per_world_light_matches_reference (G-L2 frozen exe; explicit 'not executed' without reference)",
-      "pilot_c1_crosscheck_matches_readout (local pilot npz under target/, not committed; C1 38285/40644)"
+      "pilot_c1_crosscheck_matches_readout (local pilot npz under target/, not committed; C1 38285/40644, C1 bitwise 43604/41815, §2.4 dict comparison + explicit skip print)"
     ]
   },
   "boundaries": {
@@ -178,28 +180,67 @@
     "line_counts": {
       "tests/render_per_world_light.rs": {
         "before": 489,
-        "after": 469
+        "after": 478
       },
       "tests/support/render_bvh/light.rs": {
         "before": 390,
-        "after": 500
+        "after": 499
       },
       "tests/support/render_bvh/light/tests.rs": {
         "before": 446,
-        "after": 465
+        "after": 487
       }
     },
     "gates": {
       "fmt": "pass",
       "clippy": "pass",
       "clippy-cuda": "pass",
-      "unit": "1386 passed / 0 failed / 402 ignored (before 1384)"
+      "unit": "1387 passed / 0 failed / 402 ignored (F1/O2 round 1386; +1 self-proof from the §2.4 dict adaptation)"
     },
     "boundaries": {
       "gpu_free": true,
       "no_capture": true,
       "criterion_semantics_a_b_c": "unchanged",
       "thresholds": "unchanged (384/576)"
+    }
+  },
+  "fixes_2": {
+    "round": "Chief 2026-11-08 assignment: adapt the C1 cross-check to the spec §2.4 dict structure (G-L2 would otherwise skip it)",
+    "changes": [
+      "check_capture_c1 -> CaptureC1Check {Compared, Skipped(&'static str)}; per world pair magnitude assert, bitwise assert when the capture records it",
+      "CCounts gains c1_rgb_bitwise_changed (raw-f32 bit-pattern count, equivalent to readout's int32 view compare)",
+      "explicit skip reasons for missing c1_rgb_changed_px / legacy array shape / missing world-pair magnitude (printed by GPU and pilot cases; no silent pass)",
+      "CPU self-proof: dict positive (magnitude+bitwise, magnitude-only), magnitude mismatch panic, bitwise mismatch panic, explicit skip cases; pilot case prints the skip reason for the old capture.json and compares a constructed §2.4 dict against the real counts"
+    ],
+    "line_counts": {
+      "tests/render_per_world_light.rs": {
+        "before": 470,
+        "after": 478
+      },
+      "tests/support/render_bvh/light.rs": {
+        "before": 500,
+        "after": 499
+      },
+      "tests/support/render_bvh/light/tests.rs": {
+        "before": 465,
+        "after": 487
+      }
+    },
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": "1387 passed / 0 failed / 402 ignored"
+    },
+    "boundaries": {
+      "gpu_free": true,
+      "no_capture": true,
+      "unchanged": [
+        "fixtures/",
+        "src/",
+        "scripts/"
+      ],
+      "criterion_semantics": "A/B/C thresholds and semantics unchanged"
     }
   }
 }
