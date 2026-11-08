@@ -1,0 +1,44 @@
+npz layout check against the real G-L0 pilot reference (npz not committed):
+goal: verify the entity npz parser assumptions (ZIP_STORED only, no data descriptor, sequential local headers).
+
+rgb.npz:
+  members=6 methods=[0] flag_bits=[0]
+  local-header walk members=6, walk_end=5530638, file_bytes=5531026, tail(central+EOCD)=388
+  walk rgb_w0_cam0.npy        method=0 stored_bytes=921728 dtype=float32 shape=(240, 320, 3)
+  walk rgb_w0_cam1.npy        method=0 stored_bytes=921728 dtype=float32 shape=(240, 320, 3)
+  walk rgb_w1_cam0.npy        method=0 stored_bytes=921728 dtype=float32 shape=(240, 320, 3)
+  walk rgb_w1_cam1.npy        method=0 stored_bytes=921728 dtype=float32 shape=(240, 320, 3)
+  walk rgb_w2_cam0.npy        method=0 stored_bytes=921728 dtype=float32 shape=(240, 320, 3)
+  walk rgb_w2_cam1.npy        method=0 stored_bytes=921728 dtype=float32 shape=(240, 320, 3)
+
+depth.npz:
+  members=6 methods=[0] flag_bits=[0]
+  local-header walk members=6, walk_end=1844250, file_bytes=1844650, tail(central+EOCD)=400
+  walk depth_w0_cam0.npy      method=0 stored_bytes=307328 dtype=float32 shape=(240, 320)
+  walk depth_w0_cam1.npy      method=0 stored_bytes=307328 dtype=float32 shape=(240, 320)
+  walk depth_w1_cam0.npy      method=0 stored_bytes=307328 dtype=float32 shape=(240, 320)
+  walk depth_w1_cam1.npy      method=0 stored_bytes=307328 dtype=float32 shape=(240, 320)
+  walk depth_w2_cam0.npy      method=0 stored_bytes=307328 dtype=float32 shape=(240, 320)
+  walk depth_w2_cam1.npy      method=0 stored_bytes=307328 dtype=float32 shape=(240, 320)
+
+seg.npz:
+  members=6 methods=[0] flag_bits=[0]
+  local-header walk members=6, walk_end=3687438, file_bytes=3687826, tail(central+EOCD)=388
+  walk seg_w0_cam0.npy        method=0 stored_bytes=614528 dtype=int32 shape=(240, 320, 2)
+  walk seg_w0_cam1.npy        method=0 stored_bytes=614528 dtype=int32 shape=(240, 320, 2)
+  walk seg_w1_cam0.npy        method=0 stored_bytes=614528 dtype=int32 shape=(240, 320, 2)
+  walk seg_w1_cam1.npy        method=0 stored_bytes=614528 dtype=int32 shape=(240, 320, 2)
+  walk seg_w2_cam0.npy        method=0 stored_bytes=614528 dtype=int32 shape=(240, 320, 2)
+  walk seg_w2_cam1.npy        method=0 stored_bytes=614528 dtype=int32 shape=(240, 320, 2)
+
+state.npz:
+  members=5 methods=[0] flag_bits=[0]
+  local-header walk members=5, walk_end=2172, file_bytes=2486, tail(central+EOCD)=314
+  walk geom_xmat.npy          method=0 stored_bytes=884 dtype=float32 shape=(3, 7, 3, 3)
+  walk geom_xpos.npy          method=0 stored_bytes=380 dtype=float32 shape=(3, 7, 3)
+  walk light_xdir.npy         method=0 stored_bytes=236 dtype=float32 shape=(3, 3, 3)
+  walk light_xpos.npy         method=0 stored_bytes=236 dtype=float32 shape=(3, 3, 3)
+  walk qpos.npy               method=0 stored_bytes=224 dtype=float32 shape=(3, 8)
+
+entity assertions matched: rgb <f4 (240,320,3) -> 3*PIXELS f32; depth <f4 (240,320) -> PIXELS f32; seg <i4 (240,320,2) -> 2*PIXELS i32; 6 world-camera keys per output; state has extra qpos member (ignored by named lookup).
+rgb byte-grid deviation on rgb_w0_cam0: max |v*255 - round(v*255)| = 1.75e-05 byte units (entity packed_rgb tolerance 0.01 byte) -> round-trip to packed u32 is exact for captured references.

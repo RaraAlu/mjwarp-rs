@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-criteria-entity-check",
+  "status": "effective",
+  "kind": "check",
+  "owner": "QA",
+  "positioning": "Read-only independent QA review of the perworld L v2 criteria entity card cde3e597 against signed spec v3 sections 4/5/6/8/10.1, with an independent criterion-C recompute on the retained G-L0 pilot reference, independent dumper re-run, forced-ignored gating check and the four gates. GPU-free, no capture, no window.",
+  "object": {
+    "card": "2026-11-08-render-perworld-l-v2-criteria-entity",
+    "commit": "cde3e597",
+    "parent": "88e4c29612475f7570668ff583c36e53ba48a48e",
+    "review_head": "774a027b",
+    "review_head_tree_clean": true,
+    "write_lock_at_review": "FREE"
+  },
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "bytes": 39379,
+    "sections_used": ["2.1", "2.4", "4", "5", "6", "8", "9.3", "10.1"]
+  },
+  "verdict": {
+    "overall": "pass-with-observations",
+    "blocking": 1,
+    "blocking_summary": "F1: criterion C1 counts byte-quantized |delta byte| >= 1 instead of the signed section 6 f32 max_channel|delta rgb| >= 1/255; on the G-L0 pilot reference this yields 43,604/41,815 vs 38,285/40,644 (+5,319/+1,171, all 254<->255 saturation-boundary steps). Verdict does not flip on this reference (all counts >> 576) but the counting rule deviates from the signed object and leans permissive; fix before freezing the G-L2 executable.",
+    "g_l2_freeze": "conditional: fix F1 (and preferably O2) before the G-L2 frozen-exe freeze; the rest of the entity is ready",
+    "other_findings": "none: A strict-bit-level without allowlist/tolerance, C2 exact, camera attribution fixed and non-swappable, diagnostics recorded only, gating explicit, dump reproducible, boundaries and four gates clean"
+  },
+  "files_verified": {
+    "tests/render_per_world_light.rs": {"lines": 489, "bytes": 19235, "sha256": "d064765b89052fd731b473bfa99319b3a37220bd0995eecb4cfba57c998a6ceb"},
+    "tests/support/render_bvh/light.rs": {"lines": 390, "bytes": 17580, "sha256": "70fd4e852736f1fdb3c99cbb27949f36e442c0db714c7ff91ae76ef8f62f3f7d"},
+    "tests/support/render_bvh/light/tests.rs": {"lines": 446, "bytes": 15225, "sha256": "c0da31656f9d87fd98e76a724c55f27e22bbffeb2b0c55f8305f1baa60e4bd43"},
+    "tests/support/render_bvh/light/model-315.json": {"bytes": 312943, "sha256": "503bdabd3366034460639bfc7771e6cecc3381a950fbf40850c25e1b691dc67f"},
+    "tests/support/render_bvh/light/model-315.provenance.json": {"bytes": 2209, "sha256": "e4553329e244845f7ac6648c580f141c8f58e656f4a9fabd9efacd381810a81b"},
+    "evidence/manifest": {"entries": 6, "recomputed": "6/6"}
+  },
+  "criteria": {
+    "a_strict_bitwise": {
+      "rgb": "mismatched_pixels==0 and max_byte_diff==0, no allowlist, no 1-LSB relaxation",
+      "depth": "to_bits equality (beyond_ulp==0, zero tolerance)",
+      "seg": "(id,type) equality per pixel",
+      "cameras": "cam-persp and cam-hinge, per world, 3 worlds each",
+      "result": "pass"
+    },
+    "b_light_bits": {
+      "method": "reference state.npz light_xpos/light_xdir f32 bits vs WorldLightPoses built bit-verbatim from the same state",
+      "result": "pass",
+      "boundary": "helper/data-plane check; product-internal upload not observable (see O3)"
+    },
+    "c_reference_side": {
+      "c1": "cam-persp only, two pairs (0,1),(1,2)",
+      "c2": "cam-hinge only, depth bits + seg pair, two pairs",
+      "thresholds": {"accept": 384, "margin": 576, "verdict": "any<384 NonDiscriminating; any<576 Insufficient; else PassMargin"},
+      "camera_swap": "fixed attribution, positive and negative self-proof present",
+      "result": "structure pass; C1 counting rule deviates (F1)"
+    }
+  },
+  "independent_recompute": {
+    "reference": "target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040/ (G-L0 retained reference; npz not committed)",
+    "c1_signed_f32": [38285, 40644],
+    "c1_entity_byte": [43604, 41815],
+    "c1_delta": [5319, 1171],
+    "c2_depth": [35828, 33883],
+    "c2_seg": [16041, 16754],
+    "c2_matches_pilot_exactly": true,
+    "diagnostics_campersp_depth_seg": [[0, 0], [0, 0]],
+    "diagnostics_camhinge_rgb_entity_byte": [54380, 54250],
+    "diagnostics_camhinge_rgb_signed_f32": [50363, 52329],
+    "f1_root_cause": "1.0 - 254/255 = 0.003921508789 in f32/f64 is strictly below 1/255 = 0.003921568627; the signed rule does not count 254<->255 steps while the byte rule does; section 6 also states saturated pixels are not counted",
+    "sample_pixel": {"pixel": [0, 233], "prev": [1.0, 1.0, 1.0], "next": [1.0, 0.99607849, 1.0], "bytes_prev": [255, 255, 255], "bytes_next": [255, 254, 255], "delta": 0.0039215087890625},
+    "verdict_flip_on_this_reference": false,
+    "artifact": "artifacts/c1-recompute.json"
+  },
+  "gating": {
+    "file_cfg": "#![cfg(feature = \"cuda-probe\")]",
+    "gpu_case": "#[ignore]",
+    "forced_ignored_exit": 101,
+    "forced_ignored_message": "not executed: reference missing (G-L1 capture pending): ../fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/ (required rgb/depth/seg/state npz + capture.json)",
+    "panic_location": "tests/render_per_world_light.rs:353",
+    "default_gate_unaffected": true,
+    "artifact": "artifacts/not-executed-rerun.log"
+  },
+  "product_path": {
+    "entry": "render_per_world_with_lights",
+    "lights_type": "WorldLightPoses (3 worlds x 3 lights; f32 bits copied from reference state.npz; no FK/f64/re-normalization)",
+    "camera_poses": "CameraPose::from_fields length == ncam(3); world_camera_pose_arrays accepts ncam broadcast (fixed cameras)",
+    "per_world_geometry": "apply_poses per world = update_poses + refit_bvh (P0-1 prerequisite present in product path)",
+    "two_run_sha": "rgb/depth/seg block hashes equal across two renders",
+    "world_isolation": "change world1 geometry+lights only: world0/world2 both cameras bit-identical, world1 at least one camera changes"
+  },
+  "dump_provenance": {
+    "redump_byte_identical": true,
+    "model_sha256": "503bdabd3366034460639bfc7771e6cecc3381a950fbf40850c25e1b691dc67f",
+    "model_bytes": 312943,
+    "two_dumps_byte_identical": true,
+    "compile_315": {"mjb_sha256": "c5414b6bc12e0f172050a03c3bfad8f3a9e83386b3578e919e67d09ddc4956dc", "mjb_bytes": 101586, "two_saves_identical": true},
+    "environment": {"python": "3.12.13", "mujoco": "3.15.0", "mujoco_version_int": 3015000},
+    "input_scene": {"path": "fixtures/render-bvh/scene-a-light/scene.xml", "sha256": "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716", "bytes": 5134},
+    "dumper_script_sha256": "215fff8e0ade107c5af538626b7892aaa1a2f49e9c27a6ae9f2ea371534efb78",
+    "model_parity_sha256": "826bd7904bad18447e594876d21373c154e4c01f8b61729d480a79e70f79fbaf",
+    "dump_location": "tests/support/render_bvh/light/ (not fixtures)",
+    "camera_arrays": {"cam_mode": [0, 0, 3], "cam_fovy": [73.73979462, 30.0, 40.0], "cam_hinge_sensorsize": [0, 0], "cam_hinge_intrinsic": [0.01, 0.01, 0, 0]},
+    "artifact": "artifacts/dump-redump.json"
+  },
+  "self_proof": {
+    "command": "cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1",
+    "result": "13 passed; 0 failed; 1 ignored; exit 0",
+    "artifact": "artifacts/selfproof-rerun.log",
+    "coverage_checked": [
+      "verdict boundaries 383/384/575/576 (per set and per pair)",
+      "zero C2 set fails even when C1 is large",
+      "C1 on cam-persp / C2 on cam-hinge (positive)",
+      "camera-swapped reference rejected (negative)",
+      "1/255 byte rule and max-channel (current byte口径; must be updated with F1)",
+      "pair order world-major [(0,1),(1,2)]",
+      "criterion A detects rgb/depth/seg bit differences and length mismatch",
+      "criterion B bit comparison and single-bit mutation",
+      "two-run sha and isolation helper",
+      "npz parser positive/negative",
+      "capture provenance negative cases"
+    ]
+  },
+  "npz_parser_check": {
+    "source": "real G-L0 pilot npz layout",
+    "zip_method": "ZIP_STORED only",
+    "flag_bits": 0,
+    "members": {"rgb": 6, "depth": 6, "seg": 6, "state": 5},
+    "local_header_walk": "stops exactly at central directory",
+    "dtypes": {"rgb": "float32 (240,320,3)", "depth": "float32 (240,320)", "seg": "int32 (240,320,2)"},
+    "entity_assertions_match": true,
+    "rgb_byte_grid_max_deviation": 1.75e-05,
+    "artifact": "artifacts/npz-layout-check.txt"
+  },
+  "boundaries": {
+    "changed_paths": 17,
+    "cards": 1,
+    "gate_runs": 4,
+    "evidence": 7,
+    "tests_new": 5,
+    "src_fixtures_scripts_diff": "NONE",
+    "line_counts": {"tests/render_per_world_light.rs": 489, "tests/support/render_bvh/light.rs": 390, "tests/support/render_bvh/light/tests.rs": 446},
+    "line_limit": 500,
+    "test_files_in_module_sources": 0,
+    "encoding": "UTF-8/LF, no BOM, CR/TAB 0",
+    "artifact": "artifacts/encoding-checks.txt"
+  },
+  "gates": {
+    "fmt": {"passed": true, "exit": 0},
+    "clippy": {"passed": true, "exit": 0},
+    "clippy-cuda": {"passed": true, "exit": 0},
+    "unit": {"passed": true, "exit": 0, "tests": {"passed": 1384, "failed": 0, "ignored": 401}},
+    "run_by": "this check card (normify gate 2026-11-08-render-perworld-l-v2-criteria-entity-check)"
+  },
+  "observations": [
+    {"id": "F1/O1", "severity": "medium", "blocking": true, "title": "C1 counting rule deviates from signed section 6", "detail": "byte-quantized |delta byte| >= 1 vs f32 max_channel|delta rgb| >= 1/255; 43,604/41,815 vs 38,285/40,644 on the pilot reference; all extra pixels are 254<->255; direction permissive; fix before G-L2 freeze", "fix": "compute C1 on f32 reference values with threshold 1.0/255.0 (same formula as readout_c1_c2.py), update the self-proof assertion, and ideally assert the recomputed C1 equals capture.json c1_rgb_changed_px"},
+    {"id": "O2", "severity": "low", "blocking": false, "title": "capture provenance self-check is partial", "detail": "checks presence of the 10 camera fields but not values vs section 2.1; does not check command/per_world_scope wording; does not cross-check capture.json discriminability counts", "fix": "extend check_capture_provenance before G-L2 (value assertions, 4 metadata items, count cross-check)"},
+    {"id": "O3", "severity": "low", "blocking": false, "title": "criterion B independent power is limited to the helper/data plane", "detail": "compares WorldLightPoses built from state.npz against the same state.npz; product-internal upload not observable; evidence for the product side remains the Card H code review", "fix": "none required; note the boundary in the G-L2 record"},
+    {"id": "O4", "severity": "low", "blocking": false, "title": "CAMERAS constant used as light count", "detail": "light.rs CAMERAS=3 is used for lights in world_light_poses and criterion_b hardcodes 3", "fix": "rename to LIGHTS and use the constant consistently"},
+    {"id": "O5", "severity": "info", "blocking": false, "title": "two-run sha granularity", "detail": "3 block hashes (rgb/depth/seg across all worlds/cameras) instead of per world per camera as worded in section 4; pass/fail equivalent", "fix": "document or refine"},
+    {"id": "O6", "severity": "info", "blocking": false, "title": "entity asserts PassMargin (576) not acceptance 384", "detail": "capture-precondition threshold is stricter than the section 6 acceptance threshold; safe", "fix": "keep; note in G-L2 material"},
+    {"id": "O7", "severity": "info", "blocking": false, "title": "model dump JSON has no EOL attribute", "detail": "core.autocrlf=true and no attribute for tests/support json, same posture as existing hfield/SDF model dumps; fresh-checkout worktree bytes may be non-LF and provenance sha refers to the LF blob", "fix": "pre-existing convention; if governed, add a repo-wide attribute for tests/support json"}
+  ],
+  "non_claims": {
+    "statement": "Read-only review plus independent recompute only: no G-L2 pass claim, no per-world light acceptance, no upstream-equivalence claim, no rendering numeric conclusion. The reviewed content, spec, pilot evidence and signature records were not modified. Whether and when F1 is fixed before the G-L2 freeze is a Chief scheduling decision."
+  }
+}

@@ -1,0 +1,39 @@
+Evidence hygiene / boundary / gate self-checks for the criteria-entity review (read-only on the reviewed content).
+
+== 1. encoding of reviewed new test files (expect BOM=False, CR=0, TAB=0, LF only) ==
+tests/render_per_world_light.rs                      BOM=False CR=0 TAB=0 bytes=19235 sha=d064765b89052fd731b473bfa99319b3a37220bd0995eecb4cfba57c998a6ceb
+tests/support/render_bvh/light.rs                    BOM=False CR=0 TAB=0 bytes=17580 sha=70fd4e852736f1fdb3c99cbb27949f36e442c0db714c7ff91ae76ef8f62f3f7d
+tests/support/render_bvh/light/tests.rs              BOM=False CR=0 TAB=0 bytes=15225 sha=c0da31656f9d87fd98e76a724c55f27e22bbffeb2b0c55f8305f1baa60e4bd43
+tests/support/render_bvh/light/model-315.json        BOM=False CR=0 TAB=0 bytes=312943 sha=503bdabd3366034460639bfc7771e6cecc3381a950fbf40850c25e1b691dc67f
+tests/support/render_bvh/light/model-315.provenance.json BOM=False CR=0 TAB=0 bytes=2209 sha=e4553329e244845f7ac6648c580f141c8f58e656f4a9fabd9efacd381810a81b
+
+== 2. manifest recompute of reviewed evidence dir (expect 6/6) ==
+OK    artifacts/model-315.provenance.json        sha=e4553329e244845f7ac6648c580f141c8f58e656f4a9fabd9efacd381810a81b bytes=2209
+OK    logs/not-executed-check.log                sha=d3bed4f123d1f512255de4419746a5dd337cabde3112c777a814c08085bcd69d bytes=1459
+OK    logs/selfproof.log                         sha=e4d1fa01d32b4e589b4a85f91d798ca92edc4fb0eb7ef8d92f8c6fbc12d59a46 bytes=1912
+OK    materials/dump_model_315_light.py          sha=215fff8e0ade107c5af538626b7892aaa1a2f49e9c27a6ae9f2ea371534efb78 bytes=5630
+OK    README.md                                  sha=5ebbafa1031167fd0d5f8f98589ec4ebffdfc5d44f439498c391be5ef63af871 bytes=9641
+OK    receipt.json                               sha=150bf17f8dbcaed5ec6a0f378a6b8ec38e1b939db481eb98b478c636612f8781 bytes=6757
+recomputed 6/6
+
+== 3. line counts of reviewed new files (limit 500) ==
+tests/render_per_world_light.rs                lines=489
+tests/support/render_bvh/light.rs              lines=390
+tests/support/render_bvh/light/tests.rs        lines=446
+
+== 4. changed paths in the reviewed commit (parent 88e4c296 -> cde3e597) ==
+total changed paths=17: {"card": 1, "evidence": 7, "gate-runs": 4, "tests(new)": 5}
+src/ fixtures/ scripts/ diff: NONE
+
+== 5. gates re-run independently (normify gate 2026-11-08-render-perworld-l-v2-criteria-entity-check) ==
+fmt          passed=True exit=0 wall_ms=1913
+clippy       passed=True exit=0 wall_ms=556
+clippy-cuda  passed=True exit=0 wall_ms=455
+unit         passed=True exit=0 wall_ms=14685 tests={'passed': 1384, 'failed': 0, 'ignored': 401}
+
+== 6. forced ignored GPU case (expected explicit not-executed, exit 101) ==
+see artifacts/not-executed-rerun.log: 1 failed, exit 101, panic at tests/render_per_world_light.rs:353 with
+  "not executed: reference missing (G-L1 capture pending): ../fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/"
+
+== 7. CPU self-proof re-run ==
+see artifacts/selfproof-rerun.log: 13 passed; 0 failed; 1 ignored; exit 0
