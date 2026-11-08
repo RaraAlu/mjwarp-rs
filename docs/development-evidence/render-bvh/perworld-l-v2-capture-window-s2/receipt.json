@@ -2,8 +2,8 @@
   "schema": 1,
   "task_id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
   "kind": "window-material-s2",
-  "title": "S-2 capture window material (per-world L v2 light, G-L1): 6+1 preconditions, plan, discipline incl. pre-approved authoring exception, post-capture checks, user dual-sign summary",
-  "status": "material_qa_prereview_passed_fixed_pending_user_dual_sign",
+  "title": "S-2 capture window material (per-world L v2 light, G-L1): 6+1 preconditions + P1a (section 2.4 discriminability counts), plan, discipline incl. pre-approved authoring exception, post-capture checks, user dual-sign summary",
+  "status": "material_fixed_r2_pending_qa_recheck_and_user_dual_sign",
   "signed_object": false,
   "owner": "Arch",
   "date": "2026-11-08",
@@ -25,6 +25,11 @@
       "id": "P1",
       "item": "section 11.1-1 command field",
       "anchor": "capture-meta card b0af1be4 (QA 6419eb40); pilot capture.json command"
+    },
+    {
+      "id": "P1a",
+      "item": "section 2.4 discriminability counts written into capture.json and self-checked",
+      "anchor": "counts card 311b5a84; QA PASS 2026-11-08-...-capture-discriminability-counts-check (fefe45a5, 0 blocking); fields c1_rgb_changed_px (bitwise+magnitude, both pairs), c2_depth_changed_px, c2_seg_changed_px, diagnostics campersp_depth_seg_changed_px / camhinge_rgb_changed_px, structure {0->1, 1->2}; pilot crosscheck C1 magnitude 38,285/40,644, bitwise 43,604/41,815, C2 depth 35,828/33,883, seg 16,041/16,754, diag cam-persp depth/seg 0/0, cam-hinge rgb 50,363/52,329"
     },
     {
       "id": "P2",
@@ -76,6 +81,13 @@
     "use_shadows": true,
     "capture_at": "explicit MJWARP_CAPTURE_AT fixed by the S-2 window card (N1 validated)",
     "refit_evidence": "capture runs through run_pilot_with_refit_counter.py (refit x2 / render x2, order refit->render->refit->render)",
+    "capture_json_discriminability_counts": "section 2.4 five fields written by the capture script after the two-capture bit-identical check: c1_rgb_changed_px (bitwise+magnitude), c2_depth_changed_px, c2_seg_changed_px, diagnostics campersp_depth_seg_changed_px / camhinge_rgb_changed_px; structure {0->1, 1->2}",
+    "script_identity": {
+      "capture_render_perworld.py": {"sha256": "f3af09ab992981f2dc5d7f2e3479aaf9eebb97df0d2a774b247c8e0772ad6f07", "bytes": 23637, "lines": 490},
+      "perworld_capture_meta.py": {"sha256": "3fdb85953681a1a695a9611fc48ddf0862318acf0e0767e831029a820127b87e", "bytes": 19154, "lines": 379},
+      "perworld_light_prep.py": {"sha256": "9fd5f8c25894380992986ffecaa584ee4fdff53a042438a70812f04699113e2c", "bytes": 7206, "lines": 160, "note": "unchanged"},
+      "note": "pilot baseline (capture_render_perworld.py 55b91f23.../23,483 B, perworld_capture_meta.py 296c2b12.../12,508 B) is OBSOLETE; T0 records the actual Get-FileHash values"
+    },
     "environment": {
       "python": "3.12.13",
       "warp": "1.15.0",
@@ -121,6 +133,7 @@
     "two captures bitwise identical (per-file sha256; capture.json flag)",
     "C1 cam-persp both world pairs >=576 (max_channel |delta rgb| >= 1/255)",
     "C2 cam-hinge depth bit-change and seg pair-change both pairs >=576",
+    "section 2.4 counts in capture.json equal the readout counters for both world pairs item by item (entity check_capture_c1 adapted to the dict structure)",
     "metadata four items + dual-camera snapshot (nrender==2 / cam_id_map==[0,1] / cam_res==[[320,240],[320,240]] / recipe.cameras 2x10 fields)",
     "legacy_reference_untouched == true",
     "refit counter pattern ok",
@@ -128,7 +141,7 @@
     "[384,576) insufficient margin => stop; <384 non-discriminating => refuse; commit only on full pass"
   ],
   "dual_sign_summary": {
-    "s2a_plan": "single authoring capture window, executor Backend, formal reference root under fixtures/, five files about 11.08 MB, tag/seed/fastmath/shadows/capture-at as above",
+    "s2a_plan": "single authoring capture window, executor Backend, formal reference root under fixtures/, five files about 11.08 MB, tag/seed/fastmath/shadows/capture-at as above, and capture.json carrying the spec 2.4 discriminability counts (verified card 311b5a84 / QA fefe45a5)",
     "s2b_baseline_and_signed_floor": {
       "suggested_reading": "2026-11-08 19:14 +08:00 GPU-free three-point: free 13,302 / 13,302 / 13,302 MiB",
       "baseline_free_mib": 13302,
@@ -178,13 +191,18 @@
     "signed_object": false
   },
   "awaiting": {
-    "qa_prereview": "PASSED 2026-11-08 (card 2026-11-08-render-perworld-l-v2-capture-window-s2-material-check, commit 7c76ad6b); a minimal QA re-check of this fix round is requested",
+    "qa_prereview": "PASSED 2026-11-08 (card 2026-11-08-render-perworld-l-v2-capture-window-s2-material-check, commit 7c76ad6b); r1 floor fix re-checked PASS (card ...-capture-window-s2-material-fix-check); this r2 round (P1a counts + script identity) awaits a minimal QA re-check",
     "user_s2_dual_sign": "pending (S-2a plan + S-2b baseline/signed floor)",
     "chief_g_l1_token": "pending after QA PASS + S-2 signed + window conditions"
   },
+  "fix_rounds": [
+    {"round": "r1", "commit": "ade516b5", "items": ["floor merge rule min -> max (free >= floor, so higher = stricter)", "baseline_free = min(three samples) labelled as the separate sampling rule", "QA O1 suggested label in the signature-card line", "QA O2 pilot closeout QA anchor c5a56639", "QA O3 G-L1 evidence dir naming"]},
+    {"round": "r2", "items": ["P1a section 2.4 discriminability counts (card 311b5a84 / QA fefe45a5)", "script identity updated, pilot baseline obsolete", "post-capture step: capture counts vs readout item by item", "S-2a plan note; S-2b/exception/failure clauses unchanged", "counts-card low observations recorded as follow-ups, not blockers"]}
+  ],
   "non_claim": [
     "material only; not a G-L1 start (needs QA PASS + user S-2 dual signature + Chief token)",
     "no capture validity / per-world light acceptance / upstream equivalence / render numeric claims",
-    "suggested baseline readings are pre-window references, not signed values; the window recomputes and uses the higher (stricter) floor"
+    "suggested baseline readings are pre-window references, not signed values; the window recomputes and uses the higher (stricter) floor",
+    "counts-card low observations (verify-after-write; c2/diag value types unchecked) are follow-ups, not S-2 blockers"
   ]
 }

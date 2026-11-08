@@ -6,12 +6,13 @@
 - 本卡**零 GPU、不采集、不改 `fixtures/`**；G-L1 执行者为 **Backend（唯一写者）**，**单次、失败即停**
 - 关键数字：参考产物 **5 文件 ≈ 11.08 MB**；通过条件 **C1 与 C2 两套、两对 world 全部 ≥576**；[384,576) 停手、<384 拒通过
 
-## 1. 前置核对表（§11.1 六项 + 第 7 项；红项禁签/禁开）
+## 1. 前置核对表（§11.1 六项 + **P1a §2.4 判别力计数** + 第 7 项；红项禁签/禁开）
 
 | # | 前置 | 证据锚点（当前状态） |
 | --- | --- | --- |
 | P0 | **S-1 已签且 spec 冻结**（G-L1 的规格前提） | spec v3 `bb064fe0…`/39,379 B；receipt `status=effective`/`spec_frozen=true`；签名卡 `2026-11-08-…-spec-v3-signature`（`ba420eb6`）、QA `5e82feed` |
 | P1 | **§11.1-1 `command` 字段**：采集脚本写 `{argv 逐字, cwd, rendered}`，采集后自核非空 | `2026-11-07-render-perworld-l-v2-capture-meta`（实现 `b0af1be4`、QA `6419eb40`）；pilot `capture.json.command` 非空（窗卡 `window/capture.json`） |
+| **P1a** | **§2.4 判别力计数写入 `capture.json` 并自核**：`c1_rgb_changed_px`（两对 world 的 `bitwise` + `magnitude`）、`c2_depth_changed_px`、`c2_seg_changed_px`（两对 world）、诊断 `campersp_depth_seg_changed_px`、`camhinge_rgb_changed_px`；结构 `{"0->1":…, "1->2":…}` | 计数卡 `2026-11-08-render-perworld-l-v2-capture-discriminability-counts`（实现 **`311b5a84`**）；QA 复核卡 `…-capture-discriminability-counts-check`（证据 **`fefe45a5`**，PASS 0 阻断）；pilot 交叉核对：C1 magnitude **38,285/40,644**、bitwise **43,604/41,815**，C2 depth **35,828/33,883**、seg **16,041/16,754**，诊断 cam-persp depth/seg **0/0**、cam-hinge rgb **50,363/52,329** |
 | P2 | **§11.1-2 `captured_at` + env**：必须显式非空 `MJWARP_CAPTURE_AT`（ISO8601），缺/空在 GPU 前 exit 1；开窗前 N1 校验、采集后自核 | 同上 capture-meta 卡；pilot 显式值 `2026-11-08T19:00:00+08:00`（窗卡 `window/token-capture-at.txt`）；本次窗卡写死 S-2 的具体值 |
 | P3 | **§11.1-3 `per_world_scope` 新口径**（覆盖 per-world 灯位姿 + geom 位姿），旧文案出现即拒 | pilot `metadata-selfcheck.json`：`scope_covers_light_and_geom=true`、`scope_no_old_wording=true`、`failed=[]` |
 | P4 | **§11.1-4 `recipe.task_id` / `reference_tag`**：保留 `task_id`/`task_id_source`，新增 `reference_tag`（本次显式 `nw3-light-hinge02040`） | capture-meta 卡；pilot `capture.json.reference_tag=nw3-light-hinge02040` |
@@ -34,6 +35,8 @@
 | 位形 | `--worlds 3 --hinge-deg 0,20,40`；`--seed 20261030`；`--use-fast-math false`；`--use-shadows true` |
 | 采集时间 | 显式 `MJWARP_CAPTURE_AT`（S-2 窗卡写死具体 ISO8601；N1 校验步） |
 | 环境 | pinned venv 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0（editable `71da24d9`）/ numpy 2.5.4 / RTX 4070 Ti SUPER driver 596.36 SM89 |
+| 脚本身份（T0 指纹；**pilot 基线已过时**） | `capture_render_perworld.py` **`f3af09ab…`/23,637 B/490 行**（pilot 时为 `55b91f23…`/23,483 B）；`perworld_capture_meta.py` **`3fdb8595…`/19,154 B/379 行**（pilot 时为 `296c2b12…`/12,508 B）；`perworld_light_prep.py` `9fd5f8c2…`/7,206 B/160 行**不变**；`materials/command.txt` 第 1 步现场 `Get-FileHash` 记录实际值 |
+| `capture.json` 判别力计数（§2.4） | 必含上面 P1a 的 5 组字段，结构 `{"0->1":…, "1->2":…}`；由采集脚本在**两遍采集逐位一致校验之后**计算写入（卡 `311b5a84` / QA `fefe45a5`） |
 | 产物 | 5 文件：`rgb.npz` 5,531,048 B + `depth.npz` 1,844,672 B + `seg.npz` 3,687,848 B + `state.npz` 2,486 B + `capture.json` ≈10 KB = **≈11.08 MB** |
 | 判读 | 复用材料脚本 `perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py`（修复版 `4a054aba…`/16,711 B；arg 名 `--pilot-dir` 保留，指向正式参考目录即可；C1/C2 口径与 spec §6 相同） |
 | refit 证据 | 采集经 `run_pilot_with_refit_counter.py`（`refit×2`、`render×2`、顺序 `refit→render→refit→render`），counter JSON 入证据 |
@@ -55,8 +58,9 @@
 3. **C2**：`cam-hinge` 相邻 world 的 `depth_changed_px`（位型不等）与 `seg_changed_px`（pair 不等），两对均 **≥576**；
 4. **元数据四项 + 双相机快照**：`command`/`captured_at`/`reference_tag`/`per_world_scope` + `context.resolved`（`nrender==2`/`cam_id_map==[0,1]`/`cam_res==[[320,240],[320,240]]`）+ `recipe.cameras` 2×10 字段（含 `sensorsize`/`intrinsic`；cam-hinge 走 fovy 路径）；
 5. **`legacy_reference_untouched == true`**；
-6. 以上全过 → **落库**（正式参考根，允许提交）；任一失败 → **停手报用户**（[384,576) 余量不足停、<384 拒通过；不重试、不改阈值、不换参考）；
-7. **证据归档**（`window/*`，见 `materials/evidence-checklist.txt`）后进入验证前置（G-L2）。
+6. **§2.4 判别力计数交叉核对**：`capture.json` 的 `c1_rgb_changed_px`（`magnitude`/`bitwise`）、`c2_depth_changed_px`、`c2_seg_changed_px` 与两个诊断项，须与 readout 产物（`c1_cam_persp`/`c2_cam_hinge`/`diagnostics_no_threshold`）**两对 world 逐项相等**；不一致即停手（实体 `check_capture_c1` 已适配字典结构，G-L2 会再交叉核对一次）；
+7. 以上全过 → **落库**（正式参考根，允许提交）；任一失败 → **停手报用户**（[384,576) 余量不足停、<384 拒通过；不重试、不改阈值、不换参考）；
+8. **证据归档**（`window/*`，见 `materials/evidence-checklist.txt`）后进入验证前置（G-L2）。
 
 附加（不设门槛、只记录）：诊断项 `cam-persp` depth/seg（预期 0/0）、`cam-hinge` rgb（预期大）；每 world 每相机 seg 可见 `(id,type)` 集合；refit counter JSON 原样保留。
 
@@ -64,13 +68,13 @@
 
 | 签名项 | 内容 |
 | --- | --- |
-| **S-2a（计划）** | G-L1 采集窗计划：执行者 Backend、**单次**、`--repeat 2` 两遍逐位一致、正式参考根 `fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/`、tag/seed/fastmath/shadows/`MJWARP_CAPTURE_AT` 如上；产物 5 文件 **≈11.08 MB** |
+| **S-2a（计划）** | G-L1 采集窗计划：执行者 Backend、**单次**、`--repeat 2` 两遍逐位一致、正式参考根 `fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/`、tag/seed/fastmath/shadows/`MJWARP_CAPTURE_AT` 如上；产物 5 文件 **≈11.08 MB**；**`capture.json` 含 spec §2.4 判别力计数**（5 组字段、两对 world；已验证卡 `311b5a84` / QA `fefe45a5`） |
 | **S-2b（基线 + signed floor）** | **建议 baseline**（2026-11-08 零 GPU 三点实测，详见 `materials/baseline-suggestion.txt`）：used 2,760 MiB、free **13,302 MiB**、util 2–3%、26 °C → `baseline_free=13,302`、**signed floor = 10,230 MiB**（**suggested**：建议值，非签名值）；**取严规则**：开窗时现场重算，`floor_effective = max(signed floor 10,230, 现场 floor)`（**取严 = 取更高**） |
 | **authoring 例外** | 用户 2026-11-08 已预批：常规 `util<40` 不达标时允许 authoring-only `util<60`，**仅本采集窗生效**，仍需 S-2 双签，逐样本记录，失败即停、不重试、不放宽 |
 | **失败条款** | 任一采集/判读/元数据/legacy 失败 → 停手报用户，不重试、不改阈值/相机/recipe、不换参考；落库前失败只清本次新建 out-dir 残件 |
 | **证据/QA** | 证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/`（开窗卡命名时对齐此路径）；QA 读前预审本材料 + 采集后 QA 复核；窗口记录同 pilot 格式（基线与 monitor 用同一份原始记录） |
 
-**签名卡建议字段**：窗口名 `G-L1 perworld L v2 灯采集窗`；依据 spec v3 sha256 `bb064fe0…`/39,379 B（S-1 已签）；S-2a 计划摘要（上表第 1 行）；S-2b `baseline_free=13,302` / `signed floor=10,230`（取严说明）；authoring 例外条款（上表第 3 行）；失败条款；执行者 Backend / 单次 / 产物落正式参考根；证据与 QA 安排。
+**签名卡建议字段**：窗口名 `G-L1 perworld L v2 灯采集窗`；依据 spec v3 sha256 `bb064fe0…`/39,379 B（S-1 已签）；S-2a 计划摘要（上表第 1 行，含「`capture.json` 含 §2.4 判别力计数」）；S-2b `baseline_free=13,302` / `signed floor=10,230`（取严说明）；authoring 例外条款（上表第 3 行）；失败条款；执行者 Backend / 单次 / 产物落正式参考根；证据与 QA 安排。
 
 > 现场约束：开窗时若外部 GPU 负载未退场或 monitor 不干净 → **不发 token/不开窗**；现场 floor 若比 10,230 更高（更严）则用现场值（取严 = 取更高者）。
 
@@ -80,7 +84,7 @@
 | --- | --- |
 | `README.md` | 本材料本体 |
 | `receipt.json` / `manifest.txt` | 机器可读回执 / sha256+bytes 清单（首行 `#`，含 `# base dir:`） |
-| `materials/preconditions.txt` | 前置表 P0–P7（逐项锚点，缺项禁签） |
+| `materials/preconditions.txt` | 前置表 P0–P7 + **P1a（§2.4 计数）**（逐项锚点，缺项禁签） |
 | `materials/window-plan.txt` | G-L1 计划（路径/参数/环境/产物/单次） |
 | `materials/command.txt` | 逐字命令（冻结/指纹/N1/dry-run/wrapper 采集/判读/证据/失败清理） |
 | `materials/baseline-sop.txt` | 三点基线与 `floor_effective` 取严 SOP |
@@ -99,6 +103,8 @@
 
 ## 8. 修订记录（fix 轮，2026-11-08）
 
+### r1（`ade516b5`：floor 合并语义 + QA O1–O3）
+
 QA 读前预审 PASS（卡 `…-capture-window-s2-material-check`，`7c76ad6b`，0 阻断 / 1 建议措辞 / 2 信息项）后，按 Chief 2026-11-08 派工做一次 fix，**不改任何判据、阈值、相机归属、recipe 或参考范围**：
 
 1. **floor 合并规则语义反转更正（判据级措辞，非阈值）**：`floor_effective` 由 `min(signed, onspot)` 改为 **`max(signed, onspot)`**。依据：验收条件是 `free ≥ floor_effective`，**floor 越高越严**；取 `min` 会放宽（例：signed 10,230 / 现场 10,300 → 必须按 10,300 卡，而不是 10,230）。同时写明 `baseline_free = min(三点 free)` 是**采样取严**（取最差样本），与 signed/现场合并规则不是同一件事。同句修正覆盖：`materials/baseline-sop.txt`、`materials/signature-summary.txt`、`materials/baseline-suggestion.txt`、`materials/command.txt`（执行单）、`materials/qa-prereview-checklist.txt`、`materials/evidence-checklist.txt`、本 README §3/§5、`receipt.json`。
@@ -107,3 +113,16 @@ QA 读前预审 PASS（卡 `…-capture-window-s2-material-check`，`7c76ad6b`�
 4. **QA O3**：G-L1 证据目录名核对为 `…/perworld-l-v2-capture-window-g-l1/`（README §5 / signature-summary / receipt 三处一致），并注明开窗卡命名时对齐。
 
 签名对象、前置项、计划、authoring 例外范围、失败条款、采后自检与 [384,576)/<384 口径均未改动；`unchanged src/, fixtures/, scripts/, tests/`，零 GPU、不采集。
+
+### r2（§2.4 判别力计数前置；本轮）
+
+QA 复核 `capture.json` §2.4 判别力计数 **PASS**（卡 `2026-11-08-render-perworld-l-v2-capture-discriminability-counts`，实现 `311b5a84`；复核卡 `…-capture-discriminability-counts-check`，证据 `fefe45a5`，0 阻断）后，按 Chief 2026-11-08 派工做第二次 fix：
+
+1. **新增前置 P1a**：`capture.json` 必含并自核 §2.4 五组字段（`c1_rgb_changed_px` 两对 world 的 `bitwise`+`magnitude`、`c2_depth_changed_px`、`c2_seg_changed_px`、诊断 `campersp_depth_seg_changed_px`、`camhinge_rgb_changed_px`），结构 `{"0->1":…, "1->2":…}`；pilot 交叉核对数字：C1 magnitude 38,285/40,644、bitwise 43,604/41,815，C2 depth 35,828/33,883、seg 16,041/16,754，诊断 cam-persp depth/seg 0/0、cam-hinge rgb 50,363/52,329。见 §1 P1a、`materials/preconditions.txt`、`receipt.json`。
+2. **脚本身份更新（pilot 基线已过时）**：`capture_render_perworld.py` `f3af09ab…`/23,637 B/490 行、`perworld_capture_meta.py` `3fdb8595…`/19,154 B/379 行、`perworld_light_prep.py` `9fd5f8c2…`/7,206 B/160 行不变（行数均 ≤500）；pilot 时的 `55b91f23…`/23,483 B、`296c2b12…`/12,508 B 作废，`materials/command.txt` 第 1 步按现场 `Get-FileHash` 记录实际值。
+3. **采后自查增量**：§4 新增第 6 步「`capture.json` 的 C1/C2 计数与 readout 产物两对 world 逐项相等」，`materials/command.txt` 增 6b 自核命令，`materials/evidence-checklist.txt` 增 `window/counts-crosscheck.txt`。
+4. **签名卡**：S-2a 补「`capture.json` 含 §2.4 判别力计数（已验证卡锚点）」；**S-2b（`baseline_free=13,302` / signed floor `10,230` / `floor_effective=max(signed,现场)`）、authoring 例外、失败条款均不变**。
+5. **不在本材料修的低观察**（计数卡 O1 信息项：`verify_capture_metadata` 在写盘后调用；O2 低：`c2_depth/c2_seg` 与诊断项只校验结构、未校验 int 值类型）→ 记录为后续 fix 项，**不作 S-2 blocker**。
+6. 材料任务卡 acceptance 中残留的 `floor_effective = min(...)` 属历史任务定义（QA r1 复核 O1），以 `ade516b5` 修订为准。
+
+`unchanged src/, fixtures/, scripts/, tests/`；零 GPU、不采集。

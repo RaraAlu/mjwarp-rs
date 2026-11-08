@@ -4,7 +4,7 @@
 # This window writes the FORMAL reference root fixtures/render-bvh/scene-a-light/perworld/ (allowed here;
 # the pilot used target/). NO command in this file was executed while producing the material card.
 
-# --- 0) Preconditions (material section 1): P0-P7 green, S-2 dual-signed, Chief G-L1 token in hand ---
+# --- 0) Preconditions (material section 1): P0-P7 + P1a green, S-2 dual-signed, Chief G-L1 token in hand ---
 
 # --- 1) T0 freeze + fingerprints (before any GPU work; Get-FileHash because sha256sum is unavailable) ---
 git rev-parse HEAD
@@ -14,8 +14,10 @@ Get-Process | Where-Object { $_.ProcessName -match 'cargo|rustc|nvcc|cl$' }     
 (Get-FileHash -Algorithm SHA256 fixtures/render-bvh/scene-a-light/scene.xml).Hash
 #   must be 4B354054116DDB81C6209ED10C021D133EA30D6FD82C1A6F866BAFFF9F625716 (5,134 B, 86 lines)
 Get-ChildItem scripts/capture_render_perworld.py,scripts/perworld_capture_meta.py,scripts/perworld_light_prep.py |
-  ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash, $_.Name }
-#   record actual values (pilot baseline: capture_render_perworld.py 55B91F23.../23,483 B)
+  ForEach-Object { "{0}  {1}  {2} bytes" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash, $_.Name, $_.Length }
+#   record actual values. S-2 material script identity (expected): capture_render_perworld.py F3AF09AB.../23,637 B/490 lines;
+#   perworld_capture_meta.py 3FDB8595.../19,154 B/379 lines; perworld_light_prep.py 9FD5F8C2.../7,206 B/160 lines (unchanged).
+#   The pilot baseline (55B91F23.../23,483 B, 296C2B12.../12,508 B) is OBSOLETE after the spec 2.4 counts change.
 Get-ChildItem docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py |
   ForEach-Object { "$((Get-FileHash -Algorithm SHA256 $_.FullName).Hash)  readout_c1_c2.py" }
 #   repaired readout baseline: 4A054ABA.../16,711 B
@@ -72,6 +74,11 @@ target/mjwarp-parallel/venv/Scripts/python.exe -B \
   --pilot-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 \
   --json-out target/render-bvh/perworld-l-v2-gl1/readout.json
 # exit 0 = pass-margin (both sets, both pairs >=576); 3 = insufficient/non-discriminating => STOP, do not commit.
+
+# --- 6b) spec 2.4 counts cross-check: capture.json vs readout.json, both world pairs item by item ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import json,pathlib;c=json.loads(pathlib.Path('fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/capture.json').read_text(encoding='utf-8'));r=json.loads(pathlib.Path('target/render-bvh/perworld-l-v2-gl1/readout.json').read_text(encoding='utf-8'));f=lambda p:(c['c1_rgb_changed_px'][p]['magnitude'],c['c1_rgb_changed_px'][p]['bitwise'],c['c2_depth_changed_px'][p],c['c2_seg_changed_px'][p],c['campersp_depth_seg_changed_px'][p]['depth'],c['campersp_depth_seg_changed_px'][p]['seg'],c['camhinge_rgb_changed_px'][p]['magnitude'],c['camhinge_rgb_changed_px'][p]['bitwise']);g=lambda p:(r['c1_cam_persp'][p]['rgb_changed_px'],r['c1_cam_persp'][p]['rgb_bitwise_changed_px'],r['c2_cam_hinge'][p]['depth_changed_px'],r['c2_cam_hinge'][p]['seg_changed_px'],r['diagnostics_no_threshold']['cam_persp_depth_seg'][p]['depth_changed_px'],r['diagnostics_no_threshold']['cam_persp_depth_seg'][p]['seg_changed_px'],r['diagnostics_no_threshold']['cam_hinge_rgb'][p]['rgb_changed_px'],r['diagnostics_no_threshold']['cam_hinge_rgb'][p]['rgb_bitwise_changed_px']);[print(p,f(p),'OK' if f(p)==g(p) else 'MISMATCH') for p in ('0->1','1->2')];assert all(f(p)==g(p) for p in ('0->1','1->2')),'counts cross-check failed'"
+# every line must print OK; any MISMATCH / AssertionError => STOP, do not commit (spec 2.4 must be self-consistent).
+# G-L2 re-checks the same numbers through the entity check_capture_c1 (dict structure).
 
 # --- 7) Evidence copies + explicit legacy assertion ---
 target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import json,pathlib; c=json.loads(pathlib.Path('fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/capture.json').read_text(encoding='utf-8')); print('legacy_reference_untouched', c['legacy_reference_untouched']); assert c['legacy_reference_untouched'] is True"
