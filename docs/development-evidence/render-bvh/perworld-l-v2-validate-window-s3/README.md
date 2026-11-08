@@ -1,7 +1,7 @@
 # S-3 验证窗材料（perworld L v2 灯 · G-L2；**proposed，未 start**）
 
 - 任务：`2026-11-08-render-perworld-l-v2-validate-window-s3-material`（owner Arch、p80；**本卡只承载材料，不是验证窗卡**）
-- 卡状态说明：按 Chief 派工本卡应保持 `proposed`，但 normify 硬规则禁止 `proposed` 卡提交工作（commit-msg 钩子拒绝），因此材料落地时 start 了本卡；**验证窗本身未开**（仍被 G-L1 收口 + 用户 S-3 双签 + Chief token 挡住），G-L1 收口后填 PENDING、跑门禁再收口
+- **卡性质与收口（Chief 2026-11-08 裁定）**：本卡即「材料卡」，收口为 **verified**；**本卡只产材料**——验证窗**未开**、零 GPU、**无任何窗口动作**；**G-L2 执行窗待 G-L1 收口后另卡登记**（本卡不承载窗口执行）。材料卡 verified 仅表示计划材料完成，**不构成** G-L2 启动、不构成任何验收结论。
 - 依据：**已签 spec v3（S-1）** `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md` sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / **39,379 B** / 344 行 / 15 节；逐条对齐 **§10.1（判据实体）**、**§10.2（窗口材料与纪律）**、**§4/§5/§6（判据 A/B/C 与 C1/C2）**、**§8（失败条件）**、**§9.3（自查顺序）**、**§12 G-L2**
 - 本材料 **CPU、零 GPU、零采集**；**不 start 窗口卡**、不碰 `src/` / `fixtures/` / `scripts/` / `tests/`
 - **G-L1 参考尚未产出**：凡需新参考 sha/bytes/份数/证据锚点的位置一律写 `PENDING-G-L1`（完整清单见 §8），**G-L1 收口后填入、冻结前定稿**；**签名卡字段在 G-L1 完成前不定稿**
@@ -128,6 +128,7 @@ baseline（三点原文 + `baseline_free`/`onspot_floor`/`signed_floor`/`floor_e
 
 ## 9. 边界与非声明
 
-- 本卡**零 GPU、零采集、不改代码**；`unchanged src/`, `unchanged fixtures/`, `unchanged scripts/`, `unchanged tests/`；四门禁通过；材料 sha256/bytes 记 receipt+manifest。
+- 本卡**零 GPU、零采集、不改代码、未开窗**；`unchanged src/`, `unchanged fixtures/`, `unchanged scripts/`, `unchanged tests/`；四门禁通过；材料 sha256/bytes 记 receipt+manifest。
+- **PENDING 保留**：八项 `PENDING-G-L1` 在 G-L1 收口前保持显式占位（按 Chief 2026-11-08 派工，G-L1 后按 fill 任务填入、冻结前定稿）；本卡收口不代表这些值已定。
 - 不构成 G-L2 启动：需 G-L1 收口 + 实体 QA PASS + **用户 S-3 双签** + **Chief G-L2 token** + 窗口条件。
 - **不宣称**采集有效、per-world 灯验收、与上游等价、任何渲染数值结论；本材料只是计划。
