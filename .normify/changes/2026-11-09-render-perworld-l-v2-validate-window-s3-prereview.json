@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-09-render-perworld-l-v2-validate-window-s3-prereview",
+  "title": {
+    "zh": "QA S-3 完整预审（sign-off 环）：材料 `aba83a97`——前置/锚点全绿、guards 107=12+93+2、参考 11,078,239 B、§2.4 实测、冻结器 dry-run 不构建且 SELFCHECK 13/13、aggregate 独立复算 8a4ddc50…、旧 stash 漂移裁定三处一致、签名摘要可签未签 → 可发用户 S-3 双签卡",
+    "en": "QA full pre-review (sign-off round) of S-3 material aba83a97: anchors green, guards 107=12+93+2, reference 11,078,239 B, section 2.4 measured counts, freezer dry-run no-build with SELFCHECK 13/13, independent aggregate 8a4ddc50..., old-stash drift ruling consistent in three places, signature summary signable but unsigned - user S-3 dual-sign card may be issued"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 S-3（G-L2）验证窗材料最新态 **`aba83a97`**（HEAD；parent `6365a7c5`）做**完整预审（sign-off 环）**：① 对照已签 spec v3 §10.2/§12 G-L2 逐条核前置与锚点（§11.1 六项 + pilot + G-L1 采后复核 PASS `ef1bcce3`/`6365a7c5` + 实体最终 `bab01507` + QA 链 `7d089165`/`6a75ceee`/`be12145e`）；② guards 算术 **107 = 12 exe + 93 输入 + 2 条 v2.2 清单**、参考 5 文件实测总 **11,078,239 B**、§2.4 计数实测值、S-3b suggested 13,028 → signed floor **9,956**（不复用 S-2）；③ 窗口纪律与实体执行期望写死；④ **独立审冻结器**（dry-run 不构建、`-Execute` 唯一构建点、aggregate 独立复算 `8a4ddc50…`、旧 suite/stash 只读、漂移默认拒绝且带 flag 记录、live==guard==stash、SELFCHECK 13/13 复现、ASCII、非空行 360）；⑤ 旧 stash 漂移裁定三处一致；⑥ 签名摘要可签性（suggested、不构成开窗、未签署）；⑦ 边界/卫生/门禁（本批 scripts 零改动、manifest 15/15、unit 1387/0/402、无窗口卡 start、零 GPU）。**只读 + 只写本卡证据。**",
+    "en": "Full pre-review / sign-off round of the latest S-3 material state: spec alignment, anchors, guards arithmetic, reference identities, section 2.4 counts, window discipline and entity expectations, independent freezer review with reproduced SELFCHECK and independent aggregate recompute, old-stash drift ruling consistency, signature-summary signability, boundaries and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置与锚点**：§11.1 六项 + pilot（`pass-margin`）+ **G-L1 采后复核 PASS**（卡 `…-window-g-l1-check` verified；证据 `ef1bcce3`、HEAD `6365a7c5`）+ **实体最终态**（实现 `bab01507`；QA 链 `7d089165`/`6a75ceee`/`be12145e`；实体文件自 `be12145e` 起零改动；判据 A/B/C 与阈值未动）逐项可核 ✅。",
+    "**guards 算术与参考**：**107 = 12 exe + 93 输入 + 2 条 v2.2 清单**（旧 96 + 1 新 exe + 10 必需，可选 0，Chief 2026-11-09）；参考 5 文件 sha/bytes 与实测总 **11,078,239 B**；§2.4 实测计数（C1 38,285/40,644、bitwise 43,604/41,815；C2 depth 35,828/33,883、seg 16,041/16,754；诊断 0/0、50,363/52,329、54,380/54,250）；S-3b suggested `baseline_free=13,028`、**signed floor=9,956**，明确**不复用 S-2 的 13,302/10,230** ✅。",
+    "**窗口纪律写死**：冻结在常规 monitor PASS 后、body 零编译（`cargo test --no-run` 只在冻结阶段一次并留 `cargo-artifacts.jsonl`）、`live==guard==stash`、三点基线 5 分钟内、`baseline_free=min`、`floor_effective=max(signed,现场)`、monitor 60/60 util<40（**authoring 例外不适用验证窗**）、树 clean、单次失败即停、参考体积累计 ✅。",
+    "**实体执行期望**：A（两台相机逐 world rgb 0 字节差/depth 位级/seg 全等/两跑 sha）、B（灯字段位型 0 例外）、C（C1/C2 两对 ≥576；[384,576) 停手；<384 拒通过）、**§2.4 对账且 `check_capture_c1` 必须 `Compared`（`Skipped` = 停手）**、world 隔离、诊断只记录、v2.2 非继承、C2 依赖 refit ✅。",
+    "**冻结器独立审**：`scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1`（`14d82190…`/20,802 B/非空行 360；ASCII-only）；默认 dry-run **无 cargo/构建/stash/guards 写入**，只写 `target/…/freeze-plan-dryrun.json`；`-Execute` 为唯一构建点（`cargo test --locked --no-run --message-format=json` 一次 + artifacts）；resolver 12 exe、stash、`live==guard==stash`、写 guards JSON、旧 suite sha 前后复查、guards round-trip 校验；**旧 stash 漂移默认拒绝**（无 `-AllowOldStashDrift` 时 throw），带 flag 时 drift 条目（recorded/actual/last_write）写入 guards JSON `old_stash_drift` 并由窗口证据记录理由 ✅。**独立复跑 dry-run SELFCHECK PASS 13/13**，且 QA 用自建 PowerShell 脚本独立复算旧 96 条 aggregate = **`8a4ddc50be2d8e766431533e6ccd8ab4cf5082fdbd63d6638a44b128e9ad4b3e`**（与旧 suite 记录一致）✅。",
+    "**旧 stash 漂移裁定口径一致**：材料 §2.4/§7/§8、签名摘要 Known facts、receipt guards.old_suite.ruling 三处一致：预存在已知项、旧 stash 仅历史只读参照**不作本次证据**、G-L2 重建并重新 stash 12 exe、旧 guards JSON 不得改动（`ca3ecd5c…`/38,659 B）、冻结带显式 flag 并留痕；与 spec「旧 suite 只读保留」不冲突 ✅。实测：旧 suite sha `ca3ecd5c…`/38,659、旧 stash 11 文件、漂移仅 `render_shadow_reference.exe`（记录 `ce5139…`/101,102,921 vs 实际 `4500bb…`/100,859,152，last write 2026-11-03T23:09:54+08:00）✅。",
+    "**签名摘要可签性**：S-3a/S-3b 字段完整、S-3b 标 `suggested`、现场重测 + `max` 口径、「signing does not open window」与失败条款在位；摘要/README §7 明示「定稿待审、NOT signed / 不得据此声称已签」；全文无「已签/可开窗」错述（仅 S-1 signed 与 S-3 pending）✅。",
+    "**边界/卫生/门禁**：`aba83a97`（parent `6365a7c5`）只动 S-3 材料（README/receipt/manifest/6 materials + 卡 + 4 runs）；本批 `scripts/` 零改动（冻结器 `14d82190…` 未变）、`src/`/`fixtures/`/`tests/` 零 diff；manifest **15/15** 独立重算；编码卫生；四门禁 fmt/clippy/clippy-cuda exit 0、unit **1387/0/402**；无窗口卡登记、零 GPU ✅。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-09-render-perworld-l-v2-validate-window-s3-fill",
+      "2026-11-09-render-perworld-l-v2-capture-window-g-l1-check",
+      "2026-11-08-render-perworld-l-v2-criteria-entity-c1-dict-fix-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3-prereview/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-09 派工：S-3 材料完整预审（sign-off 环；用户双签前最后一道）。对象 aba83a97。结论：PASS → 可发用户 S-3 双签卡（1 条低观察：receipt non_claim 有一句 PENDING-QA/REFRESH 未填的过时表述）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-09T01:20:00.000Z",
+  "updated_at": "2026-11-09T01:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3-prereview/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-09-render-perworld-l-v2-validate-window-s3-prereview"
+    }
+  ]
+}
