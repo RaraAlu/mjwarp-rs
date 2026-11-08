@@ -1,0 +1,16 @@
+# G-L1 window preconditions checked at window time (material table filled with actuals)
+
+| # | precondition | anchor | actual at window time |
+| --- | --- | --- | --- |
+| P0 | S-1 signed and frozen | spec v3 sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B; receipt status=effective | spec.md sha256 `bb064fe0…` / 39,379 B / 344 lines measured at T0; signature card ba420eb6, QA 5e82feed |
+| P1 | §11.1-1 `command` field | capture-meta card b0af1be4, QA 6419eb40 | capture.json `command.argv/rendered/cwd` non-empty after capture (checked in metadata-selfcheck; OK) |
+| P1a | §2.4 discriminability counts in capture.json | card `2026-11-08-…-capture-discriminability-counts` (311b5a84), QA fefe45a5 | capture.json has all five §2.4 fields with both world pairs (`c1_rgb_changed_px` magnitude+bitwise, `c2_depth_changed_px`, `c2_seg_changed_px`, `campersp_depth_seg_changed_px`, `camhinge_rgb_changed_px`); `counts-crosscheck.txt` = readout, all OK |
+| P2 | §11.1-2 captured_at + env (N1) | capture-meta card; this window token | `MJWARP_CAPTURE_AT=2026-11-09T00:02:00+08:00` written verbatim in `window/token-capture-at.txt`; N1 three-state PASS (`window/n1-check.txt`); capture.json `captured_at` equals the token value |
+| P3 | §11.1-3 per_world_scope new wording | pilot metadata-selfcheck | `per_world_scope.covers` states per-world light poses + per-world geom poses; old wording absent (metadata-selfcheck OK) |
+| P4 | §11.1-4 task_id / reference_tag | capture-meta card | capture.json `recipe.task_id` = script constant; `reference_tag=nw3-light-hinge02040` |
+| P5 | §11.1-5 scene variant | scene-camera card 3d546fbe, QA d38661a5; O1 fix e8a07167, QA 241a2e36 | scene.xml sha256 `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716` / 5,134 B / 86 lines at T0; `fixtures/render-bvh/scene-a/` untouched |
+| P6 | §11.1-6 capture script dual-camera (10-field camera_recipe) | dual-camera card b98b39ff, QA 241a2e36 | `capture_render_perworld.py` `f3af09ab…`/23,637 B/490 lines; `perworld_capture_meta.py` `3fdb8595…`/19,154 B/379 lines; `perworld_light_prep.py` `9fd5f8c2…`/7,206 B/160 lines (T0); capture.json `recipe.cameras` = 2 entries × 10 fields |
+| P7 | item 7: G-L0 pilot result pass-margin | pilot window card 2026-11-08-…-pilot-g-l0-window (268380d8 + 66bac4f6), QA c5a56639 | pilot verdict pass-margin (C1 38,285/40,644; C2 depth 35,828/33,883, seg 16,041/16,754); pilot npz not committed |
+| S-2 | user dual signature of the window plan + floor | signature card `2026-11-08-…-capture-window-s2-signature` commit 2f361d91, QA 4a19e003 | signed material README sha `c8bb71ef…`/18,299 B recorded in `receipt.json.signature`; HEAD README (post-signature block) `2ca9f1dd…`/19,502 B (expected evolution); signed floor 10,230 MiB; authoring exception pre-approved |
+
+All rows green before the window; verification details in `t0-freeze.txt`, `n1-check.txt`, `dryrun-summary.txt`, `counts-crosscheck.txt`.
