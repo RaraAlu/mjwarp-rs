@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
+  "title": {
+    "zh": "S-2 采集窗材料（perworld L v2 灯 G-L1）：前置 6+1 项 / 计划 / 窗口纪律（含 authoring 例外预批）/ 采后自查 / 用户双签摘要；零 GPU、不采集、不改 fixtures",
+    "en": "S-2 capture window material (per-world L v2 light, G-L1): 6+1 preconditions, plan, window discipline incl. pre-approved authoring exception, post-capture checks, user dual-sign summary; GPU-free, no capture, fixtures untouched"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按**已签 spec v3**（`bb064fe0…`/39,379 B）§11.1 六项 + §12 G-L1 逐条对齐，产出 S-2（采集窗）双签材料：① 前置核对表（六项 + 第 7 项 pilot 结论 pass-margin，含具体数字/提交/证据 sha），缺项禁签；② G-L1 计划（执行者 Backend、单次、`--repeat 2` 两遍逐位一致、正式参考根 `fixtures/render-bvh/scene-a-light/perworld/`、tag/seed/fast-math/shadows/显式 `MJWARP_CAPTURE_AT`、pinned 环境、5 文件 ≈11.08 MB）；③ 窗口纪律（三点基线 5 分钟内、现场 `floor=baseline_free−3072`、**signed floor 取严**、monitor 60/60 util<40、**用户 2026-11-08 预批的 authoring 例外**（仅本窗、仍需双签、失败即停不重试不放宽）、零编译、单次、monitor 期间无其它 CUDA 进程）；④ 采后自查（§9.3：两跑逐位一致 / C1 / C2 / 元数据四项+双相机 10 字段 / seg 集合 / refit 实际执行）；⑤ 给用户的**双签摘要与签名卡字段**（计划 + 建议 baseline 值（本次零 GPU 三点实测）+ signed floor 数值与取严口径 + 失败条款 + 证据/QA 安排）。**本卡零 GPU、不采集、不改 fixtures。**",
+    "en": "Produce the S-2 capture-window dual-sign material aligned clause by clause with signed spec v3 sections 11.1 and 12 G-L1: the 6+1 precondition table with concrete anchors and numbers; the G-L1 plan (Backend executor, single attempt, --repeat 2 bitwise-identical, formal reference root under fixtures/, tag/seed/fast-math/shadows/explicit capture-at, pinned environment, 5 files ~11.08 MB); window discipline (3-point baseline within 5 min, on-the-spot floor, stricter signed floor, regular monitor 60/60 util<40 plus the user's 2026-11-08 pre-approved authoring exception limited to this window and still requiring the dual signature, zero compile, single attempt, no other CUDA process during monitor); post-capture checks per section 9.3; and the user dual-sign summary and signature-card fields, including suggested baseline readings taken now (GPU-free) and the floor arithmetic. This card performs no capture and leaves fixtures untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置表（六项 + 第 7 项；逐项证据锚点；缺项禁签）**：§11.1-1 command 字段（`2026-11-07-render-perworld-l-v2-capture-meta` verified `b0af1be4`、QA `6419eb40`；pilot `capture.json.command` 非空）；§11.1-2 captured_at+env（同上卡；pilot 显式值 `2026-11-08T19:00:00+08:00`，G-L1 自设并 N1 校验）；§11.1-3 per_world_scope 新口径（pilot `metadata-selfcheck` scope 两项 true、旧文案不出现）；§11.1-4 task_id/reference_tag（`reference_tag=nw3-light-hinge02040`，`task_id`/`task_id_source` 保留）；§11.1-5 场景变体 verified（场景卡 `…-scene-camera` 实现 `3d546fbe`、sha `4b354054…`/5,134 B/86 行、QA `d38661a5`、O1 普查修正 `e8a07167`）；§11.1-6 采集脚本双相机 verified 含 `camera_recipe` 10 字段（`…-capture-dual-camera` `b98b39ff`、QA PASS `241a2e36`）；**第 7 项 pilot 结论 = pass-margin**（窗卡 `2026-11-08-…-pilot-g-l0-window` 收口 `268380d8` + addenda `66bac4f6`；README `f5d52348…`/9,228 B、receipt `e4204f8f…`/6,845 B、manifest **36/36**；C1 **38,285/40,644**；C2 depth **35,828/33,883**、seg **16,041/16,754**；`verdict=pass-margin`；readout fix QA `0abaeebb`）。",
+    "**G-L1 计划写死**：执行者 **Backend**（唯一写者）；**单次**（失败即停不重试）；`--repeat 2` 两遍必须逐位一致；**out-root = `fixtures/render-bvh/scene-a-light/perworld/`**（正式参考根，允许落库）、out-dir = `…/nw3-light-hinge02040`、`--reference-tag nw3-light-hinge02040`、`--worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true --seed 20261030`、显式 `MJWARP_CAPTURE_AT`（N1 ISO8601 校验）；pinned 环境逐项（3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4 / upstream `71da24d9` editable / RTX 4070 Ti SUPER driver 596.36 SM89）；产物 5 文件 ≈ **11.08 MB**（rgb 5,531,048 + depth 1,844,672 + seg 3,687,848 + state 2,486 + capture.json ≈10 KB）。",
+    "**窗口纪律写死**：开窗前 5 分钟内三点基线（`baseline_free=min(free)`）；**现场 floor = baseline_free − 3,072 MiB**；**signed floor 取严**：`floor_effective = min(用户签的 signed floor, 现场 floor)`，窗口全程 free ≥ floor_effective；常规 monitor `-Required 60 -MaxMinutes 30 -MaxUtil 40`（exit 0、60/60 util<40、`compute_filtered=0`、`build=0`；monitor 期间**不得有其它 CUDA 进程**）；**用户 2026-11-08 已预批 authoring 例外**：仅当常规 util<40 不达标时允许 authoring-only `-MaxUtil 60`，**仅本采集窗（G-L1）生效、仍需 S-2 双签后才开窗**、逐样本记录、失败即停不重试不放宽（pilot 不适用、验证窗不适用）；零编译（窗口前构建+指纹，窗口内禁 cargo/nvcc，warp JIT 属预期）；单次失败即停。",
+    "**采后自查（spec §9.3 顺序）**：① 两次采集逐位一致（逐文件 sha256，rgb/depth/seg 各 6 world×相机键）；② C1 `cam-persp` 两对 `max_channel|Δrgb|≥1/255` ≥576；③ C2 `cam-hinge` depth 位型与 seg pair 变化两对 ≥576；④ 元数据四项 + 双相机快照（`nrender==2`/`cam_id_map==[0,1]`/`cam_res==[[320,240],[320,240]]`/`recipe.cameras` 2×10 字段含 `sensorsize`/`intrinsic`）；⑤ `legacy_reference_untouched=true`；⑥ 全部通过才落库，否则停手报用户（[384,576) 余量不足停、<384 拒通过）；⑦ 证据归档；另：每 world seg 可见 `(id,type)` 集合 + refit 实际执行（wrapper 计数 `refit×2/render×2`、顺序 `refit→render→refit→render`）。",
+    "**给用户的双签摘要与签名卡字段**：计划摘要、**建议 baseline 值**（本次零 GPU 三点实测：2026-11-08T19:14:34/39/44，used 2,760 MiB、free **13,302 MiB**、util 2–3%、26°C → `baseline_free=13,302`、**建议 signed floor = 10,230 MiB**）、signed floor 取严口径、失败条款、证据/QA 安排、S-2 双签对象（计划 + 基线 + signed floor）；字段给齐（文件路径/sha256/bytes/版本/supersedes/生效范围）。材料明确：开窗时现场重算，若现场 floor 更严则用现场值。",
+    "**边界**：材料期**零 GPU、不采集、不改 `fixtures/`**；`unchanged src/`、`unchanged fixtures/`、`unchanged scripts/`、`unchanged tests/`；四门禁 fmt/clippy/clippy-cuda/unit；材料 sha256/bytes 写 receipt+manifest（首行 `#` + `# base dir:`、每文件自核、UTF-8/LF/无 BOM/裸 CR/TAB 自查）。",
+    "**非声明**：不宣称采集有效/per-world 灯验收/上游等价/任何渲染数值结论；本材料不构成 G-L1 启动（需用户 S-2 双签 + Chief token），不替代 QA 读前预审。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature",
+      "2026-11-08-render-perworld-l-v2-scene-camera",
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-window"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "Chief 2026-11-08 派工：pilot 已收口 pass-margin，做 S-2 采集窗材料卡（零 GPU、不采集、不改 fixtures），材料按已签 spec v3 §11.1/§12 G-L1 逐条写死，并给出用户双签摘要与签名卡字段。含本次零 GPU 三点实测作为建议 baseline（13,302 → 建议 signed floor 10,230）；开窗时现场重算并取严。",
+  "revision": {
+    "before": "6b866038271d7bb0096af88c6b9cfa4c339b91ca",
+    "after": null
+  },
+  "created_at": "2026-11-08T11:16:00.000Z",
+  "updated_at": "2026-11-08T11:16:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    { "kind": "unchanged", "paths": ["scripts/"] },
+    { "kind": "unchanged", "paths": ["tests/"] },
+    { "kind": "json", "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/receipt.json", "pointer": "/task_id", "equals": "2026-11-08-render-perworld-l-v2-capture-window-s2-material" },
+    { "kind": "forbid_claim", "terms": ["采集已有效", "灯位姿已覆盖", "上游等价"] }
+  ]
+}
