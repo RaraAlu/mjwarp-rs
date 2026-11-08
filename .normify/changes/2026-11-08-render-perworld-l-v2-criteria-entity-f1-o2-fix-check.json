@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-criteria-entity-f1-o2-fix-check",
+  "title": {
+    "zh": "QA 复核：判据实体 F1/O2 修正（`0c770bb2`）——C1 改 f32 1/255 口径、provenance 值与交叉核对补强、CARGO_MANIFEST_DIR 路径修复全部成立；2 条低观察（证据里 ignored 计数 401→402、capture.json 判别力计数字段仍缺）→ 可用于 G-L2 冻结",
+    "en": "QA review of the criteria-entity F1/O2 fix 0c770bb2: C1 now f32 1/255, provenance value/cross checks strengthened, CARGO_MANIFEST_DIR path fixed; two low observations (evidence says ignored=401 vs actual 402; capture.json discriminability counts still absent) - usable for G-L2 freeze"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 F1/O2 修正提交 **`0c770bb2`**（parent `7d089165`）做只读独立复核：① F1 修法（参考 rgb 保留原始 f32；C1 = 逐通道 f32 差提升 f64 → max_channel → `>= 1/255`，与已签 §6 及 `readout_c1_c2.py` 同口径）并用 G-L0 pilot 参考 npz 独立复算（新法 38,285/40,644、旧法 43,604/41,815、差 +5,319/+1,171、`float_only_px=0`、C2 与 verdict 不变）；② 自证是否真能区分 f32 口径与字节法、pilot 交叉核对与 capture 计数核对用例在位、独立重跑 15 passed/2 ignored；③ O2 provenance 补强逐项（§2.1 值、command.argv、per_world_scope 归一化、resolved 交叉、负例 5→20）；④ CARGO_MANIFEST_DIR 路径在 cargo test cwd 下指向仓内、强制 `--ignored` 仍逐字报未执行；⑤ 边界/证据/manifest/四门禁（unit 实际 1386/0/402）。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Read-only independent review of fix 0c770bb2: F1 C1 formula, real-data cross-check on the retained pilot reference, self-proof coverage (incl. f32-vs-byte discrimination and the ignored pilot cross-check), O2 provenance strengthening item by item, path resolution, boundaries, evidence and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**F1 修法正确**：`Reference` 新增原始 `rgb_f32`（加载时逐值保留、不量化；A 判据仍用 packed 字节，语义未动）；`rgb_above_threshold` 逐通道 f32 差提升 f64 → 取 max → `>= RGB_THRESHOLD(1/255)`，与已签 §6 原文及 `readout_c1_c2.py`（`4a054aba…`）同式；384/576、两对 world、相机归属、诊断项只记、无 allowlist 均未动 ✅。",
+    "**独立复算（pilot 参考 npz）**：新法 C1 **38,285 / 40,644**、C2 depth **35,828 / 33,883**、seg **16,041 / 16,754**、verdict pass-margin；旧字节法复现 **43,604 / 41,815**；差 **+5,319 / +1,171**、`float_only_px = 0`；差集构成（0→1：254↔255 计 977 + 240–249 等高位相邻码步进；1→2：全部 254↔255）与 `artifacts/c1-crosscheck.json` 逐项一致 ✅。另独立跑仓内 ignored `pilot_c1_crosscheck_matches_readout` 在真实 pilot 数据上 **PASS**（同时交叉 `window/readout.json`）。",
+    "**自证**：独立复跑 `cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1` → **15 passed / 0 failed / 2 ignored**（exit 0）；`criterion_c_c1_counts_f32_threshold_1_over_255_not_byte_steps` 真能区分 f32 语义与字节法（1/255 步进计、半步不计、254/255→1.0 不计）；`pilot_c1_crosscheck_matches_readout` 与 `capture_c1_cross_check_requires_recorded_counts_match` 在位 ✅。",
+    "**O2 provenance 补强**：与 §2.1 逐值比对（name/mode/fovy/resolution/pos/quat 归一化/sensorsize/intrinsic，容差 1e-6）+ `recipe.scene_xml` sha/bytes；`command.argv` 非空且含 capture 脚本/`--scene`/场景路径/tag/`--worlds 3`/`--repeat 2`/`--use-fast-math false`/`--use-shadows true`；`per_world_scope.covers` 字符串/列表归一化后覆盖 light+geom；`resolved` 的 nworld/nrender/cam_id_map/cam_res + `parameters.cam_active` + legacy 112/未改动 + 相机恰 10 字段与 slot 顺序；负例自证 20 项 ✅。且该加强版自核在真实脚本输出（pilot capture.json）上**通过**（pilot 交叉用例内调用），G-L1 计划命令逐字含所需 argv → 无假阴性风险。",
+    "**路径修复**：`reference_dir()` 用 `env!(\"CARGO_MANIFEST_DIR\")` 解析 → 强制 `--ignored` 复跑报 `D:\\Rust\\mjwarp-rs\\fixtures\\render-bvh\\scene-a-light\\perworld\\nw3-light-hinge02040`（仓内绝对路径、与 cwd 无关），文案仍逐字 `not executed: reference missing (G-L1 capture pending)`，exit **101** ✅。",
+    "**边界/证据/门禁**：`0c770bb2` 只动 `tests/render_per_world_light.rs`（469 行）、`tests/support/render_bvh/light.rs`（500）、`light/tests.rs`（465）+ 本卡证据 + 卡/runs；`fixtures/`/`src/`/`scripts/`/spec/pilot 材料零 diff；被测 manifest **8/8**；编码卫生（UTF-8/LF/无 BOM/裸 CR·TAB 0）；四门禁复跑 fmt/clippy/clippy-cuda exit 0、unit **1386 passed / 0 failed / 402 ignored** ✅。",
+    "**观察项（不阻断）**：① README §5 与 receipt 写 `unit … 401 ignored`，实际（含本卡 runs/unit.json）为 **402**（新增 1 条 ignored pilot 用例）——证据文字 erratum；② capture 计数交叉核对在真参考上目前会**静默跳过**（脚本未把 `c1_rgb_changed_px` 等写进 capture.json，而 spec §2.4 要求记录）——需在 G-L1 前决定补脚本或明示该跳过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-criteria-entity",
+      "2026-11-08-render-perworld-l-v2-criteria-entity-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity-f1-o2-fix-check/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Chief 2026-11-08 派工：F1/O2 修正复核（G-L2 冻结前最后一块，快出；零 GPU）。复核目标 0c770bb2。结论：PASS + 可用于 G-L2 冻结（2 条低观察：ignored 计数 erratum、capture.json 判别力计数字段缺口）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T13:31:00.000Z",
+  "updated_at": "2026-11-08T13:31:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity-f1-o2-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-criteria-entity-f1-o2-fix-check"
+    }
+  ]
+}
