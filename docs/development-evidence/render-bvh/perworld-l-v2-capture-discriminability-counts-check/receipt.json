@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts-check",
+  "status": "effective",
+  "kind": "check",
+  "owner": "QA",
+  "positioning": "Read-only independent QA review of commit 311b5a84 (spec v3 section 2.4 discriminability counts in capture.json): field/structure conformance, formula bit-identity with the G-L0 readout, independent recompute on the retained pilot reference, call ordering, helper wiring, dry-run default behaviour, boundaries, evidence and gates. GPU-free.",
+  "object": {
+    "card": "2026-11-08-render-perworld-l-v2-capture-discriminability-counts",
+    "commit": "311b5a84",
+    "parent": "b0556af15a3012923571e6df07124d1f07c678d6",
+    "review_head": "569e636c (later 7d089165..bab01507 sequence; tree clean at review, lock held by Backend briefly then released)",
+    "write_lock_at_review": "FREE (waited for Backend's in-flight entity fix then released)"
+  },
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "bytes": 39379,
+    "section": "2.4"
+  },
+  "verdict": {
+    "overall": "pass",
+    "blocking": 0,
+    "s2_material_prerequisite": "usable as an S-2 material prerequisite",
+    "summary": "All section 2.4 fields present with spec-exact names and per-world-pair structure, both C1 counts (bitwise + magnitude), C2 depth/seg and the two diagnostics; formulas bit-identical to readout_c1_c2.py; independent recompute on the pilot reference matches readout.json and the card artifact for all 16 values; counts computed after the two-capture bitwise identity check; helper defined only in perworld_capture_meta.py with exactly one import and one call in the main script; 490/379 lines; default dry-run unexpected=0; selfcheck 16/16; boundaries clean; manifest 11/11; gates clean.",
+    "observations": "O1 info (verify_capture_metadata runs after capture.json is written - existing flow), O2 low (structure check does not type-check c2/campersp values as ints), O3 info (entity check_capture_c1 mismatch is expected; adapted separately by bab01507)"
+  },
+  "fields_structure": {
+    "c1_rgb_changed_px": {"pairs": ["0->1", "1->2"], "counts": ["bitwise", "magnitude"]},
+    "c2_depth_changed_px": {"pairs": ["0->1", "1->2"], "counts": ["scalar"]},
+    "c2_seg_changed_px": {"pairs": ["0->1", "1->2"], "counts": ["scalar"]},
+    "campersp_depth_seg_changed_px": {"pairs": ["0->1", "1->2"], "counts": ["depth", "seg"]},
+    "camhinge_rgb_changed_px": {"pairs": ["0->1", "1->2"], "counts": ["bitwise", "magnitude"]},
+    "names_match_spec_2_4": true,
+    "camera_attribution_fixed": "C1 = cam0/cam-persp, C2 = cam1/cam-hinge, diagnostics never substituted"
+  },
+  "formulas": {
+    "magnitude": "count_nonzero(np.abs(x.astype(f64)-y.astype(f64)).max(axis=-1) >= 1/255)",
+    "bitwise": "count_nonzero(np.any(x.view(int32) != y.view(int32), axis=-1))",
+    "c2_depth": "count_nonzero(d0.view(int32) != d1.view(int32))",
+    "c2_seg": "count_nonzero(np.any(s0 != s1, axis=-1))",
+    "same_as_readout": true
+  },
+  "independent_recompute": {
+    "reference": "target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040 (retained pilot; npz not committed)",
+    "readout_json_sha256": "7138f238afe3dbce5af6d35a02329db0f280bb7cbac01b597757f9ce0d83c35a",
+    "counts": {
+      "c1_magnitude": [38285, 40644],
+      "c1_bitwise": [43604, 41815],
+      "c2_depth": [35828, 33883],
+      "c2_seg": [16041, 16754],
+      "campersp_depth": [0, 0],
+      "campersp_seg": [0, 0],
+      "camhinge_rgb_magnitude": [50363, 52329],
+      "camhinge_rgb_bitwise": [54380, 54250]
+    },
+    "matches_readout_json": true,
+    "matches_card_artifact": true,
+    "unexpected": 0,
+    "artifact": "artifacts/counts-recompute.json"
+  },
+  "ordering_and_wiring": {
+    "two_capture_array_equality_line": "433-438",
+    "two_capture_npz_hash_equality_line": "447-448",
+    "counts_call_line": 453,
+    "counts_after_identity_check": true,
+    "helper_defined_only_in": "scripts/perworld_capture_meta.py:169",
+    "main_imports_one": true,
+    "main_calls_one": true,
+    "line_counts": {"scripts/capture_render_perworld.py": 490, "scripts/perworld_capture_meta.py": 379},
+    "line_limit": 500,
+    "new_module_files": []
+  },
+  "default_behaviour": {
+    "dry_run_default": "exit 0, only /recipe/script/{sha256,bytes} changed vs old scripts, unexpected=0, no out_dir created",
+    "dry_run_explicit_light_scene": "same; cameras 3 (persp/hinge/track), cam_active_fixed_only [true,true,false], legacy 112",
+    "worlds_1": "both versions exit 1, stderr identical, no out_dir",
+    "dry_run_has_no_count_keys": true,
+    "artifacts": ["artifacts/dryrun-rerun.log"]
+  },
+  "selfcheck": {
+    "command": "python -B scripts/perworld_capture_meta.py",
+    "result": "SELFCHECK PASS 16/16",
+    "new_cases": ["discriminability-positive", "discriminability-negative-missing-array"],
+    "artifact": "artifacts/selfcheck-rerun.log"
+  },
+  "boundaries": {
+    "changed_paths": "2 scripts + card + gate runs + evidence",
+    "fixtures_src_tests_spec_diff": "NONE",
+    "reviewed_evidence_manifest": "11/11",
+    "encoding": "UTF-8/LF, no BOM, CR/TAB 0",
+    "artifact": "artifacts/boundary-checks.txt"
+  },
+  "gates": {
+    "fmt": {"passed": true, "exit": 0},
+    "clippy": {"passed": true, "exit": 0},
+    "clippy-cuda": {"passed": true, "exit": 0},
+    "unit": {"passed": true, "exit": 0, "tests": {"passed": 1387, "failed": 0, "ignored": 402}},
+    "note": "the card's own run at 311b5a84 was 1386/0/402; +1 passed comes from the later bab01507 test"
+  },
+  "observations": [
+    {"id": "O1", "severity": "info", "blocking": false, "title": "verify_capture_metadata called after capture.json write", "detail": "structure failure exits non-zero but the file is already on disk; same as the existing metadata verification flow", "fix": "none required; optionally verify before write"},
+    {"id": "O2", "severity": "low", "blocking": false, "title": "structure check does not type-check c2 / campersp value types", "detail": "pair keys and rgb count keys are checked; c2_depth/c2_seg and campersp depth/seg values are not asserted to be ints", "fix": "two-line addition in verify_capture_metadata (non-blocking)"},
+    {"id": "O3", "severity": "info", "blocking": false, "title": "entity check_capture_c1 mismatch is expected", "detail": "this card correctly emits the spec section 2.4 dict shape; the entity adaptation lands in bab01507", "fix": "none for this card"}
+  ],
+  "non_claims": {
+    "statement": "Review of the capture.json counting record and CPU self-consistency only: no capture-validity claim, no discriminability-restoration claim, no rendering numeric conclusion. Pilot npz and readout.json live under target/ and are not committed; real counts are decided by the G-L1 capture window."
+  }
+}
