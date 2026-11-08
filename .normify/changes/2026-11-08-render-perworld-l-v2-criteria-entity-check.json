@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-criteria-entity-check",
+  "title": {
+    "zh": "QA 复核：perworld L v2 判据实体 render_per_world_light（cde3e597）——A/B/C 结构、门控、dump provenance、门禁全对；**1 项 C1 计数口径需修**（字节化 ≥1 byte vs 已签 §6 f32 ≥1/255）",
+    "en": "QA review of perworld L v2 criteria entity render_per_world_light (cde3e597): A/B/C structure, gating, dump provenance and gates verified; one C1 counting-rule deviation (byte-quantized >= 1 vs signed section 6 f32 >= 1/255) to fix before G-L2 freeze"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 卡 `2026-11-08-render-perworld-l-v2-criteria-entity`（提交 **`cde3e597`**，parent `88e4c296`）做只读独立复核：① 对照已签 spec v3 `bb064fe0…`/39,379 B §4/§5/§6/§10.1 逐条核判据实现（A 两台相机逐 world 严格位级、无 allowlist/容差；B 灯字段 f32 位型；C 参考侧自算 C1/C2、384/576、两对 world、相机归属不可互换、诊断只记）；② 用 G-L0 pilot 保留参考 npz 独立重算 criterion C，与 pilot/capture 侧口径比数；③ 核 `#[ignore]` 门控与「未执行」显式错误（强制 `--ignored` exit 101）；④ 核产品段确为 Card H `render_per_world_with_lights` + `WorldLightPoses`（state.npz 逐位透传）、两跑 sha、world 隔离；⑤ 独立重跑 dumper 复算 `model-315.json` 逐字节相等与 provenance；⑥ 边界、证据卫生、四门禁。**只读 + 只写本卡证据；零 GPU、不采集、不开窗。**",
+    "en": "Read-only independent review of the criteria entity card cde3e597 (parent 88e4c296) against signed spec v3 sections 4/5/6/10.1, including an independent recompute of criterion C from the retained G-L0 pilot reference, gating behaviour, Card H product path, dumper re-run, boundaries, evidence hygiene and the four gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**判据 A（§4）严格位级**：`compare_frame` rgb `mismatched_pixels/max_byte_diff == 0`、depth `to_bits` 全等（`beyond_ulp == 0`，0 ULP 口径）、seg `(id,type)` 全等，长度不同显式失败；无 allowlist、无 v2.2 清单引用、无 1 LSB 放宽 ✅。",
+    "**判据 B（§5）位型**：`criterion_b` 逐 world×3 灯比对 `light_xpos/light_xdir` 的 f32 位型（`to_bits` 相等，0 例外）；`world_light_poses` 从参考 `state.npz` 直接拷贝 f32（无 FK、无 f64 重算、`xdir` 不重归一化）✅。",
+    "**判据 C（§6）结构与 C2**：C1 只取 cam-persp rgb、C2 只取 cam-hinge depth 位型 + seg pair；pairs `[(0,1),(1,2)]`；`ACCEPT=384`/`MARGIN=576`；<384 → NonDiscriminating、[384,576) → Insufficient、双套双对 ≥576 → PassMargin；相机归属写死且自证含正/反（互换必拒）；诊断项只记录 ✅。独立复算 C2 与 pilot 完全一致：depth 35,828/33,883、seg 16,041/16,754；诊断 cam-persp depth/seg 0/0 ✅。",
+    "**C1 计数口径（发现 F1，需修）**：实现以 **8-bit 字节量化后 `|Δbyte| ≥ 1`** 计 C1；已签 §6 写的是 **`max_channel |Δrgb| ≥ 1/255`**（G-L0 pilot readout 即按 f32/f64 原值实现）。用 pilot 参考复算：字节口径 43,604/41,815 vs 已签口径 38,285/40,644（+5,319/+1,171），差异全部来自 254↔255 饱和边界步进（f32 差 0.00392150879 < 1/255，§6 明写「饱和像素不计」）。本参考下不影响 verdict（40× 余量），但计数规则与签名对象不一致且方向偏宽，**须在 G-L2 冻结前收敛**。",
+    "**运行门控**：GPU 用例 `#[ignore]`、缺参考 `load_reference` 返回 `Err` 并由调用方 `panic!(\"not executed: ...\")`；独立强制 `--ignored` 复跑 exit **101** + 逐字 `not executed: reference missing (G-L1 capture pending)`；默认门禁不受影响 ✅。",
+    "**产品段**：确用 Card H `render_per_world_with_lights(...)` + `WorldLightPoses`（9 条逐位透传自 `state.npz`）；`camera_poses = CameraPose::from_fields` 长度 3 = ncam，`world_camera_pose_arrays` 允许 ncam 广播（相机固定，语义正确）；产品 side `apply_poses` 每 world 前 `update_poses` + `refit_bvh`（P0-1 前提成立）；两跑 rgb/depth/seg 整块 sha 相等、world 隔离断言（仅 world1 变、world0/2 两台相机逐位不变）✅。",
+    "**dump provenance（独立重跑）**：`model-315.json` sha `503bdabd…`/312,943 B 与复用 dumper 重 dump 结果**逐字节相等**（重 dump 到 `target/` 比对）；mjb sha `c5414b6b…`/101,586 B 两次保存一致；mujoco 3.15.0 / python 3.12.13；输入场景 `4b354054…`/5,134 B；dump 位于 `tests/support/`（不进 fixtures）✅。",
+    "**自证覆盖**：独立复跑 `cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1` → **13 passed / 0 failed / 1 ignored**（exit 0），覆盖 383/384/575/576 边界、某套 0/0 必败、C1/C2 互换必拒、1/255 口径、pair 顺序、A 三量位级、B 位型、隔离/两跑 sha、npz 解析正负例、provenance 负例 ✅。",
+    "**边界与证据**：`cde3e597` 相对 parent 只含卡 JSON + runs + 本卡证据 + 5 个 test/support 新文件；`src/`/`fixtures/`/`scripts/`/spec 目录/pilot 目录零 diff；新文件行数 489/390/446（≤500）；测试文件不挂模块源（与既有 render 测试惯例一致）；manifest **6/6** 自核、UTF-8/LF/无 BOM/裸 CR·TAB 0 ✅。",
+    "**门禁**：四门禁独立复跑 fmt/clippy/clippy-cuda 通过、unit **1384 passed / 0 failed / 401 ignored** ✅。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-criteria-entity"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity-check/"
+    ],
+    "resources": [],
+    "priority": 77
+  },
+  "note": "Chief 2026-11-08 派工：判据实体卡复核（G-L2 冻结前置；零 GPU；只读 + 只写本卡证据）。复核目标提交 cde3e597。结论：PASS-with-observations（实现/门控/provenance/门禁全对）+ 1 项须在 G-L2 冻结前修的 C1 计数口径（F1）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T13:06:00.000Z",
+  "updated_at": "2026-11-08T13:06:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-criteria-entity-check"
+    }
+  ]
+}
