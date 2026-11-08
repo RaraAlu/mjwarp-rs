@@ -106,3 +106,24 @@
 | `artifacts/kernel-identity.json` | `.cu` 零 diff + `MEGAKERNEL_SLOTS`=81 证据 |
 | `artifacts/boundaries.json` | 变更面与 `unchanged fixtures/, scripts/, spec` 实测 |
 | `logs/unit-tests.log` | 三条定向单测命令原始输出（exit=0） |
+
+## 10. O1 修正（QA 复核中观察；fix 提交，基线既有缺陷非本卡引入）
+
+- **问题**：`render_per_world_impl` 的失败恢复被 `outcome.is_ok()` 门控——失败路径预算了
+  `Ok(original)` 但从不 `apply`，即失败时**未恢复**调用前位姿；与注释/回执的「失败尽力恢复」不符。
+- **修法**：收尾抽为纯函数 `finish_per_world(outcome, restore, apply)`，**两条路径都 apply**：
+  - 成功路径：施加调用方位姿；`restore`/`apply` 失败即首错（行为与修前一致）。
+  - 失败路径：施加 `original` 恢复位姿；恢复阶段错误**只作附注**（首错原样返回，不 panic、
+    不把恢复错误升为首错）。
+- **新增 CPU 单测（4 条，`per_world` 由 6 passed 增至 10 passed / 1 ignored）**：
+  `failure_path_restores_original_and_keeps_first_error`（失败时恢复被施加、状态回 original、返回首错）、
+  `failure_path_restore_error_does_not_mask_first_error`（恢复失败不掩盖首错且仍尝试恢复）、
+  `success_path_applies_caller_poses_unchanged`（成功路径同步不变）、
+  `success_path_apply_error_is_returned_as_first_error`（成功路径施加失败即首错）。
+- **行数**：`src/render/kernel/per_world.rs` 338 → **409**（≤500）；其余文件未改。
+- **边界**：仅 `per_world.rs` + 本证据目录；`.cu` 零 diff、81 槽/内核身份不变；`unchanged fixtures/, scripts/, spec`。
+- **fix 轮证据**：`artifacts/o1-fix.json`（bug/修法/单测/边界/内核身份复核）、`logs/o1-fix-unit-tests.log`
+  （`per_world` 10 passed / 0 failed / 1 ignored，exit=0）。
+- `receipt.json` 属实现提交时的历史证据（verified），**不回改**；O1 修正以本 README 小节 + 卡 addenda 记录。
+  §3–§6 与 `artifacts/boundaries.json`、`kernel-identity.json`、`line-counts.txt`、`src.diff`、`logs/unit-tests.log`
+  均为 **Card H 实现提交时快照**，本 fix 不回改。

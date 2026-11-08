@@ -39,7 +39,8 @@ pub fn reject_multi_sample(nsamples: usize) -> Result<(), LauncherError> {
 ///
 /// 前置：`context.resolved().output.nsamples == 1`；`scene_poses.worlds()` 等于 context 的
 /// `nworld`；`scene_poses.leaves()` 等于每 world 的 leaf 数（各 world 的 leaf geom 次序一致）。
-/// 成功后 context 的场景状态 == 调用方给定的 per-world 位姿；失败时尽力恢复调用前状态。
+/// 成功后 context 的场景状态 == 调用方给定的 per-world 位姿；失败时恢复调用前状态
+/// （恢复失败只作附注，首错原样返回）。
 pub fn render_per_world(
     renderer: &MegakernelRenderer,
     context: &mut RenderContext,
@@ -150,17 +151,32 @@ fn render_per_world_impl(
             break;
         }
     }
-    // 成功后把 context 同步为调用方给定的 per-world 位姿；失败则恢复调用前位姿（尽力而为）。
+    // 收尾：成功 → 把 context 同步为调用方给定的 per-world 位姿；失败 → 恢复调用前位姿。
+    // 两条路径都会 apply（失败路径不再跳过恢复），策略见 `finish_per_world`。
     let restore = match outcome.is_ok() {
         true => caller_poses(scene_poses, &slots, &leaf_meta),
         false => Ok(original),
     };
-    if outcome.is_ok()
-        && let Err(error) = restore.and_then(|poses| apply_poses(context, &poses))
-    {
-        outcome = Err(error);
+    finish_per_world(outcome, restore, |poses| apply_poses(context, poses))
+}
+
+/// per-world 发射的收尾策略（纯函数，CPU 单测覆盖；真实施加由 `apply` 回调完成）。
+///
+/// - 成功路径（`outcome` 为 `Ok`）：施加调用方给定位姿；`restore`/`apply` 的失败即首错，返回它。
+/// - 失败路径（`outcome` 为 `Err`）：**仍施加恢复位姿**（调用前状态）；恢复阶段的错误只作附注
+///   （本 crate 无集中日志设施）——**首错原样返回**，不 panic、不把恢复错误升为首错。
+fn finish_per_world(
+    outcome: Result<(), LauncherError>,
+    restore: Result<Vec<LeafPose>, LauncherError>,
+    apply: impl FnOnce(&[LeafPose]) -> Result<(), LauncherError>,
+) -> Result<(), LauncherError> {
+    let restore_result = restore.and_then(|poses| apply(&poses));
+    match (outcome.is_ok(), restore_result) {
+        (true, Err(error)) => Err(error),
+        (true, Ok(())) => Ok(()),
+        // 失败路径：恢复适用性错误/恢复失败只作附注，首错原样返回。
+        (false, _) => outcome,
     }
-    outcome
 }
 
 /// per-world 灯入口的 world 数校验（纯函数，CPU 单测覆盖；不发 GPU）。
@@ -334,5 +350,60 @@ mod tests {
             Err(LauncherError::InvalidArray("per_world_light_worlds"))
         ));
         assert!(validate_light_worlds(&lights, 3).is_ok());
+    }
+
+    fn leaf(seed: f32) -> LeafPose {
+        LeafPose {
+            xpos: [seed, seed + 1.0, seed + 2.0],
+            xmat: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        }
+    }
+
+    // QA 中观察 O1：失败路径必须真的恢复（此前 `outcome.is_ok()` 门控导致恢复从不施加）。
+    #[test]
+    fn failure_path_restores_original_and_keeps_first_error() {
+        let original = vec![leaf(0.0), leaf(1.0)];
+        let first = LauncherError::Unsupported("per-world 首错");
+        let mut scene = original.clone();
+        let mut applied = 0usize;
+        let result = finish_per_world(Err(first.clone()), Ok(original.clone()), |poses| {
+            applied += 1;
+            scene = poses.to_vec();
+            Ok(())
+        });
+        assert_eq!(result, Err(first), "失败路径必须原样返回首错");
+        assert_eq!(applied, 1, "失败路径必须执行恢复 apply（不得跳过）");
+        assert_eq!(scene, original, "失败路径必须回到调用前位姿");
+    }
+
+    #[test]
+    fn failure_path_restore_error_does_not_mask_first_error() {
+        let first = LauncherError::InvalidArray("per_world_light_count");
+        let mut applied = 0usize;
+        let result = finish_per_world(Err(first.clone()), Ok(vec![leaf(0.0)]), |_| {
+            applied += 1;
+            Err(LauncherError::Driver("restore failed".into()))
+        });
+        assert_eq!(result, Err(first), "恢复失败只作附注，不得掩盖首错");
+        assert_eq!(applied, 1, "即使恢复失败也必须尝试恢复");
+    }
+
+    #[test]
+    fn success_path_applies_caller_poses_unchanged() {
+        let caller = vec![leaf(5.0), leaf(6.0)];
+        let mut scene = vec![leaf(-1.0)];
+        let result = finish_per_world(Ok(()), Ok(caller.clone()), |poses| {
+            scene = poses.to_vec();
+            Ok(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(scene, caller, "成功路径必须同步调用方位姿");
+    }
+
+    #[test]
+    fn success_path_apply_error_is_returned_as_first_error() {
+        let error = LauncherError::Driver("sync failed".into());
+        let result = finish_per_world(Ok(()), Ok(vec![leaf(0.0)]), |_| Err(error.clone()));
+        assert_eq!(result, Err(error), "成功路径施加失败即首错");
     }
 }

@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "fix": "QA 复核中观察 O1（基线既有缺陷，非 Card H 引入）：per_world 失败恢复逻辑被 outcome.is_ok() 门控，失败路径预算的 Ok(original) 从不 apply；与注释/回执的「失败尽力恢复」不符。",
+  "base_revision": "7ee8f4518906069c1820e146618e09d0ac4314e9",
+  "bug": "let restore = match outcome.is_ok() { true => caller_poses(..), false => Ok(original) }; 之后 `if outcome.is_ok() && let Err(error) = restore.and_then(apply_poses)`：失败时 outcome.is_ok()==false，恢复从不施加。",
+  "fix": {
+    "helper": "fn finish_per_world(outcome, restore, apply) -> Result<(), LauncherError>",
+    "failure_path": "仍施加 Ok(original) 恢复调用前位姿；首错原样返回；恢复阶段错误只作附注（不 panic、不升为首错）",
+    "success_path": "施加调用方位姿；restore/apply 失败即首错（与修前一致）"
+  },
+  "unit_tests": {
+    "log": "logs/o1-fix-unit-tests.log",
+    "result": "cargo test --locked --lib per_world: 10 passed / 0 failed / 1 ignored (exit=0)",
+    "new_cases": [
+      "failure_path_restores_original_and_keeps_first_error",
+      "failure_path_restore_error_does_not_mask_first_error",
+      "success_path_applies_caller_poses_unchanged",
+      "success_path_apply_error_is_returned_as_first_error"
+    ]
+  },
+  "line_counts": {
+    "src/render/kernel/per_world.rs": {"before": 338, "after": 409, "ratchet_ok": true}
+  },
+  "boundaries": {
+    "changed_src": ["src/render/kernel/per_world.rs"],
+    "changed_evidence": [
+      "README.md",
+      "manifest.txt",
+      "artifacts/o1-fix.json",
+      "logs/o1-fix-unit-tests.log",
+      ".normify/changes/2026-11-08-render-perworld-l-v2-host-light-entry.json (fix addenda)"
+    ],
+    "unchanged_fixtures": true,
+    "unchanged_scripts": true,
+    "unchanged_spec_dir": true,
+    "changed_src_matches_expected": true
+  },
+  "kernel_identity": {
+    "cuda_zero_diff": true,
+    "megakernel_slots": 81,
+    "note": ".cu 与 81 槽/内核身份不变；implementation-time artifacts/kernel-identity.json 仍有效"
+  },
+  "historical_evidence_policy": "receipt.json / boundaries.json / kernel-identity.json / line-counts.txt / src.diff / logs/unit-tests.log 属实现提交时历史证据，本次 fix 不回改；O1 修正仅以本文件 + README §10 + 卡 addenda 记录。"
+}
