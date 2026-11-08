@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-host-light-entry-check",
+  "title": {
+    "zh": "QA 复核：Card H host per-world 灯入口（.cu/81 槽零改动、worldid 恒 0 重传、f32 位型透传、默认路径不变、1367 过/0 败；1 中观察 + 2 信息项）",
+    "en": "QA review of Card H host per-world light entry (zero .cu/81-slot change, worldid-0 re-upload, f32 bit passthrough, default path unchanged, 1367 passed / 0 failed; 1 medium observation + 2 info)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 的 Card H `2026-11-08-render-perworld-l-v2-host-light-entry`（verified；登记 `38797130` → start `2e207e32` → 实现 **`773cbe99`**）做**只读独立复核**：① `.cu` 零改动/内核身份不变（逐文件 sha256 与基线 `2e207e32` 相同、diff 为空、`MEGAKERNEL_SLOTS` 81 源码+单测双证、81 槽排列 `args.rs` 未动、入口签名未动）；② host-only 机制（`render_per_world_impl` 每 world 调 `render_world_with_lights` → `render_impl` 内按 world `select_world_lights` 后重建 1-D 实参并在每次发射上传；`launch_worlds=1`、`adr_world=world`、`worldid` 恒 0 语义未动）；③ 数据契约（`WorldLightPoses` 校验/越界/`checked_mul`/可诊断错误/不 panic、f32 位型透传、来源 `state.npz`、默认路径 `light_data_poses` 拒绝面不全局放开）；④ 默认路径不变（v1 geom-only 签名与单测、AA 仍 Unsupported、golden 位型）；⑤ 行数/新文件/模块登记；⑥ 三命令 + unit 1367/0 独立重跑；⑦ 边界/证据 8/8、编码、diff 面；⑧ 非宣称。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Independent read-only review of Card H at 773cbe99: kernel identity (.cu zero diff, 81 slots, entry signature), host-only per-world light re-upload mechanism, data contract and bit passthrough, unchanged default path and AA rejection, line counts/new file/module registration, independent test re-run, boundaries and evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**内核身份不变**：`src/render/kernel/cuda/**` 8 个 `.cu` 在 `2e207e32` 与 `773cbe99` 的 git blob 完全一致（`git ls-tree` 比对 IDENTICAL、`git diff` 为空），工作树 sha256 与 `artifacts/kernel-identity.json` 逐文件相同；`MEGAKERNEL_SLOTS` 声明 `[RenderArgKind; 81]`（`src/runtime/launcher/render/args.rs`，本提交未改）且单测 `slot_40_is_bool_scalar_in_frozen_signature` 断言 `len==81`；81 槽排列/`MEGAKERNEL_ENTRY` 未动。",
+    "**host-only 机制**：`render_per_world_impl` 的 `for world in 0..worlds` 循环内**逐 world** 调 `renderer.render_world_with_lights(..., world, lights)`；`render_impl` 内按 `world` 调 `select_world_lights` 生成该 world 的 1-D `light_xpos/light_xdir`，并在**每次**发射调用 `upload_megakernel_arrays`（函数内局部）→ 每 world 重传而非只传一次；`launch_worlds = if world.is_some() {1} else {nworld}`、`adr_world = world` 为既有 v1 机制未变；内核 `worldid` 恒 0 语义由 `.cu`/args 零改动保持。",
+    "**数据契约**：`WorldLightPoses::new` 校验 `worlds>=1`/`lights>=1`/`poses.len()==worlds×lights`/`checked_mul` 溢出；`get`/`world_slice` 越界返回 `WorldLightError`；入口 world 数不匹配 → `InvalidArray(\"per_world_light_worlds\")`、灯数不匹配 → `InvalidArray(\"per_world_light_count\")`；全部返回错误不 panic；位姿为 `LightDataPose{xpos,xdir}` f32 原值，`flatten_light_poses` 仅拷贝无 FK/f64/归一化；来源标注为采集侧 `state.npz`（`capture_render_perworld.py::state_arrays`）。",
+    "**默认路径不变**：`render_per_world` 公开签名与基线逐字相同、内部走共享 `impl(lights=None)`；`light_mode!=0`/`light_bodyid!=0` 拒绝仍只在默认路径（`light_data_poses` 未改，且新测 `default_path_still_rejects_tracked_lights` 覆盖）；`default_path_light_data_poses_keep_golden_bits` 的位型常量与 `fixtures/render-bvh/scene-a/s7b/rgb.json.light_data_check` 逐项一致；`nsamples>1` 仍 `Unsupported`（`reject_multi_sample` 未改）。",
+    "**行数/新文件/登记**：git-blob 换行口径 `world_light.rs` **371（新）**、`per_world.rs` **338**、`megakernel.rs` **497**、`mod.rs` **479**、`megakernel_arrays.rs` **411 未改**，全部 ≤500；本提交唯一新增源文件为 `world_light.rs`；`.normify/modules/mjwarp/render/kernel.md` 已 `[[source]] path = \"src/render/kernel/world_light.rs\"` 并刷新指纹。",
+    "**测试独立重跑**：`cargo test --locked --lib world_light` → 8 passed/0 failed（含 7 个 world_light 单测 + `per_world::validates_per_world_light_world_count_without_panic`）；`per_world` → 6 passed/0 failed/1 ignored；`slot_40_is_bool_scalar_in_frozen_signature` → 1 passed；三者 exit=0；四门禁 unit **1367 过 / 0 败**（+8）。新测覆盖 world-major 位型 round-trip、计数不匹配/零 world/零灯/溢出/越界、展平顺序与逐位保持、`InvalidArray(\"per_world_light_count\")`、默认路径 golden、81 槽。",
+    "**边界/证据/非宣称**：`git diff 2e207e32..773cbe99` 的 `fixtures/`、`scripts/`、`docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/` 均为空；证据 manifest **8/8** 自核、UTF-8/LF/无 BOM/裸 CR·TAB 0；`artifacts/src.diff` 与实时 `git diff -- src/` 逐字节相同；diff 面仅 `src/render/...` + 模块 md + 卡/runs/证据；README §8 明示「不宣称渲染通过，GPU 端到端留给 G-L2」；停手条款核查结论（未触发）与 `.cu` 零改动一致。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-host-light-entry",
+      "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-host-light-entry-check/"
+    ],
+    "resources": [],
+    "priority": 66
+  },
+  "note": "Chief 2026-11-08 18:1x 派工：pilot 之外的关键实现片 Card H 复核。复核对象提交 773cbe99（基线 2e207e32）。只读 + 只写本卡证据；零 GPU；不改被复核代码/证据/卡状态。",
+  "revision": {
+    "before": "a7bf5d2fcc93e75459b948d1675f0f392995b6ce",
+    "after": null
+  },
+  "created_at": "2026-11-08T10:19:53.369Z",
+  "updated_at": "2026-11-08T10:19:53.369Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "src/render/kernel/cuda/",
+        "src/runtime/launcher/render/args.rs",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-host-light-entry/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-host-light-entry-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-host-light-entry-check"
+    }
+  ]
+}
