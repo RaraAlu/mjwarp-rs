@@ -1,0 +1,33 @@
+# G-L0 pilot readout - DIAGNOSTIC re-run on the VOIDED foreign capture data (2026-11-08)
+#
+# !!! NOT PILOT EVIDENCE !!!
+# Source: target/render-bvh/perworld-l-v2-gl0/window/foreign-184138/ (voided external capture by Backend;
+# kept only for diagnosing the readout script bug). npz are NOT committed; only this summary is.
+# Purpose: verify that the fixed readout normalizes per_world_scope.covers (string vs list) and that
+# C1/C2 counters are unchanged by the fix. This file must never be cited as pilot/reference evidence.
+
+bug (fixed 2026-11-08, prior readout 456da2dc.../13,366 B):
+  covers = " ".join(scope.get("covers", "")) if isinstance(..., str) else " ".join(...)
+  -> joining a string iterates characters, so 'per-world light poses'/'per-world geom poses' are never
+     found and scope_covers_light_and_geom is constantly false; exit code was 2 on an otherwise valid run.
+fix: scope_text() keeps strings verbatim and joins only list/tuple; scope_checks() extracted for tests.
+
+old readout: D:/Rust/mjwarp-rs/target/render-bvh/perworld-l-v2-gl0/window/foreign-184138/readout.json  sha256 1c088232ef78bd9d18e4e37e72cbe1e8cb22ecac2cc5cc0fef70c880a061ceb6
+new readout: artifacts/diagnostic-foreign-rerun.json   sha256 f43e5da77bcc11e1d07dfce5a9580b41925482dee5bd53f72788a2caf1553e95
+
+| item | old (voided) | new (fixed) |
+| --- | --- | --- |
+| exit / metadata.failed | 2 / ['scope_covers_light_and_geom'] | 0 / [] |
+| scope_covers_light_and_geom | False | True |
+| scope_no_old_wording | True | True |
+| C1 rgb (0->1 / 1->2) | [38285, 40644] | [38285, 40644] |
+| C2 depth (0->1 / 1->2) | [35828, 33883] | [35828, 33883] |
+| C2 seg (0->1 / 1->2) | [16041, 16754] | [16041, 16754] |
+| verdict | pass-margin | pass-margin |
+
+counter/diagnostic leaf diffs between old and new: NONE (identical)
+per_world_summary leaf diffs: NONE (identical)
+
+conclusion: the only behaviour change is the scope check (false -> true, metadata now ok, exit 0);
+C1/C2 counters and per-world summaries are bit-identical to the voided run, i.e. the fix touches
+metadata normalization only and does not alter C1/C2 computation, thresholds, or camera ownership.

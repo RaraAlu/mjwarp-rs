@@ -14,6 +14,10 @@ seg (id, type) sets, and verifies the two-capture bitwise flag.
 
 This script is authoring-only and must never be imported by product code.
 
+2026-11-08 fix: `per_world_scope` fields are normalized by `scope_text()` (string kept verbatim, list
+joined element-wise); before the fix a string `covers` was iterated character-by-character, so the
+scope check was constantly false. C1/C2 computation, thresholds and camera ownership are unchanged.
+
 Usage:
   python -B readout_c1_c2.py --pilot-dir <dir> [--json-out <path>]
   python -B readout_c1_c2.py --selftest
@@ -148,6 +152,32 @@ def is_iso8601(value: str) -> bool:
         return False
 
 
+def scope_text(value) -> str:
+    """Normalize a per_world_scope field to one string.
+
+    The capture writes `covers`/`does_not_cover` as plain strings today; older shapes may be lists.
+    A string must be kept verbatim (joining it would iterate characters - the 2026-11-08 fix), a
+    list/tuple is joined element-wise, anything else becomes an empty string.
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(item) for item in value)
+    return ""
+
+
+def scope_checks(scope) -> dict:
+    """Scope-related metadata checks, kept separate so the selftest can exercise string/list shapes."""
+    scope = scope or {}
+    covers = scope_text(scope.get("covers", ""))
+    does_not = scope_text(scope.get("does_not_cover", ""))
+    return {
+        "scope_covers_light_and_geom": ("per-world light poses" in covers)
+        and ("per-world geom poses" in covers),
+        "scope_no_old_wording": "device path indexes lights single-world" not in does_not,
+    }
+
+
 def metadata_selfcheck(pilot_dir: pathlib.Path) -> dict:
     capture = json.loads((pilot_dir / "capture.json").read_text(encoding="utf-8"))
     checks = {}
@@ -157,11 +187,7 @@ def metadata_selfcheck(pilot_dir: pathlib.Path) -> dict:
     checks["captured_at_non_empty_iso8601"] = bool(at) and is_iso8601(at)
     checks["reference_tag"] = capture.get("reference_tag")
     checks["reference_tag_is_tag"] = capture.get("reference_tag") == "nw3-light-hinge02040"
-    scope = capture.get("per_world_scope") or {}
-    covers = " ".join(scope.get("covers", "")) if isinstance(scope.get("covers"), str) else " ".join(scope.get("covers", []))
-    does_not = json.dumps(scope.get("does_not_cover", []), ensure_ascii=False)
-    checks["scope_covers_light_and_geom"] = ("per-world light poses" in covers) and ("per-world geom poses" in covers)
-    checks["scope_no_old_wording"] = "device path indexes lights single-world" not in does_not
+    checks.update(scope_checks(capture.get("per_world_scope")))
     checks["cam_active"] = (capture.get("parameters") or {}).get("cam_active")
     checks["cam_active_expected"] = checks["cam_active"] == [True, True, False]
     resolved = (capture.get("context") or {}).get("resolved") or {}
@@ -275,7 +301,40 @@ def selftest() -> int:
         print(f"{'PASS' if ok else 'FAIL'} {name}: verdict={v['verdict']} exit={v['exit_code']} "
               f"c1={v['c1_values']} depth={v['c2_depth_values']} seg={v['c2_seg_values']}")
     print(f"SUMMARY {'PASS' if failures == 0 else 'FAIL'} {len(cases) - failures}/{len(cases)}")
-    return 0 if failures == 0 else 1
+    # Scope-normalization regression cases (2026-11-08 fix): a string covers field must be read verbatim;
+    # joining a string would iterate characters and make the check constantly false.
+    scope_cases = [
+        ("scope-string", {"covers": "per-world light poses (light_xpos/light_xdir) AND per-world geom poses "
+                                    "(geom_xpos/geom_xmat) with nworld > 1; device-path ...",
+                          "does_not_cover": "AA x perworld (nsamples>1 still Unsupported)"},
+         {"scope_covers_light_and_geom": True, "scope_no_old_wording": True}),
+        ("scope-list", {"covers": ["per-world light poses (x)", "AND per-world geom poses (y)"],
+                        "does_not_cover": ["AA x perworld"]},
+         {"scope_covers_light_and_geom": True, "scope_no_old_wording": True}),
+        ("scope-missing-geom", {"covers": "per-world light poses only",
+                                "does_not_cover": "AA x perworld"},
+         {"scope_covers_light_and_geom": False, "scope_no_old_wording": True}),
+        ("scope-list-missing-geom", {"covers": ["per-world light poses only"], "does_not_cover": []},
+         {"scope_covers_light_and_geom": False, "scope_no_old_wording": True}),
+        ("scope-old-wording", {"covers": "per-world light poses AND per-world geom poses",
+                               "does_not_cover": "per-world light poses (device path indexes lights single-world)"},
+         {"scope_covers_light_and_geom": True, "scope_no_old_wording": False}),
+        ("scope-old-wording-list", {"covers": ["per-world light poses", "per-world geom poses"],
+                                    "does_not_cover": ["per-world light poses (device path indexes lights single-world)"]},
+         {"scope_covers_light_and_geom": True, "scope_no_old_wording": False}),
+    ]
+    scope_failures = 0
+    for name, scope, expected in scope_cases:
+        got = scope_checks(scope)
+        ok = got == expected
+        scope_failures += 0 if ok else 1
+        print(f"{'PASS' if ok else 'FAIL'} {name}: {got}")
+    print(f"SUMMARY-SCOPE {'PASS' if scope_failures == 0 else 'FAIL'} "
+          f"{len(scope_cases) - scope_failures}/{len(scope_cases)}")
+    total_failures = failures + scope_failures
+    total_cases = len(cases) + len(scope_cases)
+    print(f"SUMMARY-ALL {'PASS' if total_failures == 0 else 'FAIL'} {total_cases - total_failures}/{total_cases}")
+    return 0 if total_failures == 0 else 1
 
 
 def main() -> int:

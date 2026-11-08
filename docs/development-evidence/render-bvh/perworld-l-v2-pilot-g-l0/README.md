@@ -78,14 +78,16 @@
 | `materials/monitor-plan.txt` | monitor 计划（常规阈值；例外不适用） |
 | `materials/evidence-checklist.txt` | 采后证据清单（window/* 的落点） |
 | `materials/readout_c1_c2.py` | **新增**判读脚本：C1/C2 + 元数据自核 + seg 集合 + per-world 摘要 + verdict；`--selftest` 6 例 |
-| `materials/readout-selftest.txt` | 判读脚本/计数 wrapper 的自检与真实数据负对照记录 |
+| `materials/readout-selftest.txt` | 判读脚本/计数 wrapper 的自检与真实数据负对照记录（2026-11-08 fix 后：`SUMMARY-ALL PASS 12/12`，含 6 条 scope 归一化回归） |
+| `artifacts/diagnostic-foreign-rerun.json` | **诊断复跑**输出（**作废外采数据，非 pilot 证据**）：修复后 metadata ok、C1/C2 与作废 readout 逐项一致 |
+| `artifacts/diagnostic-foreign-rerun.txt` | 同上，含对比表与「NOT PILOT EVIDENCE」标注与根因说明 |
 | `materials/run_pilot_with_refit_counter.py` | **新增** pilot 运行器：记录 refit/render 实际调用计数与顺序（直接调用脚本不算证据） |
 | `materials/qa-prereview-checklist.txt` | QA 读前预审清单（9 项） |
 | `materials/group-message-template.txt` | 群内留痕模板（开窗前/通过/停手/基建失败） |
 
 **判读脚本新增理由**：v2 时代的 `perworld-l-v2-capture-g-l1/materials/discriminability_check.py` 只认 depth/seg（v2 §6 口径），不覆盖 v3 的 **C1 rgb + `1/255` 量级规则**、双相机归属与元数据/seg 自核；因此本材料**新增** `readout_c1_c2.py`，并**不复用**旧脚本，也不修改任何产品/采集代码。两个脚本均 **authoring-only、零 GPU、只读 npz 与 capture.json**，不得被产品路径 import。
 
-**工具自检（已跑，CPU）**：`readout_c1_c2.py --selftest` → `SUMMARY PASS 6/6`（pass-margin / insufficient / non-discriminating / 1-ULP-only 被 `1/255` 规则拒绝 / 全 0 / 仅 C1 也被拒因 C2 必须同时达标）；真实数据负对照（既有 L v1 参考 rgb 三 world 逐位相同）→ C1 计数 **0/0**；refit 计数 wrapper 在 dry-run 透传下 **exit 4 + 空序列**，证明它只记录真实 refit/render 执行。
+**工具自检（已跑，CPU）**：`readout_c1_c2.py --selftest` → **`SUMMARY-ALL PASS 12/12`**（6 条计数/verdict 用例：pass-margin / insufficient / non-discriminating / 1-ULP-only 被 `1/255` 规则拒绝 / 全 0 / 仅 C1 也被拒因 C2 必须同时达标；+ 6 条 scope 归一化回归，见 §8）；真实数据负对照（既有 L v1 参考 rgb 三 world 逐位相同）→ C1 计数 **0/0**；refit 计数 wrapper 在 dry-run 透传下 **exit 4 + 空序列**，证明它只记录真实 refit/render 执行。
 
 ## 7. 已批准事项（Chief 2026-11-08）与 G-L0 token 条件
 
@@ -96,7 +98,27 @@
 5. **开窗时点**：现在 GPU 有团队外负载（Chief 2026-11-08 观测 util 87% / free 8,522 MiB，非团队任务），monitor 不可能连续干净 → **等外部负载退场、monitor 干净后再发 token**。
 6. **无用户签名级新增**：S-1 已签；S-2/S-3 仍待签，本材料不构成任何签署对象。
 
-## 8. 边界与非声明
+## 8. 签名后 fix 记录：readout `per_world_scope` 归一化 bug（2026-11-08）
+
+- **现象**：pilot 窗口内 `readout_c1_c2.py` 的 `metadata_selfcheck` 报 `failed=["scope_covers_light_and_geom"]`、exit 2，但采集产物本身正常。
+- **根因（旧 `readout_c1_c2.py:160-163`）**：`capture.json.per_world_scope.covers` 是**字符串**，而代码对该字段执行 `" ".join(scope["covers"])`；对字符串 `join` 会按**字符**拼接 → `per-world light poses` / `per-world geom poses` 两个短语永远匹配不到 → 该检查恒 false。（`does_not_cover` 当时用 `json.dumps` 未受影响，但同属「字符串/列表形状未归一化」类。）
+- **修复**：新增 `scope_text(value)`——**字符串原样返回**、list/tuple 才逐元素 join、其它返回空串；scope 两项检查抽成 `scope_checks(scope)` 便于单测；`metadata_selfcheck` 改为调用它。**C1/C2 计算、阈值、相机归属、metadata 其它判定语义一律未动。**
+- **同期体检**：脚本内 `join` 仅剩 `scope_text` 一处（对 list 使用），`json.dumps` 仅用于输出打印，无其它同类形状 bug。
+- **selftest**：新增 6 条 scope 回归（字符串含两短语 → true；list → true；缺 geom → false；list 缺 geom → false；旧文案字符串 → `scope_no_old_wording=false`；旧文案 list → 同样检出）；`--selftest` 由 6/6 扩为 **`SUMMARY-ALL PASS 12/12`**。
+- **诊断复跑（非证据）**：用**作废外采数据** `target/render-bvh/perworld-l-v2-gl0/window/foreign-184138/`（Backend 外采、已作废；npz 不入库）跑修复后脚本：
+  | 项 | 旧（作废 run） | 新（修复后） |
+  | --- | --- | --- |
+  | exit / `metadata.failed` | 2 / `["scope_covers_light_and_geom"]` | **0 / `[]`** |
+  | `scope_covers_light_and_geom` | False | **True** |
+  | C1 rgb（0→1 / 1→2） | 38,285 / 40,644 | **38,285 / 40,644**（一致） |
+  | C2 depth | 35,828 / 33,883 | **35,828 / 33,883**（一致） |
+  | C2 seg | 16,041 / 16,754 | **16,041 / 16,754**（一致） |
+  | verdict | pass-margin | **pass-margin** |
+  | 计数/诊断/per-world 摘要逐叶差异 | — | **NONE（identical）** |
+  详见 `artifacts/diagnostic-foreign-rerun.txt`（首行起标注 **NOT PILOT EVIDENCE**）——该诊断**只用来说明脚本修复不影响 C1/C2**，**不得**引用为 pilot/参考证据，也不改变「pilot 仍待重开」的状态。
+- **工具哈希**：`readout_c1_c2.py` 由 `456da2dc…`/13,366 B 更新为新值（见 `manifest.txt` 与 `receipt.tools`）；wrapper 未改。
+
+## 9. 边界与非声明
 
 - **零 GPU、不采集、不开窗、不入库任何 pilot 数据**；`unchanged src/`、`unchanged fixtures/`、`unchanged scripts/`（材料期不改脚本；发现脚本缺陷 = 停手报 Chief）。
 - 不宣称判别力恢复、采集是否有效、per-world 灯验收、与上游等价、任何渲染数值结论；§3 的预测量不是实测。

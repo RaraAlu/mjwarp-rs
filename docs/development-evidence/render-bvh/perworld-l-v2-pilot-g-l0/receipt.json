@@ -171,9 +171,9 @@
   ],
   "tools": {
     "readout_c1_c2.py": {
-      "sha256": "456da2dc0112925ffc55d73aaf2860a5667ea293d7a50270a5a0ef821680e5fb",
-      "bytes": 13366,
-      "selftest": "SUMMARY PASS 6/6 (pass-margin / insufficient / non-discriminating / 1-ULP-only rejected / identical / C1-only rejected)"
+      "sha256": "4a054abafbec8e3a2567f75b7e71f5cec82c3cbd88d1d412e8a44f445370ad8b",
+      "bytes": 16711,
+      "selftest": "SUMMARY-ALL PASS 12/12: six counter/verdict cases (pass-margin / insufficient / non-discriminating / 1-ULP-only rejected by the 1/255 rule / identical / C1-only rejected) plus six scope-normalization regression cases (string covers / list covers / missing geom string+list / old does_not_cover wording string+list)"
     },
     "run_pilot_with_refit_counter.py": {
       "sha256": "f90f896acdf5d4012dd46f02bb8ad4da9e1be50b397f9b7cdd47bad9f46f4560",
@@ -253,5 +253,54 @@
     "token": "pending: Chief issues a single G-L0 token after the on-site checks above",
     "window_timing": "wait for the external GPU load to leave and the monitor to be clean",
     "no_user_signature": "S-1 signed; S-2/S-3 still unsigned; this material is not a signing object"
-  }
+  },
+  "readout_fix": {
+    "date": "2026-11-08",
+    "bug": "metadata_selfcheck joined per_world_scope.covers with ' '.join even when it was a string (iterating characters), so scope_covers_light_and_geom was constantly false and the readout exited 2 on an otherwise valid capture",
+    "file": "materials/readout_c1_c2.py",
+    "old_sha256": "456da2dc0112925ffc55d73aaf2860a5667ea293d7a50270a5a0ef821680e5fb",
+    "old_bytes": 13366,
+    "new_sha256": "4a054abafbec8e3a2567f75b7e71f5cec82c3cbd88d1d412e8a44f445370ad8b",
+    "new_bytes": 16711,
+    "fix": "scope_text(): strings kept verbatim, list/tuple joined element-wise; scope_checks() extracted so the selftest exercises string and list shapes; C1/C2 computation, thresholds, camera ownership and all other metadata semantics unchanged",
+    "sweep": "only remaining join is inside scope_text() for list/tuple; json.dumps is used for output printing only - no other string/list shape bug found",
+    "selftest_before": "SUMMARY PASS 6/6 (counter cases only)",
+    "selftest_after": "SUMMARY-ALL PASS 12/12",
+    "diagnostic_rerun": {
+      "source": "target/render-bvh/perworld-l-v2-gl0/window/foreign-184138/ (VOIDED external capture data)",
+      "evidence_label": "NOT PILOT EVIDENCE - script-fix verification only; npz not committed",
+      "exit_old_vs_new": [
+        2,
+        0
+      ],
+      "metadata_failed_old_vs_new": [
+        [
+          "scope_covers_light_and_geom"
+        ],
+        []
+      ],
+      "c1_rgb": [
+        38285,
+        40644
+      ],
+      "c2_depth": [
+        35828,
+        33883
+      ],
+      "c2_seg": [
+        16041,
+        16754
+      ],
+      "verdict": "pass-margin",
+      "old_vs_new_leaf_diffs": "NONE (counters / diagnostics / per-world summaries identical)",
+      "artifacts": [
+        "artifacts/diagnostic-foreign-rerun.json",
+        "artifacts/diagnostic-foreign-rerun.txt"
+      ]
+    }
+  },
+  "artifacts": [
+    "artifacts/diagnostic-foreign-rerun.json",
+    "artifacts/diagnostic-foreign-rerun.txt"
+  ]
 }
