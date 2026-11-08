@@ -1,0 +1,12 @@
+# QA read-only pre-review checklist - G-L0 pilot material
+# Scope: the material only (zero GPU). The reviewer must NOT write repo files; report PASS/observations.
+
+1. Signing object: spec.md sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B; receipt `status=effective`; S-2/S-3 unsigned; the S-2 authoring-exception pre-approval is NOT applied to the pilot.
+2. Material alignment with the signed spec: §9.3 self-check order (7 steps), §10.2 window discipline (3-point baseline, floor formula, monitor 60/60 util<40, zero compile, reference size if mentioned), §11.1 six preconditions + G-L0 result as the 7th, §12 G-L0 preconditions/decision/stop rules.
+3. Decision rule: C1 = cam-persp rgb with max_channel |delta| >= 1/255; C2 = cam-hinge depth bit-change + seg pair-change; BOTH sets and BOTH pairs >= 576 for pass-margin; [384,576) stop; <384 refuse; diagnostics recorded only; C1/C2 camera ownership not swapped.
+4. Pilot isolation: out-root and out-dir under `target/`; the material must never instruct writing `fixtures/render-bvh/scene-a-light/perworld/`; npz not committed; fail-stop cleanup limited to the pilot temp tree.
+5. Refit evidence: the command must go through `run_pilot_with_refit_counter.py`; expected refit x2 / render x2 and order refit->render->refit->render; a direct capture invocation is not acceptable evidence.
+6. Readout script: authoring-only, zero GPU, reads only pilot npz/capture.json; new (not reusing the v2 depth/seg-only script) with the reason stated; selftest covers pass-margin / insufficient / non-discriminating / 1-ULP-only (magnitude rule) / identical / C1-only (both sets required).
+7. Window discipline: floor = baseline_free - 3072 computed on the spot (user-signed floor is S-2, not G-L0); regular monitor thresholds only; no early S-2; zero compile with fingerprint; failure => stop and report.
+8. Evidence inventory: every checklist item has a named destination under the pilot evidence directory; manifest recipe (first line '#', '# base dir:', sha256+bytes, hygiene) is stated.
+9. Non-claims: no discriminability/acceptance/equivalence claims; the material says the pilot is Chief-token gated and not signed by the user except S-1/S-2 scope already recorded.

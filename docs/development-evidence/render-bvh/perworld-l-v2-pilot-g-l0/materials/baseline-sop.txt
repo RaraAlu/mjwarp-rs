@@ -1,0 +1,20 @@
+# G-L0 pilot baseline / floor SOP (G-L0 is Chief-level; user-signed floor belongs to S-2)
+
+1. Timing: start the three-point baseline within 5 minutes before the pilot capture.
+2. Three samples, ~5 s apart, all three must be recorded verbatim:
+   nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
+   nvidia-smi --query-compute-apps=pid,name --format=csv,noheader
+   Also record: build process count (must be 0), `git status --porcelain` (must be empty), `git rev-parse HEAD`.
+3. `baseline_free = min(memory.free of the three samples)  [MiB]`
+   `pilot_floor  = baseline_free - 3072                    [MiB, strict, computed on the spot]`
+   Record used/free/util/temp for every sample.
+4. Acceptance for all three baseline points:
+   - free >= pilot_floor
+   - util < 40 %
+   - no task CUDA compute process
+   - build processes 0, tree clean
+5. Monitor follows immediately (see monitor-plan.txt) with the regular thresholds only.
+6. Any failure: do not open the pilot; report Chief/user; no retry, no threshold change, and do NOT
+   sign S-2 early to get the authoring exception (spec 12 G-L0: the exception does not apply here).
+7. Evidence: the raw three-sample output + the floor arithmetic go into the pilot report; the user-signed
+   signed floor is a later S-2 artifact and must not be conflated with this computed pilot_floor.

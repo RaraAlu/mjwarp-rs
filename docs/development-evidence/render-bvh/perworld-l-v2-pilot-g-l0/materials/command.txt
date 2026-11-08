@@ -1,0 +1,62 @@
+# G-L0 pilot (perworld L v2 light) - verbatim commands
+# Signed spec: docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md
+#   sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B (S-1 signed 2026-11-08)
+# All commands run from repo root D:\Rust\mjwarp-rs with the pinned venv python.
+# NO command in this file was executed while producing this material card (GPU-free authoring).
+
+# --- 0) Preconditions that must already be true (see pilot-plan.txt section 1) ---
+#   S-1 signed; scene variant verified; capture script dual-camera verified + QA PASS;
+#   P0-1 refit verified; this material passed QA read-only pre-review; Chief G-L0 token issued.
+
+# --- 1) N1: MJWARP_CAPTURE_AT must be explicit, non-empty ISO8601 (dry-run only echoes env state) ---
+$env:MJWARP_CAPTURE_AT = "<ISO8601 written in the window card, e.g. 2026-11-09T20:15:00+08:00>"
+target/mjwarp-parallel/venv/Scripts/python.exe -B -c "import os,datetime; v=os.environ['MJWARP_CAPTURE_AT']; datetime.datetime.fromisoformat(v.replace('Z','+00:00')); assert v.strip(); print('CAPTURE_AT_OK', v)"
+
+# --- 2) Dry-run (CPU only; no products). Pilot out-root is under target/, NEVER fixtures/. ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --dry-run \
+  --scene fixtures/render-bvh/scene-a-light/scene.xml \
+  --out-root target/render-bvh/perworld-l-v2-gl0/pilot-out \
+  --out-dir target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040 \
+  --reference-tag nw3-light-hinge02040 \
+  --worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true \
+  --seed 20261030 --repeat 2
+# Expected dry-run facts (spec v3 section 9.2 / section 11.1-6):
+#   model_static.cameras == [[0,0,"cam-persp"],[1,0,"cam-hinge"],[2,3,"cam-track"]]
+#   cam_active_fixed_only == [true, true, false]
+#   legacy_manifest_entries == 112  (target/ out-root does not exclude fixtures perworld dirs; expected)
+#   exit 0; no out_dir created; no file written.
+
+# --- 3) Pilot capture (ONE attempt, no retry) through the refit counter wrapper (refit evidence) ---
+# The wrapper patches capture.refit_scene_before_render and mujoco_warp.render to record the
+# executed order, then runs the same capture main(). Expected: refit x2, render x2, order
+# refit->render->refit->render (repeat=2 => two capture passes, each render preceded by one refit).
+target/mjwarp-parallel/venv/Scripts/python.exe -B \
+  docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/run_pilot_with_refit_counter.py \
+  --counter-out target/render-bvh/perworld-l-v2-gl0/refit-counter.json \
+  -- --scene fixtures/render-bvh/scene-a-light/scene.xml \
+  --out-root target/render-bvh/perworld-l-v2-gl0/pilot-out \
+  --out-dir target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040 \
+  --reference-tag nw3-light-hinge02040 \
+  --worlds 3 --hinge-deg 0,20,40 --use-fast-math false --use-shadows true \
+  --seed 20261030 --repeat 2
+# If the wrapper cannot run for any reason: STOP and report; do NOT fall back to a direct capture
+# invocation, because then the refit-execution evidence required by spec section 9.3 (4) is missing.
+
+# --- 4) Post-pilot readout (CPU only): C1/C2 counters + metadata self-check + seg geom sets ---
+target/mjwarp-parallel/venv/Scripts/python.exe -B \
+  docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/materials/readout_c1_c2.py \
+  --pilot-dir target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040 \
+  --json-out target/render-bvh/perworld-l-v2-gl0/readout.json
+# Exit codes: 0 = pass-margin; 3 = insufficient ([384,576)) or non-discriminating (<384); 2 = error.
+# Material rule: any non-zero exit => STOP (keep evidence), report Chief/user, no retry, no threshold change.
+
+# --- 5) Baseline (within 5 minutes before the pilot) and monitor (regular thresholds only) ---
+nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
+nvidia-smi --query-compute-apps=pid,name --format=csv,noheader
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l-v2-gl0/monitor.csv
+# authoring exception (util<60) is NOT applicable to G-L0; see monitor-plan.txt.
+
+# --- 6) Cleanup on failure (fail-stop, no residue) ---
+# Remove only the pilot temp tree created by this run:
+#   Remove-Item -Recurse -Force target/render-bvh/perworld-l-v2-gl0
+# Keep logs/readout/counter copies for the report; never touch fixtures/ or existing references.

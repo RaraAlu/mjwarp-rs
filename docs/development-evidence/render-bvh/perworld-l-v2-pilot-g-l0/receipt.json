@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+  "kind": "window-material",
+  "title": "G-L0 pilot material (per-world L v2 light): dual-camera C1/C2 readout, window discipline, post-capture self-checks",
+  "status": "material_draft_pending_QA_prereview_and_chief_token",
+  "signed_object": false,
+  "owner": "Arch",
+  "date": "2026-11-08",
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "bytes": 39379,
+    "lines": 344,
+    "sections": 15,
+    "signature": "S-1 signed 2026-11-08 (receipt status=effective, spec frozen)"
+  },
+  "pilot": {
+    "level": "Chief (G-L0 token), not a user signature",
+    "runs_before": "S-2 dual signature (G-L0 result is S-2 precondition 7)",
+    "authoring_exception": "NOT applicable to the pilot (util<60 only for G-L1 with S-2 pre-approval)",
+    "out_root": "target/render-bvh/perworld-l-v2-gl0/pilot-out",
+    "out_dir": "target/render-bvh/perworld-l-v2-gl0/pilot-out/nw3-light-hinge02040",
+    "reference_tag": "nw3-light-hinge02040",
+    "forbidden_output_path": "fixtures/render-bvh/scene-a-light/perworld/",
+    "committed": false,
+    "npz_policy": "pilot npz stay under target/ (not committed); keep for QA re-read until the pilot card closes"
+  },
+  "environment": {
+    "python": "3.12.13",
+    "warp": "1.15.0",
+    "mujoco": "3.15.0",
+    "mujoco_warp": "3.15.0",
+    "numpy": "2.5.4",
+    "upstream_revision": "71da24d9 (editable, no PyPI wheel)",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER / driver 596.36 / SM89",
+    "use_fast_math": false,
+    "use_shadows": true,
+    "repeat": 2
+  },
+  "preconditions": [
+    {
+      "id": "P1",
+      "item": "S-1 signed, spec v3 frozen, receipt effective",
+      "anchor": "perworld-l-v2-light-criterion/receipt.json (signature); card 2026-11-08-...-spec-v3-signature (ba420eb6); QA fix-check 5e82feed"
+    },
+    {
+      "id": "P2",
+      "item": "scene variant verified (cam-hinge per spec 2.1, index 0/1/2)",
+      "anchor": "card 2026-11-08-render-perworld-l-v2-scene-camera (3d546fbe); scene sha 4b354054.../5,134 B/86 lines; QA d38661a5"
+    },
+    {
+      "id": "P3",
+      "item": "capture script dual-camera verified (camera_recipe 10 fields)",
+      "anchor": "card 2026-11-08-render-perworld-l-v2-capture-dual-camera (b98b39ff); QA PASS required before the pilot"
+    },
+    {
+      "id": "P4",
+      "item": "P0-1 refit verified",
+      "anchor": "card 2026-11-07-render-perworld-l-v2-capture-perworld-refresh (e34df3b7); QA 3e08be09"
+    },
+    {
+      "id": "P5",
+      "item": "this material passed QA read-only pre-review",
+      "anchor": "this directory + QA review record (pending)"
+    },
+    {
+      "id": "P6",
+      "item": "3-point baseline within 5 minutes before the pilot",
+      "anchor": "materials/baseline-sop.txt"
+    },
+    {
+      "id": "P7",
+      "item": "regular monitor 60/60, util<40, exit 0",
+      "anchor": "materials/monitor-plan.txt"
+    },
+    {
+      "id": "P8",
+      "item": "floor = baseline_free - 3072 MiB computed on the spot (user-signed floor belongs to S-2)",
+      "anchor": "materials/baseline-sop.txt"
+    },
+    {
+      "id": "P9",
+      "item": "zero compile: build fingerprint recorded before the window",
+      "anchor": "materials/evidence-checklist.txt"
+    },
+    {
+      "id": "P10",
+      "item": "Chief G-L0 token issued",
+      "anchor": "Chief message"
+    }
+  ],
+  "decision_rule": {
+    "c1_light_driven": {
+      "camera": "cam-persp",
+      "definition": "adjacent worlds (0->1, 1->2): pixels with max_channel |delta rgb| >= 1/255"
+    },
+    "c2_geometry_driven": {
+      "camera": "cam-hinge",
+      "definition": "adjacent worlds: depth bit-changed pixels and seg pair-changed pixels"
+    },
+    "thresholds": {
+      "accept": 384,
+      "collection_margin": 576
+    },
+    "verdicts": {
+      "pass-margin": "both sets, both pairs >= 576",
+      "insufficient": "any counter in [384,576) -> stop and report",
+      "non-discriminating": "any counter < 384 -> refuse to pass"
+    },
+    "diagnostics_no_threshold": {
+      "cam_persp_depth_seg_expected": [
+        0,
+        0
+      ],
+      "cam_hinge_rgb_expected": "large (geometry + light driven)"
+    },
+    "predictions_for_reference_only": {
+      "c1": [
+        55581,
+        55839
+      ],
+      "c2_depth": [
+        35812,
+        33947
+      ],
+      "c2_seg": [
+        16041,
+        16755
+      ],
+      "note": "CPU predictions from the signed spec 3.3/3.4; the pilot measures with the real renderer"
+    }
+  },
+  "post_capture_selfcheck": [
+    "two captures bitwise identical (per-file sha256; capture.json flag)",
+    "refit actually executed: refit x2 / render x2 / order refit->render->refit->render (wrapper)",
+    "per-world per-camera visible seg (id,type) sets",
+    "per-world rgb/depth/seg summaries",
+    "metadata four items (command/captured_at/reference_tag/per_world_scope)",
+    "dual-camera snapshot: nrender==2 / cam_id_map==[0,1] / cam_res==[[320,240],[320,240]] / recipe.cameras 2x10 fields",
+    "tree clean, fixtures untouched (legacy_reference_untouched=true)"
+  ],
+  "window_discipline": {
+    "order": "G-L0 before S-2",
+    "baseline": "3 samples within 5 minutes; baseline_free = min(free); pilot_floor = baseline_free - 3072 MiB computed on the spot",
+    "monitor": "monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40; internal 10240 MiB is a lower bound only; operator stops below pilot_floor",
+    "zero_compile": "build before the window and record fingerprint; no cargo/nvcc inside the window",
+    "exception": "authoring exception util<60 does not apply; a failed regular threshold stops the pilot and reports",
+    "fail_stop": "keep evidence, clean only the pilot temp tree, no retry, no threshold change, no commit"
+  },
+  "materials": [
+    "README.md",
+    "receipt.json",
+    "manifest.txt",
+    "materials/command.txt",
+    "materials/pilot-plan.txt",
+    "materials/baseline-sop.txt",
+    "materials/monitor-plan.txt",
+    "materials/evidence-checklist.txt",
+    "materials/readout_c1_c2.py",
+    "materials/readout-selftest.txt",
+    "materials/run_pilot_with_refit_counter.py",
+    "materials/qa-prereview-checklist.txt",
+    "materials/group-message-template.txt"
+  ],
+  "tools": {
+    "readout_c1_c2.py": {
+      "sha256": "456da2dc0112925ffc55d73aaf2860a5667ea293d7a50270a5a0ef821680e5fb",
+      "bytes": 13366,
+      "selftest": "SUMMARY PASS 6/6 (pass-margin / insufficient / non-discriminating / 1-ULP-only rejected / identical / C1-only rejected)"
+    },
+    "run_pilot_with_refit_counter.py": {
+      "sha256": "f90f896acdf5d4012dd46f02bb8ad4da9e1be50b397f9b7cdd47bad9f46f4560",
+      "bytes": 4389,
+      "dryrun_smoke": "exit 4 with empty sequence (detects missing refit/render)"
+    },
+    "reuse_decision": "new readout script required for v3 (C1 rgb + 1/255 rule + dual-camera ownership + metadata/seg self-checks); the v2 depth/seg-only discriminability_check.py is not reused; no product-path import"
+  },
+  "awaiting_ack": [
+    "Chief G-L0 token (pilot is Chief-level; nothing user-signature level is added by this material)",
+    "pilot temp root stays under target/render-bvh/perworld-l-v2-gl0/ (not committed, never fixtures/.../perworld/) - change only if Chief asks",
+    "keep the pilot npz under target/ for QA re-read until the pilot card closes, then delete (only summaries/counters/logs are committed)"
+  ],
+  "boundary": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "no_pilot_data_committed": true,
+    "src_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "criterion_unchanged": true
+  },
+  "non_claim": [
+    "material only; not a G-L0 start (Chief token required) and not a QA verdict",
+    "no discriminability restoration / capture validity / per-world light acceptance / upstream equivalence claimed",
+    "section 3 predictions are CPU estimates, not renderer measurements",
+    "the pilot is not committed as a reference; G-L1 remains a separate signed window"
+  ]
+}

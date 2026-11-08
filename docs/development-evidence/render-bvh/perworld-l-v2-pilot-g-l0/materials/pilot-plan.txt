@@ -1,0 +1,52 @@
+# G-L0 pilot plan (perworld L v2 light) - preconditions, decision rules, stop conditions
+# Source of truth: signed spec v3 sections 9.3 / 10.2 / 11.1 / 12 (G-L0). This file adds no criteria.
+
+## 1. Precondition table (each row must be green before the pilot window)
+
+| # | Precondition | Evidence anchor |
+| --- | --- | --- |
+| P1 | S-1 signed: spec v3 sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B / 344 lines / 15 sections; receipt `status=effective`, `effective=true`, `signature.spec_frozen=true` | `docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json` (`signature`); signature card `2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature` (`ba420eb6`); QA fix-check `2026-11-08-...-signature-fix-check` (`5e82feed`) |
+| P2 | Scene variant verified: `scene-a-light/scene.xml` has `cam-hinge` per spec 2.1 (index 0/1/2 = persp/hinge/track), sha `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716` / 5,134 B / 86 lines; `.gitattributes` LF rule added | card `2026-11-08-render-perworld-l-v2-scene-camera` (implementation `3d546fbe`); QA pre-review `2026-11-08-...-scene-camera-check` (`d38661a5`) |
+| P3 | Capture script dual-camera verified: `camera_recipe` 10 fields incl. `sensorsize`/`intrinsic`; main 500->487, meta 244->270, both <=500; default dry-run unexpected=0 | card `2026-11-08-render-perworld-l-v2-capture-dual-camera` (`b98b39ff`); **QA PASS required before the pilot** |
+| P4 | P0-1 refit verified: `refit_scene_bvh` called immediately before every `mjw.render`, one call covers all worlds | card `2026-11-07-render-perworld-l-v2-capture-perworld-refresh` (`e34df3b7`); QA `2026-11-07-...-capture-perworld-refresh-check` (`3e08be09`) |
+| P5 | This material passed QA read-only pre-review (0 blocking) | `docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/` + QA review record |
+| P6 | 3-point baseline within 5 minutes before the window; `baseline_free = min(free)` | `baseline-sop.txt` |
+| P7 | Regular monitor: `monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40` exits 0, all 60 clean samples util < 40 | `monitor-plan.txt` |
+| P8 | Floor: `floor = baseline_free - 3072 MiB` computed on the spot and recorded in the pilot material (user-signed floor belongs to S-2, NOT a G-L0 precondition) | `baseline-sop.txt` |
+| P9 | Zero compile: build finished before the window and its fingerprint recorded; no `cargo`/`nvcc` during the window | window card log |
+| P10 | Chief G-L0 token issued (pilot is Chief-level, not a user signature) | Chief message |
+
+If any row is red: do not open the pilot; report Chief/user; no retry, no threshold change, no
+request to sign S-2 early (spec 12 G-L0: the authoring exception does NOT apply to the pilot).
+
+## 2. Decision rule (spec section 6, written here verbatim in intent)
+
+For adjacent world pairs (0->1, 1->2), computed on the reference side:
+
+- **C1 (light-driven, `cam-persp`)**: `rgb_changed_px` = pixels with `max_channel |delta rgb| >= 1/255`.
+- **C2 (geometry-driven, `cam-hinge`)**: `depth_changed_px` (f32 bit patterns differ) and
+  `seg_changed_px` (`(object_id, object_type)` pair differs).
+
+Verdict (both sets, both pairs):
+
+| Condition | Verdict | Action |
+| --- | --- | --- |
+| C1 >= 576 both pairs AND C2 depth >= 576 both pairs AND C2 seg >= 576 both pairs | **pass-margin** | report; pilot succeeded; S-2 may follow |
+| any of the counters in [384, 576) | **insufficient** | STOP, report Chief/user; no threshold change |
+| any of the counters < 384 | **non-discriminating** | STOP/refuse to pass, report Chief/user |
+
+Diagnostics (record only, never judged, never substituted for C1/C2):
+`cam-persp` depth/seg change counts expected 0/0 (scene geometry fact, spec 3.2);
+`cam-hinge` rgb change counts expected large (geometry + light).
+
+Expected order of magnitude (CPU predictions from spec 3.3/3.4, not measurements):
+C1 ~55,581/55,839; C2 depth ~35,812/33,947; C2 seg ~16,041/16,755.
+
+## 3. Fail-stop rules
+
+- Any capture error, missing env, metadata mismatch, refit-counter mismatch, non-zero readout exit,
+  baseline/monitor failure, or tree dirty => STOP immediately.
+- Do not retry, do not change thresholds/camera/recipe, do not delete evidence, do not commit npz.
+- Keep the temp pilot tree under `target/` for the report; the pilot is NOT committed as a reference.
+- Only after a pass-margin verdict: copy the evidence files listed in `evidence-checklist.txt` into the
+  pilot evidence directory (a separate pilot card), still without committing npz.

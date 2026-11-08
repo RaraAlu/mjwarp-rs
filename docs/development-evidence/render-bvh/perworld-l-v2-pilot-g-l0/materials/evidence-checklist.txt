@@ -1,0 +1,29 @@
+# G-L0 pilot evidence checklist (pilot is NOT committed as a reference; npz stay under target/)
+
+The pilot writes under `target/render-bvh/perworld-l-v2-gl0/` only. After a pass-margin verdict, the
+pilot card copies the files below into its own evidence directory; **npz/state files are not committed**.
+
+window/preconditions.txt            precondition table P1-P10 with the actual anchors checked at window time
+window/baseline-three-points.txt    raw three-sample nvidia-smi output + baseline_free + pilot_floor arithmetic
+window/monitor.csv                  monitor-until-clean CSV copy (explicit -OutCsv path)
+window/dryrun.json                  dry-run plan (must show 3 cameras, cam_active_fixed_only [true,true,false], legacy 112)
+window/capture-stdout.log           pilot capture stdout (final JSON summary)
+window/capture-stderr.log           pilot capture stderr (empty or explained)
+window/capture-exit-code.txt        exit code + wall time + exact command line
+window/capture.json                 copy of pilot capture.json (out-dir under target/)
+window/refit-counter.json           run_pilot_with_refit_counter.py output: refit count/order (must be refit x2, render x2, order refit->render->refit->render)
+window/readout.json                 readout_c1_c2.py output (C1/C2 counters + metadata self-check + seg geom id sets)
+window/readout-exit-code.txt        readout exit code (0 = pass-margin; 3 = stop; 2 = error)
+window/files-sha256.txt             sha256+bytes of the two runs' npz files (bitwise-identical check)
+window/metadata-selfcheck.txt       command/captured_at/reference_tag/per_world_scope + cam_active + nrender/cam_id_map/cam_res + recipe.cameras 2x10-field
+window/seg-geom-sets.txt            per world per camera visible seg (id,type) sets (from readout)
+window/environment-provenance.txt   python/warp/mujoco/mujoco_warp/numpy versions, upstream sha+clean, GPU/driver, use_fast_math=false
+window/zero-compile-fingerprint.txt build fingerprint recorded before the window (no cargo/nvcc inside)
+window/git-before.txt / git-after.txt  HEAD + git status before/after (must stay clean; fixtures untouched)
+window/post-gpu.txt                 post-run GPU state (used/free/util/temp; no task process)
+
+Hygiene: UTF-8 / LF / no BOM; manifest first line '#' plus '# base dir:'; per-file sha256+bytes;
+bare CR/TAB self-check.
+
+Fail-stop: on any failure keep the evidence as-is, remove only the pilot temp tree under target/,
+and report; no retry, no threshold change, no evidence deletion.
