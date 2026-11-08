@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-readout-fix-check",
+  "title": {
+    "zh": "QA 最小复核：pilot readout `per_world_scope` 归一化 fix（a9fbac22；selftest 12-12、旧脚本在同数据复现 exit 2 / 新脚本 exit 0、C1/C2 逐项不变）→ 可开 attempt 3",
+    "en": "QA minimal review of the pilot readout per_world_scope normalization fix (a9fbac22: selftest 12-12, old script reproduces exit 2 on the same data, fixed script exits 0, C1/C2 unchanged) - attempt 3 may open"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的 material fix 提交 **`a9fbac22`** 做最小复核（窗口关键路径）：① 修法正确——新增 `scope_text(value)`（字符串原样、list/tuple 逐元素 join、其它空串）与 `scope_checks(scope)`，`metadata_selfcheck` 调用之；逐行核 diff **只允许 scope 相关行 + docstring 变化**，C1/C2、阈值 384/576/1-255、相机归属、其它 metadata 判定未动；② 独立重跑 `--selftest` 应 **SUMMARY-ALL PASS 12/12**（6 计数/verdict + 6 scope：字符串含两短语 true、list true、缺 geom string/list false、旧文案 string/list → `scope_no_old_wording=false`）；③ 用作废外采数据独立重跑新脚本 → `metadata.failed=[]`、`scope_covers_light_and_geom=true`、exit 0、C1 38,285/40,644、C2 depth 35,828/33,883、seg 16,041/16,754、pass-margin；并用**旧脚本同数据复跑**证明计数逐项相同、旧行为 exit 2/`failed=[scope_covers_light_and_geom]`；④ 非证据标注（artifacts 首行 NOT PILOT EVIDENCE、npz 未入库、README §8 记录根因/修法/体检/诊断对比）；⑤ 边界与证据（只动材料脚本+材料证据+卡；unchanged src/fixtures/scripts/tests；manifest 15/15；编码；四门禁 unit 1371/0）。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Minimal review of fix commit a9fbac22: only scope-related lines plus docstring changed; selftest 12/12; independent rerun on the voided foreign capture gives metadata.failed=[] and exit 0 with the same C1/C2 counters as the old script (which reproduces exit 2); non-evidence labelling; boundaries, manifest 15/15 and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**修法正确（逐行 diff）**：`readout_c1_c2.py` 由 `456da2dc…`/13,366 B/305 行 → `4a054aba…`/16,711 B/364 行；`git diff -a` 全部变更仅为：docstring 增加 fix 说明、新增 `scope_text()`/`scope_checks()`、`metadata_selfcheck` 的两行 scope 计算改为 `checks.update(scope_checks(...))`、selftest 增加 6 条 scope 用例与 SUMMARY-SCOPE/SUMMARY-ALL 汇总；**未触及 `c1_counts`/`c2_counts`/`verdict`/阈值常量/相机归属/其它 metadata 判定**。",
+    "**selftest 12/12**：独立重跑 `--selftest` → `SUMMARY PASS 6/6` + `SUMMARY-SCOPE PASS 6/6` + `SUMMARY-ALL PASS 12/12`，exit 0；6 条计数/verdict 用例不回归；6 条 scope 用例（string→true、list→true、string 缺 geom→false、list 缺 geom→false、旧文案 string→`scope_no_old_wording=false`、旧文案 list→同）逐条核过。",
+    "**诊断复跑一致性（独立）**：用 `target/render-bvh/perworld-l-v2-gl0/window/foreign-184138/pilot-out/nw3-light-hinge02040/` 重跑修复后脚本 → exit **0**、`metadata.failed=[]`、`scope_covers_light_and_geom=true`、`cam_active=[true,true,false]`、C1 **38,285/40,644**、C2 depth **35,828/33,883**、seg **16,041/16,754**、verdict **pass-margin**；用旧脚本（`456da2dc…`）同数据复跑 → exit **2**、`failed=[scope_covers_light_and_geom]`、`scope_covers=False`，而 C1/C2/verdict **逐项相同** ⇒ 修复只改 scope 归一化、不改判读。",
+    "**非证据标注**：`artifacts/diagnostic-foreign-rerun.txt` 首部含 `!!! NOT PILOT EVIDENCE !!!` 与来源/用途说明，明确不得引用为 pilot/参考证据；npz 未入库（提交无 npz 文件）；README §8 记录现象、根因（旧 `join` 对字符串按字符拼接）、修法、脚本内 `join`/`json.dumps` 体检、selftest 12/12、诊断对比表与哈希更新。",
+    "**边界/证据/门禁**：`a9fbac22` 仅动材料脚本 + 材料证据（README/receipt/manifest/materials/readout-selftest.txt）+ 2 个诊断 artifact + 卡/runs；`src/`/`fixtures/`/`scripts/`/`tests/` 零 diff；manifest **15/15** 独立重算通过、编码卫生；四门禁复跑 fmt/clippy/clippy-cuda 通过、**unit 1371 过/0 败**。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+      "2026-11-08-render-perworld-l-v2-pilot-g-l0-material-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-readout-fix-check/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "Chief 2026-11-08 18:5x 派工：readout fix 最小复核（attempt 3 发 token 前）。复核目标提交 a9fbac22（HEAD）。只读 + 只写本卡证据；零 GPU。",
+  "revision": {
+    "before": "e32420a386b8a2356f38141e4ac856c9824d342d",
+    "after": null
+  },
+  "created_at": "2026-11-08T10:55:55.304Z",
+  "updated_at": "2026-11-08T10:55:55.304Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0-readout-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-pilot-g-l0-readout-fix-check"
+    }
+  ]
+}
