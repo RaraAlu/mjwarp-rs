@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+  "title": {
+    "zh": "perworld L v2 采集脚本双相机：camera_recipe 补 sensorsize/intrinsic 两字段（spec v3 §2.4/§11.1-6③；零 GPU）",
+    "en": "Per-world L v2 capture script dual-camera: camera_recipe gains sensorsize/intrinsic fields (spec v3 §2.4 / §11.1 item 6-3; GPU-free)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "已签 spec v3 要求采集产物 `capture.json.recipe.cameras` 记录**两台相机快照**（10 字段：现有 8 字段 + `sensorsize` + `intrinsic`），并在 §11.1 第 6 项③ 把「`camera_recipe` 补 `sensorsize`/`intrinsic` 并自核」列为 S-2 采集窗前置。本卡只做**工具/元数据层**：① 把 `camera_recipe` 从 `scripts/capture_render_perworld.py`（现 500 行、函数在 :217-228）**纯搬到已有模块** `scripts/perworld_capture_meta.py`（现 244 行），主脚本只留 import + 一次调用，两文件均 ≤500 行（不新建模块文件）；② 函数补 `sensorsize`/`intrinsic`，取值**原样来自 pinned MuJoCo 模型数组**（不换算、不改 f32/f64 类型；`cam-hinge` 如实记录 `sensorsize=[0,0]`、`intrinsic=[0.01,0.01,0,0]` 并注明走 fovy 路径，不得声称有 intrinsics）；③ 零 GPU 自证：AST/静态断言 + pinned venv CPU stub 自证（scene-a-light 与 scene-a 两场景、每台 active 相机 10 键、键序确定、值逐位一致）+ 默认/显式 dry-run 逐叶对照 unexpected=0 + `--worlds 1` 行为不变 + 消费者盘点。**不采集、不开窗、零 GPU、不建 CUDA、不改判据/夹具/参考**；真实渲染上下文的 10 字段实拍内容等 G-L1 采集，本卡不宣称。",
+    "en": "Signed spec v3 requires capture.json recipe.cameras to snapshot both cameras with 10 fields (8 current + sensorsize + intrinsic) and lists this as S-2 capture-window prerequisite §11.1 item 6-3. This card is tooling/metadata only: move camera_recipe into the existing perworld_capture_meta.py module (no new module file, both files <=500 lines), add the two raw model-array fields, and prove it on CPU (AST/static assertions, pinned-venv stub self-check on scene-a-light and scene-a, dry-run leaf comparisons with unexpected=0, --worlds 1 behaviour, consumer inventory). No capture, no window, zero GPU; no fixture/criteria/reference changes; real rendered camera snapshots await G-L1."
+  },
+  "modules": {},
+  "acceptance": [
+    "**`camera_recipe` 补到 10 字段（写死）**：返回每条 active 相机 `slot / mujoco_cam_id / name / mode / xpos / xquat / fovy / resolution / sensorsize / intrinsic`（键序固定、每台仅这 10 键）；`sensorsize` 取自 `mjm.cam_sensorsize[cam_id]`、`intrinsic` 取自 `mjm.cam_intrinsic[cam_id]`（**模型数组原值，不换算、不改 f32/f64 类型**），`xpos/xquat/fovy/mode` 仍取自对应 `mjm.cam_*` 数组、`resolution` 仍取自 `rc.cam_res[slot]`；仅 active 相机（`rc.cam_id_map` 口径与旧 `slot` 标签语义不变）。`cam-hinge` 必须如实记录 `sensorsize=[0,0]`、`intrinsic=[0.01,0.01,0,0]` 并注明其走 **fovy 路径**（**不得声称有 intrinsics**）；`cam-persp` 的 `sensorsize=[0.036,0.024]`、`intrinsic` 按模型默认值如实记录。",
+    "**500 行天花板处置（建议 ⓑ）**：`camera_recipe` 整体**纯搬**到已挂模块 `scripts/perworld_capture_meta.py`（其现 244 行），主脚本加 import（来自 `perworld_capture_meta`）、仅保留 1 次调用；**不新建模块文件**（若 Normify 模块源码规则要求另行登记，照做并说明）；函数体逻辑与返回结构不变（新增 2 字段除外）；改后主脚本 **≈488**、meta **≈262**，两文件均 ≤500 行（`git cat-file` 换行口径），给出前后行数对照。",
+    "**AST/静态断言（写进证据，零 GPU）**：`camera_recipe` 定义在 meta 模块、主脚本内无定义；主脚本恰 1 次 import（来自 `perworld_capture_meta`）、恰 1 次调用；无新增模块文件；行数前后对照；并核 `perworld_capture_meta.py` 仍为非产品依赖（该函数只读模型/上下文数组，不引入 GPU/产品面）。",
+    "**CPU 单元自证（pinned venv、零 GPU）**：用 pinned MuJoCo 解析 `fixtures/render-bvh/scene-a-light/scene.xml`（3 相机、active=2）与 `fixtures/render-bvh/scene-a/scene.xml`（2 相机、active=1），以 stub `rc`（`cam_id_map` + `cam_res`）调该函数；断言每台 active 相机**恰 10 键且键序确定**、各键值与模型数组（及 stub `cam_res`）**逐位一致**；两场景各一组；负例（键缺失/多键/值不符）必须被断言器拒绝。",
+    "**默认行为不变（零 GPU）**：① 默认 `--dry-run` 与 HEAD 逐叶对照 **unexpected=0**，允许差异仅 `/recipe/script/sha256|bytes`（脚本被编辑）；② `--worlds 1 --dry-run` 两版本均**按设计 exit 1**、stderr 逐字同、不建 out_dir；③ 显式 `--scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir …/nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40 --dry-run` 与 HEAD 逐叶对照**只允许 `script` sha/bytes 变化**，并记录 `model_static.cameras` 3 条、`cam_active_fixed_only=[true,true,false]`。dry-run 不执行渲染路径、不产出 `camera_recipe`（如实标注）。",
+    "**消费者盘点（写进证据）**：grep 全仓 `camera_recipe` / `recipe` / `cameras` 读取方，列出是否有消费者断言 **8 键封闭集合**；`scripts/capture_render_hfield.py`、`scripts/capture_render_sdf.py` 的同名函数属**独立脚本副本**（不在本卡范围，不改）；若消费者在 `tests/` 或 `src/` 需要改 → **停手报 Chief**（本卡要求 `unchanged tests/`、`unchanged src/`）；若无，在证据中列清单并写明无需其他改动。",
+    "**证据目录与门禁**：`docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera/`（README + receipt.json + manifest.txt + artifacts/logs/scripts）；manifest 首行 `#` + `# base dir:`、每文件 sha256+bytes 自核、UTF-8/LF/无 BOM、裸 CR/TAB 自查；四门禁 fmt/clippy/clippy-cuda/unit 全过；`unchanged fixtures/`、`unchanged src/`、`unchanged tests/`；不采集、不开窗、零 GPU、不建 CUDA、不落参考、不改判据/阈值/夹具。",
+    "**说明与非声明**：真实 `camera_recipe` 只在渲染上下文里产生，本卡不采集 → **10 字段实拍内容等 G-L1**，本卡证据只能到「CPU stub 自证 + 静态断言」，必须如实标注；**不宣称**判别力恢复、采集是否有效、per-world 灯验收、与上游实现等价、任何渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-scene-camera",
+      "2026-11-07-render-perworld-l-v2-capture-meta",
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/capture_render_perworld.py",
+      "scripts/perworld_capture_meta.py",
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-08 派工（S-1 已签后的按序第三片；零 GPU）：采集脚本双相机快照补全（spec v3 §2.4 + §11.1-6③）。先读 spec 原文照做；建议 ⓑ 把 camera_recipe 纯搬到已挂 meta 模块、不新建模块文件；10 字段取值原样来自模型数组；CPU stub 自证两场景；默认/显式 dry-run 逐叶对照；消费者盘点若 tests/src 需改则停手报 Chief。真实渲染相机快照等 G-L1，本卡不宣称。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T09:43:00.000Z",
+  "updated_at": "2026-11-08T09:43:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-dual-camera/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-capture-dual-camera"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判别力已恢复",
+        "采集有效",
+        "上游等价"
+      ]
+    }
+  ]
+}
