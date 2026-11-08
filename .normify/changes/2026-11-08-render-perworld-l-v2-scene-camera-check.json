@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-scene-camera-check",
+  "title": {
+    "zh": "QA 只读复核：perworld L v2 scene-a-light 插入 cam-hinge + LF 规则（实算 sha 4b354054/5,134 B/86 行、+2 行、非相机数组逐位不变、dry-run unexpected=0、旧 sha 8 处未回改、manifest 15-15）",
+    "en": "QA read-only review of the perworld L v2 scene-a-light cam-hinge insertion plus LF rule (measured sha 4b354054/5,134 B/86 lines, +2 lines, non-camera arrays bitwise unchanged, dry-run unexpected=0, 8 historical old-sha records untouched, manifest 15-15)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 的场景/相机改卡 `2026-11-08-render-perworld-l-v2-scene-camera`（verified；登记 `c6dd10df` → start `ce5f44a3` → 实现 `3d546fbe`）做**只读复核**：① `scene.xml` 在 `cam-persp` 后、`cam-track` 前插入且仅插入 2 行 `cam-hinge`（文本与已签 spec v3 §2.1 写死值逐字一致），实算 sha256 `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716` / 5,134 B / 86 行（改前 `4db66e2c…` / 4,987 B / 84 行，+147 B/+2 行），工作树与 `3d546fbe:` blob 同 sha、LF only；② `.gitattributes` 仅 +1 行 `fixtures/render-bvh/scene-a-light/** text eol=lf`（scene-flex 规则后、`*.npz -text -diff` 前），`check-attr` → text=set/eol=lf，npz 仍 `-text`，`scene-a/` 不受影响；③ 独立用 pinned venv MuJoCo 3.15.0 解析改前/改后模型：ncam 3、cam_mode [0,0,3]、cam_fovy [73.73979461915735,30,40]、cam_resolution [[320,240],[320,240],[240,180]]、cam-hinge sensorsize [0,0]/intrinsic [0.01,0.01,0,0]、pos/quat 一致；581 个模型属性逐项比对，**非相机物理数组逐位不变**，差异仅相机数组 + 名字表（name_* / names_map）+ 标量 {ncam,nbuffer,nnames,nnames_map,signature}；④ 独立 dry-run 对照（改前副本放在 target/ 内、同 out-root/out-dir）：13 条叶子差异全部属预期（scene sha/bytes/path、camera_modes、cam_active_fixed_only、cameras 3 条、light_pose_precheck 路径），`model_static.cameras=[[0,0,cam-persp],[1,0,cam-hinge],[2,3,cam-track]]`、`cam_active_fixed_only=[true,true,false]`、legacy 112→112、默认 107；⑤ 旧 sha `4db66e2c` 历史证据 8 处 occurrence 未回改（git grep 复核），本卡登记 JSON 1 处引用；⑥ diff 面 `c6dd10df..3d546fbe` 仅 .gitattributes/scene.xml/卡/runs/证据目录，`scene-a/`、`src/`、`tests/`、`scripts/` 零 diff；⑦ manifest 15/15、编码卫生、四门禁独立复跑 unit 1359/0。**只读 + 只写本卡证据目录；零 GPU。**",
+    "en": "Read-only review of the scene-a-light cam-hinge fixture change at 3d546fbe: measured scene sha/bytes/lines and +2-line diff matching signed spec v3 section 2.1, gitattributes rule and attributes, independent MuJoCo 3.15.0 model parse with 581-attribute comparison (non-camera physics arrays bitwise unchanged), independent dry-run comparison, historical old-sha records untouched, diff surface, manifest 15/15, four gates re-run."
+  },
+  "modules": {},
+  "acceptance": [
+    "**scene.xml 字节与文本**：工作树与 `3d546fbe:` blob sha256 均 = `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716`、5,134 B、86 行（LF，CR=0，无 BOM）；旧 = `4db66e2c…`/4,987 B/84 行；`ce5f44a3..3d546fbe` 对该文件 `2 增 / 0 删`，插入位置在 `cam-persp` 之后、`cam-track` 之前，插入文本与 spec v3 §2.1 写死 pos/quat/fovy 30/resolution 320 240 逐字一致。",
+    "**`.gitattributes` 仅 +1 行且语义正确**：`fixtures/render-bvh/scene-a-light/** text eol=lf` 位于既有 `scene-flex` LF 规则之后、`*.npz -text -diff` 之前；`git check-attr text eol` → `set`/`lf`；`git ls-files --eol` → `i/lf w/lf attr/text eol=lf`；`scene-a/`（`text: unspecified`）与 `*.npz`（`text: unset`）不受影响；新增规则当前只作用于该子树唯一已跟踪文件 `scene.xml`。",
+    "**MuJoCo CPU 解析独立复算**：pinned venv MuJoCo 3.15.0 加载改前（`target/` 副本）与改后模型；`ncam=3`、`cam_mode=[0,0,3]`、`cam_fovy=[73.73979461915735,30.0,40.0]`、`cam_resolution=[[320,240],[320,240],[240,180]]`、`cam-hinge cam_sensorsize=[0,0]`、`cam_intrinsic=[0.01,0.01,0,0]`、`cam_pos/quat` 与插入值一致、相机名顺序 persp/hinge/track；逐项比对 **581 个模型属性**，差异 27 项且全部为相机数组 + 名字表（`name_*`/`names_map`）+ 标量 {ncam,nbuffer,nnames,nnames_map,signature}；**非相机物理数组零差异**。",
+    "**dry-run 前后对照独立复跑**：改前副本放 `target/qa-scenecheck/`（同 out-root/out-dir/tag），两侧 dry-run exit 0；叶子差异 13 条全部可归入预期类（`/recipe/scene_xml/{path,sha256,bytes}`、`/environment/scene_xml/*`、`/environment/camera_modes`、`/cam_active_fixed_only`、`/model_static/cameras`、`/light_pose_precheck/scene_xml`、`/paths/effective_scene`），除本机 `/command/argv|rendered` 因旧副本路径而不同（测试装置本身，非卡内改动）；新计划 `model_static.cameras=[[0,0,'cam-persp'],[1,0,'cam-hinge'],[2,3,'cam-track']]`、`cam_active_fixed_only=[true,true,false]`、`legacy_manifest_entries=112`，默认 dry-run `legacy=107`。",
+    "**旧 sha 未回改与 diff 面**：`git grep` 复核 `4db66e2c` 历史证据 **8 处 occurrence**（`light-prep/` + `light-prep-check/` 共 7 文件，本提交未改）；本卡登记 JSON 1 行 2 处引用（新增，属记录而非回改）。`c6dd10df..3d546fbe` 仅 `.gitattributes`、`fixtures/render-bvh/scene-a-light/scene.xml`、卡、`.normify/modules/mjwarp/index.md`、runs、证据目录；`fixtures/render-bvh/scene-a/`、`src/`、`tests/`、`scripts/` 零 diff；无采集/开窗/CUDA 产物。",
+    "**证据与门禁**：证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/` manifest **15/15** 自核、README/receipt/artifacts/logs UTF-8/LF/无 BOM/裸 CR·TAB 0、`# base dir:` 在位；四门禁独立复跑全过（unit 1359 过/0 败）；结论 `PASS` / `PASS-with-observations` / `needs-fix` + 观察分级；本卡证据 manifest 自核。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-scene-camera",
+      "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Backend 2026-11-08 17:1x 请求复核；复核目标提交 3d546fbe（复核时 HEAD 已含 QA 签名复核提交 e3aea21f，场景/相机改动未被后续提交触及）。只读 + 只写本卡证据；零 GPU；不改 fixture/属性/被复核证据（发现问题只报告+建议 fix）。",
+  "revision": {
+    "before": "156ae0d176b256ddba1dfbaf22cf80ace46ab160",
+    "after": null
+  },
+  "created_at": "2026-11-08T09:28:28.907Z",
+  "updated_at": "2026-11-08T09:28:28.907Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "scripts/",
+        "fixtures/render-bvh/scene-a/",
+        "fixtures/render-bvh/scene-a-light/scene.xml",
+        ".gitattributes",
+        "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-scene-camera-check"
+    }
+  ]
+}
