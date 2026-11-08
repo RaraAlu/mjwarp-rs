@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-criteria-entity-c1-dict-fix-check",
+  "title": {
+    "zh": "QA 复核：实体卡 §2.4 字典适配 fix（`bab01507`）——CaptureC1Check 显式 Compared/Skipped、按两对 world 比对 magnitude（有 bitwise 也比）、bitwise 口径等价 readout（pilot 43,604/41,815）、自证 16 passed/2 ignored、行数 478/499/487、unit 1387/0/402 → 可用于 G-L2 冻结",
+    "en": "QA review of the entity section 2.4 dict-adaptation fix bab01507: CaptureC1Check Compared/Skipped, per-pair magnitude (and bitwise when present) equality, bitwise semantics equivalent to readout (pilot 43,604/41,815), self-proof 16 passed/2 ignored, line counts 478/499/487, unit 1387/0/402 - usable for G-L2 freeze"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对实体卡 §2.4 字典适配 fix 提交 **`bab01507`**（parent `569e636c`；卡 addenda=3、自登记 verified）做只读独立复核：① `check_capture_c1` 返回 `CaptureC1Check::{Compared, Skipped(&'static str)}`，逐对 world 断言实体 C1 **magnitude == capture magnitude**，capture 有 `bitwise` 时逐对断言实体 C1 bitwise == capture bitwise；`CCounts.c1_rgb_bitwise_changed` 的位型口径与 readout `x.view(int32)!=y.view(int32)` 等价（pilot 独立复算 **43,604 / 41,815**）；② 显式跳过不静默（旧参考无字段 / 旧数组结构 / 缺世界对 → `Skipped(原因)`），旧数组结构显式拒绝不做静默兼容（理由=§2.4 要求字典）——核决定合理性与自证覆盖；③ 自证：字典一致→Compared、仅 magnitude 也过、magnitude/bitwise 不一致必败、缺字段/旧数组/缺 1→2→Skipped、完整结构不得误判跳过；独立重跑 **16 passed / 2 ignored**；④ 行数 478/499/487 ≤500、无新模块源、`fixtures/src/scripts` 零 diff、A/B/C 语义与阈值未动、manifest 8/8、四门禁 **unit 1387/0/402**。**只读 + 只写本卡证据；零 GPU。**",
+    "en": "Read-only independent review of the entity dict-adaptation fix bab01507: CaptureC1Check semantics, per-pair magnitude/bitwise equality, bitwise equivalence to the readout (independently 43,604/41,815 on the pilot reference), explicit skip reasons, self-proof coverage, boundaries and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**CaptureC1Check 语义正确**：`check_capture_c1` 返回 `Compared` / `Skipped(&'static str)`；无 `c1_rgb_changed_px` → Skipped；旧的数组结构（`[c1_0,c1_1]`）→ Skipped 并说明 §2.4 要求 `{\"0->1\":…,\"1->2\":…}` 字典；缺任一 world 的 magnitude → Skipped；否则逐对 world `assert_eq!(magnitude, 实体 c1_rgb_changed[i])`，capture 含 `bitwise` 时逐对 `assert_eq!(bitwise, 实体 c1_rgb_bitwise_changed[i])`，返回 `Compared` ✅。",
+    "**bitwise 口径等价 readout**：`rgb_bitwise_changed` = 任一通道 `to_bits()` 不同（`CCounts.c1_rgb_bitwise_changed` 按 `rgb_f32` 逐像素累计），等价 readout 的 `np.any(x.view(int32) != y.view(int32), axis=-1)`；用 pilot npz 独立复算 **43,604 / 41,815**，与 `readout.json` 的 `rgb_bitwise_changed_px` 逐值一致 ✅。",
+    "**显式跳过不静默 + 旧数组显式拒绝合理**：旧参考无字段 / 缺世界对 → `Skipped(原因)`；旧数组结构 → `Skipped(原因)`（不做静默兼容）——理由成立（旧数组从不是 spec §2.4 形态；本卡输出/采集侧 verify 均强制字典；GPU 用例以 `{:?}` 打印原因）；自证覆盖三种跳过原因 ✅。",
+    "**自证覆盖**：字典一致 → Compared；仅 magnitude → 仍 Compared；magnitude 不一致 / bitwise 不一致 → 必须 panic 失败；缺字段 / 旧数组 / 缺 1→2 → Skipped；完整结构显式断言**不得**被判为 Skipped；pilot 真实数据用例额外断言 bitwise=[43,604,41,815] 且真实 counts 构造的 §2.4 字典 → Compared。独立重跑 **16 passed / 0 failed / 2 ignored**（exit 0）✅。",
+    "**边界/规模/门禁**：`bab01507` 只动 3 个 tests 文件 + 实体卡证据 + 卡 addenda（=3）+ runs；`fixtures/`、`src/`、`scripts/`、spec 目录零 diff；行为 478/499/487 ≤500；未新建模块源文件（全部 M，无 A）；被测 manifest **8/8**；四门禁 fmt/clippy/clippy-cuda exit 0、unit **1387 passed / 0 failed / 402 ignored** ✅。",
+    "**判据语义未动**：`criterion_a`/`criterion_b`/`criterion_c` 的 magnitude C1、C2、诊断项、384/576、两对 world、相机归属、verdict、无 allowlist 均未改；仅**新增** `c1_rgb_bitwise_changed` 计数（不进 verdict）与交叉核对适配；provenance 自检仅等价重构、负例仍 20 项 ✅。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-criteria-entity",
+      "2026-11-08-render-perworld-l-v2-criteria-entity-f1-o2-fix-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity-c1-dict-fix-check/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-08 追加派工：实体卡 §2.4 字典适配 fix 复核（零 GPU；卡 addenda=3、自登记 verified）。复核目标 bab01507。结论：PASS → 可用于 G-L2 冻结。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T14:20:00.000Z",
+  "updated_at": "2026-11-08T14:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity-c1-dict-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-criteria-entity-c1-dict-fix-check"
+    }
+  ]
+}
