@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-host-light-entry",
+  "title": {
+    "zh": "perworld L v2 host 逐 world 灯入口：`render_per_world_with_lights` + `WorldLightPoses`（`.cu`/81 槽零改动；零 GPU）",
+    "en": "Per-world L v2 host per-world light entry: render_per_world_with_lights + WorldLightPoses (zero .cu / 81-slot change; GPU-free)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "已签 spec v3 §10.3 写死：per-world 灯位姿的预期实现是 **host-only**——内核灯数组仍是 1-D vec3（`render_megakernel.cu` 37/38 槽 `light_xpos_in`/`light_xdir_in`），per-world 发射时内核 `worldid` 恒 0，故**每次发射前把该 world 的灯位姿重传到这两个数组**即可，`.cu` 零改动、内核身份不变、81 槽签名不动。本卡只做这一层接口与宿主数据面：① 新增 `WorldLightPoses`（与 `WorldScenePoses` 同风格：world 数/nlight 校验、越界/计数/溢出显式错误、不 panic）；② 新增 `render_per_world_with_lights(...)` 入口，逐 world 发射前按 world 透传 `LightDataPose`（xpos/xdir f32 位型 = 采集侧 `state.npz` 的 `light_xpos`/`light_xdir` 原值，**不做 FK 推导、不做 f64 重算**；xdir 已是上游 normalize 结果，逐位透传不重归一化）；③ 默认单 world 路径行为不变（`render_per_world` 签名/行为不变，`light_mode!=0`/`light_bodyid!=0` 拒绝保留在默认路径，不全局放开；AA 仍 Unsupported）；④ CPU 自证：容器/选择/拒绝面单测 + 默认路径 `light_data_poses` golden 位型回归 + 旧 geom-only per-world 单测回归；⑤ `.cu` 零 diff 与内核身份证据。**不采集、不开窗、零 GPU、不建 CUDA**；GPU 端到端渲染数值由 G-L2 实体承担，本卡不宣称渲染通过。",
+    "en": "Signed spec v3 section 10.3 fixes a host-only per-world light implementation: the kernel keeps 1-D vec3 light arrays (slots 37/38 of render_megakernel.cu) and per-world launches always run with kernel worldid 0, so re-uploading the target world's light poses before each launch is sufficient - zero .cu change, kernel identity unchanged, 81-slot signature untouched. This card delivers only that interface and host data plane: a WorldLightPoses container (same style as WorldScenePoses: world/nlight validation, explicit out-of-range/count/overflow errors, no panic), a render_per_world_with_lights entry that forwards each world's LightDataPose (f32 bit patterns from the captured state.npz light_xpos/light_xdir; no FK derivation, no f64 recompute, xdir bit-verbatim), the unchanged default single-world path (render_per_world signature/behavior, light_mode/light_bodyid rejections kept on the default path, AA still Unsupported), CPU self-proof unit tests plus a golden light_data_poses regression and existing geom-only per-world tests, and .cu zero-diff / kernel-identity evidence. No capture, no window, zero GPU; end-to-end rendering numbers belong to the G-L2 entity."
+  },
+  "modules": {},
+  "acceptance": [
+    "**机制（host-only，零内核改动）**：per-world 入口在**每次 world 发射前**把该 world 的 `LightDataPose`（xpos/xdir）重传到 `light_xpos_in`/`light_xdir_in` 两个 1-D vec3 实参；**`.cu` 零改动**（`git diff --stat -- src/render/kernel/cuda` 为空 + 每个 `.cu` sha256 前后一致）、`MEGAKERNEL_SLOTS.len()==81` 与槽类型/顺序不变（内核身份不变），不新增 2-D 灯数组、不改单发射结构。",
+    "**数据口径写死**：`WorldLightPoses` 承载逐 world `LightDataPose { xpos: [f32;3], xdir: [f32;3] }`；取值 = 采集侧 `state.npz` 的 `light_xpos`/`light_xdir` **f32 原值**（**不做 FK 推导、不做 f64 重算**）；`xdir` 已是上游 normalize 结果，**逐位透传、不重新归一化**；默认路径的 `light_data_poses`（要求 `light_mode=0` / `light_bodyid=0`，归一化用 `crate::math::fma::fma_f32` 序列）行为与位型不变。",
+    "**接口**：新增 `render_per_world_with_lights(renderer, context, fields, model, scene_poses: &WorldScenePoses, light_poses: &WorldLightPoses, camera_poses: &[CameraPose], rays: &RayBuffer) -> Result<(), LauncherError>`；`WorldLightPoses::new(worlds, lights, poses: Vec<LightDataPose>)` 校验 `worlds>=1`、`lights>=1`、`poses.len()==worlds×lights`（checked_mul，溢出显式错误）、越界 `get`/`world_slice` 返回错误；world 数不匹配（vs context/scene）与 lights 数不匹配（vs `fields.light_type` 长度）返回可诊断 `LauncherError`（不 panic）；失败时尽力恢复调用前状态（沿用现有 loop 语义）。",
+    "**默认单 world 路径不变**：`render_per_world` 公开签名/行为不变（内部抽共享 impl，灯选择 `None`）；`light_mode!=0` 与 `light_bodyid!=0` 的拒绝**保留在默认路径**（per-world 灯入口不全局放开）；`nsamples>1`（AA）仍 `Unsupported`；默认路径相关既有单测保持通过。",
+    "**CPU 自证（单测）**：① `WorldLightPoses` 世界优先存取/位型 round-trip、计数不匹配、零 world/零灯、越界、溢出、逐 world 展平顺序；② world 数错与 lights 数错的显式拒绝；③ 默认路径 golden：`light_data_poses` 在 `bodyid=0/mode=0` 的既有夹具输入上 xpos/xdir **位型与既存 `light_data_check` 基准逐位一致**（fma 归一化序列不变），且 `mode!=0`/`bodyid!=0` 仍被拒；④ 旧 geom-only per-world 路径既有单测（`leaf_slots` 等）不受影响。",
+    "**证据**：`docs/development-evidence/render-bvh/perworld-l-v2-host-light-entry/`（README + receipt.json + manifest.txt + artifacts：接口一句话、行数前后对照、单测清单与日志、`.cu` 零 diff/内外核身份 JSON、边界核对）；manifest 首行 `#` + `# base dir:` + 每文件 sha256+bytes 自核、UTF-8/LF/无 BOM、裸 CR/TAB 自查；`receipt.json` `/task_id` = 本卡 id。",
+    "**门禁与边界**：四门禁 fmt/clippy/clippy-cuda/unit 全过；`unchanged fixtures/`、`unchanged scripts/`、`unchanged` spec 证据目录（`docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/`）；不采集、不开窗、零 GPU、不建 CUDA、不落参考；若发现必须改内核（2-D 灯数组/单次发射/AA×perworld/多相机新路径）→ **立即停手报 Chief**，不自行扩面。",
+    "**非声明**：本卡只提供 host 接口与数据面；GPU 端到端渲染数值（判据 A/B/C）由 G-L2 实体承担，本卡**不宣称**渲染通过、不宣称灯位姿已覆盖、不宣称与上游等价、不宣称任何渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "2026-11-08-render-perworld-l-v2-scene-camera",
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/world_light.rs",
+      "src/render/kernel/per_world.rs",
+      "src/render/kernel/megakernel.rs",
+      "src/render/kernel/megakernel_arrays.rs",
+      "src/render/kernel/mod.rs",
+      "docs/development-evidence/render-bvh/perworld-l-v2-host-light-entry/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-08 派工（Card H；方案 B：先接口后实体）。机制按已签 spec v3 §10.3：host 每 world 发射前重传灯位姿，`.cu`/81 槽零改动。数据来源 = 采集侧 state.npz 的 light_xpos/light_xdir f32 原值（不 FK、不 f64 重算）。默认路径拒绝面保留、AA 仍 Unsupported。本卡不跑 GPU 端到端；G-L2 实体（下一步，等本卡接口）承担判据 A/B/C。停手条款：必须改内核形态立即停手报 Chief。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-08T10:06:00.000Z",
+  "updated_at": "2026-11-08T10:06:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-host-light-entry/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-08-render-perworld-l-v2-host-light-entry"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染已通过",
+        "灯位姿已覆盖",
+        "上游等价"
+      ]
+    }
+  ]
+}
