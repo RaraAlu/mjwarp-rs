@@ -1,0 +1,25 @@
+# G-L2 suggested baseline readings (GPU-free measurement while filling the S-3 material)
+# Date: 2026-11-09 00:42:10/15/20 +08:00, host DARKSEA, nvidia-smi only (no compute, no capture).
+# IMPORTANT: these are SUGGESTED values for the S-3 dual signature. The window MUST recompute the three-point
+# baseline within 5 minutes before the run and take the STRICTER (= HIGHER) of the signed floor and the
+# on-the-spot floor (floor_effective = max(signed_floor, onspot_floor)); acceptance is free >= floor_effective.
+# These values are NOT the S-2 capture-window values (13,302 / 10,230): different window, different time.
+
+point1 ts=2026-11-09T00:42:10.620+08:00  used 3034 MiB, free 13028 MiB, util 35 %, temp 28 C
+point2 ts=2026-11-09T00:42:15.672+08:00  used 3034 MiB, free 13028 MiB, util 38 %, temp 28 C
+point3 ts=2026-11-09T00:42:20.720+08:00  used 3034 MiB, free 13028 MiB, util 38 %, temp 28 C
+
+baseline_free = min(free) = 13028 MiB   # sampling rule: worst of the three readings
+suggested signed floor = 13028 - 3072 = 9956 MiB
+
+Context recorded with this reading:
+- Build processes: none (no cargo/rustc/cl/nvcc/link).
+- Git HEAD 6951c3fe (G-L1 closeout), working tree clean.
+- The reading was taken while the desktop compositor was active (util 35-38 % graphics load from desktop apps);
+  free memory was stable at 13,028 MiB. The window discipline (monitor 60/60 util<40) is a separate requirement
+  checked at the window, not by this suggestion.
+- This is a pre-window reference, not a window-time measurement.
+
+Signature usage: sign the plan (S-3a) and the baseline+signed floor (S-3b) with the numbers above as SUGGESTED;
+at the window, re-measure and use the stricter (HIGHER) floor. If the on-the-spot floor is higher than 9,956, the
+window uses the on-the-spot value; if the signed floor is higher, the signed value wins.

@@ -1,5 +1,5 @@
 # G-L2 validation-window verbatim command skeleton (S-3 plan; NOT executed while producing this material)
-# Executor: Backend. Repo root D:\Rust\mjwarp-rs. Frozen reference and frozen exes only; zero compile in the body.
+# Executor: Backend. Repo root D:/Rust/mjwarp-rs. Frozen reference and frozen exes only; zero compile in the body.
 
 # --- 0) Preconditions: P0-P8 green (materials/preconditions.txt), S-3 dual-signed, Chief G-L2 token in hand ---
 
@@ -10,39 +10,39 @@ powershell -NoProfile -File scripts/validate/repo-write-lock.ps1 -Action status 
 Get-Process | Where-Object { $_.ProcessName -match 'cargo|rustc|nvcc|cl$' }       # must be empty
 (Get-FileHash -Algorithm SHA256 docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md).Hash
 #   must be BB064FE0A85AB38ABBA8043768666A0D9F73FC53D9F2F3DD72EACE060C8A924D (39,379 B)
-# reference five files (sha+bytes: PENDING-G-L1) and the 10 mandatory guard inputs are re-hashed here
-# record every hash in window/t0-freeze.txt
+# re-hash the five reference files and the 10 mandatory guard inputs; expected values are in
+# materials/guards-freeze-list.txt and materials/preconditions.txt (P8 / README 2.3)
 
-# --- 2) Reference + guard-input identity (PENDING-G-L1 values must be filled before the freeze) ---
-# for each of the five reference files: (Get-FileHash -Algorithm SHA256 <path>).Hash  + (Get-Item <path>).Length
-# compare against materials/guards-freeze-list.txt (frozen values, filled at G-L1 closeout)
+# --- 2) Dry-run of the freezer (structure self-check only; no cargo, no writes outside target/) ---
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1
+# expect: SELFCHECK PASS 13/13, plus WARN for the pre-existing old-stash drift (reported, never repaired)
 
-# --- 3) Guards freeze (after monitor PASS, before the body; resolves exes via cargo test --no-run) ---
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1 -Attempt 1
-#   (freezer path/name PENDING-G-L1; it must freeze 96 + 1 exe + 10..12 inputs and must not touch the old suite)
-#   cargo test --no-run exit 0 is the only build in this stage; keep target/render-bvh/perworld-l2-window/cargo-artifacts.jsonl
-
-# --- 4) Regular monitor first, then the three-point baseline within 5 minutes, then GO ---
+# --- 3) Regular monitor first, then FREEZE, then the three-point baseline within 5 minutes, then GO ---
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -Required 60 -MaxMinutes 30 -MaxUtil 40 -OutCsv target/render-bvh/perworld-l2-window/monitor.csv
 # exit 0 AND longest_clean>=60 AND all clean samples util<40 AND compute_filtered=0 AND build=0 => window exists
 # exit != 0 (incl. exit 20) => window does NOT exist: stop, report the user; no retry, no relaxation
+# the authoring exception (util<60) does NOT apply to the validation window
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1 -Execute -Attempt 1
+# this is the ONLY build point (cargo test --locked --no-run once); keeps cargo-artifacts.jsonl, stashes 12 exes,
+# writes scripts/validate/render-bvh/guards-perworld-l2-light.json
+# if old-stash drift is reported: stop and report; -AllowOldStashDrift only after a Chief ruling
 nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader
 nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
 # baseline_free = min(free) [sampling]; onspot_floor = baseline_free - 3072; floor_effective = max(signed floor, onspot_floor)
 # accept only if every point free >= floor_effective and util<40; record all values in window/baseline-*.txt
 
-# --- 5) Frozen-exe triple check before the body ---
+# --- 4) Frozen-exe triple check before the body ---
 # for each of the 12 exes: live path/bytes/sha256 == guards JSON entry == stash entry
 # any mismatch => STOP; never run a non-frozen executable
 
-# --- 6) Single validation run (frozen exes only; zero compile) ---
-# run the 12 frozen entity executables in entity_order (guards JSON), capturing per-entity stdout/stderr/exit code
-# the L2 target entity render_per_world_light runs against the frozen G-L1 reference; expected results: materials/entity-expectations.txt
+# --- 5) Single validation run (frozen exes only; zero compile) ---
+# run the 12 frozen entity executables in the guards JSON entity_order, capturing per-entity stdout/stderr/exit code
+# render_per_world_light runs against the frozen G-L1 reference; expected results in materials/entity-expectations.txt
 
-# --- 7) Post-run evidence + legacy assertion ---
+# --- 6) Post-run evidence + legacy/old-suite assertion ---
 # copy window/evidence per materials/evidence-checklist.txt; record sha256+bytes of the five reference files;
-# confirm the reference set and the old perworld-s1 guards/stash are untouched (git status --porcelain)
+# confirm the reference set, the old perworld-s1 guards JSON and its stash are untouched (git status --porcelain)
 
-# --- 8) Failure handling (fail-stop, no retry) ---
-# any criterion/metadata/guard/compile-regime failure: keep everything as is, stop, report the user;
+# --- 7) Failure handling (fail-stop, no retry) ---
+# any criterion/metadata/guard/compile-regime/monitor failure: keep everything as is, stop, report the user;
 # do not re-run, do not change thresholds/reference/cameras, do not swap frozen executables

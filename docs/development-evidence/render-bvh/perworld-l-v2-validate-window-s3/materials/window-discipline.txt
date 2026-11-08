@@ -1,8 +1,8 @@
 # G-L2 window discipline (spec v3 section 10.2; fail-stop)
 
-1. Freeze timing: guards are frozen AFTER the regular monitor passes and BEFORE the window body; the body is
-   zero-compile (no cargo/nvcc). After the freeze only the section 10.2 cuda-probe regime build/run form is
-   permitted; never a plain build.
+1. Freeze timing: guards are frozen AFTER the regular monitor passes and BEFORE the window body by
+   `scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1 -Execute`; the body is zero-compile
+   (no cargo/nvcc). After the freeze only the section 10.2 cuda-probe regime build/run form is permitted.
 2. Three-point baseline: three nvidia-smi samples about 5 s apart, all within 5 minutes before the run.
    baseline_free = min(free of the three samples)   <- SAMPLING rule: worst of the three samples.
 3. Floor: onspot_floor = baseline_free - 3072 MiB; signed_floor comes from the user's S-3b signature.
@@ -14,8 +14,11 @@
    exit 0, longest_clean >= 60, every clean sample util<40, compute_filtered=0, build=0; no other CUDA
    process during the monitor. The script's internal 10,240 MiB bound is only a lower bound, not the floor.
 5. Tree/HEAD: git status --porcelain empty before the window; HEAD recorded; no commit inside the window.
-6. Zero-compile proof: cargo test --no-run exit 0 in the freeze stage with cargo-artifacts.jsonl kept; build
-   process count 0 recorded before the body; git status empty again after the body.
-7. Frozen exe triple check: live == guard == stash for every entry (path/bytes/sha256). Any mismatch => stop.
+6. Zero-compile proof: the freezer -Execute runs `cargo test --locked --no-run` once and keeps
+   target/render-bvh/perworld-l2-window/cargo-artifacts.jsonl; build process count 0 recorded before the body;
+   git status empty again after the body.
+7. Frozen exe triple check: live == guard == stash for all 12 entries (path/bytes/sha256). Any mismatch => stop.
 8. Single run, fail-stop: no retry, no threshold/reference/camera change, no frozen-artifact swap; keep logs and
    artifacts as they are, stop and report the user.
+9. Old suite/stash: read-only; the freezer re-checks the old guards JSON sha after the freeze, and the pre-existing
+   drift of render_shadow_reference.exe in the old stash is reported but never repaired (see guards-freeze-list).
