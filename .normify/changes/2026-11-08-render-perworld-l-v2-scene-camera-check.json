@@ -5,7 +5,7 @@
     "zh": "QA 只读复核：perworld L v2 scene-a-light 插入 cam-hinge + LF 规则（实算 sha 4b354054/5,134 B/86 行、+2 行、非相机数组逐位不变、dry-run unexpected=0、旧 sha 8 处未回改、manifest 15-15）",
     "en": "QA read-only review of the perworld L v2 scene-a-light cam-hinge insertion plus LF rule (measured sha 4b354054/5,134 B/86 lines, +2 lines, non-camera arrays bitwise unchanged, dry-run unexpected=0, 8 historical old-sha records untouched, manifest 15-15)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 Backend 的场景/相机改卡 `2026-11-08-render-perworld-l-v2-scene-camera`（verified；登记 `c6dd10df` → start `ce5f44a3` → 实现 `3d546fbe`）做**只读复核**：① `scene.xml` 在 `cam-persp` 后、`cam-track` 前插入且仅插入 2 行 `cam-hinge`（文本与已签 spec v3 §2.1 写死值逐字一致），实算 sha256 `4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716` / 5,134 B / 86 行（改前 `4db66e2c…` / 4,987 B / 84 行，+147 B/+2 行），工作树与 `3d546fbe:` blob 同 sha、LF only；② `.gitattributes` 仅 +1 行 `fixtures/render-bvh/scene-a-light/** text eol=lf`（scene-flex 规则后、`*.npz -text -diff` 前），`check-attr` → text=set/eol=lf，npz 仍 `-text`，`scene-a/` 不受影响；③ 独立用 pinned venv MuJoCo 3.15.0 解析改前/改后模型：ncam 3、cam_mode [0,0,3]、cam_fovy [73.73979461915735,30,40]、cam_resolution [[320,240],[320,240],[240,180]]、cam-hinge sensorsize [0,0]/intrinsic [0.01,0.01,0,0]、pos/quat 一致；581 个模型属性逐项比对，**非相机物理数组逐位不变**，差异仅相机数组 + 名字表（name_* / names_map）+ 标量 {ncam,nbuffer,nnames,nnames_map,signature}；④ 独立 dry-run 对照（改前副本放在 target/ 内、同 out-root/out-dir）：13 条叶子差异全部属预期（scene sha/bytes/path、camera_modes、cam_active_fixed_only、cameras 3 条、light_pose_precheck 路径），`model_static.cameras=[[0,0,cam-persp],[1,0,cam-hinge],[2,3,cam-track]]`、`cam_active_fixed_only=[true,true,false]`、legacy 112→112、默认 107；⑤ 旧 sha `4db66e2c` 历史证据 8 处 occurrence 未回改（git grep 复核），本卡登记 JSON 1 处引用；⑥ diff 面 `c6dd10df..3d546fbe` 仅 .gitattributes/scene.xml/卡/runs/证据目录，`scene-a/`、`src/`、`tests/`、`scripts/` 零 diff；⑦ manifest 15/15、编码卫生、四门禁独立复跑 unit 1359/0。**只读 + 只写本卡证据目录；零 GPU。**",
     "en": "Read-only review of the scene-a-light cam-hinge fixture change at 3d546fbe: measured scene sha/bytes/lines and +2-line diff matching signed spec v3 section 2.1, gitattributes rule and attributes, independent MuJoCo 3.15.0 model parse with 581-attribute comparison (non-camera physics arrays bitwise unchanged), independent dry-run comparison, historical old-sha records untouched, diff surface, manifest 15/15, four gates re-run."
@@ -34,11 +34,12 @@
   },
   "note": "Backend 2026-11-08 17:1x 请求复核；复核目标提交 3d546fbe（复核时 HEAD 已含 QA 签名复核提交 e3aea21f，场景/相机改动未被后续提交触及）。只读 + 只写本卡证据；零 GPU；不改 fixture/属性/被复核证据（发现问题只报告+建议 fix）。",
   "revision": {
-    "before": "156ae0d176b256ddba1dfbaf22cf80ace46ab160",
+    "before": "aac861714815fc31d57ed9f3316e28eebe8ed6b9",
     "after": null
   },
   "created_at": "2026-11-08T09:28:28.907Z",
-  "updated_at": "2026-11-08T09:28:28.907Z",
+  "updated_at": "2026-11-08T09:30:06.251Z",
+  "closed_at": "2026-11-08T09:30:06.251Z",
   "checks": [
     {
       "kind": "gate",
