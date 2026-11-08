@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-criteria-entity-c1-dict-fix-check",
+  "status": "effective",
+  "kind": "check",
+  "owner": "QA",
+  "positioning": "Read-only independent QA review of the criteria-entity section 2.4 dict-adaptation fix bab01507: CaptureC1Check semantics, per-pair magnitude/bitwise equality, bitwise equivalence with the readout (independently 43,604/41,815 on the pilot reference), explicit skip reasons, symptom-free self-proof, boundaries and gates. GPU-free.",
+  "object": {
+    "card": "2026-11-08-render-perworld-l-v2-criteria-entity (fix round; addenda=3)",
+    "commit": "bab01507",
+    "parent": "569e636c304a2e9da37919ea1b679f433f711312",
+    "review_head": "bab01507",
+    "write_lock": "held by this QA review during the review; released after commit"
+  },
+  "spec": {
+    "path": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "section": "2.4"
+  },
+  "verdict": {
+    "overall": "pass",
+    "blocking": 0,
+    "g_l2_freeze": "usable for G-L2 freeze",
+    "summary": "check_capture_c1 now returns CaptureC1Check (Compared / Skipped(reason)); per-pair magnitude equality asserted, per-pair bitwise equality asserted when capture carries bitwise; bitwise semantics equals readout view(int32) (independent pilot recompute 43,604/41,815); old array / missing field / missing world pair produce explicit Skipped reasons printed by the GPU case (not silent); self-proof 16 passed / 2 ignored covers dict match, magnitude-only, both mismatch failures, three skip reasons and non-skip of the full structure; A/B/C semantics and thresholds untouched; boundaries clean; manifest 8/8; gates unit 1387/0/402.",
+    "observations": "O1 info (magnitude-only capture still passes Compared; field completeness is enforced by the capture-side verify), O2 info (old array goes Skipped not fail; reason printed; G-L1 reference will be dict), O3 info (light.rs 499/500 lines)"
+  },
+  "files_verified": {
+    "tests/render_per_world_light.rs": {"lines": 478, "bytes": 24485, "sha256": "aed47885f0e56787…", "full_sha256_artifact": "artifacts/boundary-checks.txt"},
+    "tests/support/render_bvh/light.rs": {"lines": 499},
+    "tests/support/render_bvh/light/tests.rs": {"lines": 487},
+    "new_files": "NONE (all modified)",
+    "entity_evidence_manifest": "8/8"
+  },
+  "capture_c1_check": {
+    "return_type": "CaptureC1Check::{Compared, Skipped(&'static str)}",
+    "magnitude": "per world pair assert capture magnitude == entity c1_rgb_changed[i]",
+    "bitwise": "per world pair assert capture bitwise == entity c1_rgb_bitwise_changed[i] when capture carries bitwise",
+    "skip_reasons": [
+      "capture.json 未记录 c1_rgb_changed_px（spec v3 §2.4；旧参考无此字段）",
+      "capture.json c1_rgb_changed_px 是旧数组结构；spec v3 §2.4 要求 {\"0->1\": ..., \"1->2\": ...} 字典，不做交叉核对",
+      "capture.json c1_rgb_changed_px 缺 0->1/1->2 magnitude 计数"
+    ],
+    "printed_explicitly": "GPU case prints CaptureC1Check with {:?}",
+    "old_array_decision": "explicit Skipped with reason; no silent compatibility; spec section 2.4 requires the dict shape and the capture-side verify enforces it - reasonable and self-proof covered"
+  },
+  "bitwise_recompute": {
+    "entity_formula": "any channel to_bits(left) != to_bits(right)",
+    "readout_formula": "np.any(x.view(np.int32) != y.view(np.int32), axis=-1)",
+    "equivalent": true,
+    "pilot_counts": {"0->1": {"magnitude": 38285, "bitwise": 43604}, "1->2": {"magnitude": 40644, "bitwise": 41815}},
+    "matches_readout_json": true,
+    "readout_json_sha256": "7138f238afe3dbce5af6d35a02329db0f280bb7cbac01b597757f9ce0d83c35a",
+    "artifact": "artifacts/c1-bitwise-recompute.json"
+  },
+  "self_proof": {
+    "command": "cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1",
+    "result": "16 passed; 0 failed; 2 ignored; exit 0",
+    "artifact": "artifacts/selfproof-rerun.log",
+    "coverage": [
+      "dict matches -> Compared",
+      "magnitude-only -> Compared",
+      "magnitude mismatch -> panic",
+      "bitwise mismatch -> panic",
+      "missing field -> Skipped",
+      "old array structure -> Skipped",
+      "missing 1->2 -> Skipped",
+      "full structure must not be reported as Skipped",
+      "pilot real data: bitwise [43,604,41,815]; old pilot capture -> Skipped(reason); real counts as section 2.4 dict -> Compared"
+    ]
+  },
+  "real_data_pilot_crosscheck": {
+    "command": "cargo test --locked --features cuda-probe --test render_per_world_light -- --ignored pilot_c1 --test-threads=1 --nocapture",
+    "printed": [
+      "pilot C1=[38285, 40644] C2 depth=[35828, 33883] seg=[16041, 16754] verdict=PassMargin",
+      "旧 pilot capture.json（无 §2.4 字段）C1 交叉核对 = Skipped(\"capture.json 未记录 c1_rgb_changed_px（spec v3 §2.4；旧参考无此字段）\")"
+    ],
+    "result": "pass",
+    "artifact": "artifacts/pilot-crosscheck-rerun.log"
+  },
+  "semantics_unchanged": {
+    "criterion_a": true,
+    "criterion_b": true,
+    "criterion_c_magnitude": true,
+    "c2": true,
+    "diagnostics": true,
+    "thresholds_384_576": true,
+    "camera_attribution": true,
+    "verdict": true,
+    "no_allowlist": true,
+    "added_only": "CCounts.c1_rgb_bitwise_changed (not part of verdict) + check_capture_c1 adaptation",
+    "provenance_check": "equivalent refactor only; 20 negative self-proof cases unchanged"
+  },
+  "boundaries": {
+    "changed_paths": {"tests": 3, "entity_evidence": 5, "card": 1, "gate_runs": 4},
+    "fixtures_src_scripts_spec_diff": "NONE",
+    "line_limit": 500,
+    "encoding": "UTF-8/LF, no BOM, CR/TAB 0",
+    "artifact": "artifacts/boundary-checks.txt"
+  },
+  "gates": {
+    "fmt": {"passed": true, "exit": 0},
+    "clippy": {"passed": true, "exit": 0},
+    "clippy-cuda": {"passed": true, "exit": 0},
+    "unit": {"passed": true, "exit": 0, "tests": {"passed": 1387, "failed": 0, "ignored": 402}}
+  },
+  "observations": [
+    {"id": "O1", "severity": "info", "blocking": false, "title": "magnitude-only capture still Compared", "detail": "entity cross-check does not require bitwise when absent; capture-side verify_capture_metadata requires both counts", "fix": "layering is reasonable; no change"},
+    {"id": "O2", "severity": "info", "blocking": false, "title": "old array structure becomes Skipped, not failure", "detail": "a non-conforming old reference would print skip rather than fail; G-L1 reference is dict-shaped and the skip reason is printed", "fix": "no change"},
+    {"id": "O3", "severity": "info", "blocking": false, "title": "light.rs at 499/500 lines", "detail": "almost no headroom", "fix": "plan a split before further additions"}
+  ],
+  "non_claims": {
+    "statement": "Read-only review plus independent recompute only: no G-L2 pass claim, no rendering numeric/upstream-equivalence claim. The entity must not be claimed as passing before the G-L2 frozen-exe run on the G-L1 reference."
+  }
+}
