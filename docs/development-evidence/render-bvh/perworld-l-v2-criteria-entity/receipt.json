@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-criteria-entity",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-08-render-perworld-l-v2-criteria-entity",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "criteria-entity",
+  "positioning": "Criteria entity render_per_world_light per signed spec v3 §10.1: reference-side A/B/C judging, two-run sha, world isolation, product side via Card H render_per_world_with_lights + WorldLightPoses, test-time 3.15 model dump under tests/support (not fixtures). GPU-free implementation; GPU case ignored until G-L2/G-L1 reference exists.",
+  "source": {
+    "spec": "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md",
+    "spec_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "spec_bytes": 39379,
+    "sections": ["§10.1 criteria entity", "§4 criterion A", "§5 criterion B", "§6 criterion C"],
+    "card_h": "2026-11-08-render-perworld-l-v2-host-light-entry (773cbe99)",
+    "pilot": "2026-11-08-render-perworld-l-v2-pilot-g-l0-window (268380d8/66bac4f6, verdict pass-margin)"
+  },
+  "deliverables": {
+    "tests/render_per_world_light.rs": {"lines": 489, "role": "entity: reference npz decode/load, capture provenance self-check, [ignore] GPU case (A/B/C + two-run sha + world isolation)"},
+    "tests/support/render_bvh/light.rs": {"lines": 390, "role": "3.15 dump -> RenderFields/SceneState; Card H product assembly; criteria A/B/C pure functions; sha/isolation helpers"},
+    "tests/support/render_bvh/light/tests.rs": {"lines": 446, "role": "CPU synthetic self-proof (boundaries/direction/swap/negatives/npz)"},
+    "tests/support/render_bvh/light/model-315.json": {"bytes": 312943, "role": "offline 3.15 product-format model dump (not fixtures)"},
+    "tests/support/render_bvh/light/model-315.provenance.json": {"bytes": 2209, "role": "dump provenance"},
+    "docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity/materials/dump_model_315_light.py": {"role": "offline 3.15 dumper"}
+  },
+  "dump_provenance": {
+    "dumper_script_sha256": "215fff8e0ade107c5af538626b7892aaa1a2f49e9c27a6ae9f2ea371534efb78",
+    "model_parity_sha256": "826bd7904bad18447e594876d21373c154e4c01f8b61729d480a79e70f79fbaf",
+    "command": "target/mjwarp-parallel/venv/Scripts/python.exe -B docs/development-evidence/render-bvh/perworld-l-v2-criteria-entity/materials/dump_model_315_light.py",
+    "mujoco_version": "3.15.0",
+    "python": "3.12.13",
+    "input_scene": {
+      "path": "fixtures/render-bvh/scene-a-light/scene.xml",
+      "sha256": "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716",
+      "bytes": 5134
+    },
+    "output": {
+      "path": "tests/support/render_bvh/light/model-315.json",
+      "sha256": "503bdabd3366034460639bfc7771e6cecc3381a950fbf40850c25e1b691dc67f",
+      "bytes": 312943,
+      "two_dumps_byte_identical": true
+    },
+    "compile_315": {
+      "mjb_sha256": "c5414b6bc12e0f172050a03c3bfad8f3a9e83386b3578e919e67d09ddc4956dc",
+      "mjb_bytes": 101586,
+      "two_saves_identical": true,
+      "mjb_committed": false
+    },
+    "model_file_note": "dump `model_file` is a name string only; the .mjb is generated under target/ and not committed, so the field does not identify a committed file.",
+    "counts": {"nbody": 3, "ngeom": 7, "ncam": 3, "nlight": 3}
+  },
+  "criteria_implementation": {
+    "criterion_a": "two cameras x three worlds strict bit-level: rgb max_byte_diff==0 & mismatched_pixels==0; depth bit-equal mismatched==0 & beyond_ulp==0; seg (id,type) equal; no allowlist / no tolerance",
+    "criterion_b": "reference state.npz light_xpos/light_xdir f32 bits vs product-side WorldLightPoses (bit-verbatim pass-through, no FK/f64/re-normalization): 0 exceptions",
+    "criterion_c": "reference-side self-computed: C1 cam-persp adjacent-world rgb max_channel|delta|>=1/255 px count; C2 cam-hinge depth bit-changed + seg pair-changed px count; thresholds ACCEPT=384 / MARGIN=576; pairs [(0,1),(1,2)]; camera attribution fixed (C1=cam0/cam-persp, C2=cam1/cam-hinge); diagnostics recorded only",
+    "verdict": "any <384 -> NonDiscriminating; any <576 -> Insufficient; else PassMargin",
+    "two_run_sha": "sha256 of rgb/depth/seg buffers across two product renders must be equal",
+    "world_isolation": "change world1 geometry + light poses only: world0/world2 both cameras bit-identical, world1 at least one camera changes; not a substitute for A/B/C",
+    "gating": "GPU case #[ignore]; forced --ignored run panics explicitly with 'not executed: reference missing (G-L1 capture pending)' (no silent skip); G-L2 frozen exe runs it for real"
+  },
+  "self_proof": {
+    "log": "logs/selfproof.log",
+    "command": "cargo test --locked --features cuda-probe --test render_per_world_light -- --test-threads=1",
+    "result": "13 passed; 0 failed; 1 ignored (exit 0)",
+    "cases": [
+      "verdict_boundaries_383_384_575_576",
+      "zero_c2_set_fails_even_when_c1_is_large",
+      "criterion_c_counts_c1_on_cam_persp_and_c2_on_cam_hinge",
+      "criterion_c_rejects_camera_swapped_reference",
+      "criterion_c_rgb_threshold_is_one_byte_and_uses_max_channel",
+      "criterion_c_pair_order_is_world_major",
+      "criterion_a_detects_rgb_depth_seg_bit_differences",
+      "criterion_a_aggregates_worlds_and_cameras",
+      "criterion_b_compares_light_bits_and_reports_mutations",
+      "sha_and_isolation_helpers_detect_only_world1_change",
+      "npz_parser_reads_members_and_npy_header",
+      "missing_reference_reports_explicit_not_executed_error",
+      "capture_provenance_self_check_rejects_bad_or_missing_fields"
+    ],
+    "not_executed_check": "logs/not-executed-check.log (forced --ignored run: expected explicit failure with 'not executed: reference missing ...'; not a card failure)"
+  },
+  "boundaries": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_cuda_context": true,
+    "unchanged": ["fixtures/", "src/", "scripts/",
+                  "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+                  "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"],
+    "stop_clause_check": "not triggered: the entity only uses the Card H public entry + existing src/ APIs; no kernel/ABI/src change needed"
+  },
+  "g_l2_dependency": "G-L2 validation window depends on this entity + G-L1 capture reference; this card itself runs no GPU and makes no rendering claim.",
+  "non_claims": {
+    "statement": "Implementation + test-time dump only: no per-world light acceptance, no upstream-implementation equivalence, no discriminability-restoration claim, no rendering numeric conclusion. The entity must not be claimed as passing before the G-L2 frozen-exe run on the G-L1 reference."
+  }
+}

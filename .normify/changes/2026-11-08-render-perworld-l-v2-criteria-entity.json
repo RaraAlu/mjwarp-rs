@@ -5,7 +5,7 @@
     "zh": "perworld L v2 判据实体 render_per_world_light：双相机判据 A/B/C + world 隔离（零 GPU；产品段接 Card H；测试期 3.15 模型 dump 进 tests/support）",
     "en": "Per-world L v2 criteria entity render_per_world_light: dual-camera criteria A/B/C + world isolation (GPU-free implementation; product side uses Card H; test-time 3.15 model dump under tests/support)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "按已签 spec v3 §10.1 实现判据实体 `render_per_world_light`：读 §2 参考（rgb/depth/seg 各 6 个 world×相机键 + state）→ §4 判据 A 两台相机（cam-persp/cam-hinge）各自逐 world 严格位级（rgb 0 字节差、depth 位级全等、seg (id,type) 全等）→ §5 判据 B 灯字段数据面（参考 `state.npz` 的 `light_xpos/light_xdir` vs 产品侧 per-world 灯数据位级）→ §6 判据 C 参考侧自算 C1（cam-persp `max_channel|Δrgb|≥1/255`）与 C2（cam-hinge depth 位型 + seg pair），阈值 384 验收/576 采集前置、两对 world、两套不得互换、无 allowlist/容差放宽 → 两跑 sha；另加 world 隔离性断言（两台相机，不替代 A/B/C）。产品段用 Card H 的 `render_per_world_with_lights` + `WorldLightPoses`（逐 world `light_xpos/light_xdir` 从 `state.npz` 逐位透传）。测试期模型输入用**离线 3.15 dumper** 生成的产品格式 dump（放 `tests/support/render_bvh/light/model-315.json`，不进 fixtures；provenance：dumper sha、逐字命令、输入场景 sha、输出 sha/bytes、同路径连两次 dump 逐字节相等）。参考目录尚不存在（G-L1 后才有）→ GPU 用例 `#[ignore]`/显式门控、缺参考显式报「未执行」不静默 skip；本卡纯 CPU、零 GPU、不采集。",
     "en": "Implement the criteria entity render_per_world_light per signed spec v3 section 10.1: read the section-2 reference (six rgb / six depth / six seg world-camera keys plus state) and judge criterion A (both cameras, per world, strict bit-level), criterion B (per-world light data plane), criterion C (reference-side C1/C2 counts with 384/576 thresholds, two world pairs, no camera swap, no allowlist), plus two-run sha and world-isolation assertions. Product side uses the Card H render_per_world_with_lights entry with WorldLightPoses fed bit-verbatim from state.npz. A test-time 3.15 offline dumper produces the product-format model dump under tests/support (not fixtures) with full provenance. The reference does not exist yet, so the GPU case is ignored/gated and reports 'not executed' explicitly; this card is GPU-free, no capture."
@@ -51,7 +51,8 @@
     "after": null
   },
   "created_at": "2026-11-08T11:26:00.000Z",
-  "updated_at": "2026-11-08T11:25:44.869Z",
+  "updated_at": "2026-11-08T11:41:39.349Z",
+  "closed_at": "2026-11-08T11:41:39.349Z",
   "checks": [
     {
       "kind": "gate",
