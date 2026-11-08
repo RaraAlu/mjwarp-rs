@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-09-render-perworld-l-v2-capture-window-g-l1",
+  "title": {
+    "zh": "perworld L v2 G-L1 采集窗执行与参考落库（双相机 scene-a-light；authoring 例外 monitor；单次采集成功；参考 5 文件入库）",
+    "en": "Per-world L v2 G-L1 capture window execution and reference landing (dual-camera scene-a-light; authoring-exception monitor; single successful capture; 5 reference files committed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "执行 S-2 双签授权的 G-L1 采集窗（唯一执行者 Backend、锁 owner=Backend 全程持有）：T0 冻结 → N1 三态校验 → step-2 dry-run → monitor（常规 util<40 不达标时按用户 2026-11-08 预批启用 authoring 例外 util<60，逐样本记录、floor 不放松）→ 三点基线（floor_effective=max(signed 10,230, onspot)）→ 报 Chief 取得 GO → wrapper 单次采集（`--repeat 2`）→ 采后 readout、spec §2.4 计数对账与全部自查 → 归档证据并把参考 5 文件落入正式参考根 `fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/`。本卡产物是 G-L2 验证窗的唯一输入；不做产品渲染比较、不宣称采集有效性以外的结论。",
+    "en": "Execute the S-2 dual-signed G-L1 capture window (sole executor Backend, repo-write-lock owner=Backend for the whole window): T0 freeze, N1 three-state check, step-2 dry-run, monitor (authoring exception util<60 only if the regular util<40 cannot be met; per-sample records, floor never relaxed), three-point baseline with floor_effective=max(signed 10,230, onspot), Chief GO, one wrapped capture (--repeat 2), post-capture readout + spec 2.4 counts cross-check + all self-checks, then archive evidence and land the five reference files under the formal reference root. The reference is the only input for G-L2; no product-render comparison and no claim beyond the capture facts."
+  },
+  "modules": {},
+  "acceptance": [
+    "**T0 冻结与指纹**：窗口开始时记录 HEAD、树 clean、锁 owner=Backend、0 构建进程；scene `4b354054…`/5,134 B、`capture_render_perworld.py` `f3af09ab…`/23,637 B/490 行、`perworld_capture_meta.py` `3fdb8595…`/19,154 B/379 行、`perworld_light_prep.py` `9fd5f8c2…`/7,206 B、readout `4a054aba…`/16,711 B、spec `bb064fe0…`/39,379 B、upstream `71da24d9` clean、venv 五版本、正式参考目录不存在（fresh）；N1 三态（missing/empty/invalid 失败、token 值通过）；step-2 dry-run exit 0、cameras 3 条、`cam_active_fixed_only=[true,true,false]`、legacy 112、不建 out_dir。",
+    "**monitor 与例外**：常规 `-MaxUtil 40` 未达标（exit 20）时，按用户 2026-11-08 预批启用 authoring 例外 `-MaxUtil 60`：整轮 60 samples 全 clean、`compute_filtered_max=0`、`build_max=0`、逐样本记录、`exception_load_bearing=true`、floor 不放松（post-hoc 每个 clean sample free ≥ floor_effective=10,230 MiB）；超时/不干净则窗口不存在、停手不采集。",
+    "**三点基线与 floor**：monitor PASS 后 5 分钟内三点采样，记录原始 used/free/util/temp 与 compute-apps；`baseline_free=min(三点 free)=13,029`、`onspot_floor=9,957`、`floor_effective=max(signed 10,230, onspot)=10,230 MiB`；报 Chief 获 GO；若距基线超 5 分钟先重取。",
+    "**单次采集与 refit**：wrapper 单次采集 exit 0（`--repeat 2`、tag `nw3-light-hinge02040`、`--worlds 3 --hinge-deg 0,20,40`、fastmath false、shadows true、seed 20261030），out-root `fixtures/render-bvh/scene-a-light/perworld`；refit 计数 refit×2/render×2、序列 refit→render→refit→render、`pattern_ok=true`；两遍采集逐位一致；`legacy_reference_untouched=true`；只执行一次采集（无重试）。",
+    "**采后判读与 §2.4 对账**：readout exit 0、verdict `pass-margin`、两套两对均 ≥576（C1 38,285/40,644；C2 depth 35,828/33,883、seg 16,041/16,754）、`any_below_accept=false`、`metadata_selfcheck.failed=[]`；capture.json 的 §2.4 五类计数与 readout 两对 world 逐项一致（`window/counts-crosscheck.txt` 全 OK）。",
+    "**参考落库与证据**：参考 5 文件入 `fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/`（rgb.npz 5,531,026 / depth.npz 1,844,650 / seg.npz 3,687,826 / state.npz 2,486 / capture.json 12,251；总 **11,078,239 B**，以实测为准；四个 npz sha 与 pilot 逐位相同属上游确定性预期）；证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/` 含 README/receipt/manifest 与 window/ 记录（T0、N1、token、dry-run、monitor regular+exception、monitor-summary、baseline、采集日志/exit、capture.json、refit-counter、readout、counts-crosscheck、metadata-selfcheck、seg-geom-sets、environment-provenance、zero-compile、git-before/after、incidents）；manifest 首行 `#` + `# base dir:`、sha256+bytes 自核、UTF-8/LF/无 BOM。",
+    "**边界与门禁**：`unchanged src/`、`unchanged tests/`、`unchanged scripts/`，spec 目录与 S-2 材料目录只读；fixtures **仅允许新增**本参考 5 文件（不得改既有 fixtures）；四门禁 fmt/clippy/clippy-cuda/unit 全过；零重编译（采集窗内 0 构建进程）。",
+    "**非声明**：本卡只落 G-L1 参考与采集事实；不宣称产品渲染通过、不宣称与上游实现等价、不宣称判别力恢复；G-L2 验证窗才做产品侧实体比对。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-material",
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-signature",
+      "2026-11-08-render-perworld-l-v2-capture-window-s2-signature-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/",
+      "fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/"
+    ],
+    "resources": [],
+    "priority": 65
+  },
+  "note": "Chief 2026-11-09 授权（attempt 2 token 2026-11-09T00:02:00+08:00；S-2 双签 2f361d91 + QA 4a19e003）：G-L1 采集窗执行与参考落库。执行者 Backend 为唯一写者，锁 owner=Backend 全程持有；常规 monitor util<40 未达标（longest_clean 22）→ 按用户 2026-11-08 预批启用 authoring 例外 util<60（60/60 clean、util 14–40%、exception_load_bearing=true、floor 未放松），三点基线 free 13,029×3 → floor_effective=max(10,230,9,957)=10,230，GO 后单次采集成功；采集前一次 shell 引号错误在**执行前**失败（0 GPU、无写入），唯一一次采集成功。参考 5 文件实测总 11,078,239 B（spec §2.3 的 11,076,054 B 是估算；冻结以实测为准）。attempt 1 记录留存 target/render-bvh/perworld-l-v2-gl1/attempt1/（不入库）。",
+  "revision": {
+    "before": "8b61171cf670accc41630839946b519ea4c27815",
+    "after": null
+  },
+  "created_at": "2026-11-09T00:45:00.000Z",
+  "updated_at": "2026-11-09T00:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-09-render-perworld-l-v2-capture-window-g-l1"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "判别力已恢复"
+      ]
+    }
+  ]
+}
