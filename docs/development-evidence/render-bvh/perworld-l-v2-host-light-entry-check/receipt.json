@@ -1,0 +1,121 @@
+{
+  "task_id": "2026-11-08-render-perworld-l-v2-host-light-entry-check",
+  "owner": "QA",
+  "date": "2026-11-08",
+  "kind": "implementation-review",
+  "verdict": "PASS-with-observations",
+  "blocking": 0,
+  "observations": {"medium": 1, "info": 2},
+  "target": {
+    "card": "2026-11-08-render-perworld-l-v2-host-light-entry",
+    "registration_commit": "38797130",
+    "baseline_commit": "2e207e32925e6f68b38c2545f560966ed916e7c9",
+    "implementation_commit": "773cbe995b81a33127963419ef066c2107b1931c",
+    "head_at_review": "773cbe995b81a33127963419ef066c2107b1931c"
+  },
+  "kernel_identity": {
+    "cuda_file_count": 8,
+    "cuda_git_diff": "empty",
+    "cuda_tree_identical_baseline_vs_head": true,
+    "cu_worktree_sha256_match_artifact": true,
+    "megakernel_slots": {"declared": 81, "source": "src/runtime/launcher/render/args.rs (unchanged in this commit)", "unit_test": "slot_40_is_bool_scalar_in_frozen_signature asserts len==81 (re-run: 1 passed)"},
+    "slot_arrangement_changed": false,
+    "kernel_entry_signature_changed": false
+  },
+  "host_only_mechanism": {
+    "per_world_loop_calls_render_world_with_lights": true,
+    "lights_selected_per_world_inside_render_impl": true,
+    "uploads_recreated_per_launch": "upload_megakernel_arrays is called inside render_impl (function-local uploads), so every world launch re-uploads that world's 1-D light poses",
+    "launch_worlds_per_world": 1,
+    "adr_world_shift": "adr_world = world (existing v1 mechanism, unchanged)",
+    "kernel_worldid_semantics": "worldid stays 0 (kernel .cu + args unchanged)",
+    "two_d_light_array_added": false,
+    "single_launch_or_aa_or_multicam_new_kernel_path_added": false,
+    "spec_10_3_stop_clause_triggered": false
+  },
+  "data_contract": {
+    "WorldLightPoses": {
+      "worlds_ge_1": true,
+      "lights_ge_1": true,
+      "count_must_equal_worlds_x_lights": true,
+      "checked_mul_overflow_error": true,
+      "bounds_checked_get_world_slice": true,
+      "diagnostic_errors_no_panic": true,
+      "no_fk_no_f64_no_renormalize": true,
+      "flatten_order": "world-major, within-world light order, xpos then xdir",
+      "source": "capture-side state.npz light_xpos/light_xdir f32 raw values (data-driven)"
+    },
+    "entry_errors": {
+      "world_count_mismatch": "InvalidArray(\"per_world_light_worlds\")",
+      "light_count_mismatch": "InvalidArray(\"per_world_light_count\")",
+      "world_out_of_range": "LauncherError::Driver(\"per-world lights: ...\")"
+    }
+  },
+  "default_path": {
+    "render_per_world_signature_identical_to_baseline": true,
+    "delegates_to_shared_impl_with_lights_none": true,
+    "light_mode_light_bodyid_rejection_only_default_path": true,
+    "light_data_poses_unchanged": "megakernel_arrays.rs not modified (sha 326d001d... before and after)",
+    "golden_bits_match_fixture_light_data_check": true,
+    "v1_per_world_tests_still_pass": true,
+    "aa_still_unsupported": true
+  },
+  "line_counts": {
+    "src/render/kernel/world_light.rs": {"lines": 371, "new": true, "sha256": "003b466e9ddc2d51da97fb45c1aba11101f139770471ae7744e58e946b7e80d7"},
+    "src/render/kernel/per_world.rs": {"lines": 338, "sha256": "d9ea224753c1aa2621276b5efa1c1a0c74da41f4f86c3de58fd2bf06f95da4ce"},
+    "src/render/kernel/megakernel.rs": {"lines": 497, "sha256": "62e7e57450f518bb406a520c10f0b245c5403d56d651c8f4fb530892e7bb1c80"},
+    "src/render/kernel/mod.rs": {"lines": 479, "sha256": "b3201f529f8929df744e1bdfd6d816ed7a3ef79a3b80492bd0df20ff441e1d73"},
+    "src/render/kernel/megakernel_arrays.rs": {"lines": 411, "unchanged": true, "sha256": "326d001dbd677318ba50917feaf15e0a2f80c2feae9fe2f76a875150cc08fe24"},
+    "all_le_500": true,
+    "only_new_source_file": "src/render/kernel/world_light.rs",
+    "module_registration": ".normify/modules/mjwarp/render/kernel.md [[source]] path = src/render/kernel/world_light.rs (fingerprint refreshed)"
+  },
+  "tests_reproduced": {
+    "cargo test --locked --lib world_light": {"passed": 8, "failed": 0, "exit": 0, "note": "7 world_light tests + per_world::validates_per_world_light_world_count_without_panic (name contains world_light)"},
+    "cargo test --locked --lib per_world": {"passed": 6, "failed": 0, "ignored": 1, "exit": 0},
+    "cargo test --locked --lib slot_40_is_bool_scalar_in_frozen_signature": {"passed": 1, "exit": 0},
+    "gates_unit": "1367 passed / 0 failed (baseline 1359, +8)"
+  },
+  "boundaries": {
+    "fixtures_scripts_spec_dir_diff": "empty",
+    "diff_surface": ["src/render/kernel/world_light.rs", "src/render/kernel/per_world.rs", "src/render/kernel/megakernel.rs", "src/render/kernel/mod.rs", ".normify/modules/mjwarp/render/kernel.md", "card/runs", "evidence dir"],
+    "src_diff_artifact_matches_live_diff": true,
+    "manifest": "8/8",
+    "encoding": "UTF-8/LF/no BOM/no bare CR/TAB",
+    "gpu_free": true,
+    "no_capture_no_window": true,
+    "non_claim_statement_present": "no rendering-value claim; GPU end-to-end left to G-L2"
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "medium",
+      "topic": "failure-restore claim does not match the code (pre-existing in baseline, not introduced by Card H)",
+      "detail": "per_world.rs: `let restore = match outcome.is_ok() { true => caller_poses(..), false => Ok(original) }; if outcome.is_ok() && let Err(e) = restore.and_then(|p| apply_poses(context, &p)) {..}` -> on failure outcome.is_ok() is false so Ok(original) is never applied; the comment and Card H receipt say the caller poses are restored on failure. The block is byte-identical to baseline 2e207e32 (the Card H diff does not touch it).",
+      "blocking": false,
+      "recommendation": "separate small fix (apply original on failure while preserving the first error) or correct the comment/receipt wording; fold into the pre-G-L2 work"
+    },
+    {
+      "id": "O2",
+      "severity": "info",
+      "topic": "README says 'world_light 8 passed' but one of the 8 is a per_world module test (filter match)",
+      "detail": "filter name world_light matches per_world::validates_per_world_light_world_count_without_panic",
+      "blocking": false,
+      "recommendation": "cosmetic; next time write 'filter world_light -> 8 passed'"
+    },
+    {
+      "id": "O3",
+      "severity": "info",
+      "topic": "Card H schedule.files lists megakernel_arrays.rs (unchanged in this commit)",
+      "detail": "advisory write scope only; no code impact",
+      "blocking": false,
+      "recommendation": "no action"
+    }
+  ],
+  "non_claims": [
+    "this review only checks that Card H lands spec v3 section 10.3 correctly; it does not judge rendering values",
+    "no per-world light coverage, no criterion A/B/C pass, no upstream equivalence, no rendering numeric conclusion",
+    "GPU end-to-end rendering values are the G-L2 entity's job",
+    "no change to the reviewed code, evidence or any existing card status"
+  ]
+}
