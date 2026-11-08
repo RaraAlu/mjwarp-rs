@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material",
+  "title": {
+    "zh": "G-L0 pilot 材料（perworld L v2 灯；双相机 C1/C2 判读 + 窗口纪律 + 自核清单；零 GPU、不采集、不入库）",
+    "en": "G-L0 pilot material (per-world L v2 light; dual-camera C1/C2 readout + window discipline + self-check list; GPU-free, no capture, nothing committed from the pilot)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按**已签 spec v3**（sha `bb064fe0…`/39,379 B，§9.3/§10.2/§11.1/§12 G-L0）逐条对齐，产出 G-L0 pilot 的可执行材料：① 前置核对表（S-1 已签、场景变体 verified、采集脚本双相机 verified、P0-1 refit verified、QA 材料预审、三点基线、常规 monitor 60/60 util<40、floor 按 §10.2 公式现场算、零编译），逐项给证据锚点；② pinned 环境与逐字命令（pilot 产物写 target/ 临时根，**禁止**写 `fixtures/render-bvh/scene-a-light/perworld/`，含 N1 ISO8601 校验步与失败不留残件）；③ 判读口径 C1/C2（两对 world、≥576 pass-margin / [384,576) 停手 / <384 拒通过、诊断项只记录）；④ 采后自核（两跑逐位一致、refit 实际执行计数与顺序、seg 可见 geom id 集合、per-world 摘要、元数据四项+双相机快照）；⑤ 窗口纪律（三点基线、floor 现场计算、monitor 60/60、零编译、authoring 例外不适用）；⑥ 材料清单（命令/计划/SOP/清单/判读脚本与自检/QA 预审清单/群内留痕模板）；⑦ 边界（零 GPU、不采集、不入库数据、`unchanged src/, fixtures/, scripts/`、发现脚本缺陷即停手）。**本卡不采集、不开窗、不入库任何 pilot 数据。**",
+    "en": "Produce executable G-L0 pilot material aligned clause-by-clause with the signed spec v3: precondition table with evidence anchors; pinned environment and verbatim commands (pilot output under target/, never fixtures/.../perworld, N1 ISO8601 check, fail-stop no residue); C1/C2 readout rules per section 6; post-capture self-checks including real refit call count/order; window discipline (3-point baseline, floor computed on the spot with the section 10.2 formula, monitor 60/60 util<40, zero compile, authoring exception not applicable); material inventory; boundaries. This card performs no capture and opens no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**前置核对表（逐项 + 证据锚点）**：S-1 已签（spec v3 `bb064fe0…`/39,379 B，receipt `status=effective`，签名卡 `2026-11-08-…-spec-v3-signature` `ba420eb6`、QA fix-check `5e82feed`）；场景变体 verified（`2026-11-08-render-perworld-l-v2-scene-camera`，实现 `3d546fbe`，场景 sha `4b354054…`/5,134 B/86 行，QA 预审 `d38661a5`）；采集脚本双相机 verified（`2026-11-08-render-perworld-l-v2-capture-dual-camera`，`b98b39ff`；**QA 复核 PASS 后才可开 pilot**）；P0-1 refit verified（`2026-11-07-render-perworld-l-v2-capture-perworld-refresh` `e34df3b7` + QA `3e08be09`）；QA 材料预审（本材料待审）；三点基线/monitor/floor/零编译按 §12 G-L0 与 §10.2。",
+    "**环境与逐字命令**：pinned venv 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4 / upstream `71da24d9` / 同 GPU（RTX 4070 Ti SUPER, driver 596.36, SM89）/ `use_fast_math=false`；pilot out-root = `target/render-bvh/perworld-l-v2-gl0/pilot-out`、out-dir = `.../nw3-light-hinge02040`（**严禁**写 `fixtures/render-bvh/scene-a-light/perworld/`）；命令含 N1 `MJWARP_CAPTURE_AT` ISO8601 校验步、`--repeat 2`、`--reference-tag nw3-light-hinge02040`；失败即停并清理临时残件、产物不入库。",
+    "**判读口径（spec §6 写死）**：C1 = `cam-persp` 相邻 world 对（0→1、1→2）`max_channel|Δrgb| ≥ 1/255` 的像素数；C2 = `cam-hinge` 相邻 world 对的 `depth_changed_px`（f32 位型不等）与 `seg_changed_px`（(id,type) 不等）；两套两对**均 ≥576 = pass-margin**；任一落 **[384,576) = 余量不足停手**；任一 **<384 = 无判别力拒通过**；诊断项（cam-persp depth/seg 预期 0/0、cam-hinge rgb 预期大）**只记录不判**；C1/C2 不得互换相机归属。",
+    "**采后自核**：① 两次采集逐位一致（逐文件 sha256，rgb/depth/seg 各 6 个 world×相机键）；② **refit 实际执行证据**（调用计数=2 且顺序 refit→render→refit→render，由材料脚本 `run_pilot_with_refit_counter.py` 记录，非仅代码存在）；③ 每 world 每相机 seg 可见 geom id 集合；④ per-world rgb/depth/seg 摘要；⑤ 元数据四项（command/captured_at/reference_tag/per_world_scope）+ 双相机快照（`recipe.cameras` 2 条含 `sensorsize`/`intrinsic`）+ `context.resolved` 的 `nrender==2`/`cam_id_map==[0,1]`/`cam_res==[[320,240],[320,240]]`。",
+    "**窗口纪律**：开窗前 5 分钟内三点基线（按既有 SOP：三次 nvidia-smi 采样，`baseline_free=min(free)`）；**floor = baseline_free − 3072 MiB 现场计算并记入 pilot 材料**（用户签的 signed floor 属 S-2，不是 G-L0 前置）；常规 monitor `60/60`、`util<40`；零编译（pilot 前完成构建并记录二进制/指纹）；**authoring 例外（util<60）不适用于 pilot**；达不到常规阈值 → 停手报用户，不得为开 pilot 先签 S-2 放宽。",
+    "**材料清单**（写进证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/`）：`README.md`（材料本体）、`receipt.json`、`manifest.txt`、`materials/{command.txt, pilot-plan.txt, baseline-sop.txt, monitor-plan.txt, evidence-checklist.txt, readout_c1_c2.py, readout-selftest.txt, run_pilot_with_refit_counter.py, qa-prereview-checklist.txt, group-message-template.txt}`；判读脚本明确「新增」理由（v2 的 `discriminability_check.py` 只认 depth/seg，不覆盖 C1 rgb 与 1/255 口径）；**authoring-only、零 GPU、不进产品路径**。",
+    "**边界与自核**：零 GPU、不采集、不开窗、产物不入库；`unchanged src/`、`unchanged fixtures/`、`unchanged scripts/`（材料期不改脚本；发现脚本缺陷 = 停手报 Chief）；四门禁 fmt/clippy/clippy-cuda/unit；manifest 首行 `#` + `# base dir:` + 每文件 sha256+bytes 自核、UTF-8/LF/无 BOM、裸 CR/TAB 自查。",
+    "**非声明**：不宣称判别力恢复/采集有效/per-world 灯验收/与上游等价/任何渲染数值结论；本材料不构成 G-L0 启动（需 Chief token）也不替代 QA 预审。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-07-render-perworld-l-v2-light-criterion-spec-v3",
+      "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature",
+      "2026-11-08-render-perworld-l-v2-scene-camera",
+      "2026-11-08-render-perworld-l-v2-capture-dual-camera",
+      "2026-11-07-render-perworld-l-v2-capture-perworld-refresh"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-08 派工：pilot 前置链基本齐，只差材料读前预审 PASS 与窗口条件；本卡出 G-L0 pilot 材料（零 GPU、不采集、不入库）。材料按已签 spec v3 §9.3/§10.2/§11.1/§12 G-L0 逐条对齐，不凭转述。pilot token 仍由 Chief 发；QA 材料读前预审在本卡落库后。",
+  "revision": {
+    "before": "adc144daa866c957cd3d62c3955367fe2a750a99",
+    "after": null
+  },
+  "created_at": "2026-11-08T09:48:00.000Z",
+  "updated_at": "2026-11-08T09:48:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    { "kind": "unchanged", "paths": ["scripts/"] },
+    { "kind": "json", "path": "docs/development-evidence/render-bvh/perworld-l-v2-pilot-g-l0/receipt.json", "pointer": "/task_id", "equals": "2026-11-08-render-perworld-l-v2-pilot-g-l0-material" },
+    { "kind": "forbid_claim", "terms": ["采集已有效", "灯位姿已覆盖", "上游等价"] }
+  ]
+}
