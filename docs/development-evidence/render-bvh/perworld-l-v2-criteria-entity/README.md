@@ -78,7 +78,7 @@ F1/O2 修正前为 `13 passed; 1 ignored`）。用例如下（覆盖 Chief 要�
   `tests/support/render_bvh/light/tests.rs`、`tests/support/render_bvh/light/model-315.json`、
   `tests/support/render_bvh/light/model-315.provenance.json`、本证据目录。
 - `unchanged fixtures/`、`unchanged src/`、`unchanged scripts/`、spec 目录与 pilot 材料目录不变；零 GPU、不采集、不建 CUDA。
-- 四门禁 fmt/clippy/clippy-cuda/unit 全过（F1/O2 修正后 **unit 1386 过 / 0 败 / 401 ignored**；修正前 1384 过）；manifest 自核与编码卫生见 `manifest.txt`。
+- 四门禁 fmt/clippy/clippy-cuda/unit 全过（F1/O2 修正后 **unit 1386 过 / 0 败 / 402 ignored**；修正前 1384 过）；manifest 自核与编码卫生见 `manifest.txt`。
 - 停手条款核查：**未触发**——实体完全基于 Card H 已有公开接口与现有 `src/` API，无需改内核/ABI/`src/`。
 
 ## 6. 非声明
