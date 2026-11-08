@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-08-render-perworld-l-v2-scene-camera",
+  "status": "implemented",
+  "committed_by": "Normify-Task: 2026-11-08-render-perworld-l-v2-scene-camera",
+  "slice": "P8-渲染与BVH",
+  "owner": "Backend",
+  "kind": "fixture-change",
+  "positioning": "align scene-a-light fixture with signed spec v3 §2.1; zero GPU; no capture; no discriminability claim",
+  "source": {
+    "spec_v3_signature": "2026-11-08-render-perworld-l-v2-light-criterion-spec-v3-signature (023c69fa, effective)",
+    "spec_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "spec_bytes": 39379,
+    "section": "§2.1 scene variant - fixed camera cam-hinge inserted after cam-persp, before cam-track"
+  },
+  "changes": {
+    "fixtures/render-bvh/scene-a-light/scene.xml": {
+      "inserted": "2 lines: <camera name=\"cam-hinge\" pos=\"-0.0925 0.4981 0.8296\" quat=\"-0.211088 -0.149763 0.558924 0.787792\" fovy=\"30\" resolution=\"320 240\"/>",
+      "position": "after cam-persp (projection=perspective line), before cam-track",
+      "before": {"sha256": "4db66e2c6c32f3e928baf475537127ef19904deeda90eb697f2f4e1587e7df0a", "bytes": 4987, "lines": 84},
+      "after": {"sha256": "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716", "bytes": 5134, "lines": 86},
+      "predicted": {"sha256": "4b354054116ddb81c6209ed10c021d133ea30d6fd82c1a6f866bafff9f625716", "bytes": 5134, "lines": 86},
+      "predicted_match": true,
+      "diff_face": "+2 lines only"
+    },
+    ".gitattributes": {
+      "added_line": "fixtures/render-bvh/scene-a-light/** text eol=lf",
+      "position": "after the existing scene-flex LF rule, before the *.npz -text -diff block; other lines untouched",
+      "diff_face": "+1 line only"
+    }
+  },
+  "mjcf_parse": {
+    "ncam": 3,
+    "cam_mode": [0, 0, 3],
+    "cam_fovy": [73.73979462, 30.0, 40.0],
+    "cam_resolution": [[320, 240], [320, 240], [240, 180]],
+    "cam_hinge_sensorsize": [0.0, 0.0],
+    "cam_hinge_intrinsic": [0.01, 0.01, 0.0, 0.0],
+    "cam_hinge_pos": [-0.0925, 0.4981, 0.8296],
+    "cam_hinge_quat": [-0.211088, -0.149763, 0.558924, 0.787792],
+    "non_camera_physical_arrays_unchanged": true,
+    "bookkeeping_arrays_expected_changed": ["name_camadr", "name_lightadr", "name_matadr", "name_meshadr", "name_texadr", "names_map"],
+    "scalar_changes_expected": {"ncam": [2, 3], "nbuffer": [108272, 108656], "nnames": [193, 203], "nnames_map": [48, 50], "signature": "changed"}
+  },
+  "dry_run": {
+    "command": "capture_render_perworld.py --dry-run --scene fixtures/render-bvh/scene-a-light/scene.xml --out-root fixtures/render-bvh/scene-a-light/perworld --out-dir fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040 --worlds 3 --hinge-deg 0,20,40",
+    "diff": "artifacts/dryrun-diff.json",
+    "unexpected_count": 0,
+    "allowed_changes": [
+      "/recipe/scene_xml/sha256|bytes",
+      "/environment/scene_xml/sha256|bytes",
+      "/environment/camera_modes [0,3] -> [0,0,3]",
+      "/cam_active_fixed_only [true,false] -> [true,true,false]",
+      "/model_static/cameras 2 -> 3 entries (cam-hinge at index 1)"
+    ],
+    "legacy_manifest_entries": {"before": 112, "after": 112, "unchanged": true, "default_after": 107}
+  },
+  "eol": {
+    "before": "i/lf w/lf attr/ (no rule)",
+    "after": "i/lf w/lf attr/text eol=lf",
+    "check_attr_text": "set",
+    "check_attr_eol": "lf",
+    "working_tree_lf": true
+  },
+  "historical_old_sha_references": {
+    "count_historical_lines": 8,
+    "list": "artifacts/old-sha-references.txt",
+    "card_registration_refs": 1,
+    "modified_in_this_card": false
+  },
+  "boundaries": {
+    "changed_paths": [
+      "fixtures/render-bvh/scene-a-light/scene.xml",
+      ".gitattributes",
+      "docs/development-evidence/render-bvh/perworld-l-v2-scene-camera/"
+    ],
+    "unchanged": ["fixtures/render-bvh/scene-a/", "src/", "tests/", "scripts/"],
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "no_reference_written": true
+  },
+  "non_claims": {
+    "statement": "This card only aligns the fixture with signed spec v3 §2.1; it claims no discriminability restoration, no capture validity, no per-world light acceptance, no upstream-implementation equivalence and no rendering numeric conclusion. Pilot/capture/validation windows are separate cards."
+  }
+}
