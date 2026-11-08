@@ -2,7 +2,7 @@
 
 - 任务：`2026-11-08-render-perworld-l-v2-capture-window-s2-material`（owner Arch、p70）
 - 依据：**已签 spec v3**（S-1，2026-11-08）`docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md` sha256 `bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B / 344 行 / 15 节；材料逐条对齐 **§11.1（S-2 前置六项 + 第 7 项 G-L0 结论）**、**§12 G-L1**、**§9.3（采集窗自查顺序）**、**§10.2（纪律）**、**§9.1/§9.2（环境与命令）**
-- 状态：**QA 读前预审 PASS 后已 fix 收口**（fix 见 §8）；待**用户 S-2 双签 + Chief G-L1 token**
+- 状态：**S-2 已由用户双签（2026-11-08）**（见 §8 签名条目与 `receipt.json.signature`）；待 **Chief G-L1 token + 现场条件**——签名不构成开窗
 - 本卡**零 GPU、不采集、不改 `fixtures/`**；G-L1 执行者为 **Backend（唯一写者）**，**单次、失败即停**
 - 关键数字：参考产物 **5 文件 ≈ 11.08 MB**；通过条件 **C1 与 C2 两套、两对 world 全部 ≥576**；[384,576) 停手、<384 拒通过
 
@@ -64,7 +64,7 @@
 
 附加（不设门槛、只记录）：诊断项 `cam-persp` depth/seg（预期 0/0）、`cam-hinge` rgb（预期大）；每 world 每相机 seg 可见 `(id,type)` 集合；refit counter JSON 原样保留。
 
-## 5. 给用户的 S-2 双签摘要（可直接用）
+## 5. 用户 S-2 双签摘要（**2026-11-08 已签**）
 
 | 签名项 | 内容 |
 | --- | --- |
@@ -98,10 +98,16 @@
 ## 7. 边界与非声明
 
 - **零 GPU、不采集、不改 `fixtures/`**；`unchanged src/`、`unchanged fixtures/`、`unchanged scripts/`、`unchanged tests/`；四门禁通过；材料 sha256/bytes 记 receipt+manifest。
-- 本材料**不构成 G-L1 启动**：需 QA 读前预审 PASS + **用户 S-2 双签**（计划 + 基线 + signed floor）+ Chief token；pilot 与验证窗规则不因本材料改变。
+- 本材料**不构成 G-L1 启动**：**用户 S-2 双签已于 2026-11-08 完成**（计划 + 基线 13,302 / signed floor 10,230；见 §8 与 `receipt.json.signature`）；仍需 QA 复核 PASS + **Chief G-L1 token** + 现场条件（三点基线 `floor_effective` 取更严、monitor 60/60 util<40、零编译）；pilot 与验证窗规则不因本材料改变。
 - **不宣称**采集有效、per-world 灯验收、与上游等价、任何渲染数值结论；建议 baseline 仅是开窗前参考值（非签名值），signed floor 以 S-2 签名卡为准，并在现场取更高（更严）者。
 
 ## 8. 修订记录（fix 轮，2026-11-08）
+
+### 用户签名 S-2（2026-11-08）
+
+- 用户 2026-11-08 通过聊天卡选择「双签 S-2（计划 + floor 10,230）」签署：**S-2a 计划** + **S-2b（`baseline_free=13,302` / signed floor `10,230` / `floor_effective = max(signed, 现场)`）+ authoring 例外（2026-11-08 预批，仅本采集窗）+ 失败条款**。
+- 签名对象：本 README **`c8bb71ef…` / 18,299 B**（签名时的材料版本；留证卡 `2026-11-08-render-perworld-l-v2-capture-window-s2-signature`，签名事实以 `receipt.json.signature` 为准）。本条目加入后 README sha 变化属预期——签名绑定的是上面的旧 sha，manifest 记录的是当前 sha。
+- **签名不构成开窗**：仍需 QA PASS + Chief G-L1 token + 开窗前 5 分钟内三点基线（`floor_effective` 取**更高**者）+ monitor 60/60 util<40 + 零编译。S-2 签名**不代表**采集结果，不宣称采集有效 / 灯验收 / 上游等价 / 任何渲染数值结论。
 
 ### r1（`ade516b5`：floor 合并语义 + QA O1–O3）
 
