@@ -5,7 +5,7 @@
     "zh": "P10 修复卡：mesh 法线链（局部归一化恢复 + mat 展开 x 项先舍入；双内核身份新基线；零 GPU）",
     "en": "P10 fix card: mesh normal chain (restore local normalization + mat expand x-term-first rounding; double kernel identity baseline; zero GPU)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "P10：G-L2 判据 A 4 px 的首次分岔点已由 Arch 离线重放锁定为 mesh 法线链（4/4 复现参考 normal）。修复三处：① `render_math.cu` 的 `mesh_query_ray` 尾部恢复上游真实存在的**局部归一化** `*out_normal = normalize3_mesh(min_normal);`——`f728b2d7` 基于错误 H2 前提把这次归一化删掉了（上游实际是「局部 normalize → mat@n → 再 normalize」两次），H2 注释同步作废；② `render_math.cu` 新增 `mat_vec_xpref`：上游 warp `mat.h:3180 mul(mat,vec)` 是 **x 项先单独舍入** 再 fma y、fma z（行主序索引与 `scene.cu::mat_vec` 一致），作为 mesh 法线消费点专用；③ `render_common.cu:225` 与 `render.cu:231` 两处 `normalize3_mesh(mat_vec(mat, n_local))` → `normalize3_mesh(mat_vec_xpref(mat, n_local))`。**不动** `scene.cu::mat_vec`/`mat_t_vec`（保 S5 已验路径）、顶点法线链（`render_megakernel.cu` 的 `mat_vec`+`normalize3_midpref`）、`normalize3_mesh` 本体、`render_shadow.cu`。该 `.cu` 同时被 MEGAKERNEL_SOURCE 与 DEPTH_SEG_SOURCE 前置 include ⇒ **双内核身份**都会变（新基线），depth/seg 数值预期不变（不依赖 normal）。产出：离线 NVRTC 证明新链为「局部 mul→fma→fma→sqrt→div 归一化 → mat x 项先舍入 → 再归一化」、旧/新双身份（source/PTX/bytes）、四门禁、证据目录 `perworld-l-v2-mesh-normal-chain-pin/`（README/receipt/manifest 全核，写清与 `f728b2d7` H2 前提作废的关系）、中文提交。零 GPU；不跑诊断轮；不宣称修复生效；G-L2 维持未通过。",
     "en": "P10: Arch's offline replay pinned the first divergence of the 4 residual G-L2 criterion-A pixels to the mesh normal chain (4/4 reproduces reference normal). Three fixes: (1) render_math.cu mesh_query_ray tail restores the upstream local normalization `*out_normal = normalize3_mesh(min_normal);` which f728b2d7 removed under a wrong H2 premise (upstream = local normalize -> mat@n -> normalize again = two normalizations); H2 comment replaced; (2) new render_math.cu helper `mat_vec_xpref` matching upstream warp mat.h:3180 mul(mat,vec) where the x term is rounded separately first, then fma y, fma z (row-major indices same as scene.cu::mat_vec); (3) two mesh-normal consumers render_common.cu:225 and render.cu:231 switch from normalize3_mesh(mat_vec(...)) to normalize3_mesh(mat_vec_xpref(...)). Untouched: scene.cu::mat_vec / mat_t_vec (keeps the S5-verified path), vertex normal chain in render_megakernel.cu, normalize3_mesh body, render_shadow.cu. The .cu is included by both MEGAKERNEL_SOURCE and DEPTH_SEG_SOURCE => BOTH kernel identities change (new double baseline); depth/seg values are expected unchanged (they do not depend on the normal). Deliverables: offline NVRTC proof of the new chain, old->new double identity, four gates, evidence dir perworld-l-v2-mesh-normal-chain-pin (README/receipt/manifest self-checked, documenting that f728b2d7's H2 premise is void), Chinese commit. Zero GPU; no diagnostic round; does not claim the fix works; G-L2 stays not passed."
@@ -37,12 +37,11 @@
   },
   "note": "Arch 离线重放：4/4 像素参考 normal 复现 = normalize(局部 cross) + mat@n 的 x 项先舍入 + 二次归一化。f728b2d7 的 H2（删局部归一化）前提作废；本卡恢复正确链。该 .cu 同时进入 megakernel 与 depth_seg 两个拼接 → 双身份新基线；depth/seg 数值预期不变。零 GPU。",
   "revision": {
-    "before": "b074e828a5df55491a92c3364fe41cfe709620bc",
+    "before": "8366eed5d424ff72df3ae025ce568734a53a73b8",
     "after": null
   },
   "created_at": "2026-11-10T23:32:34.799Z",
-  "updated_at": "2026-11-10T23:32:34.799Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T23:32:43.451Z",
   "checks": [
     {
       "kind": "gate",
