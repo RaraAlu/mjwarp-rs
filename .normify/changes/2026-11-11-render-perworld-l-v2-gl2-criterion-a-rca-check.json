@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca-check",
+  "title": {
+    "zh": "QA 复核 G-L2 判据 A 只读 RCA 卡（`63cf7cc0`）：8 项内容齐全且自洽（5 px 归属纠正=geom_id 3 / mjOBJ_GEOM(5) 误读、只读 f32 重放 + depth 位型校验、唯一站点两侧公式对照、face 2 五像素机理链、H1 编译链否证、修复方向/影响面、cowl 未实现 U/V/W=0 double 分支风险、非声明）、artifacts 5 像素全量与 README 数字逐项一致、manifest 5/5、边界零越界、四门禁 1387/0 → PASS（RCA 记录如实；唯一站点应限定为渲染/深度链，另登记 mesh_bvh_ray 同构站点为后续项）",
+    "en": "QA review of the G-L2 criterion-A read-only RCA card: eight content items present and coherent, artifacts consistent with the README numbers, manifest 5/5, boundary clean, gates 1387/0 - PASS (RCA recorded honestly; the unique-site claim should be scoped to the render/depth chain, with the mesh_bvh_ray equivalent registered as a follow-up)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的 G-L2 判据 A 只读 RCA 卡（提交 **`63cf7cc0`**，README `23d592a1…`/9,084 B、manifest 5/5）做**独立只读复核**（零 GPU、零重跑）：① 8 项内容——归属纠正（`seg=[3,5]` 第二分量是 `mjOBJ_GEOM(5)` 不是 geom 类型 5；真实命中 geom_id 3 = `geom_type=7` MESH、mat 0 = mat-red）、只读 f32 重放方法与 depth 位型校验、唯一站点两侧公式对照（我方 `normalize(mat@normalize(cross))` vs 上游 `normalize(mat@cross)`）、face 2 的 5 像素机理链、H1（编译链 12.8.1 vs 12.9）否证、修复方向与影响面、cowl woop 未实现 U/V/W=0 double 分支等风险登记、非声明；② artifacts——`pixel-dump-excerpt.json` 是否含 5 像素全量、`replay_mesh_normal.py` 可静态核（纯 numpy/struct、只读、无 GPU、无写）、`replay-output.txt` 与 README 数字一致；③ 边界（只新增证据目录 + 卡/runs）与门禁；④ 独立核「唯一站点」表述的适用范围。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the criterion-A RCA card: eight content items, artifact consistency (5-pixel dump excerpt, static check of the replay script, replay output vs README), boundaries, gates, and the scope of the unique-site claim."
+  },
+  "modules": {},
+  "acceptance": [
+    "**8 项内容齐全且自洽 ✅**：① 归属纠正——`seg` 第二分量是 MuJoCo **object type `mjOBJ_GEOM`(5)** 而非 geom 类型；真实命中 `geom_id 3` = 模型 `geom_type=7`（MESH）、`geom_matid[3]=0` = mat-red（dump `mat_rgba=[0.9,0.1,0.1,1]`、`mat_texid_row` 一致），并承认 diag 的 `geom_type` 命名误导入 errata；② 方法与输入——dump sha `68b3f78e…`/51,388 B、G-L1 参考、model-315、pinned upstream `71da24d9`、warp 头，f32 重放 + `depth = t×(−dir.z)` 位型校验；③ 唯一站点两侧对照（`render_math.cu:239` vs `render_common.cu:200`，上游 `mujoco_warp/_src/ray.py:727-729`）；④ 5 px 机理链（face 2、顶点法线 dot 0.4664/1.0000/0.5726 → 2 拒 1 留、pre-normal 1 ULP → 着色法线 1 ULP → 高光 `pow(ndoth,76.8)` 放大 → rgb 量化边界翻 1 字节；解释只 mesh/只 cam1/G 通道也翻/depth-seg 全等/legacy 全绿）；⑤ H1 否证（差异可逐行指出；helper 收缩序可复现 depth ≤1 ULP；纯编译链无法解释只 mesh 链）；⑥ 修复方向与影响面（一行级 + 内核身份变 ⇒ 重冻 12 exe/新 PTX/全窗重跑；判据/参考/spec/签名不变 ⇒ 不需用户签名）；⑦ 风险登记（woop 未实现上游 `U==0||V==0||W==0` double 重算分支）；⑧ 非声明（不宣称通过/等价/发布依据）✅",
+    "**artifacts 与 README 数字一致 ✅**：`pixel-dump-excerpt.json` 含 **5 条 rgb 失配全量**（w0/cam1: px 13268 (148,41)、31154 (114,97)；w1/cam1: 27360 (160,85)、28614 (134,89)、39492 (132,123)），产品/参考字节与 README 表**逐字节相同**；6 个 frame 统计显示 depth/seg 全 0（与 README「depth/seg 全等」一致，dump 内 `depth_mismatches`/`seg_mismatches` 为空）；`replay-output.txt` 与 README 表一致（5 px、全部 hit **face 2**、depth 2/5 位型相同 + 3/5 差 1 ULP、pre-normal ULP `[0,1,1]`、final-normal ULP ≤1、顶点法线 dot 0.4664/1.0000/0.5726）；`replay_mesh_normal.py` 静态可核：纯 `numpy/struct/json/pathlib`、f32 模拟、只读 dump/npz/model、**不写文件、无 GPU** ✅",
+    "**边界/门禁/卫生 ✅**：`63cf7cc0` 只改 RCA 卡 JSON（49/12）与新增证据目录（README/receipt/manifest + 3 artifacts）+ 4 门禁 runs；`src/`/`tests/`/`fixtures/`/`scripts/` **各 0 diff**；G-L2 证据目录 0、诊断卡证据目录 0；manifest **5/5 独立重算全对**；四门禁 runs 全 `passed=true`（unit **1387/0/402**）；README `23d592a1…`/9,084 B 与 manifest 一致 ✅",
+    "**「唯一站点」表述的适用范围（观察）**：RCA 的站点对照在**渲染 megakernel 与 depth/seg 两条消费链**上成立（`render_common.cu:194/200`、`render.cu:225/231` 已逐一核对源码，`mesh_query_ray` 全仓仅这 2 处调用）；但我另发现**同构站点** `src/render/bvh/cuda/mesh.cu`（`mesh_bvh_ray`）：L290 `*out_normal = normalize3(min_normal)` + L357 `normal = normalize3(mat_vec(xmat, n_local))`，与本次 RCA 的「多归一化一次」同属一类，且该入口是公开 API（`render::bvh::MeshBvhQuery`）并有自有回归 `render_mesh_bvh`（G-L2 中 exit 0）。RCA 未提及该站点 ⇒ **建议把「唯一站点」改为「G-L2 判据 A 渲染链上唯一站点」，并把 mesh_bvh_ray 同构点登记为后续 H2-class 复查项**（信息级，不阻断 RCA 结论、不改判据）✅",
+    "**结论**：**PASS（0 阻断）**。RCA 记录如实、可复核；本复核不改变 G-L2 判定（未通过）、不宣称修复生效、不建议放宽；修复验证需另轮。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca-check/"
+    ],
+    "resources": [],
+    "priority": 94
+  },
+  "note": "Chief 2026-11-11 派工：快速复核 RCA 卡 63cf7cc0（只读、零 GPU）。结论 PASS：8 项内容齐全自洽、artifacts 5 像素全量与 README 数字逐字节一致、replay 脚本静态可核（纯 numpy、只读、无 GPU）、manifest 5/5、边界零越界、四门禁 1387/0/402。观察：RCA「唯一站点」应限定为渲染/深度链；另发现同构站点 src/render/bvh/cuda/mesh.cu（mesh_bvh_ray L290+L357）多归一化一次，建议登记后续 H2-class 复查（不阻断）。",
+  "revision": {
+    "before": "2dccded21c08e2778940366c978ba978969f6c1d",
+    "after": null
+  },
+  "created_at": "2026-11-11T05:15:00.000Z",
+  "updated_at": "2026-11-11T05:15:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G-L2 通过",
+        "判据 A 已修复",
+        "上游等价"
+      ]
+    }
+  ]
+}

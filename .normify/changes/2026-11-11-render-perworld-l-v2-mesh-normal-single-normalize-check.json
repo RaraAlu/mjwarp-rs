@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-mesh-normal-single-normalize-check",
+  "title": {
+    "zh": "QA 复核 mesh 法线链单次归一化修复卡（`f728b2d7`）：唯一代码文件 `render_math.cu` -1/+3（`*out_normal = min_normal` + 2 行注释）、`render_common.cu`/`render.cu`/`render_shadow.cu` 零改动、`mesh_query_ray` 除 normal 外输出未动、两个消费端各归一化一次且 culling 只用符号、shadow 用归一化 normal、hfield/SDF 同路、内核身份新基线（megakernel `796bade6…`→`4d932c90…`、PTX `aa51258b…`→`13ac8a2e…`/344,186 B、aa_resolve 未变、depth_seg `562113a2…`→`b546ef08…`，source-sha 独立复算一致）、四门禁 1387/0、两内核身份用例 passed、manifest 13/13、边界零越界 → PASS（可发诊断轮 token 验证修复；不宣称修复已生效）",
+    "en": "QA review of the mesh normal single-normalize fix card: minimal one-file change, both consumers normalize once after the mat transform, intersection outputs untouched, new kernel identity baseline independently reproduced, gates 1387/0, identity tests passed, manifest 13/13, boundary clean - PASS (diagnostic token may be issued to verify the fix; does not claim the fix is effective)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 mesh 法线链单次归一化修复卡（提交 **`f728b2d7`**）做**独立只读复核**（零 GPU）：① 最小改动——仅 `src/render/kernel/cuda/render_math.cu` **-1/+3**（`*out_normal = normalize3_mesh(min_normal)` → `*out_normal = min_normal` + 2 行口径注释），`render_common.cu`/`render.cu`/`render_shadow.cu` 与其它 `.cu` **零改动**，`intersect_tri` 仍返回未归一化 `cross`，`mesh_query_ray` 的 `t/u/v/sign/face` 未动；② 调用链——全仓 `mesh_query_ray` 调用方**仅 2 处**（`render_common.cu:194`、`render.cu:225`），二者均在 `mat_vec` 后 `normalize3_mesh` 一次，culling 只用 `dot` 符号，shadow 用已归一化 `hit.normal` 作偏移，hfield(gtype=1)/SDF(gtype=8) 同走 `ray_mesh_leaf`；③ 内核身份新基线——独立复算 megakernel/depth_seg/aa_resolve 的 source-sha 与 PTX 变体，核对属实现修复而非判据/阈值/参考变更；④ 门禁/边界/卫生——build/no-run exit 0、四门禁 unit 1387/0、两内核身份用例 passed、`unchanged fixtures/scripts/tests`、G-L2/诊断/RCA 证据与 guards/冻结 stash 零改动、manifest 13/13、编码卫生。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the mesh normal single-normalize fix: minimal diff, call-chain audit against source, independently reproduced kernel identity baseline, gates and boundaries."
+  },
+  "modules": {},
+  "acceptance": [
+    "**最小改动 ✅**：`f728b2d7` 仅 1 个源码文件 `src/render/kernel/cuda/render_math.cu` **-1 / +3**（diff 实见：`- *out_normal = normalize3_mesh(min_normal);` → `+ 2 行注释 + *out_normal = min_normal;`），文件 sha256 `2c39c481…`/12,325 B → `4f103495…`/12,566 B（我独立从父提交 blob 复算，一致）；`render_common.cu`、`render.cu`、`render_shadow.cu` **0 diff**，全仓其它 `.cu` **0 diff**；`intersect_tri` 内 `*normal = cross(ab, ac);` 未改；`mesh_query_ray` 除 `*out_normal` 外的 `*out_t/*out_u/*out_v/*out_sign/*out_face` 行未出现在 diff → 未动 ✅",
+    "**调用链 ✅（独立对源码）**：`mesh_query_ray`（`render_math.cu:168` 定义）全仓调用方**恰 2 处**——`render_common.cu:194`（megakernel `ray_mesh_leaf`，命中后 `:200 *normal = normalize3_mesh(mat_vec(mat, n_local))`）与 `render.cu:225`（depth/seg，`render.cu:231` 同式）；两处背面剔除均为 `dot(lvec, n_local) < 0`（**只用符号**，未归一化不改变符号）；`render_common.cu:461 hit.normal = n` 后 shadow 用归一化 `hit.normal` 作 `hitpoint + normal*1e-4` 偏移；hfield(gtype=1)/SDF(gtype=8) 与 mesh(gtype=7) 同分支（`render_common.cu:417` → `ray_mesh_leaf` 434-438），三路行为一致；`render_shadow.cu` 零改动 ✅（`logs/call-chain-audit.txt` 与源码逐条对上）",
+    "**内核身份新基线 ✅（独立复算）**：我按 `mod.rs` include_str 顺序做 **LF 字节串联**复算 source-sha——megakernel = **`4d932c90…`**（证据记录同值）、depth_seg = **`b546ef08…`**、aa_resolve = **`0bf8af5a…`（未变）**；PTX 变体：megakernel old `aa51258b…`/345,514 B → new **`13ac8a2e…`/344,186 B**、aa_resolve 两侧均 `b28e155c…`/27,536 B、depth_seg old `d1e3e576…`/138,857 B → new `e8d84963…`/138,540 B，与 `logs/kernel-identity-old-new.txt` 及四个 identity.old/new 日志逐项一致；证据明写「实现修复的新基线，非判据/阈值/参考变更」✅",
+    "**门禁/边界/卫生 ✅**：`logs/build-cuda-probe.log`（dev 0.13 s / test 50.93 s，均 `Finished`）+ `logs/no-run-cuda-probe.log`（`cargo test --no-run` 成功）→ build/no-run exit 0；四门禁 runs **全 `passed=true`**（unit **1387/0/402**）；两个内核身份用例 `flag_and_aa_sources_compile_under_render_gate`、`depth_seg_source_compiles_under_render_gate` 均 `... ok`；边界：`unchanged tests/`、`fixtures/`、`scripts/`（0 diff），G-L2 证据/RCA 证据/诊断卡证据 **0**，`guards-perworld-l2-light.json` **0**（sha `fad2ed37…`/43,729 B 未变），**冻结 stash 12/12 仍 == guards**（我逐文件重算）；manifest **13/13 重算全对**；`.normify/modules/mjwarp/render/kernel.md` 仅 **fingerprint 刷新 1/1**（源码变更的派生登记，非实质改动）；编码卫生（证据文件 UTF-8/LF/无 BOM）✅",
+    "**观察项（均信息级、不阻断）**：O1 修复后 **12 个 live exe 全部 ≠ guards**（源码变更触发重建，属预期）——**下一次正式窗口必须重新冻结并建立新基线**；README 已在「影响面」写明，建议窗口卡再次显式引用；O2 同构站点 `src/render/bvh/cuda/mesh.cu`（`mesh_bvh_ray`：L290 `normalize3(min_normal)` + L357 `normalize3(mat_vec(...))`）**未在本卡修改**，与本次修复同属「多归一化一次」类；它不在 G-L2 判据 A 的渲染链上（本卡范围正确），但其公开 API 与自有回归 `render_mesh_bvh`（G-L2 exit 0）存在，建议登记为后续 H2-class 复查项；O3 本卡为**源码修复**，未跑 GPU、未验证 5 px 是否归零——结论只能到「可发诊断轮 token（验证修复）」，不得表述为修复生效。",
+    "**结论**：**PASS（0 阻断）→ 可发诊断轮 token（验证修复）**。不宣称判据 A 已修复、不宣称 G-L2 通过/恢复、不宣称上游等价；不改判据/阈值/参考/相机/recipe；G-L2 判定维持未通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-mesh-normal-single-normalize",
+      "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize-check/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "Chief 2026-11-11 派工：快速复核 mesh 法线修复卡 f728b2d7（只读、零 GPU）。结论 PASS → 可发诊断轮 token（验证修复）。核心：唯一源码文件 render_math.cu -1/+3、其它 .cu 零改动、mesh_query_ray 除 normal 外输出未动；两个消费端各归一化一次、culling 只用符号、hfield/SDF 同路；内核身份 source-sha 我独立复算一致（megakernel 4d932c90、depth_seg b546ef08、aa_resolve 未变）与 PTX 变体一致；四门禁 1387/0/402、两 identity 用例 passed、manifest 13/13、边界零越界、冻结 stash 12/12 未动。观察：live exe 已随重建改变（下次窗口须重冻）、mesh_bvh_ray 同构站点未改（后续 H2-class）、未验证 5 px 归零故只到「可发诊断轮 token」。",
+  "revision": {
+    "before": "8cca2a13cbfa4522328599b66a5ecca653c7c691",
+    "after": null
+  },
+  "created_at": "2026-11-11T05:15:00.000Z",
+  "updated_at": "2026-11-11T05:15:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-mesh-normal-single-normalize-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
