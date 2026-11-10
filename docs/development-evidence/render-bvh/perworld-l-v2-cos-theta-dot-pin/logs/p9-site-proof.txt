@@ -1,0 +1,49 @@
+# P9 site proof: spot-light cos_theta dot order (offline NVRTC lineinfo, zero GPU)
+
+compiler: pinned CUDA 12.8.1 NVRTC (nvrtc64_120_0.dll 86,728,192 B sha256 02d2d7ef...), no GPU session
+options: --fmad=true --include-path=include/warp-headers --std=c++17 --gpu-architecture=compute_70
+         --device-as-default-execution-space --generate-line-info
+
+PTX window line numbers below are from the respective old/new lineinfo PTX file (per-file, not comparable across files).
+
+old stitched source: 104382 B sha256 eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee
+new stitched source: 104676 B sha256 02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1
+old lineinfo PTX: 580295 B sha256 cf6192096da0b2ef2a06a36e29b80ffb327f655e8f0e3117c3e0a87e673823dc
+new lineinfo PTX: 580024 B sha256 978d2c4e3d2613255c2b2d8bb7c758d0887662f068234687b143efd6ef4f32cb
+
+## old site (dot3_ba contraction) - render_shade.cu stitched line 1891:
+   float cos_theta = dot3_ba(-L.x, -L.y, -L.z, lightdir.x, lightdir.y, lightdir.z);
+    12862: neg.f32 	%f3326, %f5157;
+    12865: mul.rn.f32 	%f3327, %f3326, %f912;
+    12867: neg.f32 	%f3328, %f5156;
+    12869: fma.rn.f32 	%f3329, %f3328, %f911, %f3327;
+    12871: neg.f32 	%f3330, %f5158;
+    12873: fma.rn.f32 	%f936, %f3330, %f913, %f3329;
+
+## new site (P9 explicit intrinsics) - render_shade.cu stitched line 1893:
+   float cos_theta = -__fadd_rn(
+    12862: mul.rn.f32 	%f3326, %f5157, %f912;
+    12863: mul.rn.f32 	%f3327, %f5156, %f911;
+    12864: add.rn.f32 	%f3328, %f3327, %f3326;
+    12866: mul.rn.f32 	%f3329, %f5158, %f913;
+    12868: add.rn.f32 	%f3330, %f3328, %f3329;
+    12869: neg.f32 	%f936, %f3330;
+
+## register mapping (from the lineinfo PTX)
+   L.x/L.y/L.z            = %f5156/%f5157/%f5158, defined by three div.rn.f32 at loc 1881
+                            (render_shade.cu spot branch L = delta/norm; P4 three-division form)
+   lightdir.x/.y/.z        = %f911/%f912/%f913, defined by ld.global.f32 at loc 2289 (light_xdir_in)
+   at the site, the three muls use L.x*dx, L.y*dy, L.z*dz (operand order does not matter for IEEE mul)
+
+## numerical equivalence to the reference ground truth
+   reference PTX 8715-8720 = mul.f32; mul.f32; neg.f32; sub.f32; mul.f32; sub.f32  (no fma)
+     value = -( rnd( rnd(m1 + m2) + m3 ) ),  m1=rnd(Lx*dx), m2=rnd(Ly*dy), m3=rnd(Lz*dz)
+     (sub with an exactly-negated operand rounds the same magnitude as add; neg is exact)
+   new product site = mul.rn; mul.rn; add.rn; mul.rn; add.rn; neg.f32
+     value = -( rnd( rnd(m1 + m2) + m3 ) )  -- identical rounding points
+   => new product site is bitwise-equivalent to the reference sequence under exact negation.
+
+## verdict
+old: neg x3 + mul.rn + fma.rn + fma.rn  (dot3_ba: products fused into fma, no separate add rounding)
+new: mul.rn x3 + add.rn x2 + neg (one add rounding per pair, all products individually rounded)
+new matches the reference `mul;mul;neg;sub;mul;sub` numerically and at every rounding point.

@@ -5,7 +5,7 @@
     "zh": "perworld L v2 残余像素 P9：spot 灯 cos_theta 的 dot 次序 pin（3×mul + 2×add + neg，无 fma；零 GPU；新内核身份基线）",
     "en": "Per-world L v2 residual pixels P9: spot-light cos_theta dot-order pin (3x mul + 2x add + neg, no fma; zero GPU; new kernel identity baseline)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "按 Arch 站点审计（`target/render-bvh/gl2-ptx-diff/site-conformance-audit.md` §B；参考真值=`reference_li_128.ptx` 指令 8715-8720，pinned upstream `mujoco_warp/_src/render.py:907` = `wp.dot(-L, lightdir)`）修残余像素的 spot 灯站点：产品 `render_shade.cu:426` 现用 `dot3_ba(-L.x,-L.y,-L.z, lightdir...)`（1 mul + 2 fma 收缩），参考是 **3 个 plain `mul.f32` + 1 `neg` + 2 `sub.f32`（完全无 fma）**；数值 = `-(rnd(rnd(Lx·dx + Ly·dy) + Lz·dz))`。P9 只改这一行 + 注释，用显式 `__fmul_rn`/`__fadd_rn` 固定三次乘各自舍入、两次加各舍入，`neg` 精确外提：`float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x,lightdir.x), __fmul_rn(L.y,lightdir.y)), __fmul_rn(L.z,lightdir.z));`。不改 `dot3_ba` 本体、`cos_cutoff` 比较与 `powf(fmaxf(cos_theta,0),lightexp)` 组合、其它 `.cu`。记录 old→new `MEGAKERNEL_SOURCE` sha 与 megakernel/aa_resolve/depth_seg PTX sha+bytes；离线 NVRTC PTX 证明该站点新序列 = 3×mul 各自舍入 + 2×add + 1×neg，与参考 `mul;mul;neg;sub;mul;sub` 在 neg 精确意义上逐位等价。不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁与证据按既有口径。修完由 Chief 发诊断轮 #6 token 验证。",
     "en": "Apply Arch's site audit (`target/render-bvh/gl2-ptx-diff/site-conformance-audit.md` section B; reference ground truth = `reference_li_128.ptx` instructions 8715-8720, pinned upstream `mujoco_warp/_src/render.py:907` = `wp.dot(-L, lightdir)`) to the residual-pixel spot-light site: the product currently uses `dot3_ba(-L.x,-L.y,-L.z, lightdir...)` at `render_shade.cu:426` (1 mul + 2 fma contraction), while the reference is **3 plain `mul.f32` + 1 `neg` + 2 `sub.f32` with no fma**, numerically `-(rnd(rnd(Lx*dx + Ly*dy) + Lz*dz))`. P9 changes only that line plus a comment, using explicit `__fmul_rn`/`__fadd_rn` to round each product and each add separately with the exact neg hoisted out: `float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x,lightdir.x), __fmul_rn(L.y,lightdir.y)), __fmul_rn(L.z,lightdir.z));`. The `dot3_ba` body, the `cos_cutoff` comparison and the `powf(fmaxf(cos_theta,0),lightexp)` combination, and all other `.cu` files stay untouched. Record old->new `MEGAKERNEL_SOURCE` sha and the megakernel/aa_resolve/depth_seg PTX sha+bytes; offline NVRTC PTX proof that the new site is 3x mul (each rounded) + 2x add + 1x neg, bitwise-equivalent to the reference `mul;mul;neg;sub;mul;sub` under exact negation. No criterion/reference/tolerance changes; zero GPU, no capture, no diagnostic run; standard gates and evidence. A diagnostic-round #6 token follows from the Chief."
@@ -37,7 +37,8 @@
     "after": null
   },
   "created_at": "2026-11-10T22:15:07.000Z",
-  "updated_at": "2026-11-10T22:15:14.086Z",
+  "updated_at": "2026-11-10T22:18:56.139Z",
+  "closed_at": "2026-11-10T22:18:56.139Z",
   "checks": [
     {
       "kind": "gate",

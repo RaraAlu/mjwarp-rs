@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin",
+  "status": "fix_implemented_zero_gpu",
+  "slice": "perworld-l-v2-cos-theta-dot-pin",
+  "owner": "Backend",
+  "kind": "render-spot-cos-theta-dot-order-pin",
+  "authorization": {
+    "chief_assignment": "2026-11-11 06:14 (P9 site from Arch audit; zero GPU; no diagnostic run; extended-dump card paused before any edit)",
+    "arch_site_evidence": "target/render-bvh/gl2-ptx-diff/site-conformance-audit.md section B (reference PTX 8715-8720; pinned upstream render.py:907 = wp.dot(-L, lightdir))",
+    "next_step_owned_by_chief": "diagnostic round #6 token to verify the residual pixels; not run in this card"
+  },
+  "root_cause": {
+    "site": "src/render/kernel/cuda/render_shade.cu spot branch (lighttype==0) cos_theta",
+    "old_behaviour": "dot3_ba(-L.x,-L.y,-L.z, lightdir) = neg x3 + mul.rn + fma.rn + fma.rn (products fused into fma; one less rounding)",
+    "reference_behaviour": "wp.dot(-L, lightdir) = 3x plain mul.f32 + neg + 2x sub.f32, no fma; value = -(rnd(rnd(Lx*dx + Ly*dy) + Lz*dz))",
+    "impact": "cos_theta can differ by 1-2 ULP, amplified through attenuation*pow(max(cos,0), lightexp) on spot lights only"
+  },
+  "changes": {
+    "render_shade.cu": {
+      "old": "float cos_theta = dot3_ba(-L.x, -L.y, -L.z, lightdir.x, lightdir.y, lightdir.z);",
+      "new": "float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x, lightdir.x), __fmul_rn(L.y, lightdir.y)), __fmul_rn(L.z, lightdir.z));",
+      "comments_added": 4,
+      "file_sha256_old": "bdf6c52778732b83a6f721900123565f2551e27380c702968a2bec63e07c3f27",
+      "old_bytes": 21268,
+      "file_sha256_new": "7c4ee441004ab88b16c560d11f51476ef2f99f2322cb33cece30d74bb0a0719f",
+      "new_bytes": 21562
+    },
+    "diff_stat": "+5 / -1 on 1 file (1 code line + 4 comment lines; file 468 lines <= 500)",
+    "untouched": [
+      "dot3_ba body",
+      "cos_cutoff comparison",
+      "attenuation*powf(fmaxf(cos_theta,0),lightexp)",
+      "L normalization (P4/P6)",
+      "render_common.cu",
+      "render_math.cu",
+      "render_megakernel.cu",
+      "render_flex.cu",
+      "render_shadow.cu",
+      "render.cu",
+      "aa_resolve.cu",
+      "scene.cu"
+    ]
+  },
+  "kernel_identity": {
+    "record": "logs/kernel-identity-old-new.txt",
+    "capture_method": "NVRTC 12.8.93 compile + f32-render gate only (no GPU session, no render): render_kernel_flags flag_and_aa_sources_compile_under_render_gate and render_kernel_depth_seg depth_seg_source_compiles_under_render_gate, both --ignored",
+    "artifacts": {
+      "megakernel": {
+        "source_sha256_old": "eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee",
+        "source_sha256_new": "02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1",
+        "ptx_sha256_old": "e91b7d8538c919432658d832db76e03410ad8d61f2475f92730cd1b970e17fac",
+        "ptx_bytes_old": 344175,
+        "ptx_sha256_new": "7fd86b859793a18ed4f3ed042add0d10b7c82064bcb312ac3f10db47ba995c7e",
+        "ptx_bytes_new": 344181
+      },
+      "aa_resolve": {
+        "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes": 27536,
+        "changed": false
+      },
+      "depth_seg": {
+        "source_sha256": "b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931",
+        "ptx_sha256": "e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7",
+        "ptx_bytes": 138540,
+        "changed": false,
+        "reason": "render_shade.cu is not part of DEPTH_SEG_SOURCE nor AA_RESOLVE_SOURCE"
+      }
+    }
+  },
+  "offline_ptx_proof": {
+    "record": "logs/p9-site-proof.txt",
+    "compiler": "pinned CUDA 12.8.1 NVRTC, no GPU session",
+    "options": "--fmad=true --include-path=include/warp-headers --std=c++17 --gpu-architecture=compute_70 --device-as-default-execution-space --generate-line-info",
+    "stitched_source_old": {
+      "bytes": 104382,
+      "sha256": "eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee"
+    },
+    "stitched_source_new": {
+      "bytes": 104676,
+      "sha256": "02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1"
+    },
+    "site_old": "neg x3 + mul.rn + fma.rn + fma.rn (dot3_ba contraction)",
+    "site_new": "mul.rn x3 + add.rn x2 + neg.f32",
+    "register_mapping": "L.x/.y/.z = %f5156/%f5157/%f5158 (div.rn x3 at loc 1881, L = delta/norm spot branch); lightdir.x/.y/.z = %f911/%f912/%f913 (ld.global.f32 at loc 2289, light_xdir_in)",
+    "verdict": "new site = 3 individually-rounded muls + 2 rounded adds + exact neg => -(rnd(rnd(Lx*dx + Ly*dy) + Lz*dz)) = reference value; bitwise-equivalent to reference mul;mul;neg;sub;mul;sub"
+  },
+  "verification": {
+    "cargo_build_cuda_probe": {
+      "exit": 0,
+      "log": "logs/build-cuda-probe.log"
+    },
+    "cargo_test_cuda_probe_no_run": {
+      "exit": 0,
+      "log": "logs/no-run-cuda-probe.log"
+    },
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": {
+        "passed": 1387,
+        "failed": 0,
+        "ignored": 402
+      }
+    },
+    "kernel_identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
+    "gpu_run": "none (zero GPU; no capture; no diagnostic run; frozen exe evidence untouched)"
+  },
+  "boundaries": {
+    "unchanged_fixtures": true,
+    "unchanged_tests": true,
+    "unchanged_scripts": true,
+    "read_only_evidence_dirs": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/"
+    ],
+    "guards_frozen_stash_and_frozen_exe_evidence": "untouched",
+    "frozen_exe_evidence_recompiled": false,
+    "paused_card_note": "the extended pixel-dump card was paused before any registration or edit; no WIP existed"
+  },
+  "non_claims": [
+    "the fix is not yet verified on GPU; one diagnostic-round #6 token is required and the residual pixels are not claimed fixed",
+    "the G-L2 verdict is unchanged (criterion A FAIL stands)",
+    "no criterion/threshold/reference/tolerance change",
+    "kernel identity change is an implementation-fix new baseline, not a criterion change"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "result": "PASS"
+  }
+}

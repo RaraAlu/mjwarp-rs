@@ -1,0 +1,17 @@
+diff --git a/src/render/kernel/cuda/render_shade.cu b/src/render/kernel/cuda/render_shade.cu
+index 809618a9..d759b20a 100644
+--- a/src/render/kernel/cuda/render_shade.cu
++++ b/src/render/kernel/cuda/render_shade.cu
+@@ -423,7 +423,11 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
+             1.0f, dot3_ba(factor.x, factor.y, factor.z, lightattenuation.x, lightattenuation.y,
+                           lightattenuation.z));
+         if (lighttype == 0) {
+-            float cos_theta = dot3_ba(-L.x, -L.y, -L.z, lightdir.x, lightdir.y, lightdir.z);
++            // P9：参考真值 `wp.dot(-L, lightdir)` 为 3×plain `mul.f32` + 1 `neg` + 2 `sub.f32`（**无 fma**），
++            // 数值 = `-(rnd(rnd(Lx·dx + Ly·dy) + Lz·dz))`；`neg` 精确，可外提。
++            float cos_theta = -__fadd_rn(
++                __fadd_rn(__fmul_rn(L.x, lightdir.x), __fmul_rn(L.y, lightdir.y)),
++                __fmul_rn(L.z, lightdir.z));
+             float cos_cutoff = cosf(lightcutoff_rad);
+             if (cos_theta < cos_cutoff) {
+                 return;
