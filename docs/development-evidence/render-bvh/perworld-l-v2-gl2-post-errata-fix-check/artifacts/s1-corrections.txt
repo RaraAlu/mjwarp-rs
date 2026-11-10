@@ -1,0 +1,16 @@
+# S1 更正核对（logs/src.diff 编码）
+
+historical bytes UNCHANGED: 6772 B sha256 12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f magic=b'\xff\xfed\x00' utf8_ok=False byte_identical_head=True
+utf16le decoded: chars=3386 CRLF=60 LF=60 CR=60 (split-segments=61, splitlines=60)
+
+four false records corrected (verified in current tree):
+  README:41 - `perworld-l-v2-ptx-order-pins/logs/src.diff`（**S1 更正，见 §5**）：6,772 B、sha `12be6af5…`，worktree 与 HEAD blob **逐字节一致**（无 EOL 转换）；但该文件**不是 UTF-8/LF**——实测为 **UTF-16LE + BOM（`FF FE`）**：UTF-8 解码在首字节即失败，按 UTF-16LE 解码为 61 行、**60 个 CRLF**；原始字节扫描 `b"\r\n"=0`、`b"\n"=62`
+  README:52 - **S1（严重）**：本批原记录称 `perworld-l-v2-ptx-order-pins/logs/src.diff`「已 LF / CRLF 0 / 无需归一化」，**实测不成立**：该文件为 **UTF-16LE + BOM（`FF FE`）**、6,772 B、sha `12be6af5…`、UTF-8=False（首字节 `0xFF` 即失败）、按 UTF-16LE 解码 3,386 字符 / 61 行 / **60 个 CRLF**；原脚本按原始字节数 `b"\r\n"=0`、`b"\n"=62
+  README:53 - 四处不实记录已更正：① 本 README 原 §3 该条（见上）；② `receipt.json` 的 `fix_card_1_errata.src_diff_lf_verification`；③ `artifacts/ptx-order-pins-src-diff-eol.txt`（重写为实测编码判定 + 原始输出）；④ 提交信息（不可改写，已在本节与 receipt 记录）。
+  README:54 - **不改历史字节**（Chief 裁定：证据保全优先）：`git ls-files --eol` = `i/-text w/-text attr/-text`，`docs/development-evidence/** -text -diff` 已覆盖该路径；worktree 与 HEAD blob 逐字节一致（6,772 B / sha 相同），无 EOL 转换；**不新增/不改写 `.gitattributes`**，**不批量转换**历史文件。
+  receipt.fix_card_1_errata.src_diff_lf_verification: S1 CORRECTION (QA review b332dcf4): perworld-l-v2-ptx-order-pins/logs/src.diff is NOT UTF-8/LF. Measured: 6,772 B, sha256 12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f, UTF-16LE with BOM FF FE, UTF-8 decode fails at byte 0 (0xFF), UTF-16LE decode = 3,386 code units / 61 lines / 60 CRLF. The earlier 'CRLF 0 / LF 62' figures came from raw-byte counting (b"\r\n"=0, b"\n"=62) of UTF-16LE bytes and were
+  artifact rewritten: 2031 B; contains 'encoding_utf16le_with_bom=True' True; 'raw_byte_scan' explanation True; 'MISLEADING' True
+  commit message (immutable) recorded in README section 5 item 4 + receipt review_corrections.s1_src_diff_encoding
+
+explanation check: original 'CRLF 0 / LF 62' came from raw-byte counting of UTF-16LE (CRLF is 0D 00 0A 00, LF is 0A 00) -> misleading
+  reproduced: raw b'\r\n'=0, b'\n'=62; decoded CRLF=60 -> explanation holds

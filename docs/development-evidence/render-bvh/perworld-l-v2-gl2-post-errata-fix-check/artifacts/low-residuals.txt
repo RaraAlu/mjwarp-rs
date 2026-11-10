@@ -1,0 +1,28 @@
+# 低 3 条 + dump-ext 残留 2 条 + 过程事件 / 残留观察
+
+manifest line displacement on the errata batch (bb29e351 -> dde275c1):
+  perworld-l-v2-validate-window-g-l2 moved=12 claim=12 match=True
+  perworld-l-v2-ptx-order-pins moved=11 claim=11 match=True
+  perworld-l-v2-entity-diagnostic-dump moved=6 claim=6 match=True
+
+anchor outline.rs:51 pub fn enabled() -> bool {
+anchor outline.rs:363 pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Arm) -> DepthDiff {
+anchor run-window.ps1:357 if ($outlineCount -gt 0) {
+anchor run-window.ps1:358 $postBody = Verify-OutlineLists 'post-window'
+anchor run-window.ps1:369 }
+
+diag4 target/render-bvh/perworld-l-v2-gl2/diag4/pixel-dump.json exists=True bytes=44977 sha_match=True
+diag4 target/render-bvh/perworld-l-v2-gl2/diag4/run-summary.txt exists=True bytes=3931 sha_match=True
+
+dump-ext receipt json_location corrected: pixel-dump.json schema 2: each rgb_mismatches[i].diagnostics -- the key ALWAYS exists (attach_diagnostics contract): null when the diag env is unset (renderer=None) and null when the ray was not captu
+dump-ext README: '键始终存在'=True '+84/−8'=True 'absent when env unset'=False
+
+RESIDUALS found by QA:
+  R1 README table row 4 (line 12) still says 'logs/src.diff LF 复核（已 LF、字节未变）' without a 'see section 5' marker, while section 3/5 correct it -> intra-document contradiction
+  R2 receipt review_corrections.s1_src_diff_encoding says the immutable commit message is 'recorded here and in card addenda', but the fix card has exactly 1 addenda and it is the lock event only -> cross-ref inaccurate (README section 5 item 4 correctly says 'this section + receipt')
+  R3 process_events states time/commits/scope/no-conflict/remedy but does not note that the repo has NO lock audit log (lock script keeps only current state); the event relies on disclosure
+  note: '61 lines' uses split('\n') segments; splitlines() = 60 (trailing newline); no substantive impact
+
+process event records: README section 6 present=True ; receipt.process_events entries=1 ; fix card addenda=1 (lock event)
+mutual reference: receipt cross_reference='recorded in the addenda of card 2026-11-11-render-perworld-l-v2-gl2-post-errata-fix via normify fix; this receipt section and that addenda mutually reference each other.'
+lock audit log: scripts/validate/repo-write-lock.ps1 has no log/history file (current-state lock only)

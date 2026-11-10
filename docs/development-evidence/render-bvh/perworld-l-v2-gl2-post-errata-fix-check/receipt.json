@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix-check",
+  "status": "qa_review_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "PASS",
+  "subject": {
+    "fix_card": "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix",
+    "main_commit": "3836da0d",
+    "main_files": 19,
+    "addenda_commit": "a3dc5e7b",
+    "addenda_files": 1,
+    "review_base_head": "a3dc5e7b19d1e26672f12b5fe81b9354ff8759ba",
+    "trigger_review": "2026-11-11-render-perworld-l-v2-gl2-post-errata-check (commit b332dcf4; 1 severe S1 + 3 low + 2 observations)"
+  },
+  "verified": {
+    "s1_corrections": "historical bytes unchanged (6,772 B / sha 12be6af5... / magic FF FE / byte-identical to HEAD); four false records corrected: batch README section 3 (line 41, marked see section 5), README section 5 (lines 52-54 with the four-record list and no-historical-byte-change ruling), receipt fix_card_1_errata.src_diff_lf_verification (rewritten with measured facts), artifacts/ptx-order-pins-src-diff-eol.txt (rewritten, 2,031 B, marks raw-byte scan MISLEADING, includes reproduce command); immutable commit message recorded in README section 5 item 4 + receipt review_corrections",
+    "s1_explanation": "raw b'\\r\\n'=0 / b'\\n'=62 reproduced; decoded CRLF=60; the explanation that the old figures came from raw-byte counting of UTF-16LE (0D 00 0A 00) holds",
+    "evidence_preservation": ".gitattributes rule docs/development-evidence/** -text -diff already covers the path (verified); commits do not change .gitattributes; git ls-files --eol = i/-text w/-text attr/-text; no batch conversion; tracked UTF-16 BOM counts independently reproduced = 169 under docs/development-evidence and 217 repo-wide",
+    "log_policy": "receipt evidence_log_policy + README section 5 observation 2 require UTF-8/LF evidence logs ([IO.File]::WriteAllText with UTF8Encoding($false) or Out-File -Encoding utf8; default '>' redirection forbidden)",
+    "low_items": "manifest ASCII-sort / displacement documented and independently reproduced (G-L2 12, card-1 11, diagnostic round 6 common-path index moves); anchors verified: outline.rs enabled() at :51, diff_depth_with_outline() at :363, run-window.ps1 post-window 357-369 (entry :358), pre-body :283; round-4 evidence files exist with exact bytes/sha: diag4/pixel-dump.json 44,977 B 48597d0e..., diag4/run-summary.txt 3,931 B df653b5b...",
+    "dump_ext_leftovers": "README section 2 and receipt dump_schema.json_location now say the diagnostics key ALWAYS exists (null when not captured); 'absent when env unset' no longer present; companion numstat corrected to +84/-8 (2/2 + 3/3 + 1/1 + 2/2 + 76/0)",
+    "process_event": "README section 6 and receipt process_events both record time 2026-11-11 06:47-06:57, commits dde275c1/26d3cada, unlocked scope (normify fix/gate/done + card JSON/.normify/runs/docs/commit), state (no other holder, no conflict, clean tree), violation nature, remedy (rule hardened); mutually referenced with the fix card addenda",
+    "manifests_gates_encoding": "four manifests independently recomputed: this batch 8, G-L2 66, card-1 12, diagnostic round 12, all bad=[]/missing=[]/extra=[] and ASCII-sorted; 14 changed docs files all UTF-8/no BOM/no CRLF; src.diff sha unchanged; src/ tests/ fixtures/ scripts/ zero diff in both commits; normify gate rerun: fmt/clippy/clippy-cuda/unit pass, unit 1,391/0/402",
+    "non_claims": "receipt non_claims and README: G-L2 verdict unchanged (criterion A FAIL), no claim any fix works, no criterion/threshold/reference/tolerance/camera/recipe change; dump field rename and guards body_env remain backlog"
+  },
+  "low_residuals": [
+    {"code": "R1", "title": "README top table row 4 still says 'already LF / bytes unchanged'", "detail": "line 12 of the batch README keeps the original false wording without a 'see section 5' marker; sections 3/5 correct it, so the document contradicts itself. Suggest editing the row or marking it as superseded."},
+    {"code": "R2", "title": "receipt says the immutable commit message is recorded 'in card addenda' but the only addenda is the lock event", "detail": "review_corrections.s1_src_diff_encoding says 'recorded here and in card addenda'; the fix card has exactly one addenda (lock discipline) which does not mention S1. README section 5 item 4 wording ('this section + receipt') is accurate."},
+    {"code": "R3", "title": "process_events does not note that no lock audit log exists", "detail": "repo-write-lock.ps1 keeps only current state (no history), so the event rests on disclosure and timeline; suggest one sentence in receipt/README section 6."}
+  ],
+  "note_on_measurement": "'61 lines' in the corrected records uses split('\\n') segments; splitlines() is 60 (trailing newline). No substantive impact; optional wording unification.",
+  "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": {"passed": 1391, "failed": 0, "ignored": 402}},
+  "non_claims": [
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "does not claim any fix works",
+    "zero GPU; no rerun/refreeze/capture"
+  ],
+  "artifacts": [
+    "artifacts/s1-corrections.txt",
+    "artifacts/counts-manifests.txt",
+    "artifacts/low-residuals.txt"
+  ]
+}
