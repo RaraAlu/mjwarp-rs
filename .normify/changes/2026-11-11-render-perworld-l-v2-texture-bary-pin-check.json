@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-texture-bary-pin-check",
+  "title": {
+    "zh": "QA 复核 P7 纹理重心插值舍入次序 pin 修复卡（`4e6e47b1`）：仅 `render_shade.cu::texture_mesh` +4/−2（u/v 两行改 `__fmaf_rn(uv2,w2, __fmaf_rn(uv0,w0, __fmul_rn(uv1,w1)))`，`w0/w1/w2` 字面未动、其它 `.cu` 0 diff、462→464 行）、落地式与 spec §A 参考序列逐项一致（mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2)）、离线 NVRTC+lineinfo 站点证明 old mul→fma→fma 单独舍入项写反→new 同形参考、新内核身份 source 独立复算 `92771543…`→`eb59dd78…` 一致（PTX `e44ac85c…`/344,169→`e91b7d85…`/344,175；aa_resolve/depth_seg 源未变）、四门禁 1387/0/402、manifest 17/17、边界零越界、口径不宣称生效且 G-L2 维持未通过 → PASS（可发诊断轮 #5）",
+    "en": "QA review of the P7 texture barycentric interpolation rounding-order pin: only render_shade.cu texture_mesh +4/-2, landing form matching spec section A, offline NVRTC lineinfo site proof, independently reproduced kernel source identity, gates 1387/0/402, manifest 17/17, boundary clean, non-claims correct - PASS (diagnostic round 5 may be issued)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 P7 修复卡（提交 **`4e6e47b1`**，卡 `2026-11-11-render-perworld-l-v2-texture-bary-pin`）做独立只读复核（零 GPU；**未重新编译**以免干扰诊断轮 #5 前的 live/冻结件状态）：① 改动面——仅 `src/render/kernel/cuda/render_shade.cu` **+4/−2**，单 hunk 位于 `texture_mesh` 的 `has_uv` 分支 u/v 两行，`w0=bary_u`/`w1=bary_v`/`w2=1.0f-bary_u-bary_v` 字面未动，其它 `.cu` 0 diff，文件 462→464 行；② 落地式与 `target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` §A 参考序列逐项一致；③ 核离线 NVRTC+lineinfo 站点证明（old `mul(uv2*w2)→fma(uv1*w1)→fma(uv0*w0)` → new `mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2)`）；④ 独立复算叠加 source 身份与 aa_resolve/depth_seg 未变；⑤ 门禁/manifest/边界/编码；⑥ 口径（不宣称生效、G-L2 维持未通过）。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the P7 fix card: change surface, landing form versus spec section A, offline PTX site proof, independently reproduced kernel identity, gates/manifest/boundary, and non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动面唯一且最小 ✅**：`4e6e47b1` 的源码改动**只有** `src/render/kernel/cuda/render_shade.cu` **+4/−2**（4 行新增 = 2 行注释 + u/v 两行代码；2 行删除 = 原 u/v 两行），**单 hunk** 位于 `texture_mesh()` 的 `has_uv` 分支；`w0 = bary_u`、`w1 = bary_v`、`w2 = 1.0f - bary_u - bary_v` 三行**文义/字面均未出现在 diff 中**；`uv0/uv1/uv2` 取值行未动；其它 `.cu`（`render_common.cu`/`render_math.cu`/`render_megakernel.cu`/`render.cu`/`render_shadow.cu`/`scene.cu`）**0 diff**；文件行数 **462 → 464**（用 blob 字节/LF 独立核实）✅",
+    "**落地式与 spec §A 参考序列逐项一致 ✅**：实现为 `float u = __fmaf_rn(uv2.x, w2, __fmaf_rn(uv0.x, w0, __fmul_rn(uv1.x, w1)));`（v 同理 y 分量）——**单独舍入项 = 中间项 `uv1*w1`（`__fmul_rn`）**，随后 `__fmaf_rn(uv0,w0, ·)`、最后 `__fmaf_rn(uv2,w2, ·)`；与 spec §A 参考真值 `mul(uv1*bary_v) → fma(uv0*bary_u) → fma(uv2*w)`（PTX 7900-7936）**逐项同形**；原产品 `fmaf(uv0,w0, fmaf(uv1,w1, uv2*w2))` 的单独舍入项是第三项 `uv2*w2`，缺陷方向与 Arch 定位一致 ✅",
+    "**离线 NVRTC+lineinfo 站点证明（Backend 证据，我核其自洽性）✅**：`logs/p7-site-proof.txt` 用 pinned CUDA 12.8.1 NVRTC（`--generate-line-info`、零 GPU 会话）给出 old/new 两版 PTX 链与寄存器-行号映射——old：`mul.f32(uv2.x,w2)` → `fma(uv1.x,w1)` → `fma(uv0.x,w0)`（单独舍入第三项）；new：`mul.rn.f32(uv1.x,w1)` → `fma(uv0.x,w0)` → `fma(uv2.x,w2)`（单独舍入中间项），且 v 链同形；stitched source old `92771543…`/104,103 B → new `eb59dd78…`/104,382 B，lineinfo PTX old `6cec0f62…`/580,289 B → new `cf619209…`/580,295 B；证据结论与 spec §A 一致 ✅（我未重跑 NVRTC，理由见观察 O1）",
+    "**新内核身份与不变项（独立复算）✅**：我按 `mod.rs` include_str 顺序做 LF 字节串联独立复算——megakernel source **`92771543…` → `eb59dd78…`（与 identity 日志一致）**；PTX 取自同批 identity 日志：`e44ac85c…`/344,169 B → **`e91b7d85…`/344,175 B**；**aa_resolve** source `0bf8af5a…` 与 PTX `b28e155c…`/27,536 B **未变**；**depth_seg** source `b546ef08…` 与 PTX `e8d84963…`/138,540 B **未变**（`render_shade.cu` 不在 DEPTH_SEG/AA_RESOLVE 拼接内，逻辑自洽）；证据明写「实现修复新基线，非判据/阈值/参考变更」✅",
+    "**门禁/边界/卫生 ✅**：四门禁 runs 全 `passed=true`、unit **1387/0/402**；`tests/`/`fixtures/`/`scripts/` **0 diff**；G-L2 证据与修复卡-2 证据目录 **0**；guards JSON **0**（`fad2ed37…`/43,729 B）、**冻结 stash 12/12 仍 == guards**；manifest **17/17 独立重算全对**（README `008d8cbb…`/6,651 B、receipt `c734694c…`/7,233 B、manifest `ca45bb29…`/1,857 B 均与自报一致）；17 个证据文件 **无 CR、无 BOM**（上一轮 `src.diff` 的 CRLF 问题未重现）✅",
+    "**口径（非声明）✅**：README L6/L92 与 receipt `non_claims` 均明写「**不宣称修复生效**（需诊断轮 #5 token 验证）、**G-L2 判定维持未通过（判据 A FAIL）**、不改判据/阈值/参考/容差、内核身份变更属实现修复新基线」；全文无「已修复/已通过/等价」正面表述 ✅",
+    "**结论**：**PASS（0 阻断，4 条信息级观察）→ 可发诊断轮 #5 token**。本复核只核代码/证据/边界与口径，**不判定修复效果**；G-L2 判定维持未通过。观察：O1 站点级 PTX 对照与 PTX 摘要取自 Backend 的离线 NVRTC 证据（方法与输入可复现、行号映射完整），我**未重跑 NVRTC/未编译**以避免扰动诊断轮 #5 前的 live exe 与冻结件口径；O2 源码再改 ⇒ 12 个 live exe 再次与 guards 不同（预期），下次正式窗口必须重新冻结建新基线；O3 「残余 4 px」前提来自诊断轮 #4 通告（不在本提交内），本卡已如实标注待轮 #5 验证；O4 `w0/w1/w2` 顺序与 `w2=(1-u)-v` 链未动，与 spec §A 寄存器映射（`%f5057/%f5058/%f3069`）一致。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-texture-bary-pin",
+      "2026-11-11-render-perworld-l-v2-ptx-order-pins-2-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin-check/"
+    ],
+    "resources": [],
+    "priority": 98
+  },
+  "note": "Chief 2026-11-11 派工：优先复核 P7 纹理重心插值舍入次序 pin 修复卡 4e6e47b1（零 GPU）。结论 PASS（0 阻断）→ 可发诊断轮 #5 token；本复核不判定修复效果。核心：仅 render_shade.cu::texture_mesh +4/−2（u/v 两行 + 2 行注释）、w0/w1/w2 字面未动、其它 .cu 0 diff、462→464 行；落地式 __fmul_rn(uv1,w1)+__fmaf_rn(uv0,w0)+__fmaf_rn(uv2,w2) 与 spec §A 参考序列逐项一致；离线 NVRTC+lineinfo 站点证明 old mul(uv2*w2)→fma(uv1*w1)→fma(uv0*w0) 与 new mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2) 齐备；新内核身份 source 独立复算 92771543→eb59dd78 一致、PTX e44ac85c/344,169→e91b7d85/344,175、aa_resolve/depth_seg 未变；四门禁 1387/0/402、manifest 17/17、边界零越界、stash 未动、17 证据文件全 LF 无 BOM；非声明在位（不宣称生效、G-L2 维持未通过）。观察：PTX 层为 Backend 离线证据（我未重跑 nvrtc、未编译）；live exe 再次变化需下次窗口重冻；4 px 前提来自轮 #4 通告待轮 #5 验证。",
+  "revision": {
+    "before": "820d10a5efcda6018f44b08cb6a3d96c8e900caa",
+    "after": null
+  },
+  "created_at": "2026-11-11T06:06:00.000Z",
+  "updated_at": "2026-11-11T06:06:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-texture-bary-pin-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
