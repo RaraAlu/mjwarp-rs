@@ -5,7 +5,7 @@
     "zh": "perworld L v2 残余 3 px：R1+P5+P6 PTX 次序 pin 修正（half 回退首项 + ndotl 首项 + 灯模中项；零 GPU；新内核身份基线）",
     "en": "Per-world L v2 residual 3 px: R1+P5+P6 PTX order pins (half reverted to first-term, ndotl first-term, light-length mid-term; zero GPU; new kernel identity baseline)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "按 Arch 诊断轮 #3 后的站点级修正（`target/render-bvh/gl2-ptx-diff/README.md` 附录 D 与离线补丁 `product_megakernel_patched2.cu`；地面真值=采集时 warp 缓存模块 PTX；零 GPU）修残余 3 px 的 ULP 级站点：① **R1** 撤销上一卡 P2 —— `render_shade.cu` half-vector 归一化改回 `normalize3_rays`（参考核对 half 归一化是**首项**单独舍入，P2 方向反了）；② **P5（新）** `ndotl` 的 dot 改 `dot3_first`（参考 `mul(nx·Lx) → fma(ny·Ly) → fma(nz·Lz)`，首项单独舍入）；③ **P6（新）** 点/spot 灯 L 的模改 `length3_midpref`（参考 `wp.length` 是 `mul(dy²) → fma(dx²) → fma(dz²)`，中间项单独舍入）；④ 保留上一卡 P3（mesh 法线 midpref）与 P4（三次除法）；不动 `normalize3_rays`、`scene.cu::length3`、`dot3_ba`、`cos_theta`。记录 old→new `MEGAKERNEL_SOURCE` sha 与 megakernel/aa_resolve/depth_seg 三份 PTX sha+bytes（同编译器同选项，`./version`/build-id 注释差异说明）；不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁与证据按既有口径。修完由 Chief 发诊断轮 #4 token 验证 3 px 是否归零。",
     "en": "Apply Arch's post-diagnostic-round-3 site corrections (`target/render-bvh/gl2-ptx-diff/README.md` appendix D and the offline patch `product_megakernel_patched2.cu`; ground truth = the warp cache module PTX from capture time; zero GPU) to the residual 3 px ULP sites: (1) **R1** revert the previous card's P2 -- `render_shade.cu` half-vector normalization back to `normalize3_rays` (the reference rounds the FIRST term there; P2 had the direction reversed); (2) **P5 (new)** the `ndotl` dot becomes `dot3_first` (reference `mul(nx*Lx) -> fma(ny*Ly) -> fma(nz*Lz)`, first term rounded alone); (3) **P6 (new)** the point/spot light L length becomes `length3_midpref` (reference `wp.length` is `mul(dy^2) -> fma(dx^2) -> fma(dz^2)`, middle term rounded alone); (4) keep the previous card's P3 (mesh normal midpref) and P4 (three divisions); do not touch `normalize3_rays`, `scene.cu::length3`, `dot3_ba`, `cos_theta`. Record old->new `MEGAKERNEL_SOURCE` sha and the megakernel/aa_resolve/depth_seg PTX sha+bytes (same compiler/options; comment-only cross-version note); no criterion/reference/tolerance changes; zero GPU, no capture, no diagnostic run; standard gates and evidence. A diagnostic-round #4 token follows from the Chief to verify the 3 px go to zero."
@@ -35,11 +35,11 @@
   },
   "note": "Chief 2026-11-11 05:52 开工令：spec 不再等，按 `gl2-ptx-diff/README.md` 附录 D + 离线补丁 `product_megakernel_patched2.cu` 实现 R1+P5+P6。改动全在 `.cu`：新增 `dot3_first`（首项 `__fmul_rn` 打头）与 `length3_midpref`（中间项 `__fmul_rn(a.y,a.y)` 打头）；`render_shade.cu` 三处（half→normalize3_rays 撤销 P2、ndotl→dot3_first、灯模→length3_midpref）；保留 P3/P4；不动 normalize3_rays / scene.cu length3 / dot3_ba / cos_theta。记录 old→new source/PTX 三变体；不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁+证据；修完等 Chief 诊断轮 #4 token。",
   "revision": {
-    "before": "589bc8cba4eae19eb90be002d7c2fe3cb821ef3a",
+    "before": "bccdbdd7df799c3d678682510e714cde0c3d80e2",
     "after": null
   },
   "created_at": "2026-11-10T21:43:58.000Z",
-  "updated_at": "2026-11-10T21:43:58.000Z",
+  "updated_at": "2026-11-10T21:44:17.099Z",
   "checks": [
     {
       "kind": "gate",
