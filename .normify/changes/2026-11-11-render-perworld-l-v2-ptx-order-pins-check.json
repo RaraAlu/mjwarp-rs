@@ -5,7 +5,7 @@
     "zh": "QA 复核 P2/P3/P4 PTX 次序 pin 修复卡（`358b84fc` + errata `0ad4795a`）：仅 3 个 `.cu`（common +11 helper、shade +4/−2 P2+P4、megakernel +2/−1 P3）、`normalize3_rays` 字面未动、helper 公式与 Arch 目标 PTX 序列一致（mul y*y→fma x*x→fma z*z→sqrt→÷×3）、P4 逐分量三次除法、内核身份 old→new 独立复算一致（megakernel `4d932c90…`→`d3e04aa7…`、PTX `13ac8a2e…`/344,186→`98f09afc…`/344,166、aa_resolve/depth_seg 未变）、四门禁 1387/0、manifest 12/12、边界零越界、diff 统计 +17/−3 已由 errata 更正 → PASS（可发诊断轮 token；不宣称修复生效）",
     "en": "QA review of the P2/P3/P4 PTX order pin fix card plus its errata: three .cu files only, helper formula matches the Arch target PTX sequence, per-component divisions, kernel identity independently reproduced, gates 1387/0, manifest 12/12, boundary clean, diff stat corrected to +17/-3 - PASS (diagnostic token may be issued; fix effectiveness not claimed)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 P2/P3/P4 PTX 归一化次序 pin 修复卡（**`358b84fc`** + errata **`0ad4795a`**，卡 `2026-11-11-render-perworld-l-v2-ptx-order-pins`）做**独立只读复核**（零 GPU）：① 改动面——仅 3 个 `.cu`（`render_common.cu` +11 helper、`render_shade.cu` +4/−2、`render_megakernel.cu` +2/−1），既有 `normalize3_rays` 字面未动；② helper 公式是否与 Arch 目标 PTX 序列一致（`mul y*y → fma x*x → fma z*z → sqrt.rn → div.rn ×3`）；③ P4 是否改为逐分量除法；④ 内核身份 old→new 是否可独立复算（megakernel source `4d932c90…`→`d3e04aa7…`、PTX `13ac8a2e…`/344,186 B→`98f09afc…`/344,166 B；aa_resolve/depth_seg 未变）；⑤ 门禁/边界/卫生（unit 1387/0、`unchanged fixtures/tests/scripts`、guards/冻结件/其它证据零改、manifest 12/12）；⑥ 证据中 diff 统计 +17/−3 与实际 git stat 一致、errata 已更正主提交 message 误写 +37/−3。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the P2/P3/P4 PTX order pin fix: change surface, helper formula vs the Arch target PTX sequence, per-component divisions, independently reproduced kernel identity, gates/boundary, and the diff-stat errata."
@@ -36,12 +36,12 @@
   },
   "note": "Chief 2026-11-11 派工：快速复核 P2/P3/P4 pin 修复卡 358b84fc + errata 0ad4795a（零 GPU）。结论 PASS → 可发诊断轮 token。核心：3 个 .cu（+11/+4−2/+2−1 = +17/−3）、normalize3_rays 未动、helper 公式与 Arch 目标 PTX 序列逐项一致（mul y*y→fma x*x→fma z*z→sqrt→÷×3）、P4 三次除法、内核身份 source-sha 我独立复算一致（megakernel d3e04aa7、PTX 98f09afc/344,166；aa_resolve/depth_seg 未变）、四门禁 1387/0/402、manifest 12/12、边界零越界、stash 未动、diff 统计 +17/−3 已由 errata 更正（主提交 message 仍 +37/−3，不可改写）。观察：src.diff 有 64 CR（低，建议 errata 归一化）；Arch 证据自述次序改变不移动 4 px（效果未证，卡片口径正确）；live exe 再次变化需下次窗口重冻。",
   "revision": {
-    "before": "589bc8cba4eae19eb90be002d7c2fe3cb821ef3a",
+    "before": "70a2fd6e637f4378e61f0212221312dde578af3f",
     "after": null
   },
   "created_at": "2026-11-11T05:42:00.000Z",
-  "updated_at": "2026-11-11T05:42:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T21:54:45.052Z",
+  "closed_at": "2026-11-10T21:54:45.052Z",
   "checks": [
     {
       "kind": "gate",
