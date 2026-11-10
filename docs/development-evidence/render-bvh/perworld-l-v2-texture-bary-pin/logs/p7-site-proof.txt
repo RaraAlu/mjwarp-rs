@@ -1,0 +1,61 @@
+# P7 site proof: barycentric texcoord interpolation rounding order (offline NVRTC, lineinfo, zero GPU)
+
+compiler: pinned CUDA 12.8.1 NVRTC (nvrtc64_120_0.dll 86,728,192 B sha256 02d2d7ef...), no GPU session
+options: --fmad=true --include-path=include/warp-headers --std=c++17 --gpu-architecture=compute_70
+         --device-as-default-execution-space --generate-line-info
+old stitched source: 104103 B sha256 92771543665d222d985a44bbad1d7acfe771acaf639047e3bc4dfe09effec30f (card-2 baseline)
+new stitched source: 104382 B sha256 eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee (== identity test MEGAKERNEL_SOURCE)
+old lineinfo PTX: 580289 B sha256 6cec0f621e48f14317da31514d645d98343b31d5ceb8fbc086872044d0493f71
+new lineinfo PTX: 580295 B sha256 cf6192096da0b2ef2a06a36e29b80ffb327f655e8f0e3117c3e0a87e673823dc
+
+## old product site (render_shade.cu line 228, stitched line 1693)
+   source: float u = fmaf(uv0.x, w0, fmaf(uv1.x, w1, uv2.x * w2));
+   w2 chain (stitched line 1692):
+      mov.f32 	%f3067, 0f3F800000;
+      sub.f32 	%f3068, %f3067, %f5057;
+      sub.f32 	%f3069, %f3068, %f5058;
+   PTX u chain:
+      mul.f32 	%f3071, %f3069, %f3070;
+         operand %f3069: role=w-chain def=sub.f32 	%f3069, %f3068, %f5058; (render_shade.cu line 229)
+         operand %f3070: role=uv2.x def=ld.global.f32 	%f3070, [%rd592]; (render_shade.cu line 223)
+      fma.rn.f32 	%f3073, %f3072, %f5058, %f3071;
+         operand %f3072: role=uv1.x def=ld.global.f32 	%f3072, [%rd590]; (render_shade.cu line 221)
+         operand %f5058: role=w-chain def=mov.f32 	%f5058, %f5076; (render_shade.cu line -154)
+         operand %f3071: role=w-chain def=mul.f32 	%f3071, %f3069, %f3070; (render_shade.cu line 230)
+      fma.rn.f32 	%f5100, %f3074, %f5057, %f3073;
+         operand %f3074: role=uv0.x def=ld.global.f32 	%f3074, [%rd588]; (render_shade.cu line 219)
+         operand %f5057: role=w-chain def=mov.f32 	%f5057, %f5076; (render_shade.cu line -154)
+         operand %f3073: role=w-chain def=fma.rn.f32 	%f3073, %f3072, %f5058, %f3071; (render_shade.cu line 230)
+   PTX v chain:
+      mul.f32 	%f3076, %f3069, %f3075;
+      fma.rn.f32 	%f3078, %f3077, %f5058, %f3076;
+      fma.rn.f32 	%f5101, %f3079, %f5057, %f3078;
+
+## new product site (render_shade.cu line 230, stitched line 1695)
+   source: float u = __fmaf_rn(uv2.x, w2, __fmaf_rn(uv0.x, w0, __fmul_rn(uv1.x, w1)));
+   w2 chain (stitched line 1692):
+      mov.f32 	%f3067, 0f3F800000;
+      sub.f32 	%f3068, %f3067, %f5057;
+      sub.f32 	%f3069, %f3068, %f5058;
+   PTX u chain:
+      mul.rn.f32 	%f3071, %f3070, %f5058;
+         operand %f3070: role=uv1.x def=ld.global.f32 	%f3070, [%rd590]; (render_shade.cu line 221)
+         operand %f5058: role=w-chain def=mov.f32 	%f5058, %f5076; (render_shade.cu line -156)
+      fma.rn.f32 	%f3073, %f3072, %f5057, %f3071;
+         operand %f3072: role=uv0.x def=ld.global.f32 	%f3072, [%rd588]; (render_shade.cu line 219)
+         operand %f5057: role=w-chain def=mov.f32 	%f5057, %f5076; (render_shade.cu line -156)
+         operand %f3071: role=w-chain def=mul.rn.f32 	%f3071, %f3070, %f5058; (render_shade.cu line 230)
+      fma.rn.f32 	%f5100, %f3074, %f3069, %f3073;
+         operand %f3074: role=uv2.x def=ld.global.f32 	%f3074, [%rd592]; (render_shade.cu line 223)
+         operand %f3069: role=w-chain def=sub.f32 	%f3069, %f3068, %f5058; (render_shade.cu line 227)
+         operand %f3073: role=w-chain def=fma.rn.f32 	%f3073, %f3072, %f5057, %f3071; (render_shade.cu line 230)
+   PTX v chain:
+      mul.rn.f32 	%f3076, %f3075, %f5058;
+      fma.rn.f32 	%f3078, %f3077, %f5057, %f3076;
+      fma.rn.f32 	%f5101, %f3079, %f3069, %f3078;
+
+## verdict
+old order: mul(uv2*w2) -> fma(uv1*w1) -> fma(uv0*w0)  [separately rounded term = uv2*w2, third]
+new order: mul(uv1*w1) -> fma(uv0*w0) -> fma(uv2*w2)  [separately rounded term = uv1*w1, middle]
+reference ground truth (spec A, reference PTX 7900-7936): mul(uv1*bary_v) -> fma(uv0*bary_u) -> fma(uv2*w)
+=> new product site matches the reference instruction sequence (mul -> fma -> fma, uv1*w1 alone rounded).

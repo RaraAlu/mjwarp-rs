@@ -225,8 +225,10 @@ __device__ __forceinline__ void texture_mesh(const int* mesh_faceadr, V3 local, 
             float w0 = bary_u;
             float w1 = bary_v;
             float w2 = 1.0f - bary_u - bary_v;
-            float u = fmaf(uv0.x, w0, fmaf(uv1.x, w1, uv2.x * w2));
-            float v = fmaf(uv0.y, w0, fmaf(uv1.y, w1, uv2.y * w2));
+            // P7：对齐参考核 `vec.h` 的 mul→fma→fma 收缩——单独舍入项是**中间项** `uv1*w1`；
+            // 产品原为 `fmaf(uv0,w0, fmaf(uv1,w1, uv2*w2))`（单独舍入第三项 `uv2*w2`），会差 1 ULP。
+            float u = __fmaf_rn(uv2.x, w2, __fmaf_rn(uv0.x, w0, __fmul_rn(uv1.x, w1)));
+            float v = __fmaf_rn(uv2.y, w2, __fmaf_rn(uv0.y, w0, __fmul_rn(uv1.y, w1)));
             *uv = v3(u, v, 0.0f);
             has_uv = true;
         }

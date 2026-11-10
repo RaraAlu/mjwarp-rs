@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-texture-bary-pin",
+  "status": "fix_implemented_zero_gpu",
+  "slice": "perworld-l-v2-texture-bary-pin",
+  "owner": "Backend",
+  "kind": "render-texture-barycentric-rounding-order-pin",
+  "authorization": {
+    "chief_assignment": "2026-11-11 06:0x (interrupt priority: P7 texture barycentric pin; zero GPU; no diagnostic run; errata batch paused uncommitted)",
+    "arch_site_evidence": "target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md section A (reference ground-truth PTX instructions 7900-7936, register mapping, P7 pin text)",
+    "next_step_owned_by_chief": "diagnostic round #5 token to verify the residual pixels; not run in this card"
+  },
+  "root_cause": {
+    "site": "src/render/kernel/cuda/render_shade.cu::texture_mesh has_uv branch barycentric texcoord interpolation",
+    "old_behaviour": "fmaf(uv0*x, w0, fmaf(uv1*x, w1, uv2*x*w2)) -> separately rounded term is uv2*w2 (third term)",
+    "reference_behaviour": "mul(uv1*bary_v) -> fma(uv0*bary_u) -> fma(uv2*w) -> separately rounded term is the middle term uv1*w1 (spec A, reference PTX 7900-7936)",
+    "impact": "texcoord u/v differ by 1 ULP; only the textured mesh path (geom3 tri-mesh / mat 0 grid) where the residual pixels are"
+  },
+  "changes": {
+    "render_shade.cu": {
+      "old": "float u/v = fmaf(uv0*x, w0, fmaf(uv1*x, w1, uv2*x * w2));",
+      "new": "float u/v = __fmaf_rn(uv2*x, w2, __fmaf_rn(uv0*x, w0, __fmul_rn(uv1*x, w1)));",
+      "comments_added": 2,
+      "w0_w1_w2": "untouched (w0=bary_u, w1=bary_v, w2=1.0f-bary_u-bary_v)",
+      "file_sha256_old": "27dfcfd36e1f69ce924eef5459bf6ee9eec8053d9fdee02c5b878bf3f4eee91f",
+      "old_bytes": 20989,
+      "file_sha256_new": "bdf6c52778732b83a6f721900123565f2551e27380c702968a2bec63e07c3f27",
+      "new_bytes": 21268
+    },
+    "diff_stat": "+4 / -2 on 1 file (2 code lines changed + 2 comment lines)",
+    "untouched": [
+      "render_common.cu",
+      "render_math.cu",
+      "render_megakernel.cu",
+      "render_flex.cu",
+      "render_shadow.cu",
+      "render.cu",
+      "aa_resolve.cu",
+      "scene.cu",
+      "texture_hfield/fallback/sample_texture branches",
+      "all non-.cu sources"
+    ]
+  },
+  "kernel_identity": {
+    "record": "logs/kernel-identity-old-new.txt",
+    "capture_method": "NVRTC 12.8.93 compile + f32-render gate only (no GPU session, no render): render_kernel_flags flag_and_aa_sources_compile_under_render_gate and render_kernel_depth_seg depth_seg_source_compiles_under_render_gate, both --ignored",
+    "independent_recompute": "byte-concat sha256 in mod.rs include_str! order (old=HEAD blobs, new=worktree) matches the printed source sha256",
+    "artifacts": {
+      "megakernel": {
+        "source_sha256_old": "92771543665d222d985a44bbad1d7acfe771acaf639047e3bc4dfe09effec30f",
+        "source_sha256_new": "eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee",
+        "ptx_sha256_old": "e44ac85c166a80743465c5f7e00ff92ef48f0876d0cea8408930881a2bdae8d2",
+        "ptx_bytes_old": 344169,
+        "ptx_sha256_new": "e91b7d8538c919432658d832db76e03410ad8d61f2475f92730cd1b970e17fac",
+        "ptx_bytes_new": 344175
+      },
+      "aa_resolve": {
+        "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes": 27536,
+        "changed": false
+      },
+      "depth_seg": {
+        "source_sha256": "b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931",
+        "ptx_sha256": "e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7",
+        "ptx_bytes": 138540,
+        "changed": false,
+        "reason": "render_shade.cu is not part of DEPTH_SEG_SOURCE (scene.cu + render_math.cu + render.cu) nor AA_RESOLVE_SOURCE"
+      }
+    }
+  },
+  "offline_ptx_proof": {
+    "record": "logs/p7-site-proof.txt",
+    "compiler": "pinned CUDA 12.8.1 NVRTC (nvrtc64_120_0.dll 86,728,192 B sha256 02d2d7ef...), no GPU session",
+    "options": "--fmad=true --include-path=include/warp-headers --std=c++17 --gpu-architecture=compute_70 --device-as-default-execution-space --generate-line-info",
+    "stitched_source_old": {
+      "bytes": 104103,
+      "sha256": "92771543665d222d985a44bbad1d7acfe771acaf639047e3bc4dfe09effec30f"
+    },
+    "stitched_source_new": {
+      "bytes": 104382,
+      "sha256": "eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee"
+    },
+    "lineinfo_ptx_old": {
+      "bytes": 580289,
+      "sha256": "6cec0f621e48f14317da31514d645d98343b31d5ceb8fbc086872044d0493f71"
+    },
+    "lineinfo_ptx_new": {
+      "bytes": 580295,
+      "sha256": "cf6192096da0b2ef2a06a36e29b80ffb327f655e8f0e3117c3e0a87e673823dc"
+    },
+    "site_old": "mul.f32(w2,uv2.x) -> fma.rn.f32(uv1.x,w1,prev) -> fma.rn.f32(uv0.x,w0,prev)",
+    "site_new": "mul.rn.f32(uv1.x,w1) -> fma.rn.f32(uv0.x,w0,prev) -> fma.rn.f32(uv2.x,w2,prev)",
+    "register_mapping": "w0=%f5057 (bary_u), w1=%f5058 (bary_v), w2=%f3069=(1.0-w0)-w1; uv0.x=%f3072/uv1.x=%f3070/uv2.x=%f3074 (new PTX), confirmed by ld.global source-line attribution (render_shade.cu 219/221/223); y components %f3077/%f3075/%f3079",
+    "verdict": "new product site matches the reference ground-truth sequence (mul(uv1*w1) -> fma(uv0*w0) -> fma(uv2*w2)); old differed only in the separately-rounded term (third vs middle)"
+  },
+  "verification": {
+    "cargo_build_cuda_probe": {
+      "exit": 0,
+      "log": "logs/build-cuda-probe.log"
+    },
+    "cargo_test_cuda_probe_no_run": {
+      "exit": 0,
+      "log": "logs/no-run-cuda-probe.log"
+    },
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": {
+        "passed": 1387,
+        "failed": 0,
+        "ignored": 402
+      }
+    },
+    "kernel_identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
+    "gpu_run": "none (zero GPU; no capture; no diagnostic run; frozen exe evidence untouched)"
+  },
+  "boundaries": {
+    "unchanged_fixtures": true,
+    "unchanged_tests": true,
+    "unchanged_scripts": true,
+    "read_only_evidence_dirs": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/"
+    ],
+    "guards_frozen_stash_and_frozen_exe_evidence": "untouched",
+    "frozen_exe_evidence_recompiled": false
+  },
+  "non_claims": [
+    "the fix is not yet verified on GPU; one diagnostic-round #5 token is required and the residual pixels are not claimed fixed",
+    "the G-L2 verdict is unchanged (criterion A FAIL stands)",
+    "no criterion/threshold/reference/tolerance change",
+    "kernel identity change is an implementation-fix new baseline, not a criterion change"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "result": "PASS"
+  }
+}
