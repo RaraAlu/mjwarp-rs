@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin-check",
+  "title": {
+    "zh": "QA 复核 P10 mesh 法线链修复卡 `b0e372be`：改动面恰为 3 个 `.cu` 的 3 处 + 注释（恢复 `mesh_query_ray` 局部 normalize、新增 `mat_vec_xpref`、两处消费点改用它），`scene.cu::mat_vec`/顶点法线链/其它 `.cu`/`fixtures`/`scripts`/`tests` 零 diff、无新增 `.cu`、`normalize3_mesh` 函数体逐字节未变；`mat_vec_xpref` 实为 x 项先单独舍入、行主序索引与 `mat_vec` 一致、与上游 `mat.h:3180`/`mesh.h:1880` 事实相符；**双内核身份四组 source/PTX 我全部独立复算逐位一致**（mega 109,384/`624ab298`→110,509/`6b1ade37`、PTX 347,070/`1fd53131`→348,399/`48f8e7f8`；depth 52,427/`b546ef08`→53,552/`1e3f273c`、PTX 138,540/`e8d84963`→138,857/`31912377`），PTX 算术增量逐 opcode 一致（+12/+8/+4/+4 与 +3/+2/+1/+1，其余 0）、探针链序 16→23 ops 一致；depth_seg 换新基线如实写明且数值不变理由（仅 `dot(lvec,n_local)` 符号）经代码核对成立，冻结回归我重跑 13/6 与 12/6 全过；门禁 unit 1,391/0/402、manifest 17/17、编码干净；口径不宣称修复生效、H2 作废只报告不改历史、G-L2 维持未通过 → **PASS（0 阻断，2 条信息级观察）→ 可发诊断轮 #8 token**",
+    "en": "QA review of P10 mesh-normal chain fix b0e372be: exactly three .cu spots, mat_vec_xpref correct and upstream-conformant, dual kernel identity reproduced bit-identically by QA, per-opcode PTX deltas match, depth_seg new baseline documented with a sound unchanged-numbers rationale, frozen regressions rerun 13/6 and 12/6, gates 1391/0/402, manifest 17/17 - PASS with 2 info notes"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 P10 mesh 法线链修复卡（提交 **`b0e372be`**，卡 `2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin` verified）做独立只读复核（零 GPU）：①改动面是否恰为 3 个 `.cu` 的 3 处 + 注释；②`mat_vec_xpref` 是否 x 项先舍入且行主序索引与 `mat_vec` 一致；③双内核身份独立复算、depth_seg 换新基线是否如实写明；④边界（fixtures/scripts/tests 零 diff、无新 `.cu`、guards/冻结件未动）；⑤门禁/manifest/编码；⑥口径。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the P10 mesh-normal chain fix: change surface, mat_vec_xpref correctness, dual identity recompute, boundaries, gates/manifest/encoding, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① 改动面 ✅**：源码改动只有 3 个 `.cu`——`render_math.cu`（+22/−3：恢复 `mesh_query_ray` 尾部 `*out_normal = normalize3_mesh(min_normal);`、新增 `mat_vec_xpref`、H2 注释改写）、`render_common.cu:225`、`render.cu:231`（`mat_vec`→`mat_vec_xpref`）；`src/render/bvh/`（含 `scene.cu::mat_vec`/`mat_t_vec`）、`render_megakernel.cu`（顶点法线链）、`render_shade.cu`/`render_shadow.cu`/`aa_resolve.cu`/`render_flex.cu`、`fixtures/`/`scripts/`/`tests/`、guards JSON 全零 diff；无新增 `.cu`；`normalize3_mesh` 函数体抽取比对 old==new（只在前面新增 helper）✅",
+    "**② `mat_vec_xpref` 正确 ✅**：`scene.cu::mat_vec` 独立舍入项是 y（`fmaf(m[2],a.z, fmaf(m[0],a.x, m[1]*a.y))`）；新 helper 为 `fmaf(m[2],a.z, fmaf(m[1],a.y, m[0]*a.x))`——**x 项先单独舍入**、行主序索引 `m[0..2]/[3..5]/[6..8]` 与 `mat_vec` 完全一致；与上游 `mat.h:3180` `mul(mat,vec)`（首项 `get_col(0)*b[0]` 单独乘积）一致；`mesh.h:1880` 确为 `normal = normalize(min_normal);`；消费点仅两处、改后全仓已无 `normalize3_mesh(mat_vec(` ✅",
+    "**③ 双内核身份（我独立复算，逐位一致）✅**：pinned CUDA 12.8.1 NVRTC + product 选项、`mod.rs` 拼接、source name 取 identity 用例名（`render_megakernel.cu`/`render_depth_seg.cu`）——megakernel source 109,384/`624ab298…`→**110,509/`6b1ade37…`**、PTX 347,070/`1fd53131…`→**348,399/`48f8e7f8…`**；depth_seg source 52,427/`b546ef08…`→**53,552/`1e3f273c…`**、PTX 138,540/`e8d84963…`→**138,857/`31912377…`**；四组 source/PTX 逐位一致 ✅",
+    "**③ PTX 算术增量 ✅**：逐 opcode 复算 megakernel `div+12/fma+8/mul+4/sqrt+4`（其余 0，sqrt 62→66）、depth_seg `div+3/fma+2/mul+1/sqrt+1`（其余 0，sqrt 28→29），与证据一致；探针链序重数 **16→23 ops**：old 首乘 `[mat+4]×[n+4]`（m[1]·a.y）+ 一次 normalize；new 局部 normalize → 3 行 `mul→fma→fma` 首乘 `[mat+0]×n_local.x`（m[0]·n.x）→ 第二次 normalize ✅",
+    "**③ depth_seg 换新基线如实写明 ✅**：README §3/§5 与 receipt 明确「`render_math.cu` 同时进入两个拼接 ⇒ 必然换基线」；数值不变理由经代码核对成立——`render.cu` 中 `normal` 仅初始化/赋值（:195/196/:231），命中判定只用 `dot(lvec,n_local)<0` 的符号，正长度归一化不改变符号；我重跑冻结回归 `render_kernel_depth_seg` **13 passed/6 ignored/0 failed**、`render_kernel_flags` **12 passed/6 ignored/0 failed** ✅",
+    "**④ 边界 ✅**：`fixtures/`/`scripts/`/`tests/` 零 diff、无新增 `.cu`（精度源面 42 文件不变）、guards/冻结件未动；H2 历史证据目录（RCA、mesh-normal-single-normalize）**未被改写**（作废只在代码注释与新证据声明，符合「不改历史语义」）✅",
+    "**⑤ 门禁/证据 ✅**：本卡 `normify gate` 复跑 fmt/clippy/clippy-cuda/unit 全过，unit **1,391/0/402**；证据 manifest **17/17** 独立重算（bad=[]/extra=[]）、17 文件全 UTF-8/无 BOM/无 CRLF；3 个 `.cu` old/new sha+bytes+行数与 README 表逐项一致（13,685/326、22,354/498、22,033/496）✅",
+    "**⑥ 口径 ✅**：README §4/§7 与 receipt `non_claims` 明写不宣称修复生效（4 px 是否归零待诊断轮 #8）、不改判据/阈值/参考/容差/相机/recipe、G-L2 判定维持未通过（判据 A FAIL）、不重跑/不重冻/不采集、零 GPU ✅",
+    "**信息 O1**：证据的算术 op 绝对总数用 3,094/3,122（mega）与 1,201/1,208（depth）；我的 opcode 过滤口径为 3,097/3,125 与 1,202/1,209（固定 +3/+1 的过滤差异）；**逐 opcode 增量与 sqrt 计数完全一致**，不影响任何结论。",
+    "**信息 O2**：复现 identity 时 NVRTC source name 必须与 identity 用例一致（`render_megakernel.cu`/`render_depth_seg.cu`），用其它名字会得到不同 sha/bytes——建议在证据复现命令中固定写明（非缺陷）。",
+    "**结论：PASS（0 阻断，2 条信息级观察）→ 可发诊断轮 #8 token。** 本复核不判定修复效果（4 px 是否归零由 #8 实测）、不改变 G-L2 判定、零 GPU、未重跑 GPU/未重冻/未改代码。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin",
+      "2026-11-11-render-perworld-l-v2-gl2-diag7-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核 P10 mesh 法线链修复卡 b0e372be（G-L2 残余 4 px 根因修复；零 GPU）。结论 PASS（0 阻断，2 信息观察）→ 可发诊断轮 #8 token。已核：仅 3 个 .cu 的 3 处+注释（render_math.cu 恢复 mesh_query_ray 尾部 normalize3_mesh(min_normal)、新增 mat_vec_xpref、H2 注释改写；render_common.cu:225 与 render.cu:231 改用它），scene.cu mat_vec/顶点法线链/其它 .cu/fixtures/scripts/tests 零 diff、无新增 .cu、normalize3_mesh 函数体 old==new；mat_vec_xpref 确为 x 项先舍入（m[0]*a.x 为 plain mul，再 fma y、fma z）且行主序索引与 mat_vec 一致、与上游 mat.h:3180/mesh.h:1880 相符、消费点仅两处且无残留 mat_vec 形式；双内核身份四组 source/PTX 我独立复算逐位一致（mega 109384/624ab298→110509/6b1ade37、PTX 347070/1fd53131→348399/48f8e7f8；depth 52427/b546ef08→53552/1e3f273c、PTX 138540/e8d84963→138857/31912377）；PTX 算术增量逐 opcode 一致（div+12/fma+8/mul+4/sqrt+4 与 div+3/fma+2/mul+1/sqrt+1，其余 0；sqrt 62→66/28→29），探针 16→23 ops 链序一致；depth_seg 新基线已如实写明且数值不变理由（normal 仅初始化/赋值、命中仅用 dot 符号）核对成立，冻结回归重跑 13/6 与 12/6；门禁 unit 1391/0/402、manifest 17/17、17 文件编码干净；H2 历史证据未改写。信息观察：绝对 op 总数口径差 +3/+1（增量一致）；identity 复现需固定 source name。不判定修复效果、不改判据、G-L2 维持未通过。",
+  "revision": {
+    "before": "533b98290771410490c6ff263b244a3bd7eef7eb",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:42:31.000Z",
+  "updated_at": "2026-11-10T23:42:31.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/bvh/",
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
