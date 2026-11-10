@@ -1,0 +1,27 @@
+# G1-G4 / 低优先 文本更正核对
+
+G1 render_diag.cu: README mentions now only in 'not created' context:
+  | `src/render/kernel/mod.rs` | 仅新增 `pub mod diag;`（`MEGAKERNEL_SOURCE` 保持原 **7 文件拼接**不变：`scene.cu` + `render_math.cu` + `render_flex.cu` + `render_common.cu` + `render_shadow.cu` + `render_shade.cu` + `render_megakernel.cu`；**没有**
+  - **拼接文件（7 个，未新增）**：`MEGAKERNEL_SOURCE` = `scene.cu` + `render_math.cu` + `render_flex.cu` + `render_common.cu` + `render_shadow.cu` + `render_shade.cu` + `render_megakernel.cu`；old/new 两版都只含这 7 个文件，**没有** `render_diag.cu`（DIAG 布局
+  | G1 | README/代码引用不存在的 `render_diag.cu`；§1 与 7 文件拼接矛盾 | §1/§4、`src/render/kernel/diag.rs`、`tests/support/render_bvh/light/diag_ext.rs` 更正：无新 `.cu`、helper 在 `render_megakernel.cu`、拼接仍 7 文件；并注明原卡 `schedule.files` 曾规划该文件但最终未创建 |
+  src/render/kernel/diag.rs doc + tests/support/.../diag_ext.rs doc reference render_megakernel.cu DIAG_* (verified via git show diff)
+
+G2 record index: README errata + receipt record_index now say rayid*STRIDE (no worldid term) + per-world single launch equivalence + multi-world silent overwrite risk:
+  - **记录下标（errata 更正）**：内核按 `记录下标 = rayid * 64` 写，`rayid` 是**单次发射内**的射线号（不是全局下标，也没有 `worldid` 项）。测试侧在 **per-world 单次发射**下按 `(world, cam*PIXELS+pixel)` 取单条（此时 `rayid = cam*PIXELS+pixel`），每个 world 的捕获单独回读保存 ⇒ 与逐 world 取值等价。**约束/风险**：若将来改成多 world 单次发射，各 world 会把记录写
+  | G2 | 记录下标口径 `worldid*total_rays+rayid` 与实现 `rayid*STRIDE` 不符 | §2 与代码文档更正为 `rayid*STRIDE`（单发射内）；写清 per-world 单发射等价、multi-world 单发射静默覆盖风险与约束 |
+
+G3 counts / line counts:
+  measured: render_shade.cu 478, render_megakernel.cu 499, megakernel.rs 500, tests/support light/diag.rs 466,
+            tests/support light/diag_ext.rs 186, tests/render_per_world_light.rs 494
+  README> - 边界：零 GPU、不采集、不跑诊断、不重冻、未动 guards/冻结件与已签材料；`unchanged fixtures/`、`unchanged scripts/`、其它 `.cu`（`render_common/math/flex/shadow/render/aa_resolve/scene.cu`）零改动；文件行数（实测，errata 更正）：`render_shade.cu` **478**、`render_megakernel.cu` **499**、`megakernel.rs` **500**（5
+  README> | G3 | README 行数 473/414、文件计数错误 | §6/§1 更正为实测 478/499/500/496/494；计数按实际：本卡 10 + 配套卡 5 = 15 |
+  main commit code+test numstat verified: +360/-12 (README/commit say +360/-12) match=True
+  companion commit code+test numstat verified: +84/-8; commit message/README claim +86/-8 -> MISMATCH (low residual, historical commit message only)
+
+G4: src/render/kernel/diag.rs gained #[cfg(test)] round-trip tests (see schema-b1.txt lib test run); pure CPU.
+
+low-priority items:
+  ABI message 7->8 scalars: tests/render_launch_abi.rs assert message now '1 bounds + 73 数组 + 8 标量'
+  test rename: megakernel_slots_signature_is_unchanged -> megakernel_slots_keep_frozen_81_and_append_diagnostic_slot
+  PTX trailing-NUL wording: README errata 'PTX 字节口径' present
+  nlight>=4 slot conflict: README backlog entry present

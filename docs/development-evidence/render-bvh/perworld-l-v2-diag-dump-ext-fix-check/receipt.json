@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix-check",
+  "status": "qa_verification_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "PASS",
+  "subject": {
+    "fix_card": "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix",
+    "fix_commit": "8b37670fda0d42152657893ffa48cf5a4d5af70e",
+    "files": 15,
+    "diff": "+401/-128",
+    "cu_files_changed": 0,
+    "trigger_review": "2026-11-11-render-perworld-l-v2-diag-dump-ext-check (commit 00bfaef8; B1 + G1-G4 + 5 low items)"
+  },
+  "verified": {
+    "b1_schema": "tests/support/render_bvh/light/diag.rs SCHEMA = 2; document_from_parts() emits top-level schema 2; QA reran pure-CPU tests: lib diag 2 passed (round-trip + wrong-length) and integration light_diag::tests 2 passed (schema_constant_and_document_top_level_agree, rgb_mismatch_entries_always_carry_diagnostics_key)",
+    "g4_roundtrip": "src/render/kernel/diag.rs #[cfg(test)] synthetic 64xf32 round-trip, face=-3/mesh_id=42 bit patterns, view_dir exact sign flip incl -0.0, light slots 1/4, reserved slots 57-63 zero, length 63/65 rejected - all rerun by QA: 2 passed",
+    "no_cu_and_identity": "git diff 8b37670f^..8b37670f -- src/render/kernel/cuda/ is empty; QA recomputed the 7-file MEGAKERNEL_SOURCE stitch = 109,384 B / 624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2 (identical to pre-fix); QA recompiled it with the pinned CUDA 12.8.1 NVRTC (product options) = PTX 347,070 B / 1fd531314875e52a08ffda3fd63e93184e46ebda207378d5378c25b878c430b8 (identical to pre-fix); aa_resolve/depth_seg sources untouched",
+    "g1_render_diag_cu": "README section 1/4, src/render/kernel/diag.rs and tests/support/render_bvh/light/diag_ext.rs docs now state DIAG layout/helpers live in render_megakernel.cu, MEGAKERNEL_SOURCE stays the 7-file stitch, no separate render_diag.cu; remaining mentions are explicitly 'not created' context",
+    "g2_record_index": "README section 2 + receipt dump_schema.record_index = rayid*STRIDE (per-launch ray number, no worldid term), with per-world single-launch equivalence and multi-world silent-overwrite risk documented",
+    "g3_counts": "README section 6 line counts 478/499/500/496/494 match measurement (QA measured render_shade 478, render_megakernel 499, megakernel.rs 500, test diag.rs 466, diag_ext.rs 186, entry 494); main commit code+test numstat = +360/-12 matches the claim",
+    "low_items": "ABI assert message 7 -> 8 scalars; test renamed to megakernel_slots_keep_frozen_81_and_append_diagnostic_slot; README section 4 PTX trailing-NUL wording added (files 344,182/347,071 vs identity text 344,181/347,070); nlight>=4 slot conflict recorded as backlog",
+    "boundary": "fixtures/ scripts/ zero diff; guards/frozen untouched; criterion code (tests/support/render_bvh/light.rs and light/ except diag modules) zero diff; no arithmetic/kernel-signature/criterion/reference/tolerance change; zero GPU",
+    "manifest": "dump-ext evidence manifest 10/10 independently recomputed (bad=[], extra=[])",
+    "non_claims": "README section 7 errata + receipt errata_fix record that bb29e351 claimed schema 2 while code was 1 and this fix corrects it without rewriting history; no claim that any fix works; G-L2 verdict unchanged (criterion A FAIL)"
+  },
+  "low_residuals": [
+    {
+      "code": "R1",
+      "title": "diagnostics field wording not synced with the new contract",
+      "detail": "README section 2 JSON-location line and receipt dump_schema.json_location still say 'absent when env unset', while the fixed contract (and the new test name) is 'key always present, null when not captured'. Documentation only; behaviour is fixed by the test."
+    },
+    {
+      "code": "R2",
+      "title": "companion numstat claim +86/-8 vs actual +84/-8",
+      "detail": "the 8b37670f commit message says the companion card is +86/-8; measured tests/ diff is +84/-8 (diag_ext.rs +76, four ABI tests +8/-8). Appears only in the immutable commit message; README/receipt do not repeat it."
+    }
+  ],
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": {"passed": 1391, "failed": 0, "ignored": 402}
+  },
+  "non_claims": [
+    "does not judge the G-L2 fix effect; diagnostic round 7 token is the Chief's call",
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "no criterion/threshold/reference/tolerance change; zero GPU"
+  ],
+  "artifacts": [
+    "artifacts/schema-b1.txt",
+    "artifacts/no-cu-identity.txt",
+    "artifacts/g1-g4-texts.txt",
+    "artifacts/manifest-boundary.txt"
+  ]
+}

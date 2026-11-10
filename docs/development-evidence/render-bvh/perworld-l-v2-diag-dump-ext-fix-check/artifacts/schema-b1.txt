@@ -1,0 +1,21 @@
+# B1：dump 顶层 schema 1 -> 2（实测 + 纯 CPU 单测）
+
+tests/support/render_bvh/light/diag.rs: pub const SCHEMA: u32 = 2;
+
+document_from_parts() top-level includes 'schema': SCHEMA, 'kind', 'env', 'generated_at_unix', 'model', frames/camera_poses/
+rgb_mismatches/depth_mismatches/seg_mismatches/near_miss; diagnostics attached via attach_diagnostics() on every rgb mismatch entry.
+
+QA-run targeted pure-CPU tests (cargo test --locked):
+  lib target:  render::kernel::diag::tests::synthetic_record_round_trips_bit_exactly ... ok
+               render::kernel::diag::tests::decode_rejects_wrong_length ... ok
+               test result: ok. 2 passed; 0 failed
+  integration: light_diag::tests::schema_constant_and_document_top_level_agree ... ok
+               light_diag::tests::rgb_mismatch_entries_always_carry_diagnostics_key ... ok
+               test result: ok. 2 passed; 0 failed
+
+=> actual top-level schema==2 is asserted by a pure-CPU test on document_from_parts (the function build_document returns).
+
+RESIDUAL (low): README section 2 JSON-location line and receipt dump_schema.json_location still say
+'absent when env unset', while the new contract (B1 fix + test name) is 'key always present, null when not captured'.
+  README> - **JSON 位置**：`pixel-dump.json` 的每个 `rgb_mismatches[i].diagnostics`（未启用 env 时不存在该字段，dump 其余行为不变；顶层 `schema` 由 1 → 2）。
+  receipt.dump_schema.json_location> pixel-dump.json schema 2: each rgb_mismatches[i].diagnostics (absent when env unset)
