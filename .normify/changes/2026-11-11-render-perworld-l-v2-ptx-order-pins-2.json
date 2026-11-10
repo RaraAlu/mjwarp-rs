@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-ptx-order-pins-2",
+  "title": {
+    "zh": "perworld L v2 残余 3 px：R1+P5+P6 PTX 次序 pin 修正（half 回退首项 + ndotl 首项 + 灯模中项；零 GPU；新内核身份基线）",
+    "en": "Per-world L v2 residual 3 px: R1+P5+P6 PTX order pins (half reverted to first-term, ndotl first-term, light-length mid-term; zero GPU; new kernel identity baseline)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Arch 诊断轮 #3 后的站点级修正（`target/render-bvh/gl2-ptx-diff/README.md` 附录 D 与离线补丁 `product_megakernel_patched2.cu`；地面真值=采集时 warp 缓存模块 PTX；零 GPU）修残余 3 px 的 ULP 级站点：① **R1** 撤销上一卡 P2 —— `render_shade.cu` half-vector 归一化改回 `normalize3_rays`（参考核对 half 归一化是**首项**单独舍入，P2 方向反了）；② **P5（新）** `ndotl` 的 dot 改 `dot3_first`（参考 `mul(nx·Lx) → fma(ny·Ly) → fma(nz·Lz)`，首项单独舍入）；③ **P6（新）** 点/spot 灯 L 的模改 `length3_midpref`（参考 `wp.length` 是 `mul(dy²) → fma(dx²) → fma(dz²)`，中间项单独舍入）；④ 保留上一卡 P3（mesh 法线 midpref）与 P4（三次除法）；不动 `normalize3_rays`、`scene.cu::length3`、`dot3_ba`、`cos_theta`。记录 old→new `MEGAKERNEL_SOURCE` sha 与 megakernel/aa_resolve/depth_seg 三份 PTX sha+bytes（同编译器同选项，`./version`/build-id 注释差异说明）；不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁与证据按既有口径。修完由 Chief 发诊断轮 #4 token 验证 3 px 是否归零。",
+    "en": "Apply Arch's post-diagnostic-round-3 site corrections (`target/render-bvh/gl2-ptx-diff/README.md` appendix D and the offline patch `product_megakernel_patched2.cu`; ground truth = the warp cache module PTX from capture time; zero GPU) to the residual 3 px ULP sites: (1) **R1** revert the previous card's P2 -- `render_shade.cu` half-vector normalization back to `normalize3_rays` (the reference rounds the FIRST term there; P2 had the direction reversed); (2) **P5 (new)** the `ndotl` dot becomes `dot3_first` (reference `mul(nx*Lx) -> fma(ny*Ly) -> fma(nz*Lz)`, first term rounded alone); (3) **P6 (new)** the point/spot light L length becomes `length3_midpref` (reference `wp.length` is `mul(dy^2) -> fma(dx^2) -> fma(dz^2)`, middle term rounded alone); (4) keep the previous card's P3 (mesh normal midpref) and P4 (three divisions); do not touch `normalize3_rays`, `scene.cu::length3`, `dot3_ba`, `cos_theta`. Record old->new `MEGAKERNEL_SOURCE` sha and the megakernel/aa_resolve/depth_seg PTX sha+bytes (same compiler/options; comment-only cross-version note); no criterion/reference/tolerance changes; zero GPU, no capture, no diagnostic run; standard gates and evidence. A diagnostic-round #4 token follows from the Chief to verify the 3 px go to zero."
+  },
+  "modules": {},
+  "acceptance": [
+    "**helper**：`src/render/kernel/cuda/render_common.cu` 新增 `dot3_first(a0,a1,a2,b0,b1,b2) = __fmaf_rn(a2,b2,__fmaf_rn(a1,b1,__fmul_rn(a0,b0)))`（首项乘用 `__fmul_rn`）与 `length3_midpref(V3 a) = sqrtf(__fmaf_rn(a.z,a.z,__fmaf_rn(a.x,a.x,__fmul_rn(a.y,a.y))))`（中间项 `a.y*a.y` 单独舍入）；既有 `normalize3_rays`、`normalize3_midpref`、`dot3_ba` 字面不动。",
+    "**R1（撤销 P2）**：`render_shade.cu:448` `V3 half = normalize3_midpref(add(L, view_dir));` → `V3 half = normalize3_rays(add(L, view_dir));`（Arch 附录 D 证伪 P2 方向：参考 half 归一化是首项单独舍入）。",
+    "**P5（ndotl）**：`render_shade.cu:431` `float ndotl = fmaxf(0.0f, dot3_ba(normal.x, normal.y, normal.z, L.x, L.y, L.z));` → `dot3_first(...)`（参考 ndotl 是首项单独舍入）。",
+    "**P6（灯 L 的模）**：`render_shade.cu:409` `float len = length3(delta);` → `float len = length3_midpref(delta);`（参考 `wp.length` 中间项单独舍入）；`scene.cu::length3` 不动（其它调用方共用）。",
+    "**保留/不动**：P3 `render_megakernel.cu:274 normalize3_midpref(mat_vec(geom_mat, vn))` 保留；P4 `render_shade.cu:413` 三次除法保留；`cos_theta`（`render_shade.cu:423`）本轮不动（README 附录 D 明确留作后备候选）。",
+    "**内核身份新基线**：记录 old→new `MEGAKERNEL_SOURCE` sha、megakernel PTX sha+bytes、`DEPTH_SEG_SOURCE`/depth_seg PTX、aa_resolve 三值（预期后两者不变：P5/P6/R1 文件不在 depth_seg 拼接中）；采集方式=NVRTC 纯编译（两个 identity 用例，不建 GPU 会话），附按 `mod.rs` `include_str!` 顺序的独立拼接复算；同编译器同选项的 PTX 差异来自源码 pin，`.version`/build-id 注释差异单独说明。属实现修复新基线，不改判据。",
+    "**构建/静态验证（零 GPU）**：`cargo build --locked --features cuda-probe`、`cargo test --locked --features cuda-probe --no-run`、四门禁 fmt/clippy/clippy-cuda/unit（unit 1,387 过 0 败 / 402 ignored）全过；证据 README/receipt/manifest + logs（old/new identity、独立复算、src.diff、build/no-run）；manifest 自核、UTF-8/LF/无 BOM；diff 统计写实际 `git diff --stat` 数字。",
+    "**边界与非声明**：`unchanged fixtures/`、`unchanged tests/`、`unchanged scripts/`；其它证据目录只读（上一卡 pin 证据、G-L2 窗口、诊断轮、RCA、mesh-normal 证据）；零 GPU、不采集、不跑诊断、不动冻结件/guards；本卡不宣称修复生效（需 Chief 诊断轮 #4 token 验证 3 px 归零）、不改 G-L2 判定（判据 A FAIL 维持）、不改判据/阈值/参考/容差。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/cuda/render_shade.cu",
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-11 05:52 开工令：spec 不再等，按 `gl2-ptx-diff/README.md` 附录 D + 离线补丁 `product_megakernel_patched2.cu` 实现 R1+P5+P6。改动全在 `.cu`：新增 `dot3_first`（首项 `__fmul_rn` 打头）与 `length3_midpref`（中间项 `__fmul_rn(a.y,a.y)` 打头）；`render_shade.cu` 三处（half→normalize3_rays 撤销 P2、ndotl→dot3_first、灯模→length3_midpref）；保留 P3/P4；不动 normalize3_rays / scene.cu length3 / dot3_ba / cos_theta。记录 old→new source/PTX 三变体；不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁+证据；修完等 Chief 诊断轮 #4 token。",
+  "revision": {
+    "before": "589bc8cba4eae19eb90be002d7c2fe3cb821ef3a",
+    "after": null
+  },
+  "created_at": "2026-11-10T21:43:58.000Z",
+  "updated_at": "2026-11-10T21:43:58.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "tests/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/"
+      ]
+    }
+  ]
+}
