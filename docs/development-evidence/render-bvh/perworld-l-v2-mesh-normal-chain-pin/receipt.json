@@ -1,0 +1,185 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin",
+  "status": "mesh_normal_chain_pin_implemented_zero_gpu",
+  "slice": "perworld-l-v2-mesh-normal-chain-pin",
+  "owner": "Backend",
+  "kind": "p10-mesh-normal-chain-fix",
+  "authorization": {
+    "chief_assignment": "2026-11-11 07:31 (P10 fix card: first divergence pinned by Arch offline replay 4/4; restore local normalization + mat x-term-first rounding)",
+    "upstream_anchors": [
+      "warp/native/mesh.h:1880 (mesh_query_ray returns normalize3(local normal))",
+      "warp/mat.h:3180 (mul(mat,vec): x term rounded separately, then fma y, fma z)"
+    ],
+    "h2_premise_void": "f728b2d7 removed the local normalization under the wrong H2 premise ('cross unnormalized -> mat@n -> normalize once'); the premise is falsified by Arch replay and void; upstream chain has TWO normalizations"
+  },
+  "changes": {
+    "files": [
+      {
+        "path": "src/render/kernel/cuda/render_math.cu",
+        "old_sha256": "4f103495f4cc7c9a5da53f4b18e612224a1302a77092a0704bdf4fabca8780a0",
+        "old_bytes": 12566,
+        "old_lines": 310,
+        "new_sha256": "c26e116e1d6dd0518a20fd78ed55a992085b6ed385b2cdc9ef7aa3bf6152d5cc",
+        "new_bytes": 13685,
+        "new_lines": 326
+      },
+      {
+        "path": "src/render/kernel/cuda/render_common.cu",
+        "old_sha256": "9116ce26ae60542ee8f89de9067528cda47a28b693d27a67923135827e4fd434",
+        "old_bytes": 22348,
+        "old_lines": 498,
+        "new_sha256": "65310e906e90c084a88312302e03603cba9f805cfb036ff124a83838b06e15df",
+        "new_bytes": 22354,
+        "new_lines": 498
+      },
+      {
+        "path": "src/render/kernel/cuda/render.cu",
+        "old_sha256": "91359916c300ca19b0bb45201f1904aafa1a7292b017c06b43241b709f4b1f68",
+        "old_bytes": 22027,
+        "old_lines": 496,
+        "new_sha256": "8b390bbb2ebbd32febcaa8c38ccf073e8330a4a89b9560726e7f26fe42c0d791",
+        "new_bytes": 22033,
+        "new_lines": 496
+      }
+    ],
+    "untouched": [
+      "src/render/bvh/cuda/scene.cu (mat_vec/mat_t_vec keep the S5-verified path)",
+      "src/render/kernel/cuda/render_megakernel.cu vertex normal chain",
+      "normalize3_mesh body",
+      "render_shadow.cu",
+      "fixtures/",
+      "scripts/",
+      "tests/"
+    ],
+    "no_new_cu": "precision CUDA-surface snapshot stays at 42 files"
+  },
+  "kernel_identity": {
+    "capture": "identity tests (NVRTC pure compile, no GPU); old captured from HEAD before edits, new after",
+    "old_logs": [
+      "logs/old-identity-flags.log",
+      "logs/old-identity-depth-seg.log"
+    ],
+    "new_logs": [
+      "logs/new-identity-flags.log",
+      "logs/new-identity-depth-seg.log"
+    ],
+    "megakernel": {
+      "source_sha256_old": "624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2",
+      "source_sha256_new": "6b1ade37958facfd48f485a7433f93bcf7256a6b08a167c1ece078e0744de278",
+      "ptx_sha256_old": "1fd531314875e52a08ffda3fd63e93184e46ebda207378d5378c25b878c430b8",
+      "ptx_bytes_old": 347070,
+      "ptx_sha256_new": "48f8e7f820f7a0a931a82e07efbebef07b831b3895bb7c6423dcd4975c31fa02",
+      "ptx_bytes_new": 348399,
+      "stitched_source_bytes_old": 109384,
+      "stitched_source_bytes_new": 110509
+    },
+    "depth_seg": {
+      "source_sha256_old": "b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931",
+      "source_sha256_new": "1e3f273c88a77235640c44b2e3d52e39984cf659da87e6ff1dd237d8c871e1b9",
+      "ptx_sha256_old": "e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7",
+      "ptx_bytes_old": 138540,
+      "ptx_sha256_new": "31912377f59305e85b164da3d8b487ad127b6c262aa3792b99ecdb1b17c1cf50",
+      "ptx_bytes_new": 138857,
+      "stitched_source_bytes_old": 52427,
+      "stitched_source_bytes_new": 53552
+    },
+    "aa_resolve": {
+      "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "ptx_bytes": 27536,
+      "changed": false
+    }
+  },
+  "offline_proof": {
+    "method": "pinned CUDA 12.8.1 NVRTC, product options; old = HEAD-blob stitched, new = worktree stitched (same concat order as mod.rs); isolated probes compiled from byte-extracted functions",
+    "probe_files": [
+      "logs/offline-probe-old.cu",
+      "logs/offline-probe-new.cu",
+      "logs/offline-probe-old.ptx",
+      "logs/offline-probe-new.ptx",
+      "logs/chain-sequence.md"
+    ],
+    "old_chain_ops": 16,
+    "new_chain_ops": 23,
+    "new_chain": "local normalize (mul,fma,fma,sqrt,div x3) -> mat x-term rounded separately first (mul m[0]*n_local.x, fma m[1]*n_local.y, fma m[2]*n_local.z per row) -> second normalize",
+    "old_chain": "mat y-term rounded separately first (mul m[1]*a.y, fma m[0]*a.x, fma m[2]*a.z per row) -> single normalize",
+    "product_arith_delta": {
+      "record": "logs/ptx-arith-delta.txt",
+      "megakernel": {
+        "old_total": 3094,
+        "new_total": 3122,
+        "delta_by_opcode": {
+          "div": 12,
+          "fma": 8,
+          "mul": 4,
+          "sqrt": 4
+        },
+        "other_f32_opcode_delta": 0,
+        "delta_equals_4_instances_x_7_ops": true,
+        "sqrt_old": 62,
+        "sqrt_new": 66
+      },
+      "depth_seg": {
+        "old_total": 1201,
+        "new_total": 1208,
+        "delta_by_opcode": {
+          "div": 3,
+          "fma": 2,
+          "mul": 1,
+          "sqrt": 1
+        },
+        "other_f32_opcode_delta": 0,
+        "delta_equals_1_instance_x_7_ops": true,
+        "sqrt_old": 28,
+        "sqrt_new": 29
+      }
+    },
+    "conclusion": "offline PTX confirms the new chain is 'local mul->fma->fma->sqrt->div normalization -> mat x-term rounded first -> second normalization', and the only arithmetic change vs old is the restored normalization (+7 f32 ops per affected inlined instance); the mat y->x switch is an operand-association change with unchanged opcode multiset"
+  },
+  "depth_seg_expectation": {
+    "expected": "depth/seg numeric values unchanged: they do not depend on the normal value, only on the sign of dot(lvec, n_local) (backface culling) and geom/face/sign; normalizing by a positive length preserves the sign",
+    "identity_note": "depth_seg source/PTX identity necessarily changes (render_math.cu is included by DEPTH_SEG_SOURCE) -- new baseline recorded above",
+    "measured": {
+      "depth_seg_frozen_regression": "13 passed / 6 ignored / 0 failed (logs/depth-seg-frozen-regression.log)",
+      "kernel_flags_regression": "12 passed / 6 ignored / 0 failed (logs/kernel-flags-regression.log)"
+    }
+  },
+  "verification": {
+    "cargo_build_cuda_probe": {
+      "exit": 0,
+      "log": "logs/build-cuda-probe.log"
+    },
+    "cargo_test_cuda_probe_no_run": {
+      "exit": 0,
+      "log": "logs/no-run-cuda-probe.log"
+    },
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": {
+        "passed": 1391,
+        "failed": 0,
+        "ignored": 402
+      }
+    },
+    "identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
+    "gpu_run": "none (zero GPU)"
+  },
+  "boundaries": {
+    "changed_cu_files": 3,
+    "new_cu_files": 0,
+    "precision_cuda_surface_files": 42,
+    "unchanged_fixtures_scripts_tests": true,
+    "unchanged_scene_cu_and_other_cu": true,
+    "guards_frozen_stash_and_signed_materials": "untouched"
+  },
+  "non_claims": [
+    "does not claim the fix works: the 4 residual G-L2 criterion-A pixels must be re-measured in diagnostic round #8",
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "no criterion/threshold/reference/tolerance/camera/recipe change",
+    "does not claim rendering numerical equivalence with upstream beyond the pinned mesh normal chain",
+    "history not rewritten (f728b2d7 message untouched; H2 premise void recorded here and in code comments)"
+  ]
+}

@@ -5,6 +5,10 @@
 // `normalize3_mesh`（S2b `scene.cu` 已在本编译单元前置、定义了不同语义的同名函数），
 // 表达式、运算顺序、比较方向与 S3 逐字一致。
 //
+// P10（2026-11-11）：恢复 `mesh_query_ray` 返回前的**局部归一化**（与 S3 `mesh.cu:290` 一致；
+// `f728b2d7` 依错误 H2 前提删除，已由 Arch 离线重放证伪），并新增 `mat_vec_xpref`
+// （上游 warp `mat.h:3180 mul(mat,vec)` 的 x 项先单独舍入）供 mesh 法线消费点使用。
+//
 // 本文件被 `src/render/kernel/cast.rs::DEPTH_SEG_SOURCE` 用 `include_str!` 接在
 // S2b `scene.cu` 之后、`cuda/render.cu` 之前，因此可直接复用 `scene.cu` 的 `V3`
 // 辅助函数（`v3`/`add`/`sub`/`scale`/`dot`/`cross`/`mat_vec`/`mat_t_vec`/`ray_map`）。
@@ -22,6 +26,15 @@ __device__ __forceinline__ V3 normalize3_mesh(V3 a) {
         return v3(a.x / l, a.y / l, a.z / l);
     }
     return v3(0.0f, 0.0f, 0.0f);
+}
+
+// 上游 warp `mat.h:3180 mul(mat,vec)`：**x 项先单独舍入**，再 fma y、fma z（行主序索引与
+// `scene.cu::mat_vec` 完全一致，只把独立舍入项从 y 改为 x）。仅供 mesh 法线消费点使用；
+// 不改 `scene.cu::mat_vec`（S5 已验路径保持）。
+__device__ __forceinline__ V3 mat_vec_xpref(const float* m, V3 a) {
+    return v3(fmaf(m[2], a.z, fmaf(m[1], a.y, m[0] * a.x)),
+              fmaf(m[5], a.z, fmaf(m[4], a.y, m[3] * a.x)),
+              fmaf(m[8], a.z, fmaf(m[7], a.y, m[6] * a.x)));
 }
 
 // viewport constants from upstream ray.py.
@@ -236,9 +249,12 @@ __device__ __forceinline__ bool mesh_query_ray(V3 pnt, V3 vec, float max_t, int 
     *out_u = min_u;
     *out_v = min_v;
     *out_sign = min_sign;
-    // 上游 mesh 法线链（G-L2 判据 A RCA H2）：cross(ab,ac) 未归一化 → 消费端 mat@n → normalize 一次。
-    // 本函数返回未归一化的三角面法线；唯一一次归一化由 render_common.cu / render.cu 的消费端完成。
-    *out_normal = min_normal;
+    // 上游 `wp.mesh_query_ray`（warp/native/mesh.h:1880）返回前对**局部法线**归一化（与 S3
+    // `mesh.cu:290` 一致）；消费端随后做 `mat @ n`（x 项先舍入）与再一次归一化 ⇒ 上游 mesh
+    // 法线链共两次 normalize。
+    // 注：G-L2 判据 A RCA 的 H2 前提（「cross 未归一化、消费端只 normalize 一次」）已被 Arch
+    // 离线重放证伪并作废；`f728b2d7` 依该前提删除的这次归一化在本卡（P10）恢复。
+    *out_normal = normalize3_mesh(min_normal);
     *out_face = min_face;
     return true;
 }

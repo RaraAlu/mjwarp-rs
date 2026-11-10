@@ -222,7 +222,7 @@ __device__ __forceinline__ float ray_mesh_leaf(const int* mesh_meta, const float
         }
         if (!cull_backfaces || dot(lvec, n_local) < 0.0f) {
             distance = offset + t;
-            *normal = normalize3_mesh(mat_vec(mat, n_local));
+            *normal = normalize3_mesh(mat_vec_xpref(mat, n_local));
             *bary_u = tu;
             *bary_v = tv;
             *face_out = face;
