@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4",
+  "title": {
+    "zh": "G-L2 验证窗 attempt 4（canonical 执行 + 证据归档；判据 A/B/C 全通过；零 GPU 之外仅窗口）",
+    "en": "G-L2 validation window attempt 4 (canonical execution + evidence archive; criteria A/B/C pass; GPU only inside the window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "Chief 2026-11-11 07:43 GO 的 attempt-4 验证窗：monitor 60/60 → guards 重新冻结（-Attempt 4）→ 三点基线/floor → 12 个冻结 exe 单次执行（11 回归 + 实体 `--nocapture`）→ 证据归档。本轮 A 全 0（6 帧）、B 0/0、world 隔离与 C/§2.4 通过，12/12 exit 0；证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/`，manifest 51/51 自核。不改判据/参考/容差；不重跑、不放宽；不宣称上游等价/渲染数值等价（对外声明另需 S-1/签名流程）。",
+    "en": "Attempt-4 validation window per Chief GO (2026-11-11 07:43): monitor 60/60 -> re-freeze guards with -Attempt 4 -> baseline/floor -> 12 frozen exes executed once each (11 regression + entity with --nocapture) -> archive. Criteria A all-zero over 6 frames, B 0/0, world isolation and C/section-2.4 pass, 12/12 exit 0. Evidence under perworld-l-v2-validate-window-g-l2/attempts/attempt4/, manifest 51/51 self-checked. No criterion/reference/tolerance change; no rerun; no upstream-equivalence claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "monitor：samples=78、longest_clean=60、ready=true、util 2–6%、free_min 12,136 MiB（`window/monitor.csv`）",
+    "guards 重新冻结 `-Execute -Attempt 4 -AllowOldStashDrift`：attempt=4、sha `94478b3d…`/43,729 B、aggregate `08180107…`、107 = 12 exe + 93 输入 + 2 清单、12/12 live==guard==stash、SELFCHECK 18/18；旧 suite 只读未变；旧 stash drift 1 条只报告",
+    "baseline 三点（util 2–3%、used 3,919 MiB、free 12,143 MiB、26℃）与 floor：signed 取严 9,956、onspot 9,071、`floor_effective=9,956`，现场 free 高于 floor",
+    "body env：pinned CUDA bin PATH + criterion v2.2 outline env 成对导出；`ENV_SELFCHECK_PASS failures=0`；pre/post outline 校验均 OK、canary `violations=0`",
+    "12 个冻结 exe 单次执行、冻结路径、`--ignored --test-threads=1 --nocapture`、零编译：**12/12 exit 0**",
+    "实体 `render_per_world_light` exit 0：A 六帧全 0（rgb/depth/seg）、B `xpos=0/xdir=0`、world 隔离 `[[false,false],[true,true],[false,false]]`、C `PassMargin`、§2.4 `Compared`、两跑 sha 相等（断言通过；测试未打印具体 sha 值，已记录为事实）、pilot 用例 PASS",
+    "运行前后完整性：guards sha 未变、12/12 live==guard==stash、outline post OK、旧 suite/stash 只读未变、build_processes=0；树在 body 结束仅 guards JSON 变更",
+    "证据：`attempts/attempt4/` README/receipt/manifest + window 全部日志（monitor/freeze/guards 副本/integrity/baseline/floor/env/outline/canary/run 24 日志/input-hashes/exitcode-selftest），manifest 51/51 自核；提交 guards JSON + 证据（取锁后一次提交，中文 message）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/",
+      "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "attempt-4 canonical 窗：A/B/C/§2.4/隔离/确定性全通过；attempt=1 的旧 guards 未入库（按 GO 重新以 -Attempt 4 冻结）。两跑 sha 具体值未打印属测试源码现状，登记 backlog。",
+  "revision": {
+    "before": "1859f5ca138d497695b8be9b373cc707cefc495e",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:57:02.956Z",
+  "updated_at": "2026-11-10T23:57:02.956Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "src/",
+        "tests/"
+      ]
+    }
+  ]
+}
