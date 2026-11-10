@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-diag7-check",
+  "title": {
+    "zh": "QA 复核诊断轮 #7（产品侧扩展 dump）运行与 dump 合规：单次/无重试（一份 test7 日志、无 retry 标记、时间线单调）、锁按记录+披露采信（仓内无审计日志）、HEAD `a7841834` 相对 token 基准 `a3dc5e7b` 的 src/tests/fixtures/scripts diff 为空且树 clean、dump 未入库；exe 92,588,042 B/`5ca3619c…`（修卡后构建）、内核身份 source `624ab298…` 我独立重算一致、PTX `1fd53131…`/347,070；dump 55,485 B/`8cadf764…` 顶层 `schema==2`、4 px 全带 18 键 diagnostics、stride 64/4 灯槽、偏移编码与 README §2 一致；**我加做三项绑定校验全过**（`ray_index=cam*76800+pixel` 且 `y*320+x==pixel` 四例、`view_dir=ray_dir^0x80000000` 12/12、`trunc(color*255)==product.bytes` 12/12）；C/A 数字与历轮一致、depth/seg 0；与 diag6 像素集/packed 字节/非 diagnostics 字段逐项相同 → **PASS（0 阻断，3 低残留）**；残留：跑后 GPU 未记录（`$gpu` 字面量）与时间戳占位、body-env 路径转义污染、GPU 数字与派工信息不一致 — 不判定修复效果、G-L2 维持未通过",
+    "en": "QA review of diagnostic round #7: single run/no retry, boundary clean, dump schema 2 with complete diagnostics, offsets/encoding match the documented layout, QA-added binding checks pass (ray mapping, view_dir sign flip, color->packed truncation 12/12), stats match previous rounds, diag6 consistency reproducible - PASS with 3 low record-level residuals"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对诊断轮 #7（产品侧扩展 dump；现场 `target/render-bvh/perworld-l-v2-gl2/diag7/`）做独立只读复核（零 GPU），只核「运行与 dump 合规」、不判修复效果：①单次/无重试、锁纪律、现场记录；②dump 顶层 schema==2、diagnostics 字段齐全、偏移/位型/编码与 README §2 一致；③`ray_index` 与像素槽映射自洽；④A/B/C 数字与历轮一致、depth/seg 0；⑤dump 与 diag6 一致性声明可复现；⑥口径。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of diagnostic round #7 run and dump compliance (not fix effect): single-run/lock/records, dump schema and diagnostics layout, ray mapping, stats consistency, diag6 comparison, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① 单次/无重试、现场记录 ✅（附记录瑕疵）**：HEAD `a7841834`，`git diff a3dc5e7b..HEAD -- src/ tests/ fixtures/ scripts/` **空**、树 clean、diag7 未入库；diag7 只有一对 `test7.stdout/stderr.log`、无 retry/attempt/rerun 标记，时间线 pre-state 07:22:07 → dump/logs 07:22:18 → analysis 07:22:27/35 → summary 07:22:43；实体 exit **101**（预期）、wall 2.73 s、`pilot_c1_crosscheck_matches_readout` **ok**、prebuild `--no-run` 0.13 s cache hit；锁 acquire/release 按 pre-state/run-summary 记录（仓内无锁审计日志，按记录+披露采信，当前 FREE）✅",
+    "**① exe/身份 ✅**：exe 实测 **92,588,042 B / `5ca3619c…`**、mtime 2026-11-11T07:03:02（修卡后构建；dump schema==2 即证测试侧 `SCHEMA=2` 生效）；我按 `mod.rs` 顺序独立重算 7 文件拼接 source **`624ab298…`/109,384 B**，与 identity-check.log（PTX `1fd53131…`/347,070，离线 NVRTC）一致；无 `.cu` 改动 ✅",
+    "**② dump schema/字段/偏移编码 ✅**：dump **55,485 B / sha `8cadf764…`**；顶层 `schema=2`、`kind=g-l2-entity-pixel-diagnostic`、`env=MJWARP_DIAG_PIXEL_DUMP`；`rgb_mismatches=4` 全部带 `diagnostics`、`depth/seg_mismatches=0`；每 diagnostics **18 键**、`stride=64`、`light_slots=4`、每 px 4 灯槽×8 值；逐字段数量与 dump-ext README §2 偏移表（color 3/base 3/tex_uv 2/tex_color 3/bary 2/t/face/mesh_id/hit_point 3/normal 3/ray_dir 3/lights 4×8）逐项一致；反解 f32 抽查合理、`face=2`/`mesh_id=0` ✅",
+    "**③ ray_index 映射自洽 ✅**：`ray_index = cam*76800 + pixel` 且 `y*320+x == pixel` 四例全对：13268→**90,068**、10744→**87,544**、22903→**99,703**、39492→**116,292**；`ray.ray_index == diagnostics.ray`、`sample=0` ✅",
+    "**④ A/B/C 数字一致 ✅**：stdout `c1=[38285, 40644]`、`c2_depth=[35828, 33883]`、`c2_seg=[16041, 16754]`、`PassMargin`、`Compared`、`diag campersp 0/0`、`camhinge [50363, 52329]` 与历轮逐数一致；dump frames rgb `0/0, 0/1, 0/0, 0/3, 0/0, 0/0`（max byte diff 1）、depth/seg 全 0 ✅",
+    "**⑤ 与 diag6 一致性可复现 ✅**：diag6（44,977 B/`521718e5…`，schema=1 无 diagnostics）vs diag7：像素集相同、`product/reference packed_u32` 逐项相同、**除 diagnostics 外全部 mismatch 条目字段逐项相同**、顶层除 `schema`/`generated_at_unix`/`rgb_mismatches[].diagnostics` 外无差异 ⇒「差异仅新增字段、44,977→55,485 B」成立 ✅",
+    "**附加绑定校验（我加做，全过）✅**：① 内核 pack 为 `pack_rgba_to_uint32(hit_color*255,…)` 截断——用 diagnostics `color_bits` 反解 f32 后 `trunc(color*255)` 与 `product.bytes` **12/12 全等**（证明 diagnostics 确属该 ray/像素、color 偏移与编码正确）；② `view_dir_bits == ray_dir_bits ^ 0x80000000` 4 px×3 分量全成立（精确符号位翻转）；③ 4 px 均 4 灯槽，本场景 nlight=3+headlight 落 slot3，无 `nlight>=4` 冲突 ✅",
+    "**低残留 R1**：`run-summary.txt` 的 `gpu_after=$gpu` 未展开（**跑后 GPU 未记录**）、`time=…07:2x…` 占位式时间戳。",
+    "**低残留 R2**：`body-env.txt` 路径被 PowerShell 转义污染（TAB×2、退格×1：`where nvrtc64_120_0.dll` 行不可读、`PATH_PREPEND` 行文本缺 `target` 段）——记录生成瑕疵，运行实际成功（pilot 通过 + dump 生成 + nvrtc 已加载）。",
+    "**低残留 R3**：GPU 数字与派工信息不一致——现场 `pre-state.txt` 为 **2% / 3,924 MiB / 12,138 free / 26℃**，派工信息为 **pre 4% / 3,919 MiB / 26℃、post 2% / 3,914 MiB / 26℃**，且跑后值未落盘（R1）；建议核对采样时点并补记。",
+    "**观察 O1**：`preflight.txt` §6 标题残留 `({ts})`；§1 记录的是修卡前旧 exe（92,558,136/`fcfc9035…`）且文件内已注明 stale/§6 说明 #7 会 relink，与 run-summary 新 exe 不矛盾但阅读需注意。**观察 O2**：锁纪律按记录+披露采信（仓内无锁审计日志，既有 backlog）；未发现并发写或第二份运行证据。",
+    "**⑥ 口径 ✅**：本复核只核运行与 dump 合规，**不判定修复效果**（4 px 仍在、判据 A 仍 FAIL，G-L2 维持未通过）；dump 仅诊断用途、未入库；未改代码/未重冻/未重跑/未采集，零 GPU ✅",
+    "**结论：PASS（0 阻断，3 条低残留 + 2 观察）。** dump 与其字段/映射/绑定均合规，可交给 Arch 做参考侧逐站比对；本复核不改变 G-L2 判定。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix",
+      "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag7-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核诊断轮 #7（产品侧扩展 dump），只核运行与 dump 合规、不判修复效果。结论 PASS（0 阻断，3 低残留 + 2 观察）。已核：HEAD a7841834 相对 token 基准 a3dc5e7b 的 src/tests/fixtures/scripts diff 为空、树 clean、diag7 未入库；单次/无重试（一对 test7 日志、无 retry 标记、时间线单调 07:22:07→07:22:18→07:22:43），实体 exit 101 预期、wall 2.73s、pilot ok、prebuild cache hit；锁按记录+披露（无审计日志）；exe 92,588,042/5ca3619c（修卡后构建，dump schema==2 证 SCHEMA=2 生效）、内核身份 source 624ab298/109384 我独立重算一致、PTX 1fd53131/347070；dump 55,485B/8cadf764、顶层 schema==2、4 px 全带 18 键 diagnostics、stride 64、4 灯槽、偏移/编码与 README §2 一致；我加做绑定校验全过（ray_index=cam*76800+pixel 且 y*320+x==pixel 四例 90068/87544/99703/116292、view_dir=ray_dir^0x80000000 12/12、trunc(color*255)==product.bytes 12/12）；C/A 数字与历轮一致（c1 [38285,40644] 等、A 0/1/0/3/0/0、depth/seg 0）；与 diag6 像素集/packed/非 diagnostics 字段逐项相同。残留：run-summary gpu_after=$gpu 未展开且 time 占位；body-env 路径转义污染（TAB/退格，运行不受影响）；GPU 数字与派工信息不一致且跑后未记录。观察：preflight ({ts}) 占位与旧 exe 说明；锁无审计日志。不判定修复效果、不改判据、G-L2 维持未通过。",
+  "revision": {
+    "before": "b1895536eec7812163f1185140999147b2e55c98",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:26:11.000Z",
+  "updated_at": "2026-11-10T23:26:11.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag7-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-gl2-diag7-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag7-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
