@@ -1,0 +1,66 @@
+# QA check: three signature_status blocks + S-1 signatures_required (character-exact)
+
+## S-1 receipt
+  S-1 = signed 2026-11-08 (spec v3 sha256 bb064fe0... / 39,379 B, frozen)
+  S-2 = signed 2026-11-08 (dual sign: plan + baseline 13,302 MiB / signed floor 10,230 MiB); signing does NOT open G-L1 (needs QA PASS + Chief token + on-the-spot stricter floor + monitor 60/60)
+  S-3 = signed 2026-11-11 (dual sign: plan + baseline_free 13,028 MiB / signed floor 9,956 MiB); signing does NOT open G-L2 (needs QA PASS + Chief G-L2 token + on-the-spot stricter floor + monitor 60/60 + zero compile)
+## S-2 receipt
+  S-1 = signed 2026-11-08 (spec v3 sha256 bb064fe0... / 39,379 B, frozen)
+  S-2 = signed 2026-11-08 (this signature card; plan + baseline 13,302 MiB / signed floor 10,230 MiB + authoring exception + failure clauses)
+  S-3 = signed 2026-11-11 (dual sign: plan + baseline_free 13,028 MiB / signed floor 9,956 MiB); signing does NOT open G-L2 (needs QA PASS + Chief G-L2 token + on-the-spot stricter floor + monitor 60/60 + zero compile)
+## S-3 receipt
+  S-1 = signed 2026-11-08 (spec v3 sha256 bb064fe0... / 39,379 B, frozen)
+  S-2 = signed 2026-11-08 (dual sign: plan + baseline 13,302 MiB / signed floor 10,230 MiB); signing does NOT open G-L1 (needs QA PASS + Chief token + on-the-spot stricter floor + monitor 60/60)
+  S-3 = signed 2026-11-11 (dual sign: plan + baseline_free 13,028 MiB / signed floor 9,956 MiB); signing does NOT open G-L2 (needs QA PASS + Chief G-L2 token + on-the-spot stricter floor + monitor 60/60 + zero compile)
+
+## character-exact equality matrix (value in S-1 vs S-2 vs S-3)
+  S-1: S1==S2 -> True;  S1==S3 -> True;  S2==S3 -> True
+  S-2: S1==S2 -> False;  S1==S3 -> True;  S2==S3 -> False
+  S-3: S1==S2 -> True;  S1==S3 -> True;  S2==S3 -> True
+
+## S-1 signatures_required (all rows)
+  [1] S-1 spec sha256+bytes (v3) - SIGNED 2026-11-08 and effective; spec frozen at sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / 39,379 B
+  [2] S-2 collection window plan + baseline 13,302 MiB / signed floor 10,230 MiB - SIGNED 2026-11-08 (recorded in perworld-l-v2-capture-window-s2-signature); signing does not open G-L1: still needs QA PASS + Chief token + on-the-spot stricter floor + monitor 60/60
+  [3] S-3 validation window plan + baseline_free 13,028 MiB / signed floor 9,956 MiB (user dual-sign) + Chief token - SIGNED 2026-11-11 (recorded in 2026-11-11-render-perworld-l-v2-validate-window-s3-signature); signing does not open G-L2: still needs QA PASS + Chief G-L2 token + on-the-spot stricter floor + monitor 60/60 + zero compile
+  [4] pilot token is Chief-level (G-L0), not a user signature
+
+## S-1 receipt diff shape in the reviewed commit
+  git diff --stat: - - docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json
+  changed lines are exactly: signature_status.S-3 and signatures_required[S-3]; the S-1 signed fact, the S-2 row and every criteria/measurement field are byte-identical
+## S-2 receipt diff shape in the reviewed commit
+  git diff --stat: - - docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/receipt.json
+  changed lines are exactly: signature_status.S-3 (S-2 own signed facts untouched)
+
+## S-3 signature block (as recorded)
+  signer = user
+  signed_at = 2026-11-11
+  timezone = Asia/Shanghai
+  method = chat card selection (dual sign S-3: plan + signed floor 9,956)
+  scope = S-3a G-L2 validation window plan (guards freeze 107 = 12 exe + 93 inputs + 2 criterion v2.2 outline lists, old suite/stash read-only; reference five files 11,078,239 B; entity render_per_world_light final bab01507 with QA chain 7d089165/6a75ceee/be12145e; criteria A/B/C and section 2.4 reconciliation requiring check_capture_c1 == Compared (Skipped => stop); freeze after monitor PASS; zero compile in the body; live==guard==stash; single attempt fail-stop) + S-3b baseline_free 13,028 MiB / signed floor 9,956 MiB (NOT the S-2 values 13,302 / 10,230; re-measured on the spot within 5 minutes before the window; floor_effective = max(signed floor, on-the-spot floor), higher = stricter) + known fact and ruling on the old-stash drift (pre-existing known item; the old stash is a historical read-only reference and is NEVER evidence for this window; the window rebuilds and re-stashes its own 12 exes; -AllowOldStashDrift may be passed with the reason recorded in the window evidence; the old guards JSON must not be modified) + failure clauses (any failure: stop, report the user, no retry, no threshold/reference/camera/frozen-artifact change)
+  material_path = docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/README.md
+  material_sha256 = 437dc793d13d4f1bc997bd73a554f50b7351a7e8394b9fd6a2ad2f3d2edd816a / 18694 B
+  spec_sha256 before/after = bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d / bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d
+  spec_unchanged_by_this_card = True
+  does_not_open_window = signing alone does NOT open G-L2: still needs QA PASS on this material, the Chief G-L2 token, the three-point baseline within 5 minutes before the window with floor_effective = max(signed 9,956 MiB, on-the-spot) (higher = stricter), monitor 60/60 util<40, zero compile inside the body, and live==guard==stash for all 12 frozen exes
+  note = material_sha256 is the README revision the user signed; this signature card appends a version record to README.md afterwards, so the README sha in the manifest differs from the signed sha (expected; the signature binds to the sha above)
+
+## S-3 status / pending
+  receipt.status = signed_pending_window; receipt.signed_object = True
+  receipt.pending = PENDING-FREEZE: 12 live exe path/bytes/sha + stash, aggregate_sha256, guards JSON sha (freeze stage)
+  receipt.boundary.signed_object = True
+
+## S-3 non_claim (as recorded)
+  [1] material only; not a G-L2 start (needs entity QA PASS + user S-3 dual signature + Chief G-L2 token)
+  [2] no capture validity / per-world light acceptance / upstream equivalence / render numeric claims
+  [3] PENDING-FREEZE values are filled at the G-L2 freeze stage; PENDING-QA and PENDING-REFRESH were filled on 2026-11-09 (G-L1 QA review ef1bcce3 / HEAD 6365a7c5; entity final bab01507 with the QA chain); the dual-sign summary was pre-reviewed and the user dual-signed S-3 on 2026-11-11 (signature card 2026-11-11-render-perworld-l-v2-validate-window-s3-signature)
+  [4] S-3 was signed 2026-11-11, but signing alone does not open the window: G-L2 still needs QA PASS + the Chief G-L2 token + the on-the-spot stricter floor + monitor 60/60 + zero compile; and no capture validity / per-world light acceptance / upstream equivalence / render numeric conclusion follows from the signature
+  [5] stale-wording note (deliberately not edited): the S-1 criterion receipt non_claim still carries its 2026-11-08 sentence 'S-2 and S-3 not signed'; this card only touches its signature_status and signatures_required (as directed) to avoid rewriting verified evidence, so the S-3 signature fact is authoritative in the three signature_status blocks and in this signature block
+
+## S-1 receipt non_claim (unchanged by this card; known stale sentence)
+  [1] S-1 signed and effective 2026-11-08; S-2 and S-3 not signed; the spec header's 'pending user signature' wording is frozen as written and the signature fact is receipt.signature
+  [2] not a per-world L v2 start
+  [3] no per-world light coverage claimed
+  [4] no upstream equivalence claimed
+  [5] no performance or rendering-value conclusions claimed
+  [6] section 3 discriminability numbers are CPU predictions, not renderer measurements
+  [7] spot has zero discriminability; only sun/lamp are discriminable in this reference

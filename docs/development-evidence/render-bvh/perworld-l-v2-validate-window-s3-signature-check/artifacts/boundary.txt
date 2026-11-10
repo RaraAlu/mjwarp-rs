@@ -1,0 +1,54 @@
+# QA boundary check for the S-3 signature record card
+  reviewed commit ea91108e (parent 426fadfb482b4d0095f97010d837f02903e9b552)
+
+## commit inventories
+  registration commit 426fadfb files = 1
+  evidence commit ea91108e files = 12
+  changed paths:
+    .normify/changes/2026-11-11-render-perworld-l-v2-validate-window-s3-signature.json
+    .normify/runs/2026-11-11-render-perworld-l-v2-validate-window-s3-signature/clippy-cuda.json
+    .normify/runs/2026-11-11-render-perworld-l-v2-validate-window-s3-signature/clippy.json
+    .normify/runs/2026-11-11-render-perworld-l-v2-validate-window-s3-signature/fmt.json
+    .normify/runs/2026-11-11-render-perworld-l-v2-validate-window-s3-signature/unit.json
+    docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/manifest.txt
+    docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/receipt.json
+    docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/manifest.txt
+    docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/receipt.json
+    docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/README.md
+    docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/manifest.txt
+    docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/receipt.json
+
+## boundary diff counts
+  src        changed_files=0
+  tests      changed_files=0
+  fixtures   changed_files=0
+  scripts    changed_files=0
+  S-3 materials changed_files=0 (signature material kept bit-identical; README section 10 says so)
+  docs outside the three perworld dirs + .normify = 0
+
+## card two-phase shape
+  426fadfb contains only the card record; the card there has status=proposed, closed_at empty (registration, not verified)
+  ea91108e carries proposed->verified, closed_at, the four gate runs and all evidence: the two-phase flow cannot mark a card verified without a committed registration first
+
+## encoding hygiene of the changed evidence files
+  perworld-l-v2-validate-window-s3/README.md     BOM=False CR=0 TAB=0 bytes=21718
+  perworld-l-v2-validate-window-s3/receipt.json  BOM=False CR=0 TAB=0 bytes=26121
+  perworld-l-v2-validate-window-s3/manifest.txt  BOM=False CR=0 TAB=0 bytes=1656
+  perworld-l-v2-light-criterion/receipt.json     BOM=False CR=0 TAB=0 bytes=23280
+  perworld-l-v2-light-criterion/manifest.txt     BOM=False CR=0 TAB=0 bytes=456
+  perworld-l-v2-capture-window-s2/receipt.json   BOM=False CR=0 TAB=0 bytes=13865
+  perworld-l-v2-capture-window-s2/manifest.txt   BOM=False CR=0 TAB=0 bytes=1342
+
+## stale-wording scan (receipts + README)
+  perworld-l-v2-light-criterion/receipt.json     hits=1
+     L313: "S-1 signed and effective 2026-11-08; S-2 and S-3 not signed; the spec header's 'pending user signature' wording is frozen as written and the signatur
+  perworld-l-v2-capture-window-s2/receipt.json   hits=1
+     L226: "suggested baseline readings are pre-window references, not signed values; the window recomputes and uses the higher (stricter) floor",
+  perworld-l-v2-validate-window-s3/receipt.json  hits=3
+     L408: "dual-sign summary finalised for pre-review (NOT signed)",
+     L416: "the 2026-11-09 entries above describe that batch: at that time the summary was finalised for pre-review and NOT signed"
+     L447: "stale-wording note (deliberately not edited): the S-1 criterion receipt non_claim still carries its 2026-11-08 sentence 'S-2 and S-3 not signed'; thi
+  perworld-l-v2-validate-window-s3/README.md     hits=0
+
+## window / GPU posture
+  no window card started, no capture, no GPU: the commit only touches records/evidence; `normify status` shows 运行0

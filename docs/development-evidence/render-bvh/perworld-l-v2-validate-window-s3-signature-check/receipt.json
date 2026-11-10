@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-validate-window-s3-signature-check",
+  "kind": "qa-review",
+  "reviewed_task_id": "2026-11-11-render-perworld-l-v2-validate-window-s3-signature",
+  "reviewed_commit": "ea91108ed3179a6330a9e93b1c4497f4392d32c1",
+  "reviewed_registration_commit": "426fadfb482b4d0095f97010d837f02903e9b552",
+  "reviewed_parent": "426fadfb482b4d0095f97010d837f02903e9b552",
+  "reviewer": "QA",
+  "date": "2026-11-11",
+  "verdict": "PASS",
+  "blockers": 0,
+  "observations": 4,
+  "method": [
+    "git cat-file the parent-commit README blob and hash it, then compare with receipt.signature.material_sha256 (signed object vs post-signature sha)",
+    "hash spec.md from the working tree, the HEAD blob and the parent blob",
+    "recompute the three evidence manifests independently (S-1 3, S-2 12, S-3 15)",
+    "compare the three signature_status keys character-exactly across the three receipts; list S-1 signatures_required",
+    "read the full diff of ea91108e against the S-1 / S-2 / S-3 receipts to confirm only signature-related lines changed",
+    "scan every NOT SIGNED / not signed / 未签 hit in the four evidence documents and classify each as current-state or historical",
+    "boundary: full changed-path list, per-path diff counts (including S-3 materials), encoding hygiene (BOM/CR/TAB) of the changed evidence files",
+    "gates: re-run fmt / clippy / clippy-cuda / cargo test --locked at HEAD; normify check on the reviewed card"
+  ],
+  "signature_facts": {
+    "receipt_status": "signed_pending_window",
+    "signed_object": true,
+    "signer": "user",
+    "signed_at": "2026-11-11",
+    "timezone": "Asia/Shanghai",
+    "method": "chat card selection (dual sign S-3: plan + signed floor 9,956)",
+    "scope_s3a": "guards freeze 107 = 12 exe + 93 inputs + 2 criterion v2.2 lists; old suite/stash read-only; reference five files 11,078,239 B; entity render_per_world_light final bab01507 with QA chain 7d089165/6a75ceee/be12145e; criteria A/B/C and section 2.4 requiring check_capture_c1 == Compared (Skipped => stop); freeze after monitor PASS; zero compile in body; live==guard==stash; single attempt fail-stop",
+    "scope_s3b": "baseline_free 13,028 MiB / signed floor 9,956 MiB; explicitly NOT the S-2 values 13,302 / 10,230; re-measured on the spot within 5 minutes; floor_effective = max(signed, on-the-spot), higher = stricter",
+    "old_stash_drift_ruling_included": true,
+    "failure_clauses_included": true,
+    "does_not_open_window_conditions": 6,
+    "does_not_open_window_text": "signing alone does NOT open G-L2: still needs QA PASS on this material, the Chief G-L2 token, the three-point baseline within 5 minutes before the window with floor_effective = max(signed 9,956 MiB, on-the-spot) (higher = stricter), monitor 60/60 util<40, zero compile inside the body, and live==guard==stash for all 12 frozen exes"
+  },
+  "signed_object_binding": {
+    "receipt_material_sha256": "437dc793d13d4f1bc997bd73a554f50b7351a7e8394b9fd6a2ad2f3d2edd816a",
+    "receipt_material_bytes": 18694,
+    "measured_parent_commit_readme_sha256": "437dc793d13d4f1bc997bd73a554f50b7351a7e8394b9fd6a2ad2f3d2edd816a",
+    "measured_parent_commit_readme_bytes": 18694,
+    "matches": true,
+    "current_readme_sha256": "ddb15baaa96f0cef29f58496ee1deab0fb3963becd7dca6d289c9e859491b532",
+    "current_readme_bytes": 21718,
+    "post_signature_sha_relation_documented": "receipt.signature.note and README section 10 both state that the manifest records the post-version-record sha while the signature binds the signed sha"
+  },
+  "spec_invariance": {
+    "working_tree_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "head_blob_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "parent_blob_sha256": "bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d",
+    "bytes": 39379,
+    "present_in_reviewed_commit": false
+  },
+  "signature_status_consistency": {
+    "S-1_row_identical_across_three": true,
+    "S-3_row_identical_across_three": true,
+    "S-2_row_identical_across_three": false,
+    "S-2_row_difference": "the S-2 receipt describes its own row as '(this signature card; plan + baseline 13,302 MiB / signed floor 10,230 MiB + authoring exception + failure clauses)'; pre-existing from 2f361d91, not touched by this card, no factual conflict",
+    "s1_signatures_required_s3_row": "SIGNED 2026-11-11 (recorded in 2026-11-11-render-perworld-l-v2-validate-window-s3-signature); signing does not open G-L2",
+    "s1_receipt_diff_logical_lines": 2,
+    "s2_receipt_diff_logical_lines": 1
+  },
+  "stale_wording": {
+    "s1_non_claim_stale_sentence_present": true,
+    "s1_non_claim_modified_by_this_card": false,
+    "documented_in_s3_non_claim": true,
+    "s3_non_claim_entry": "stale-wording note (deliberately not edited): the S-1 criterion receipt non_claim still carries its 2026-11-08 sentence 'S-2 and S-3 not signed'; this card only touches its signature_status and signatures_required (as directed) ...",
+    "misleading": false
+  },
+  "commit_shape": {
+    "registration_commit_files": 1,
+    "registration_card_status": "proposed",
+    "registration_card_closed_at_empty": true,
+    "evidence_commit_files": 12,
+    "evidence_commit_transitions": "card proposed -> verified, four gate runs, S-3 README/manifest/receipt, S-1 manifest/receipt, S-2 manifest/receipt",
+    "premature_verified_without_registration": false
+  },
+  "boundary": {
+    "src_changed_files": 0,
+    "tests_changed_files": 0,
+    "fixtures_changed_files": 0,
+    "scripts_changed_files": 0,
+    "s3_materials_changed_files": 0,
+    "docs_outside_three_perworld_dirs_changed_files": 0,
+    "reviewed_commit_changed_paths": 12,
+    "signature_material_untouched": true
+  },
+  "evidence_selfcheck": {
+    "s3_manifest_entries": 15,
+    "s3_manifest_mismatches": 0,
+    "s1_manifest_entries": 3,
+    "s1_manifest_mismatches": 0,
+    "s2_manifest_entries": 12,
+    "s2_manifest_mismatches": 0,
+    "s3_readme": "ddb15baaa96f0cef29f58496ee1deab0fb3963becd7dca6d289c9e859491b532 / 21718 B",
+    "s3_receipt": "3262f72e0c2d03a1c984adc7b29f76251999cc9034a7fb3fa700280e86727bd0 / 26121 B",
+    "s3_manifest": "1b20d5b55c9f21d16776dba14e9bccb866226d5700e0b316340b8ddf033b8b00 / 1656 B",
+    "s1_receipt": "3698ce40269e76c4ee569d912a49210115862708917784e8f2f9e19c12cb7a5f / 23280 B",
+    "s2_receipt": "867a0fad1f96411d0e639b2f24bf7cc5c84b95882d97c8622a878d09c456452f / 13865 B",
+    "encoding": "7 changed evidence files: BOM=False, CR=0, TAB=0"
+  },
+  "gates": {
+    "fmt": "exit 0",
+    "clippy": "exit 0",
+    "clippy_cuda": "exit 0",
+    "unit": "exit 0; 1387 passed / 0 failed / 402 ignored (145 suites); matches the recorded run artifact"
+  },
+  "board": {
+    "verified_after": 829,
+    "running": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "findings": [
+    "signature facts complete and specific: signer, date, method, S-3a plan scope with guards 107 / reference 11,078,239 B / entity bab01507 + QA chain / section 2.4 Compared requirement, S-3b floor 9,956 with max(stricter) rule, old-stash drift ruling and failure clauses",
+    "material_sha256 binds the README revision the user actually signed (independently reproduced from the parent commit); the post-signature sha change is documented in both receipt and README section 10",
+    "does_not_open_window carries all six conditions",
+    "S-1 and S-3 rows of signature_status are character-identical across the three receipts; the S-2 row differs only in the S-2 receipt itself (pre-existing, untouched)",
+    "S-1 receipt changed exactly two logical lines (S-3 status + S-3 required row); S-1 signed facts and criteria untouched",
+    "spec.md bytes identical in working tree, HEAD blob and parent blob and absent from the commit",
+    "S-1 stale non_claim sentence deliberately not edited and documented in the S-3 receipt",
+    "two-commit shape: registration is a proposed-only commit; verified lands with evidence and runs, so there is no premature-verified path",
+    "boundary: only 12 files, no src/tests/fixtures/scripts change, S-3 materials bit-identical, three manifests recompute clean, gates 1387/0/402"
+  ],
+  "observations_detail": [
+    "O1 (info): the S-2 row of signature_status is worded differently in the S-2 receipt itself (pre-existing 2f361d91); S-1 and S-3 agree character-exactly and there is no factual conflict",
+    "O2 (info): the S-3 receipt title still carries the fill-round wording 'remaining PENDING-FREEZE / PENDING-QA / PENDING-REFRESH'; non_claim[2] clarifies it and this card did not change the field",
+    "O3 (info): the S-3 README fill-round summary still lists 'user S-3 dual sign' as a pending prerequisite; the header, section 7 and section 10 carry the signed state and repeatedly state that signing does not open the window, so there is no contradiction",
+    "O4 (info): normify audit produced no output for over 9 minutes in this environment (the subcommand exists but rejects --help) and was terminated; the two-commit shape was verified with equivalent evidence instead"
+  ],
+  "artifacts": [
+    "artifacts/hashes.txt",
+    "artifacts/signature-status.txt",
+    "artifacts/boundary.txt",
+    "artifacts/gates.txt"
+  ],
+  "non_claim": [
+    "signature record consistency review only; signing and the token together still do not open G-L2",
+    "no capture validity, per-world light acceptance, upstream equivalence or any render numeric conclusion",
+    "does not state that the G-L2 window may open without the on-the-spot conditions (three-point baseline, floor_effective = max(9,956, onspot), monitor 60/60, zero compile, live==guard==stash)"
+  ]
+}
