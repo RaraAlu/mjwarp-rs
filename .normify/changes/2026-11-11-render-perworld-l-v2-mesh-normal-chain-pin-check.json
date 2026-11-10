@@ -5,7 +5,7 @@
     "zh": "QA 复核 P10 mesh 法线链修复卡 `b0e372be`：改动面恰为 3 个 `.cu` 的 3 处 + 注释（恢复 `mesh_query_ray` 局部 normalize、新增 `mat_vec_xpref`、两处消费点改用它），`scene.cu::mat_vec`/顶点法线链/其它 `.cu`/`fixtures`/`scripts`/`tests` 零 diff、无新增 `.cu`、`normalize3_mesh` 函数体逐字节未变；`mat_vec_xpref` 实为 x 项先单独舍入、行主序索引与 `mat_vec` 一致、与上游 `mat.h:3180`/`mesh.h:1880` 事实相符；**双内核身份四组 source/PTX 我全部独立复算逐位一致**（mega 109,384/`624ab298`→110,509/`6b1ade37`、PTX 347,070/`1fd53131`→348,399/`48f8e7f8`；depth 52,427/`b546ef08`→53,552/`1e3f273c`、PTX 138,540/`e8d84963`→138,857/`31912377`），PTX 算术增量逐 opcode 一致（+12/+8/+4/+4 与 +3/+2/+1/+1，其余 0）、探针链序 16→23 ops 一致；depth_seg 换新基线如实写明且数值不变理由（仅 `dot(lvec,n_local)` 符号）经代码核对成立，冻结回归我重跑 13/6 与 12/6 全过；门禁 unit 1,391/0/402、manifest 17/17、编码干净；口径不宣称修复生效、H2 作废只报告不改历史、G-L2 维持未通过 → **PASS（0 阻断，2 条信息级观察）→ 可发诊断轮 #8 token**",
     "en": "QA review of P10 mesh-normal chain fix b0e372be: exactly three .cu spots, mat_vec_xpref correct and upstream-conformant, dual kernel identity reproduced bit-identically by QA, per-opcode PTX deltas match, depth_seg new baseline documented with a sound unchanged-numbers rationale, frozen regressions rerun 13/6 and 12/6, gates 1391/0/402, manifest 17/17 - PASS with 2 info notes"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 P10 mesh 法线链修复卡（提交 **`b0e372be`**，卡 `2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin` verified）做独立只读复核（零 GPU）：①改动面是否恰为 3 个 `.cu` 的 3 处 + 注释；②`mat_vec_xpref` 是否 x 项先舍入且行主序索引与 `mat_vec` 一致；③双内核身份独立复算、depth_seg 换新基线是否如实写明；④边界（fixtures/scripts/tests 零 diff、无新 `.cu`、guards/冻结件未动）；⑤门禁/manifest/编码；⑥口径。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the P10 mesh-normal chain fix: change surface, mat_vec_xpref correctness, dual identity recompute, boundaries, gates/manifest/encoding, non-claims."
@@ -39,12 +39,12 @@
   },
   "note": "Chief 2026-11-11 派工：复核 P10 mesh 法线链修复卡 b0e372be（G-L2 残余 4 px 根因修复；零 GPU）。结论 PASS（0 阻断，2 信息观察）→ 可发诊断轮 #8 token。已核：仅 3 个 .cu 的 3 处+注释（render_math.cu 恢复 mesh_query_ray 尾部 normalize3_mesh(min_normal)、新增 mat_vec_xpref、H2 注释改写；render_common.cu:225 与 render.cu:231 改用它），scene.cu mat_vec/顶点法线链/其它 .cu/fixtures/scripts/tests 零 diff、无新增 .cu、normalize3_mesh 函数体 old==new；mat_vec_xpref 确为 x 项先舍入（m[0]*a.x 为 plain mul，再 fma y、fma z）且行主序索引与 mat_vec 一致、与上游 mat.h:3180/mesh.h:1880 相符、消费点仅两处且无残留 mat_vec 形式；双内核身份四组 source/PTX 我独立复算逐位一致（mega 109384/624ab298→110509/6b1ade37、PTX 347070/1fd53131→348399/48f8e7f8；depth 52427/b546ef08→53552/1e3f273c、PTX 138540/e8d84963→138857/31912377）；PTX 算术增量逐 opcode 一致（div+12/fma+8/mul+4/sqrt+4 与 div+3/fma+2/mul+1/sqrt+1，其余 0；sqrt 62→66/28→29），探针 16→23 ops 链序一致；depth_seg 新基线已如实写明且数值不变理由（normal 仅初始化/赋值、命中仅用 dot 符号）核对成立，冻结回归重跑 13/6 与 12/6；门禁 unit 1391/0/402、manifest 17/17、17 文件编码干净；H2 历史证据未改写。信息观察：绝对 op 总数口径差 +3/+1（增量一致）；identity 复现需固定 source name。不判定修复效果、不改判据、G-L2 维持未通过。",
   "revision": {
-    "before": "533b98290771410490c6ff263b244a3bd7eef7eb",
+    "before": "1016cd63c1448bd5bb01b2f515806d1fb987dbeb",
     "after": null
   },
   "created_at": "2026-11-10T23:42:31.000Z",
-  "updated_at": "2026-11-10T23:42:31.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T23:42:59.034Z",
+  "closed_at": "2026-11-10T23:42:59.034Z",
   "checks": [
     {
       "kind": "gate",

@@ -1,0 +1,26 @@
+# 双内核身份与 PTX 算术增量（QA 独立复算）
+
+method: pinned CUDA 12.8.1 NVRTC, product options (--fmad=true --std=c++17 --gpu-architecture=compute_70
+--device-as-default-execution-space --include-path=include/warp-headers); stitched in mod.rs include_str! order;
+source name = identity-test name (render_megakernel.cu / render_depth_seg.cu) - this name is part of the PTX identity.
+old = b0e372be^ blobs, new = worktree.
+
+megakernel old: source 109384 B sha256=624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2 | PTX 347070 B sha256=1fd531314875e52a08ffda3fd63e93184e46ebda207378d5378c25b878c430b8 | arith(plain)=3097
+megakernel new: source 110509 B sha256=6b1ade37958facfd48f485a7433f93bcf7256a6b08a167c1ece078e0744de278 | PTX 348399 B sha256=48f8e7f820f7a0a931a82e07efbebef07b831b3895bb7c6423dcd4975c31fa02 | arith(plain)=3125
+  delta (plain arith opcodes): {'div': 12, 'fma': 8, 'mul': 4, 'sqrt': 4}
+  old/new totals: 3097 / 3125
+
+depth_seg old: source 52427 B sha256=b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931 | PTX 138540 B sha256=e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7 | arith(plain)=1202
+depth_seg new: source 53552 B sha256=1e3f273c88a77235640c44b2e3d52e39984cf659da87e6ff1dd237d8c871e1b9 | PTX 138857 B sha256=31912377f59305e85b164da3d8b487ad127b6c262aa3792b99ecdb1b17c1cf50 | arith(plain)=1209
+  delta (plain arith opcodes): {'div': 3, 'fma': 2, 'mul': 1, 'sqrt': 1}
+  old/new totals: 1202 / 1209
+
+probe old: 16 arithmetic ops: ['mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'sqrt.rn.f32', 'div.rn.f32', 'div.rn.f32', 'div.rn.f32']
+probe new: 23 arithmetic ops: ['mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'sqrt.rn.f32', 'div.rn.f32', 'div.rn.f32', 'div.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'mul.f32', 'fma.rn.f32', 'fma.rn.f32', 'sqrt.rn.f32', 'div.rn.f32', 'div.rn.f32', 'div.rn.f32']
+
+claims: megakernel 109,384/624ab298 -> 110,509/6b1ade37; PTX 347,070/1fd53131 -> 348,399/48f8e7f8;
+        depth_seg 52,427/b546ef08 -> 53,552/1e3f273c; PTX 138,540/e8d84963 -> 138,857/31912377; aa_resolve unchanged.
+all four source/PTX values and both per-opcode deltas reproduced exactly (div+12/fma+8/mul+4/sqrt+4 and
+div+3/fma+2/mul+1/sqrt+1, every other opcode delta 0).
+note: absolute arithmetic totals in the evidence are 3,094/3,122 and 1,201/1,208; QA's filter gives 3,097/3,125
+and 1,202/1,209 (constant +3/+1 offsets from opcode-filter definition); deltas and sqrt counts (62->66, 28->29) match.

@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin-check",
+  "status": "qa_review_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "PASS",
+  "subject": {
+    "fix_card": "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin",
+    "fix_commit": "b0e372bea53c4eb355e5c50ff97bc6851df0f323",
+    "files": 27,
+    "diff": "+82/-8",
+    "src_cu_changed": 3,
+    "review_head": "b0e372bea53c4eb355e5c50ff97bc6851df0f323"
+  },
+  "verified": {
+    "change_surface": "only 3 src .cu changed: render_math.cu (restore local normalize at mesh_query_ray tail + new mat_vec_xpref + H2 comment rewrite), render_common.cu:225 and render.cu:231 (mat_vec -> mat_vec_xpref). Zero diff: src/render/bvh/ (scene.cu mat_vec/mat_t_vec), render_megakernel.cu (vertex normal chain), render_shade.cu, render_shadow.cu, aa_resolve.cu, render_flex.cu, fixtures/, scripts/, tests/, guards JSON. No new .cu. normalize3_mesh function body byte-identical old vs new (only a helper added before it).",
+    "mat_vec_xpref": "scene.cu mat_vec separately rounds m[1]*a.y (y term); new mat_vec_xpref separately rounds m[0]*a.x (x term) then fma y then fma z; row-major indices m[0..2]/[3..5]/[6..8] identical. Matches upstream mat.h:3180 mul(mat,vec) (get_col(0)*b[0] then += col_i*b_i). mesh.h:1880 confirmed to contain 'normal = normalize(min_normal)'. Only two consumer sites, and no 'normalize3_mesh(mat_vec(' occurrences remain.",
+    "dual_identity_reproduced": "QA independently recompiled with pinned CUDA 12.8.1 NVRTC + product options, source name = identity-test name (render_megakernel.cu / render_depth_seg.cu): megakernel source 109,384/624ab298 -> 110,509/6b1ade37, PTX 347,070/1fd53131 -> 348,399/48f8e7f8; depth_seg source 52,427/b546ef08 -> 53,552/1e3f273c, PTX 138,540/e8d84963 -> 138,857/31912377. All four pairs and both PTX sizes match the evidence exactly.",
+    "arith_delta": "per-opcode PTX delta reproduced exactly: megakernel div +12 / fma +8 / mul +4 / sqrt +4 (all other opcodes 0; sqrt 62->66); depth_seg div +3 / fma +2 / mul +1 / sqrt +1 (all other 0; sqrt 28->29). Probe chain: old 16 ops = 3 rows mul->fma->fma with first mul [mat+4]x[n+4] (m[1]*a.y) + one normalize; new 23 ops = local normalize (mul/fma/fma/sqrt/divx3) then 3 rows mul->fma->fma with first mul [mat+0]xn_local.x (m[0]*n.x) then second normalize - QA recounted 16/23 and the same sequence.",
+    "depth_seg_rationale": "render_math.cu feeds both stitches, so depth_seg source/PTX necessarily gets a new baseline (documented in README section 3/5). In render.cu the mesh normal is only initialized/assigned (:195/196/:231); the hit test uses only the sign of dot(lvec, n_local), which a positive-length normalization cannot change => depth/seg numbers unchanged. QA reran the frozen regressions: render_kernel_depth_seg 13 passed / 6 ignored, render_kernel_flags 12 passed / 6 ignored, 0 failed.",
+    "boundaries_evidence": "fixtures/ scripts/ tests/ zero diff; no new .cu (42-file precision surface unchanged); guards JSON / frozen stash untouched; prior H2 evidence dirs (RCA, mesh-normal-single-normalize) untouched - retraction only in code comment + new evidence (no history rewrite). Evidence manifest 17/17 independently recomputed (bad=[], extra=[]); 17 files UTF-8/no BOM/no CRLF; the three .cu old/new sha+bytes+lines match the README table (13,685/326, 22,354/498, 22,033/496).",
+    "non_claims": "README section 4/7 and receipt non_claims: does not claim the fix works (4 px -> diagnostic round #8), no criterion/threshold/reference/tolerance/camera/recipe change, G-L2 verdict unchanged (criterion A FAIL), no rerun/refreeze/capture; zero GPU"
+  },
+  "info_notes": [
+    {"code": "O1", "title": "absolute arithmetic totals differ by opcode-filter definition", "detail": "evidence says 3,094/3,122 (mega) and 1,201/1,208 (depth); QA's filter gives 3,097/3,125 and 1,202/1,209 (constant +3/+1). Per-opcode deltas and sqrt counts (62->66, 28->29) are identical; no conclusion affected."},
+    {"code": "O2", "title": "identity reproduction requires the identity-test source name", "detail": "PTX identity depends on the NVRTC program name (render_megakernel.cu / render_depth_seg.cu); compiling with another name changes sha/bytes. Suggest stating this explicitly in the reproduction command (not a defect)."}
+  ],
+  "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": {"passed": 1391, "failed": 0, "ignored": 402}},
+  "non_claims": [
+    "does not judge the fix effect: whether the 4 residual pixels go to zero is measured by diagnostic round #8",
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "no criterion/reference/tolerance change; zero GPU; no rerun/refreeze"
+  ],
+  "artifacts": [
+    "artifacts/change-surface.txt",
+    "artifacts/identity-delta.txt",
+    "artifacts/tests-evidence.txt"
+  ]
+}

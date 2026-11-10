@@ -1,0 +1,46 @@
+# 改动面核对（P10 mesh 法线链）
+
+commit b0e372be files: 27 (3 src .cu + evidence/card)
+src .cu changed: ['src/render/kernel/cuda/render.cu', 'src/render/kernel/cuda/render_common.cu', 'src/render/kernel/cuda/render_math.cu']
+added .cu under src: []
+zero-diff: src/render/bvh/, render_megakernel.cu/render_shade.cu/render_shadow.cu/aa_resolve.cu/render_flex.cu, fixtures/, scripts/, tests/: []
+guards json / frozen stash touched: []
+
+3 .cu old/new sha256+bytes (independent):
+  src/render/kernel/cuda/render_math.cu old 12566/4f103495f4cc7c9a5da53f4b18e612224a1302a77092a0704bdf4fabca8780a0 new 13685/c26e116e1d6dd0518a20fd78ed55a992085b6ed385b2cdc9ef7aa3bf6152d5cc lines_old=310 lines_new=326
+  src/render/kernel/cuda/render_common.cu old 22348/9116ce26ae60542ee8f89de9067528cda47a28b693d27a67923135827e4fd434 new 22354/65310e906e90c084a88312302e03603cba9f805cfb036ff124a83838b06e15df lines_old=498 lines_new=498
+  src/render/kernel/cuda/render.cu old 22027/91359916c300ca19b0bb45201f1904aafa1a7292b017c06b43241b709f4b1f68 new 22033/8b390bbb2ebbd32febcaa8c38ccf073e8330a4a89b9560726e7f26fe42c0d791 lines_old=496 lines_new=496
+
+normalize3_mesh body unchanged (extracted function body old==new: identical); source file sha/bytes line above
+
+mat_vec (scene.cu, unchanged) vs mat_vec_xpref (new):
+  scene.cu:55 __device__ __forceinline__ V3 mat_vec(const float* m, V3 a) {
+  scene.cu:56 return v3(fmaf(m[2], a.z, fmaf(m[0], a.x, m[1] * a.y)),
+  scene.cu:57 fmaf(m[5], a.z, fmaf(m[3], a.x, m[4] * a.y)),
+  scene.cu:58 fmaf(m[8], a.z, fmaf(m[6], a.x, m[7] * a.y)));
+  scene.cu:59 }
+  render_math.cu:32 // `scene.cu::mat_vec` 完全一致，只把独立舍入项从 y 改为 x）。仅供 mesh 法线消费点使用；
+  render_math.cu:33 // 不改 `scene.cu::mat_vec`（S5 已验路径保持）。
+  render_math.cu:34 __device__ __forceinline__ V3 mat_vec_xpref(const float* m, V3 a) {
+  render_math.cu:35 return v3(fmaf(m[2], a.z, fmaf(m[1], a.y, m[0] * a.x)),
+  render_math.cu:36 fmaf(m[5], a.z, fmaf(m[4], a.y, m[3] * a.x)),
+  render_math.cu:37 fmaf(m[8], a.z, fmaf(m[7], a.y, m[6] * a.x)));
+  render_math.cu:38 }
+  render_math.cu:39 
+  render_math.cu:40 // viewport constants from upstream ray.py.
+  => same row-major indices m[0..2]/[3..5]/[6..8]; mat_vec separately rounds m[1]*a.y (y term),
+     mat_vec_xpref separately rounds m[0]*a.x (x term) then fma y then fma z. matches upstream mat.h:3180 mul(mat,vec)
+     (get_col(0)*b[0] then += col_i*b_i => x term is the plain product).
+
+consumer sites (only two, both changed to xpref):
+  src/render/kernel/cuda/render.cu:231:            *normal = normalize3_mesh(mat_vec_xpref(mat, n_local));
+  src/render/kernel/cuda/render_common.cu:225:            *normal = normalize3_mesh(mat_vec_xpref(mat, n_local));
+  src/render/kernel/cuda/render_math.cu:9:// `f728b2d7` 依错误 H2 前提删除，已由 Arch 离线重放证伪），并新增 `mat_vec_xpref`
+  src/render/kernel/cuda/render_math.cu:34:__device__ __forceinline__ V3 mat_vec_xpref(const float* m, V3 a) {
+  remaining 'normalize3_mesh(mat_vec(' occurrences: []
+
+upstream anchors verified in pinned headers:
+  mesh.h:1880 normal = normalize(min_normal);
+  mat.h:3180 inline CUDA_CALLABLE vec_t<Rows, Type> mul(const mat_t<Rows, Cols, Type>& a, const vec_t<Cols, Type>& b)
+
+prior H2 evidence untouched (no history rewrite): []

@@ -1,0 +1,24 @@
+# 测试、证据卫生、depth_seg 口径与边界
+
+QA-run tests (cargo test --locked --features cuda-probe):
+  render_kernel_depth_seg: test result ok 13 passed / 0 failed / 6 ignored  (matches evidence)
+  render_kernel_flags:     test result ok 12 passed / 0 failed / 6 ignored  (matches evidence)
+  identity logs: new-identity-flags ptx 48f8e7f8/348399 source 6b1ade37; new-identity-depth-seg ptx 31912377/138857
+                 source 1e3f273c; old logs match 1fd53131/347070 and e8d84963/138540 - consistent with QA recompiles.
+
+evidence manifest: entries=17 bad=[] extra=[]
+evidence encoding: 17 files UTF-8/no-BOM/no-CRLF: True
+
+depth_seg rationale check (render.cu):
+  'normal' appears only at :195/196 (init), :231 (assignment) - depth/seg outputs depend on distance/seg ids,
+  and the only use of the mesh normal in the hit test is the backface sign test `dot(lvec, n_local) < 0`,
+  which a positive-length normalization cannot change => depth/seg numbers unchanged; depth_seg source/PTX identity
+  change is the unavoidable consequence of render_math.cu feeding both stitches (documented in README section 3/5).
+  QA reran the frozen regression tests: 13 passed / 6 ignored (depth_seg), 12 passed / 6 ignored (flags).
+
+boundaries: no new .cu (42-file precision surface unchanged); guards/frozen stash untouched;
+  fixtures/ scripts/ tests/ zero diff; only 3 .cu + evidence + card records in the commit;
+  prior RCA / mesh-normal evidence directories untouched (H2 retracted only by new evidence + code comment, no history rewrite).
+
+non-claims (README section 7 / receipt non_claims): does not claim the fix works (4 px -> diagnostic round #8),
+  does not change criteria/thresholds/reference/tolerance, G-L2 verdict unchanged (criterion A FAIL), no rerun/refreeze.
