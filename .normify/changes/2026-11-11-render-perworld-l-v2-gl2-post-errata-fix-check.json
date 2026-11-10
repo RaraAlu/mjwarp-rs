@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix-check",
+  "title": {
+    "zh": "QA 复核 errata 修正卡（`3836da0d` + addenda `a3dc5e7b`）：**S1 更正属实**——`logs/src.diff` 历史字节未动（6,772 B/`12be6af5…`/UTF-16LE+BOM）、四处不实记录（README §3/§5、receipt 字段、artifact、不可改提交信息）已改实测事实且「原 CRLF 0/LF 62 系原始字节计数误导」解释成立；证据保全口径成立（`.gitattributes` `docs/development-evidence/** -text -diff` 覆盖、未改属性/未批量转换、169/217 计数我独立复现）；低 3 条（manifest 行位移 12/11/6、行号 51/363/357-369、轮 #4 路径 44,977 B `48597d0e…`/3,931 B `df653b5b…`）与 dump-ext 残留 2 条均落地；过程事件 addenda 与 receipt/README 互引齐；四 manifest 重算 8/66/12/12、14 改动文件编码干净、unit 1,391/0/402、`src.diff` sha 未变 → **PASS（0 阻断，3 低残留）**；残留：README 表行 4 未标「见 §5」、receipt 称提交信息「记入卡 addenda」但 addenda 仅锁事件、process_events 未注明仓内无锁审计日志",
+    "en": "QA review of the errata fix: S1 corrections are true (historical bytes unchanged, four false records corrected, misleading byte-count explanation holds), evidence preservation correct, low items and dump-ext leftovers landed, process event recorded and cross-referenced, manifests/gates/encoding clean - PASS with 3 low record-level residuals"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-L2 后置 errata 批复核修正卡（主提交 **`3836da0d`**，19 files 纯文档/证据；过程事件 addenda **`a3dc5e7b`**；卡 `2026-11-11-render-perworld-l-v2-gl2-post-errata-fix` verified）做独立只读复核（零 GPU）：①S1 更正是否属实且历史字节未动；②证据保全口径与 `.gitattributes` 覆盖；③低 3 条；④dump-ext 残留 2 条；⑤过程事件记录完整性；⑥门禁/manifest/编码；⑦口径。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the errata fix commit: S1 corrections, evidence preservation, low items, dump-ext leftovers, process-event record, manifests/gates/encoding, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① S1 更正属实 ✅**：`logs/src.diff` 历史字节未动（**6,772 B / sha `12be6af5…` / `FF FE` UTF-16LE+BOM**，worktree 与 HEAD blob 逐字节一致、UTF-8=False、UTF-16LE 解码 60×CRLF）；四处不实记录已更正——README §3（L41，标「见 §5」）、§5（L52-54：四处清单 + 不改历史字节裁定）、receipt `fix_card_1_errata.src_diff_lf_verification`（重写为实测）、`artifacts/ptx-order-pins-src-diff-eol.txt`（重写 2,031 B，含 BOM/首尾字节/`-text`/解码/`raw_byte_scan` 标 MISLEADING/复现命令）；不可改的提交信息在 README §5 项 ④ 与 receipt `review_corrections` 记录。原「CRLF 0 / LF 62」来自原始字节计数（UTF-16LE 的 CRLF=`0D 00 0A 00`）——我复现 `b\"\\r\\n\"=0 / b\"\\n\"=62`、解码 CRLF=60，解释成立 ✅",
+    "**② 证据保全口径 ✅**：`.gitattributes` 既有 `docs/development-evidence/** -text -diff` 覆盖该路径（实测存在，两提交未改 `.gitattributes`）；`git ls-files --eol` = `i/-text w/-text attr/-text`；未新增属性、未批量转换历史 UTF-16（两提交只改 14 文档 + 4 run + 1 卡，`src.diff` 字节不变）；我按 tracked 文件独立扫描 UTF-16 BOM = **169**（evidence 内）/ **217**（全仓），与声明一致；新日志口径（UTF-8/LF、禁止默认 `>` 重定向）已落到 receipt `evidence_log_policy` + README §5 ✅",
+    "**③ 低 3 条 ✅（全部独立复现）**：manifest 行序补记为「行内容不变、按 ASCII 重排」，共同路径位移实测 G-L2 **12** / 修复卡-1 **11** / 诊断轮 **6**，与我独立复算逐数一致；行号更正 `enabled()` **:51**、`diff_depth_with_outline()` **:363**、`run-window.ps1` post-window **:357-369**（入口 **:358**）、pre-body **:283** 全部实测正确；轮 #4 证据路径 `target/render-bvh/perworld-l-v2-gl2/diag4/pixel-dump.json` **44,977 B/`48597d0e…`** 与 `diag4/run-summary.txt` **3,931 B/`df653b5b…`** 实测存在且哈希/字节逐位匹配 ✅",
+    "**④ dump-ext 残留 2 条 ✅**：README §2「JSON 位置」改为「键始终存在（未启用 env / 未命中/越界均为 null，不缺失；`attach_diagnostics` 契约）」，receipt `dump_schema.json_location` 同步更正，原「absent when env unset」已不存在；配套卡计数更正为 **+84/−8**（numstat 2/2+3/3+1/1+2/2+76/0），历史提交信息不改写已记录 ✅",
+    "**⑤ 过程事件 ✅（1 条记录建议，见 R3）**：README §6 与 receipt `process_events` 均记时间（2026-11-11 06:47-06:57）、提交 `dde275c1`/`26d3cada`、无锁范围（`normify fix`/`gate`/`done` + 卡状态 JSON/`.normify/runs`/docs/提交）、当时状态（无他人持锁/申请、无冲突、树 clean）、违规性质、补救=规则固化；与卡 addenda 互引 ✅。仓内 `repo-write-lock.ps1` 只有当前状态、**无锁审计日志**（该事件依据披露）→ 建议补注（R3）",
+    "**⑥ 门禁/证据 ✅**：四目录 manifest 独立重算——本批 **8**、G-L2 **66**、修复卡-1 **12**、诊断轮 **12**，bad=[]/missing=[]/extra=[] 且 ASCII 有序；14 个改动文档全 UTF-8/无 BOM/无 CRLF；`src.diff` sha 未变；两提交 `src/`/`tests/`/`fixtures/`/`scripts/` 零 diff；本卡 `normify gate` 复跑 fmt/clippy/clippy-cuda/unit 全过，unit **1,391/0/402** ✅",
+    "**⑦ 口径 ✅**：receipt `non_claims` 与 README 明写不改 G-L2 判定（仍为未通过 / 判据 A FAIL）、不宣称任何修复生效、不改判据/阈值/参考/容差/相机/recipe；dump 字段改名与 guards `body_env` 仍为 backlog ✅",
+    "**低残留 R1**：README 开头「本批四项」表格行 4（L12）仍写 `logs/src.diff`「LF 复核（已 LF、字节未变）」且未标「见 §5」——与同文件 §3/§5 自相矛盾；建议改行或标已被 §5 取代。",
+    "**低残留 R2**：receipt `review_corrections.s1_src_diff_encoding` 称不可改的提交信息「recorded here and in card addenda」，但该卡只有 **1 条 addenda（锁事件）**、不含 S1；README §5 项 ④ 的「已在本节与 receipt 记录」才是准确表述。",
+    "**低残留 R3**：process_events/§6 未注明「仓内无锁审计日志，事件依据披露与时间线」；建议补一句（不影响事件事实成立）。",
+    "**口径注记**：文档「按 UTF-16LE 解码为 61 行」用的是 `split('\\n')` 段数（含尾部空段），`splitlines()` 为 60 行；无实质影响，可统一口径。",
+    "**结论：PASS（0 阻断，3 条低残留 + 1 条口径注记）。** 本复核不改变 G-L2 判定（仍为未通过 / 判据 A FAIL），不宣称任何修复生效，未重跑/重冻/采集，零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix",
+      "2026-11-11-render-perworld-l-v2-gl2-post-errata-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-fix-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核 errata 修正卡 3836da0d + 过程事件 addenda a3dc5e7b。结论 PASS（0 阻断，3 低残留 + 1 口径注记）。核心：S1 更正属实——src.diff 历史字节未动（6,772 B/sha 12be6af5/FF FE/UTF-16LE+BOM，worktree==HEAD），四处记录（README §3/§5、receipt src_diff_lf_verification、artifact 重写）已改实测，不可改提交信息在 §5 项 ④ + receipt review_corrections 记录；原「CRLF 0/LF 62」原始字节计数误导解释成立（我复现 b'\\r\\n'=0/b'\\n'=62、解码 CRLF=60）。证据保全：.gitattributes docs/development-evidence/** -text -diff 已覆盖、未改属性、未批量转换、169/217 计数独立复现一致；新日志口径（UTF-8/LF、禁默认 >）落到 receipt/README。低 3 条：manifest 行位移 12/11/6 独立复现一致、行号 51/363/357-369(入口358)/283 正确、轮#4 路径 diag4 pixel-dump 44,977B/48597d0e 与 run-summary 3,931B/df653b5b 实测匹配。dump-ext 残留 2 条落地（键始终存在/null；+84/−8）。过程事件 addenda 与 receipt process_events/README §6 互引齐。门禁：四 manifest 8/66/12/12 全对、14 改动文件 UTF-8 无 BOM 无 CRLF、src.diff sha 未变、unit 1391/0/402。残留：README 表行 4 未标见 §5；receipt 称提交信息记入卡 addenda 但 addenda 仅锁事件；process_events 未注明无锁审计日志。不改 G-L2 判定。",
+  "revision": {
+    "before": "315153aec16f34cb522fd31532b07fd538da3e36",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:18:50.000Z",
+  "updated_at": "2026-11-10T23:18:50.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/logs/src.diff",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/window/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/materials/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/materials/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-fix-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
