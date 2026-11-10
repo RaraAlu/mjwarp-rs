@@ -1,0 +1,17 @@
+# 断言通过性（exit 0 的支撑）与信息限制
+
+QA re-read tests/render_per_world_light.rs; gpu_per_world_light_matches_reference contains:
+  C:   verdict assert == Verdict::PassMargin; light::check_capture_c1(...) == Compared (asserted equal)
+  A:   per-frame assert rgb_mismatched_pixels==0, rgb_max_byte_diff==0, depth_mismatched==0,
+       depth_beyond_ulp==0, seg_mismatched==0 for all 6 frames
+  B:   assert (bstats.xpos_mismatched, bstats.xdir_mismatched) == (0,0)
+  sha: assert_eq!(first_sha, second_sha) for the whole-block rgb/depth/seg sha
+  iso: world0/world2 changed == false, world1 any(true) against moved_world1 state
+Since the entity test exited 0 (2 passed / 0 failed), all of the above assertions held in this run.
+
+limitation: cargo captures stdout of passing tests, so the concrete printed values for B / two-run sha /
+world-isolation / C were not persisted in diag8 (only run-summary's statement). A values are visible in
+dump8 frames (all zero). Attempt 4 will run with --nocapture and persist them.
+
+pilot_c1_crosscheck_matches_readout passed: pilot asserts capture.json section 2.4 counts vs recomputed counts
+(c1 magnitude [38285,40644], bitwise [43604,41815], c2 depth [35828,33883], seg [16041,16754], PassMargin).
