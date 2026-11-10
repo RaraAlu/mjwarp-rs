@@ -5,7 +5,7 @@
     "zh": "perworld L v2 判据 A 像素级诊断 dump（phase-1 只写 opt-in 代码；零 GPU；不动断言/判据/阈值/参考）",
     "en": "Per-world L v2 criterion A pixel-level diagnostic dump (phase 1: opt-in code only, no GPU, no assertion/criterion/threshold/reference changes)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "为 G-L2 判据 A 的 world0/cam1「2 像素 1 字节差」补像素级只读诊断信息：环境变量 MJWARP_DIAG_PIXEL_DUMP=<输出 JSON 路径> 门控，默认行为与现测试完全一致（未设置即无打印、无文件、无额外 GPU 工作）。dump 内容：rgb 失配像素的 world/cam/x/y/pixel_index、产品 packed u32 与字节、参考字节与 rgb_f32 三元、每通道 |ref_f32*255−round| 边界距离、depth 两侧位型与 ULP、seg 两侧 (id,type)、该像素 ray dir/offset 位型与相机 xpos/xmat 位型、world0 三灯 light_xpos/xdir 位型（参考与产品两侧）、cam1 xpos/xmat 位型；另做 CPU 全图 near-miss 统计（参考 ref_f32*255 距整数 <1e-5/<1e-4 的像素数 + top-5 坐标与距离）。本卡 phase-1 只写代码并过默认四门禁；GPU 诊断轮（--ignored 单次短跑 + 诊断 env，输出 target/）由 Chief 另发 token，单独记录、不计 G-L2 轮次、不进 G-L2 证据链。",
     "en": "Add pixel-level read-only diagnostics for the G-L2 criterion-A world0/cam1 2-pixel-1-byte mismatch: gate with MJWARP_DIAG_PIXEL_DUMP=<output JSON path>; when unset the test behaves exactly as today (no prints, no file, no extra GPU work). Dump contents: mismatched rgb pixels (world/cam/x/y/pixel_index, product packed u32 + bytes, reference bytes + rgb_f32 triple, per-channel |ref_f32*255-round| boundary distance, depth bit patterns + ULP, seg both (id,type)), the pixel ray dir/offset bits and camera xpos/xmat bits, world0 three-light light_xpos/xdir bits (reference and product), cam1 xpos/xmat bits; plus CPU full-image near-miss statistics (reference ref_f32*255 within <1e-5/<1e-4 of an integer: counts + top-5 coordinates and distances). Phase 1 writes code only and must pass the default four gates; the GPU diagnostic round (one short --ignored run with the diagnostic env, output under target/) is separately tokenized by the Chief, recorded as its own diagnostic round and never counted as a G-L2 round nor merged into the G-L2 evidence chain."
@@ -35,16 +35,28 @@
   },
   "note": "Chief 2026-11-11 04:35 派工 phase-1 诊断准备：先只写诊断代码、不运行（GPU 诊断轮另发 token）。目的：为 G-L2 判据 A 的 world0/cam1 2 像素 1 字节差补像素级只读 dump。约束：env 门控、默认行为不变、不动断言/阈值/判据/参考/冻结件、不跑 GPU、不重编译冻结 exe 证据；默认四门禁仍过（unit 1,387/0/402）；light.rs 保持 499 行不动（diag 放新文件）。完成后回 Chief：提交号、新增/改动文件与行数、默认门禁、dump 字段清单。",
   "revision": {
-    "before": "343853bbddbb12f036c53d9a81ae02f64b8bb2a4",
+    "before": "adb7edf8fa89d5e2cdf86f876ac80bec643ecde6",
     "after": null
   },
   "created_at": "2026-11-10T20:37:18.745Z",
-  "updated_at": "2026-11-10T20:37:18.745Z",
+  "updated_at": "2026-11-10T20:38:50.575Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "unchanged",
       "paths": [
