@@ -1,0 +1,59 @@
+# QA field map: revised addenda (b526d4f1) -> diag.rs implementation
+# source: grep of tests/support/render_bvh/light/diag.rs at HEAD b526d4f1
+
+L5: //! 产物落 `target/`，不入库。字段按 Chief 2026-11-11 修订：去掉无判别力的 `|ref_f32*255-round|`
+L103: "xpos_bits": bits3(pose.xpos),
+L104: "xmat_bits": bits9(pose.xmat),
+L138: fn saturation(bytes: [u8; 3]) -> Value {
+L142: fn ulp(actual: f32, expected: f32) -> u32 {
+L184: /// 材质标量/数组：每材质 stride = len / nmat（nmat 由 mat_rgba/4 决定）。
+L186: let rgba = array_f32(model, "mat_rgba");
+L203: fn segment_attribution(model: Option<&Value>, seg: [i32; 2]) -> Value {
+L204: let (geom_id, geom_type) = (seg[0], seg[1]);
+L206: return json!({ "geom_id": geom_id, "geom_type": geom_type, "mat_id": Value::Null });
+L209: let mat = if geom_id >= 0 && (geom_id as usize) < geom_matid.len() {
+L210: geom_matid[geom_id as usize]
+L214: let texid_row = material_values(model, "mat_texid", mat);
+L216: "geom_id": geom_id,
+L218: "mat_id": mat,
+L219: "mat_texid_row": texid_row,
+L220: "mat_shininess": material_values(model, "mat_shininess", mat),
+L221: "mat_specular": material_values(model, "mat_specular", mat),
+L222: "mat_emission": material_values(model, "mat_emission", mat),
+L223: "mat_reflectance": material_values(model, "mat_reflectance", mat),
+L224: "mat_metallic": material_values(model, "mat_metallic", mat),
+L225: "mat_roughness": material_values(model, "mat_roughness", mat),
+L226: "mat_rgba": material_values(model, "mat_rgba", mat),
+L231: fn neighborhood_3x3(frame: &Frame, x: usize, y: usize) -> Value {
+L252: let index = input.resolved.plan.ray_index(0, cam, x as u32, y as u32);
+L258: "ray_index": index,
+L259: "direction_bits": bits3(*direction),
+L260: "offset_bits": offsets.get(index).map(|offset| bits3(*offset)),
+L263: json!({ "sample": 0, "ray_index": index, "direction_bits": Value::Null, "offset_bits": Value::Null })
+L269: fn world_light_bits(input: &DumpInput<'_>, world: usize) -> Value {
+L274: "xpos_bits": bits3([
+L286: Ok(pose) => json!({ "xpos_bits": bits3(pose.xpos), "xdir_bits": bits3(pose.xdir) }),
+L315: "packed_u32": left,
+L317: "saturation": saturation(product_bytes),
+L320: "packed_u32": right,
+L322: "saturation": saturation(reference_bytes),
+L324: "neighborhood_3x3": {
+L325: "product": neighborhood_3x3(frame, x, y),
+L326: "reference": neighborhood_3x3(reference, x, y),
+L331: "attribution": segment_attribution(model, frame.seg[pixel]),
+L334: "product_bits": frame.depth[pixel].to_bits(),
+L335: "reference_bits": reference.depth[pixel].to_bits(),
+L336: "ulp": ulp(frame.depth[pixel], reference.depth[pixel]),
+L339: "camera": pose.map(|pose| json!({ "cam": cam, "xpos_bits": bits3(pose.xpos), "xmat_bits": bits9(pose.xmat) })),
+L340: "lights": world_light_bits(input, world),
+L361: "product_bits": left.to_bits(), "reference_bits": right.to_bits(),
+L362: "ulp": ulp(left, right), "seg": frame.seg[pixel],
+L398: let mut saturated_any = 0usize;
+L419: saturated_any += 1;
+L428: saturated_any as f64 / equal as f64
+L451: let attribution = segment_attribution(model, frame.seg[pixel]);
+L467: "equal_byte_pixels": equal,
+L469: "saturated_any_pixels": saturated_any,
+L470: "saturated_any_ratio_of_equal": ratio,
+L473: "nearest_to_mismatch": nearest,
+L474: "nearest_geom_histogram": histogram,

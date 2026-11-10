@@ -5,7 +5,7 @@
     "zh": "QA 复核 G-L2 判据 A 像素诊断 dump 代码卡（`6dc5e5f6` 代码 + `b526d4f1` 字段口径 addenda）：纯新增 opt-in 诊断（diag.rs 493 行）、`render_per_world_light.rs` 478→491 仅模块声明+hook、`light.rs` 499 零改动、断言/阈值/参考/相机归属逐行未改、env 未设零副作用、字段符合修订口径（两侧字节+packed+饱和、3×3 邻域、seg geom/mat 归属、depth/seg 位型+ULP、ray/相机/三灯两侧位型、near-miss 饱和比例+最接近失配 5 像素；无 ref-side 边界距离）、四门禁 1387/0/402 → PASS（可发诊断轮 token；诊断不参与验收）",
     "en": "QA review of the G-L2 criterion-A pixel diagnostic dump code card: pure additive opt-in diagnostics, light.rs untouched, assertions unchanged line by line, zero side effects when the env is unset, dump fields matching the revised spec (no ref-side boundary distance), gates 1387/0/402 - PASS (diagnostic token may be issued; diagnostics do not participate in acceptance)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "对诊断代码卡 **`6dc5e5f6`**（实现）+ **`b526d4f1`**（卡 addenda，Chief 修订字段口径；代码零改动）做**独立只读复核**（test-only、零 GPU）：① 证明**只加诊断、不改判据**——`tests/support/render_bvh/light/diag.rs` 新增 493 行、`tests/render_per_world_light.rs` 478→491（仅 `mod` 声明 + 一处 hook：先算 `criterion_a_stats` 再 dump，再进原断言循环）、`tests/support/render_bvh/light.rs` **499 行零 diff**；断言/阈值/参考/相机归属/判据 A 比较逻辑逐行比对**零改动**；② 证明**默认零副作用**——`MJWARP_DIAG_PIXEL_DUMP` 未设/空时 `dump_if_enabled` 在 `output_path()?` 处直接返回 `None`，不构造文档、不写文件、不打印、无额外 GPU 工作，调用方只多传一组借用；③ 逐字段核对修订口径（两侧 packed/bytes/饱和、3×3 邻域、seg geom/mat 归属与材质标量、depth/seg 位型与 ULP、ray、相机位型、三灯两侧位型、near-miss 三项），确认**已移除 `|ref_f32*255-round|` 边界距离**；④ 门禁与边界（四门禁 1387/0/402、`normify check`、`unchanged src/fixtures/scripts`、行数 ≤500、编码卫生）。**只写本卡与本卡证据；零 GPU；不跑诊断轮。**",
     "en": "Independent read-only review of the diagnostic dump code card: additive-only proof by line diff, zero-side-effect default path, field-by-field mapping to the revised spec (including removal of the ref-side boundary distance), gates and boundaries."
@@ -37,7 +37,8 @@
     "after": null
   },
   "created_at": "2026-11-11T04:52:00.000Z",
-  "updated_at": "2026-11-10T20:48:16.445Z",
+  "updated_at": "2026-11-10T20:48:49.017Z",
+  "closed_at": "2026-11-10T20:48:49.017Z",
   "checks": [
     {
       "kind": "gate",

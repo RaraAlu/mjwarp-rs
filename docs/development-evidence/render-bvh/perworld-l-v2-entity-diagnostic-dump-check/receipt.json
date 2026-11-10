@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-entity-diagnostic-dump-check",
+  "kind": "qa-review",
+  "reviewed_task_id": "2026-11-11-render-perworld-l-v2-entity-diagnostic-dump",
+  "reviewed_code_commit": "6dc5e5f6",
+  "reviewed_addenda_commit": "b526d4f1",
+  "reviewer": "QA",
+  "date": "2026-11-11",
+  "verdict": "PASS",
+  "blockers": 0,
+  "observations": 4,
+  "method": [
+    "git numstat + full line diff of 6dc5e5f6 to prove only the diagnostic module and one hook were added",
+    "git blob line counts (diag.rs 493, render_per_world_light.rs 491, light.rs 499)",
+    "read diag.rs end to end: env gate, default-path return, field emission, near-miss computation, absence of the removed ref-side boundary distance",
+    "map each revised-spec field to its implementation site from the card addenda",
+    "verify gate run artifacts (fmt/clippy/clippy-cuda/unit) and re-run `normify check` / `normify validate`",
+    "boundary diff (src/fixtures/scripts) and encoding scan (BOM/CR) of the changed files"
+  ],
+  "diff": {
+    "commit": "6dc5e5f6",
+    "changed_paths": [
+      "tests/support/render_bvh/light/diag.rs (new, 493 lines)",
+      "tests/render_per_world_light.rs (+14 / -1, 478 -> 491)",
+      ".normify/runs/2026-11-11-render-perworld-l-v2-entity-diagnostic-dump/{fmt,clippy,clippy-cuda,unit}.json"
+    ],
+    "light_rs_diff_lines": 0,
+    "light_rs_lines": 499,
+    "render_per_world_light_hunks": 2,
+    "hunk1": "adds #[path = \"support/render_bvh/light/diag.rs\"] mod light_diag;",
+    "hunk2": "replaces the criterion_a loop header with: bind criterion_a_stats, call light_diag::dump_if_enabled(&DumpInput{...}), then iterate the same bound stats",
+    "assertions_in_diff": 0,
+    "thresholds_references_camera_ownership_in_diff": 0
+  },
+  "default_path": {
+    "env": "MJWARP_DIAG_PIXEL_DUMP",
+    "unset_or_empty_returns_none_before_any_work": true,
+    "build_document_called_only_after_path_resolution": true,
+    "no_print_no_file_no_extra_gpu_work_when_unset": true,
+    "caller_extra_cost": "one borrow-only DumpInput value",
+    "test_is_ignore_gated": true,
+    "unit_counts_unchanged": "1387 passed / 0 failed / 402 ignored"
+  },
+  "field_mapping": {
+    "both_sides_packed_bytes_saturation_per_channel": true,
+    "neighborhood_3x3_both_sides_with_null_out_of_bounds": true,
+    "seg_geom_mat_attribution": "geom_id/geom_type/mat_id + mat_texid_row + mat_shininess + mat_specular + mat_emission + mat_reflectance + mat_metallic + mat_roughness + mat_rgba",
+    "depth_bits_and_ulp": true,
+    "seg_both_sides": true,
+    "ray_bits": "ray_index + direction_bits + offset_bits",
+    "camera_pose_bits": "xpos 3 bits + xmat 9 bits",
+    "three_lights_both_sides_per_world": "reference state.npz light_xpos/light_xdir vs product WorldLightPoses, per world x 3 lights",
+    "near_miss": "equal_byte_pixels, mismatched_pixels, saturated_any_pixels, saturated_any_ratio_of_equal, per-channel zero/full counts, nearest_to_mismatch (5 pixels with distance, nearest mismatch pixel, seg and geom/mat attribution), nearest_geom_histogram",
+    "removed_ref_side_boundary_distance": "absent from the whole file (only the module doc says it was removed)"
+  },
+  "gates": {
+    "fmt": "passed=true exit=0",
+    "clippy": "passed=true exit=0",
+    "clippy_cuda": "passed=true exit=0",
+    "unit": "passed=true exit=0; 1387 passed / 0 failed / 402 ignored",
+    "normify_check": "全部检查通过 (exit 0)",
+    "normify_validate": "错误 0 (5 pre-existing architecture warnings, unrelated)"
+  },
+  "boundary": {
+    "src_changed_files": 0,
+    "fixtures_changed_files": 0,
+    "scripts_changed_files": 0,
+    "reviewed_evidence_dirs_untouched": true,
+    "changed_files_encode": "BOM=False CR=0 (UTF-8/LF)",
+    "gpu_used": false,
+    "diagnostic_round_run": false
+  },
+  "observations_detail": [
+    "O1 (info): the card acceptance[2]/[3] still carries the pre-revision field wording (ref_f32 boundary distance, old near-miss); addenda b526d4f1 records the revision and states acceptance/checks/intent stay frozen, so the addenda is authoritative - a pointer line in acceptance would help",
+    "O2 (info): depth_mismatches / seg_mismatches entries do not carry ray/light/camera/material attribution; full attribution is only in the rgb mismatch entries (no impact: the G-L2 case has only 2 rgb pixels)",
+    "O3 (info): near_miss nearest-mismatch search is O(pixels x mismatches) per frame; slow if the mismatch count is large (opt-in diagnostic only)",
+    "O4 (info): module-level #![allow(dead_code)] could hide unused code later (all functions are currently referenced)"
+  ],
+  "non_claim": [
+    "does not claim criterion A is fixed, does not claim G-L2 passed or recovered, does not claim any numerical equivalence",
+    "the dump only serves RCA and does not participate in acceptance; no criterion/threshold/reference/camera/recipe change"
+  ]
+}
