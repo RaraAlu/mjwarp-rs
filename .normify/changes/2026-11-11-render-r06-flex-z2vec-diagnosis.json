@@ -5,7 +5,7 @@
     "zh": "R06 flex z2vec 近平行负分支只读诊断证据（缺陷两行 / 上游真值 (1,0,0,0) / 注释与实现不符的陷阱 / 触发面窄；修复裁定 G-L2 后做）",
     "en": "R06 flex z2vec near-parallel negative branch: read-only diagnosis evidence (two-line defect, upstream truth (1,0,0,0), comment-vs-implementation trap, narrow trigger; fix deferred to after G-L2)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "Chief 2026-11-11 裁定：z2vec 修复放 G-L2 收口后做，但诊断证据现在就固化。本卡把已完成的只读诊断落成证据：① 把 target/s3b-d8/ 的 probe_quat.log、check_z2vec_equivalence.py、check_z2vec.log 复制入库（行尾归一 LF，记录源 sha256）；② 固化 render_flex.cu 34-64 行只读摘录与代码身份锚点；③ README 写清缺陷定位（47-53 行）、上游真值 (1,0,0,0)、上游注释「180 度绕 x」与实现不符的陷阱、触发条件（f32 sqrt(x^2+y^2)<1e-15 且 z<0，现实=轴对齐竖直向下边）、影响路径（quat→mat→ray_capsule）、现有覆盖/未覆盖、CPU 断言与设备证据边界、建议时机=G-L2 后、决策要点（不重采参考、需新 PTX 基线、2 片 0 窗、设备实证需新场景=签名级不建议）；④ 写死后续修复卡最小清单。不改代码：src/tests/fixtures/scripts 零改动，不改判据/参考/spec，零 GPU、不采集、不开窗。",
     "en": "Chief 2026-11-11: the z2vec fix waits until after the G-L2 closeout, but the diagnosis evidence is recorded now. Copy probe_quat.log, check_z2vec_equivalence.py and check_z2vec.log from target/s3b-d8/ with LF normalization and source sha256; store a read-only excerpt of render_flex.cu lines 34-64 plus the code identity anchor; document the defect location, upstream truth, the comment-vs-implementation trap, trigger, impact path, covered/uncovered boundary, CPU-vs-device evidence boundary, timing and decision points; write the minimal checklist for the later fix card. No code change, no criteria/reference/spec change, GPU-free, no capture, no window."
@@ -27,13 +27,14 @@
     "resources": [],
     "priority": 45
   },
-  "note": "按原有任务声明重建进行态。此登记不新增验收结论。",
+  "note": "来源卡 2026-11-04-render-r06-s3b-flex-z2vec-parallel-branch（backlog，不作为硬依赖：诊断证据不阻塞该卡状态）。Chief 2026-11-11 裁定：z2vec 修复放 G-L2 收口后做（分支不被 G-L2 场景触发、改 .cu 会变内核身份与冻结口径审计成本）；诊断证据现在固化。零 GPU、不采集、不改代码（src/tests/fixtures/scripts 零 diff）。后续修复卡最小清单：① render_flex.cu:47-53 仅两行 quat[0]=1.0f; quat[3]=0.0f；② tests/render_flex_z2vec.rs 断言矩阵含 7 向量 + 阈值两侧 + 次正规 x/y + -0.0 + 正负 z + norm≈0；③ 改后渲染内核 source sha256/PTX 前后基线在下一个渲染窗记录（渲染窗全部以新身份重冻）；④ 引用本证据目录为对照基线。",
   "revision": {
     "before": "f3b5bee0c13b183abb5d619863200d1998ebaff6",
     "after": null
   },
   "created_at": "2026-11-10T16:20:00.000Z",
-  "updated_at": "2026-11-10T16:20:00.000Z",
+  "updated_at": "2026-11-10T16:07:49.121Z",
+  "closed_at": "2026-11-10T16:07:49.121Z",
   "checks": [
     {
       "kind": "gate",

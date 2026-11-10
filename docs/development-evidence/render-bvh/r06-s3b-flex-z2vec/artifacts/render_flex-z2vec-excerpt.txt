@@ -1,0 +1,36 @@
+# read-only excerpt: src/render/kernel/cuda/render_flex.cu lines 34-64
+# file sha256 fe88cc4c9e80f673768148a854a6da17fdd6d776227e6beb55f2f9866e2ad822 / 7056 B at HEAD d1927155dc73df9564ae17862084a866f7dec2f6
+# the defective branch is lines 47-53 (near-parallel negative direction); lines 34-35 are the
+# upstream-reference anchor (math.py::quat_z2vec), lines 66-91 the quat->mat port it feeds.
+
+  34: // 上游 `math.py::quat_z2vec`：从 z 轴旋到给定向量的四元数（分量序 x,y,z,w）。
+  35: __device__ __forceinline__ void flex_quat_z2vec(V3 vec, float* quat) {
+  36:     quat[0] = 0.0f;
+  37:     quat[1] = 0.0f;
+  38:     quat[2] = 0.0f;
+  39:     quat[3] = 1.0f;
+  40:     float norm = warp_length3(vec);
+  41:     if (norm < FLEX_MINVAL) {
+  42:         return;
+  43:     }
+  44:     V3 unit = v3(vec.x / norm, vec.y / norm, vec.z / norm);
+  45:     V3 axis = v3(-unit.y, unit.x, 0.0f);
+  46:     float a = warp_length3(axis);
+  47:     if (a < FLEX_MINVAL) {
+  48:         // 近平行：反向时绕 x 轴 180°；同向保持单位四元数。
+  49:         if (unit.z < 0.0f) {
+  50:             quat[0] = 1.0f;
+  51:         }
+  52:         return;
+  53:     }
+  54:     axis = v3(axis.x / a, axis.y / a, axis.z / a);
+  55:     float angle = atan2f(a, unit.z);
+  56:     float half = angle * 0.5f;
+  57:     float s = sinf(half);
+  58:     float c = cosf(half);
+  59:     // 上游 `axis_angle_to_quat`：`quat(c, axis*s)`。
+  60:     quat[0] = c;
+  61:     quat[1] = axis.x * s;
+  62:     quat[2] = axis.y * s;
+  63:     quat[3] = axis.z * s;
+  64: }

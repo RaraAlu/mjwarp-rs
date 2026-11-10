@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-r06-flex-z2vec-diagnosis",
+  "kind": "diagnosis-evidence",
+  "title": "R06 flex z2vec near-parallel negative branch: read-only diagnosis and pinned-upstream truth (fix deferred to after G-L2)",
+  "status": "diagnosis_complete_evidence_recorded",
+  "owner": "Arch",
+  "date": "2026-11-11",
+  "source_card": "2026-11-04-render-r06-s3b-flex-z2vec-parallel-branch",
+  "code_identity": {
+    "path": "src/render/kernel/cuda/render_flex.cu",
+    "sha256": "fe88cc4c9e80f673768148a854a6da17fdd6d776227e6beb55f2f9866e2ad822",
+    "bytes": 7056,
+    "head": "d1927155dc73df9564ae17862084a866f7dec2f6"
+  },
+  "defect": {
+    "file": "src/render/kernel/cuda/render_flex.cu",
+    "function": "flex_quat_z2vec",
+    "lines": "47-53",
+    "branch": "near-parallel (a < FLEX_MINVAL) with unit.z < 0",
+    "product_output": "(w,x,y,z)=(1,0,0,1) -> 90 deg about z",
+    "upstream_truth": "(w,x,y,z)=(1,0,0,0) -> identity quaternion",
+    "observed_matrix_diff": "max|product-upstream| = 2.00e+00 for vec=(0,0,-1); other 6 probes <= 5.96e-08",
+    "fix": "inside that branch only: quat[0]=1.0f; quat[3]=0.0f; no other branch changed"
+  },
+  "upstream": {
+    "pinned_revision": "71da24d9",
+    "warp_version": "1.15.0",
+    "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+    "component_layout": "(w,x,y,z) positional (axis_angle_to_quat returns wp.quat(c, axis*s); quat_to_mat uses quat[0] as q00)",
+    "trap": "the upstream comment says 'opposite: 180 deg rotation around x axis' but the implementation returns the identity quaternion (1,0,0,0); matching the implementation is the criterion, so (0,1,0,0) would be wrong",
+    "same_direction_note": "vec -> +z: product and upstream both return (0,0,0,1) bit-identically; not a defect, must not be changed",
+    "minval": 1e-15
+  },
+  "trigger": {
+    "condition": "norm=|vec| >= 1e-15 and sqrt(unit.x^2+unit.y^2) < 1e-15 and unit.z < 0",
+    "practical": "axis-aligned flex edge pointing exactly -z in f32",
+    "current_scenes": "scene-a-light has no flex; scene-flex edges are not +-z aligned -> current verified evidence contains no divergence; zero numerical impact now"
+  },
+  "impact_path": "flex_quat_z2vec -> flex_quat_to_mat -> ray_capsule (render_flex.cu:141-155): wrong capsule orientation -> wrong dist/normal -> rgb/depth/seg may differ for that edge",
+  "coverage": {
+    "covered": [
+      "7-vector pinned-upstream CPU warp truth (probe_quat.log)",
+      "formula transcription vs upstream matrices (check_z2vec_equivalence.py + check_z2vec.log)",
+      "defect reproduced at formula level (diff 2.0)"
+    ],
+    "not_covered": [
+      "no execution of the real .cu (no NVCC/NVRTC bit-level proof)",
+      "no threshold/subnormal/-0.0/+-z/norm~0 boundary matrix",
+      "no ray_capsule end-to-end comparison",
+      "no Rust host unit test exists yet (tests/render_flex_z2vec.rs)",
+      "no device-side evidence"
+    ],
+    "claim_limit": "proves the defect and supports a formula-level fix; does NOT claim device equivalence or that the fix is verified"
+  },
+  "timing_recommendation": {
+    "decision": "fix AFTER the G-L2 closeout",
+    "reasons": [
+      "branch is not exercised by G-L2 scene-a-light (no flex) -> zero G-L2 benefit",
+      "changing .cu changes the render kernel source hash and exe/PTX identity via include_str! (src/render/kernel/mod.rs:65) -> freeze/audit chain should bind reviewed code",
+      "device verification cannot be folded into G-L2; fixing now would leave 'changed but unverified'"
+    ],
+    "exception": "if the user/Chief requires clearing known defects before the next window: 4 gates + CPU assertion matrix + record kernel source/PTX before-after + note in G-L2 evidence that the frozen exes contain the fix but the branch is not exercised"
+  },
+  "decision_points": {
+    "must_fix_now": "no (not triggered, non-blocking); keep the card, do not abandon",
+    "reference_recapture": "not needed (no fixtures/reference/criteria change)",
+    "new_ptx_baseline": "needed: record render kernel source/PTX before-after in the next render window (window evidence, not a re-signature)",
+    "slices": 2,
+    "gpu_windows": 0,
+    "device_evidence": "would need a new -z edge scene => fixtures/criteria change => signature-level; not recommended"
+  },
+  "next_fix_card_checklist": [
+    "code: render_flex.cu:47-53 only -> quat[0]=1.0f; quat[3]=0.0f;",
+    "test: tests/render_flex_z2vec.rs host matrix covering the 7 vectors, both sides of the 1e-15 threshold, subnormal x/y, -0.0, +z/-z directions, norm~0",
+    "trace: record render kernel source sha256 + PTX bytes before/after; every render window re-freezes with the new identity",
+    "reference: cite this evidence dir as the baseline"
+  ],
+  "artifacts": [
+    {
+      "path": "artifacts/probe_quat.log",
+      "sha256": "1c57ed71a7de15bf107020497213d02a787c08490a5f5062b8dfecafd01cd08b",
+      "bytes": 1934,
+      "source_path": "target/s3b-d8/probe_quat.log",
+      "source_sha256": "a92d2e8fabac41b86dc293d286ce943a9aee856694a3e458c9219846549b50d9",
+      "source_bytes": 1960,
+      "transformation": "CRLF->LF normalized (content otherwise identical; target/ is gitignored)"
+    },
+    {
+      "path": "artifacts/check_z2vec_equivalence.py",
+      "sha256": "3bbc4fb69413b1ccb7dafcb0551453ccdd2632e90e4a6c5eace50bb954fd864c",
+      "bytes": 3358,
+      "source_path": "target/s3b-d8/check_z2vec_equivalence.py",
+      "source_sha256": "3bbc4fb69413b1ccb7dafcb0551453ccdd2632e90e4a6c5eace50bb954fd864c",
+      "source_bytes": 3358,
+      "transformation": "LF (content otherwise identical; target/ is gitignored)"
+    },
+    {
+      "path": "artifacts/check_z2vec.log",
+      "sha256": "e2b3940f82d416a9bbbb3c5279e4272b7c2388c0027a2bd93fe19329dba2c9c0",
+      "bytes": 820,
+      "source_path": "target/s3b-d8/check_z2vec.log",
+      "source_sha256": "13701e860c24febea13ff28256c71e99b04dfcf462c57ca3353f6302c23cc92d",
+      "source_bytes": 828,
+      "transformation": "CRLF->LF normalized (content otherwise identical; target/ is gitignored)"
+    },
+    {
+      "path": "artifacts/render_flex-z2vec-excerpt.txt",
+      "sha256": "5134d917941f02243adaf676c06c790c1aec98f83124d03af33aac05f7bc17ac",
+      "bytes": 1578,
+      "source_path": "src/render/kernel/cuda/render_flex.cu (read-only excerpt lines 34-64)",
+      "source_sha256": "fe88cc4c9e80f673768148a854a6da17fdd6d776227e6beb55f2f9866e2ad822",
+      "source_bytes": 7056,
+      "transformation": "excerpt with line numbers"
+    }
+  ],
+  "boundary": {
+    "gpu_free": true,
+    "no_capture": true,
+    "no_window": true,
+    "code_not_modified": true,
+    "src_unchanged": true,
+    "tests_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "criteria_unchanged": true,
+    "spec_unchanged": true
+  },
+  "non_claim": [
+    "diagnosis only: the defect still exists at HEAD; the fix is deferred until after the G-L2 closeout",
+    "no device equivalence / no render numeric claim / no capture validity claim",
+    "target/ working data is gitignored; this dir is the recorded evidence"
+  ]
+}
