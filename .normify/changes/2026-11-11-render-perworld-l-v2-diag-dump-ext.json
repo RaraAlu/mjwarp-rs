@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-diag-dump-ext",
+  "title": {
+    "zh": "perworld L v2 产品侧扩展像素 dump（opt-in 诊断缓冲：color/base_color/tex_uv/tex_color/求交/法线/每灯中间量；零 GPU；env 未设零副作用）",
+    "en": "Per-world L v2 product-side extended pixel dump (opt-in diagnostic buffer: color/base_color/tex_uv/tex_color/intersection/normal/per-light intermediates; zero GPU; zero side effects when env unset)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Arch 字段规格（`target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` §C）给现有 `MJWARP_DIAG_PIXEL_DUMP` 机制加产品侧中间量采集：`.cu` 增加 1 个尾随 `wp::uint64 diag_ptr` 参数（0=关闭），非零时每个 ray 写固定 stride=64 f32 的诊断记录（打包前 color、base_color、tex_uv、tex_color、`bary_u/bary_v/t`、face/mesh_id、hit_point、normal、view_dir、每灯 weight/visible/ndotl/ndoth/half/pow）；Rust 侧 env 未设时零分配/零 copy/零额外输出，env 设时每次 render 调用分配小缓冲、launch 后回读并按 world 保存；测试侧 dump（schema 2）对 4 个目标像素（及全部 rgb 失配像素）附加 `diagnostics` 对象。**只加 dump store/分支，不改任何 f32 表达式/结合序**：用离线 NVRTC PTX 对照证明除新增 store/分支外算术指令流（opcode 序列）与 `e22891da`（P9 版）逐条一致；若寄存器压力导致算术变化则停下报告。零 GPU、不跑诊断；不改判据/参考/容差；G-L2 维持未通过。",
+    "en": "Extend the existing `MJWARP_DIAG_PIXEL_DUMP` mechanism with product-side intermediate capture per Arch's field spec (`target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` section C): the `.cu` gets one trailing `wp::uint64 diag_ptr` parameter (0 = off); when non-zero each ray writes a fixed-stride (64 f32) diagnostic record (pre-pack color, base_color, tex_uv, tex_color, bary_u/bary_v/t, face/mesh_id, hit_point, normal, view_dir, per-light weight/visible/ndotl/ndoth/half/pow). Rust side: zero allocation/copy/output when the env is unset; when set, each render call allocates a small buffer, reads it back after launch and stores it per world; the test-side dump (schema 2) attaches a `diagnostics` object to the four target pixels (and to every rgb mismatch pixel). Only dump stores/branches are added -- no f32 expression or association-order change: an offline NVRTC PTX comparison must show the arithmetic opcode stream is identical to `e22891da` (P9 build) apart from the added stores/branches; if register pressure changes arithmetic, stop and report. Zero GPU, no diagnostic run; no criterion/reference/tolerance change; G-L2 stays not passed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**内核诊断写（opt-in）**：`MEGAKERNEL_SOURCE` 追加新文件 `src/render/kernel/cuda/render_diag.cu`（在 `render_common.cu` 之后、`render_shadow.cu` 之前拼接），定义 dump 布局常量（stride 64）与 store helper；`render_megakernel.cu` 签名末尾追加 `wp::uint64 diag_ptr`（0=关闭），命中分支在打包前写 color/base_color/求交/法线/view_dir 记录（face/mesh_id 以 i32 位型存）；`render_shade.cu::sample_texture` 写 tex_uv/tex_color、`compute_lighting` 写每灯 weight/visible/ndotl/ndoth/half/pow（headlight 用第 4 slot）。**normal 路径 diag_ptr=0，不写任何 store**。",
+    "**Rust 侧零副作用**：新增 `src/render/kernel/diag.rs`（env 判定、`DiagCapture`、`DiagBuffer` 分配/回读）；`MEGAKERNEL_SLOTS` 81→82（+1 `Scalar(U64)`，槽序 = 签名序，尾随槽）；`megakernel_args.rs` 传入 `diag_addr`；`MegakernelRenderer` 增 `Mutex<Vec<DiagCapture>>` 与 `diag_record(world, ray)` 访问器；env 未设时无分配、无 copy、无输出（默认行为与 `e22891da` 逐字节一致）。",
+    "**测试 dump schema 2**：`tests/support/render_bvh/light/diag.rs` 在 opt-in 时对每个 rgb 失配像素按 `(world, cam*PIXELS+pixel)` 取 ray 记录，附 `diagnostics`（color/base_color/tex_uv/tex_color/bary/t/face/mesh_id/hit_point/normal/view_dir/lights[4]；bits 以 f32 位型原样输出并注明编码）；`tests/render_per_world_light.rs` 把 renderer 传入 DumpInput。未设 env 时 dump 行为/输出与现状零差异。",
+    "**算术未变证明**：离线 NVRTC（pinned 12.8.1，product 选项）分别编译 old（`e22891da`/HEAD blobs）与 new（工作树）拼接源码，抽取算术指令 opcode 序列并逐条比对（排除新增 ld/st/setp/bra/mov）；必须**完全一致**；附 new 相对 old 的差异只含 store/分支的说明。若不一致→停下报告，不硬塞。",
+    "**内核身份新基线**：记录 old→new `MEGAKERNEL_SOURCE` sha、megakernel PTX sha+bytes、aa_resolve 三值（预期不变）、depth_seg 三值（预期不变）；采集=NVRTC 纯编译（identity 用例，不建 GPU 会话）+ 按 `mod.rs` 拼接顺序独立复算。",
+    "**门禁/证据/边界**：`cargo build --locked --features cuda-probe`、`cargo test --locked --features cuda-probe --no-run`、四门禁 fmt/clippy/clippy-cuda/unit（1,387 过 0 败 / 402 ignored）全过；证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext/`（README/receipt/manifest + logs：old/new identity、独立复算、offline PTX 算术序列比对、build/no-run、modules 登记）；manifest 自核、UTF-8/LF/无 BOM；`unchanged fixtures/`、`unchanged scripts/`、其它 `.cu` 零改动；零 GPU、不采集、不跑诊断、不动冻结件/guards；不宣称修复、不改 G-L2 判定与判据/参考/容差。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_diag.cu",
+      "src/render/kernel/cuda/render_shade.cu",
+      "src/render/kernel/cuda/render_megakernel.cu",
+      "src/render/kernel/mod.rs",
+      "src/render/kernel/diag.rs",
+      "src/render/kernel/megakernel.rs",
+      "src/render/kernel/megakernel_args.rs",
+      "src/render/kernel/megakernel_arrays.rs",
+      "src/runtime/launcher/render/args.rs",
+      "tests/support/render_bvh/light/diag.rs",
+      "tests/render_per_world_light.rs",
+      "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext/"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "Chief 2026-11-11 06:25 恢复派工：产品侧扩展像素 dump 实现卡（纯诊断、零 GPU）。依据 texture-chain-and-dump-spec §C 字段表。做法：MEGAKERNEL_SOURCE 新增 render_diag.cu（布局常量+store helper）+ megakernel 签名尾随 diag_ptr（0=off）+ 着色/纹理/每灯中间量 store；Rust env 门控分配/回读/按 world 保存；测试 dump schema 2 给失配像素附 diagnostics。硬约束：env 未设零副作用、只加 store/分支不改 f32 表达式、离线 NVRTC PTX 证明算术 opcode 序列与 e22891da 完全一致（不一致则停手报告）。产出 dump schema 文档 + 新内核身份 + PTX 未变证明 + 四门禁 + 证据目录 + 中文提交。",
+  "revision": {
+    "before": "61d3c76fc117f61bb259ec7b774302738afc229a",
+    "after": null
+  },
+  "created_at": "2026-11-10T22:26:38.000Z",
+  "updated_at": "2026-11-10T22:26:38.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "src/render/kernel/cuda/render_common.cu",
+        "src/render/kernel/cuda/render_math.cu",
+        "src/render/kernel/cuda/render_flex.cu",
+        "src/render/kernel/cuda/render_shadow.cu",
+        "src/render/kernel/cuda/render.cu",
+        "src/render/kernel/cuda/aa_resolve.cu",
+        "src/render/bvh/cuda/scene.cu",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/"
+      ]
+    }
+  ]
+}
