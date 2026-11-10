@@ -5,7 +5,7 @@
     "zh": "perworld L v2 产品侧扩展像素 dump（opt-in 诊断缓冲：color/base_color/tex_uv/tex_color/求交/法线/每灯中间量；零 GPU；env 未设零副作用）",
     "en": "Per-world L v2 product-side extended pixel dump (opt-in diagnostic buffer: color/base_color/tex_uv/tex_color/intersection/normal/per-light intermediates; zero GPU; zero side effects when env unset)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "按 Arch 字段规格（`target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` §C）给现有 `MJWARP_DIAG_PIXEL_DUMP` 机制加产品侧中间量采集：`.cu` 增加 1 个尾随 `wp::uint64 diag_ptr` 参数（0=关闭），非零时每个 ray 写固定 stride=64 f32 的诊断记录（打包前 color、base_color、tex_uv、tex_color、`bary_u/bary_v/t`、face/mesh_id、hit_point、normal、view_dir、每灯 weight/visible/ndotl/ndoth/half/pow）；Rust 侧 env 未设时零分配/零 copy/零额外输出，env 设时每次 render 调用分配小缓冲、launch 后回读并按 world 保存；测试侧 dump（schema 2）对 4 个目标像素（及全部 rgb 失配像素）附加 `diagnostics` 对象。**只加 dump store/分支，不改任何 f32 表达式/结合序**：用离线 NVRTC PTX 对照证明除新增 store/分支外算术指令流（opcode 序列）与 `e22891da`（P9 版）逐条一致；若寄存器压力导致算术变化则停下报告。零 GPU、不跑诊断；不改判据/参考/容差；G-L2 维持未通过。",
     "en": "Extend the existing `MJWARP_DIAG_PIXEL_DUMP` mechanism with product-side intermediate capture per Arch's field spec (`target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` section C): the `.cu` gets one trailing `wp::uint64 diag_ptr` parameter (0 = off); when non-zero each ray writes a fixed-stride (64 f32) diagnostic record (pre-pack color, base_color, tex_uv, tex_color, bary_u/bary_v/t, face/mesh_id, hit_point, normal, view_dir, per-light weight/visible/ndotl/ndoth/half/pow). Rust side: zero allocation/copy/output when the env is unset; when set, each render call allocates a small buffer, reads it back after launch and stores it per world; the test-side dump (schema 2) attaches a `diagnostics` object to the four target pixels (and to every rgb mismatch pixel). Only dump stores/branches are added -- no f32 expression or association-order change: an offline NVRTC PTX comparison must show the arithmetic opcode stream is identical to `e22891da` (P9 build) apart from the added stores/branches; if register pressure changes arithmetic, stop and report. Zero GPU, no diagnostic run; no criterion/reference/tolerance change; G-L2 stays not passed."
@@ -42,11 +42,11 @@
   },
   "note": "Chief 2026-11-11 06:25 恢复派工：产品侧扩展像素 dump 实现卡（纯诊断、零 GPU）。依据 texture-chain-and-dump-spec §C 字段表。做法：MEGAKERNEL_SOURCE 新增 render_diag.cu（布局常量+store helper）+ megakernel 签名尾随 diag_ptr（0=off）+ 着色/纹理/每灯中间量 store；Rust env 门控分配/回读/按 world 保存；测试 dump schema 2 给失配像素附 diagnostics。硬约束：env 未设零副作用、只加 store/分支不改 f32 表达式、离线 NVRTC PTX 证明算术 opcode 序列与 e22891da 完全一致（不一致则停手报告）。产出 dump schema 文档 + 新内核身份 + PTX 未变证明 + 四门禁 + 证据目录 + 中文提交。",
   "revision": {
-    "before": "61d3c76fc117f61bb259ec7b774302738afc229a",
+    "before": "fdaa794bd38effdcb79f36ca5bc131144dd67a77",
     "after": null
   },
   "created_at": "2026-11-10T22:26:38.000Z",
-  "updated_at": "2026-11-10T22:26:38.000Z",
+  "updated_at": "2026-11-10T22:26:40.519Z",
   "checks": [
     {
       "kind": "gate",
