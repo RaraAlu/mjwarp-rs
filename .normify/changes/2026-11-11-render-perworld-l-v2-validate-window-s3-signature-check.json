@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-validate-window-s3-signature-check",
+  "title": {
+    "zh": "QA 复核 S-3 签名留证卡（`ea91108e`）：签名事实（signer=user / 2026-11-11 / 聊天卡 / scope=S-3a 计划 + S-3b 13,028→9,956 / max 口径 / 旧 stash 漂移裁定 / 失败条款）齐全、material_sha256 = 签名对象 README `437dc793…`/18,694 B 且与签名后新 sha 关系已记录、does_not_open_window 六项在位、三处 signature_status 的 S-1/S-3 行逐字符一致（S-2 行预存在措辞差异）、spec 三处 `bb064fe0…`/39,379 B 未动、S-1 仅 2 逻辑行改、三份 manifest 3/3+12/12+15/15、边界零越界、四门禁 1387/0/402 → PASS",
+    "en": "QA review of the S-3 signature record card ea91108e: signature facts complete, material_sha256 binds the signed README revision, does_not_open_window six conditions present, S-1/S-3 rows identical across the three signature_status blocks, spec bytes unchanged, S-1 receipt touched in exactly two logical lines, manifests 3/3 + 12/12 + 15/15, no boundary violation, gates 1387/0/402 - PASS"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的 S-3 签名留证卡做**独立只读复核**（G-L2 token 前最后一道记录核对）：① 两提交形态（登记 `426fadfb` 只含卡记录且 status=proposed；证据 **`ea91108e`** 承载 proposed→verified + 4 门禁 runs + 全部证据）；② S-3 receipt 签名事实：`status=signed_pending_window`、`signed_object=true`、`signature` 块（signer=user / signed_at=2026-11-11 / Asia/Shanghai / method=聊天卡 / scope=S-3a 计划（guards 107、参考 11,078,239 B、实体 `bab01507` + QA 链、§2.4 `Compared`（`Skipped`=停手）、冻结在 monitor 后、body 零编译、`live==guard==stash`、单次失败即停）+ S-3b（`baseline_free 13,028` / signed floor **9,956** / `floor_effective=max(signed,现场)`、不复用 S-2 的 13,302/10,230）+ 旧 stash 漂移已知事实与裁定 + 失败条款）；③ **`material_sha256` 必须等于用户实际签署的 README 版本**，并核签名后 README 新 sha 与它的关系被正确记录（不是「拿新 sha 冒充签名对象」）；④ `does_not_open_window` 六项（QA PASS / Chief G-L2 token / 现场 floor 取更高 / monitor 60/60 / 零编译 / `live==guard==stash`）；⑤ 三张 receipt 的 `signature_status` 与 S-1 `signatures_required` 一致性、S-1 已签事实与判据未被顺手改写；⑥ **spec.md 三处（工作树 / HEAD blob / 提交前后）逐位未动**；⑦ S-1 `non_claim` 滞后措辞**未被越界修改**且已在 S-3 `non_claim` 如实登记；⑧ 边界（只含 12 文件、`src/`/`tests/`/`fixtures/`/`scripts/` 零 diff、S-3 materials 零 diff）、三份 manifest 重算、编码卫生、四门禁与 `normify check`。**只读被复核内容，只写本卡与本卡证据；零 GPU。**",
+    "en": "Independent read-only review of the S-3 signature record card: two-phase commit shape, signature facts, material_sha256 binding to the actually signed README revision, does_not_open_window conditions, three signature_status blocks and S-1 signatures_required consistency, spec byte invariance, stale S-1 non_claim wording deliberately untouched and documented, boundaries, three manifest recomputes, encoding hygiene and gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**签名事实齐全（S-3 receipt）**：`status=signed_pending_window`、`signed_object=true`；`signature.signer=user`、`signed_at=2026-11-11`、`timezone=Asia/Shanghai`、`method=chat card selection (dual sign S-3: plan + signed floor 9,956)`；`scope` 逐项含 **S-3a 计划**（guards **107 = 12 exe + 93 输入 + 2 条 v2.2 清单**、旧 suite/stash 只读、参考 5 文件 **11,078,239 B**、实体 `render_per_world_light` 最终 **`bab01507`** + QA 链 `7d089165`/`6a75ceee`/`be12145e`、判据 A/B/C 与 §2.4 对账 `check_capture_c1 == Compared`（`Skipped` ⇒ 停手）、冻结在 monitor PASS 后、body 零编译、`live==guard==stash`、单次失败即停）+ **S-3b**（`baseline_free 13,028 MiB` / signed floor **`9,956 MiB`**、**明确 NOT S-2 的 13,302/10,230**、开窗前 5 分钟内现场重测、`floor_effective = max(signed, 现场)` 更高更严）+ **旧 stash 漂移已知事实与裁定**（预存在已知项 / 旧 stash 仅历史只读参照・永不作本次证据 / 窗口重建并重新 stash 12 exe / `-AllowOldStashDrift` 可带但理由须入窗口证据 / 旧 guards JSON 不得改）+ **失败条款**（任一失败：停手报用户、不重试、不改阈值/参考/相机/冻结件）✅。",
+    "**签名对象绑定正确（关键）**：`signature.material_sha256 = 437dc793d13d4f1bc997bd73a554f50b7351a7e8394b9fd6a2ad2f3d2edd816a` / **18,694 B**；我独立从 `426fadfb`（签名前）取 README blob 复算 sha256 **正是 `437dc793…`/18,694 B**，与签名对象一致；签名后 README 为 **`ddb15baa…`/21,718 B**（追加 §10 版本记录 + 顶部签名状态行），`signature.note` 与 README §10 **明确写出「manifest 里是新 sha、签名绑定的是旧 sha、属预期」**——**没有拿事后新 sha 冒充签名对象** ✅。",
+    "**does_not_open_window 六项齐全**：QA PASS（本卡复核）→ Chief G-L2 token → 开窗前 5 分钟内三点基线且 `floor_effective = max(signed 9,956, 现场)`（更高更严）→ monitor 60/60 util<40 → body 零编译 → 12 个冻结 exe `live==guard==stash` ✅（与 S-2 同字段风格，S-3 额外记录 spec 前后 sha）。",
+    "**三处 `signature_status` 一致性（按实际，不按描述）**：S-1 与 S-3 两行在 **S-1/S-2/S-3 三张 receipt 中逐字符完全一致**；**S-2 行在 S-2 自身 receipt 里措辞不同**（`…(this signature card; plan + baseline 13,302 MiB / signed floor 10,230 MiB + authoring exception + failure clauses)`），该差异由 **`2f361d91`（2026-11-08 S-2 签名卡）就已存在**、本卡未触碰，且两处均写 `signed 2026-11-08` + 13,302/10,230，**无事实冲突**（记为观察 O1，不阻断）。S-1 `signatures_required` 的 S-3 行已 = **SIGNED 2026-11-11**，且 S-1 receipt 的 diff **只有 2 个逻辑行**（`signature_status.S-3`、`signatures_required[S-3]`），S-1 已签事实、S-2 行、判据/测量字段逐字节未动；S-2 receipt diff 只有 1 行（`signature_status.S-3`）✅。",
+    "**spec 字节未动**：工作树、`HEAD:` blob、签名卡父提交 blob 三处 spec.md 均 **`bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d` / 39,379 B**；`ea91108e` 的 changed files 中**不含 spec.md**；receipt 亦写死 before/after 两次计算值 ✅。",
+    "**S-1 滞后措辞（越界防护正确）**：S-1 receipt `non_claim` 第 1 条仍是 2026-11-08 旧句「S-2 and S-3 not signed」——**本卡未改**（S-1 diff 仅 2 行、非 non_claim），S-3 receipt `non_claim[5]` 已如实登记该滞后句并说明「不改已验证证据、S-3 签名事实以三处 `signature_status` 与 `signature` 块为准」✅；不构成误导（建议后续 fix 收，非阻断）。",
+    "**两提交形态与合规**：`426fadfb` **只含 1 个文件**（卡记录，且该时刻 `status=proposed`、`closed_at` 为空）；`ea91108e` 12 文件 = 卡（proposed→verified + closed_at）+ 4 门禁 runs + S-3 README/manifest/receipt + S-1 manifest/receipt + S-2 manifest/receipt。**没有「新卡首次提交即 verified」的违规面**：verified 事实来自后续带证据/runs 的提交，`normify check` 该卡「全部检查通过」、`normify status` 错误 0 警告 0 ✅。（`normify audit` 在本环境运行 >9 分钟无输出已终止，记为观察 O4。）",
+    "**边界/证据/门禁**：`ea91108e` 只含上述 12 文件；`src/`/`tests/`/`fixtures/`/`scripts/` 各 **0** diff；**S-3 `materials/` 零 diff**（README §10 声称的「签名摘要保持签署前定稿原文」属实）；三份 manifest 独立重算 **S-3 15/15、S-1 3/3、S-2 12/12 全对**（README `ddb15baa…`/21,718、receipt `3262f72e…`/26,121、S-1 receipt `3698ce40…`/23,280、S-2 receipt `867a0fad…`/13,865 全部逐字节相符）；7 个被改证据文件 BOM=False、CR=0、TAB=0；四门禁 HEAD 复跑全 exit 0、unit **1387/0/402**（与 runs 记录一致）；`normify status` 已验收 **829**、运行 0 ✅。",
+    "**结论**：**PASS（0 阻断，4 条信息级观察）→ 支持 Chief 发 G-L2 token**。强调：**签名与 token 都不等于开窗**——G-L2 仍需开窗前 5 分钟内三点基线 + `floor_effective=max(9,956, 现场)` + monitor 60/60 util<40 + 零编译 + `live==guard==stash`；本卡不宣称采集有效/灯验收/上游等价/任何渲染数值结论。观察项：O1 上述 S-2 行措辞差异（预存在）；O2 S-3 receipt `title` 仍是 fill 轮文案「remaining PENDING-FREEZE / PENDING-QA / PENDING-REFRESH」（`non_claim[2]` 已澄清、本卡未改）；O3 S-3 README fill 轮小结仍写「需…用户 S-3 双签…」（fill 轮历史口径，顶部/§7/§10 已为已签口径且三处强调不构成开窗，无自相矛盾）；O4 `normify audit` 无法在本环境完成（改用等价证据）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-s3-signature",
+      "2026-11-09-render-perworld-l-v2-validate-window-s3-prereview"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3-signature-check/"
+    ],
+    "resources": [],
+    "priority": 88
+  },
+  "note": "Chief 2026-11-11 派工：S-3 签名留证卡最小复核（G-L2 token 前最后一道记录核对）。结论 PASS → 可发 G-L2 token（token 与开窗条件仍由 Chief/现场决定，签名不构成开窗）。core 事实：签名对象 README 437dc793…/18,694 B 与签名前 blob 逐字节相符；spec 三处 bb064fe0…/39,379 B 未动；S-1 仅 2 逻辑行改；三份 manifest 15/15+3/3+12/12；四门禁 1387/0/402；边界零越界。4 条信息级观察（S-2 行措辞预存在差异、receipt title 与 README fill 轮小结的历史口径、normify audit 不可完成）。零 GPU、未改进度群。",
+  "revision": {
+    "before": "058fbe9e56bbf707931fbe195dfc767a678a26b7",
+    "after": null
+  },
+  "created_at": "2026-11-11T03:20:00.000Z",
+  "updated_at": "2026-11-11T03:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3-signature-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-validate-window-s3-signature-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3-signature-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/receipt.json",
+      "pointer": "/signature/material_sha256",
+      "equals": "437dc793d13d4f1bc997bd73a554f50b7351a7e8394b9fd6a2ad2f3d2edd816a"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "采集已有效",
+        "灯位姿已验收",
+        "上游等价",
+        "G-L2 已通过"
+      ]
+    }
+  ]
+}
