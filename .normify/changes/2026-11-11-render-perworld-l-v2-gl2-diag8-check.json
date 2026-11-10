@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-diag8-check",
+  "title": {
+    "zh": "QA 复核诊断轮 #8（P10 验证，A 归零）：HEAD `b84d5996` 相对 `b0e372be` src 面零 diff、树 clean、dump 未入库、单次/无重试（一对 test8 日志、无 retry 标记、时间线单调）、实体 **exit 0 / 2 passed 0 failed / wall 3.30 s**、pilot 通过；exe 92,590,602 B/`73245bbf…`（07:36 P10 后构建），P10 双内核身份 source 我独立复算 `6b1ade37…`/110,509 与 `1e3f273c…`/53,552 一致；dump8 **5,930 B/`7fe32fc6…`**、`schema==2`、rgb/depth/seg 失配**全 0**、6 帧全零、near-miss 每帧 76,800 全等、与 diag7 的 4 px 清空且无新增；B/两跑 sha/world 隔离/C 由 exit 0 保证（具体打印值本轮未落盘，attempt 4 `--nocapture` 补）→ **PASS（0 阻断，1 信息观察）**",
+    "en": "QA review of diagnostic round #8: single run/no retry, clean boundary, entity exit 0 with 2 passed, dump8 schema 2 with zero rgb/depth/seg mismatches, the diag7 four pixels cleared with no new ones, exe and P10 kernel identity reproduced - PASS with 1 info note (printed assertion values not persisted)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对诊断轮 #8（P10 验证轮）做独立只读复核（零 GPU），只核「运行与 dump 合规」、不判定修复/整窗结论：①单次/无重试、锁、现场记录；②dump8 `schema==2`、失配全 0、与 diag7 对比清空无新增；③exe 与 P10 双内核身份；④断言通过性（exit 0 的支撑）与信息限制；⑤口径。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of diagnostic round #8 run and dump compliance (not the fix/window verdict): single-run/lock/records, dump8 content vs diag7, exe and P10 identity, assertion support and info limits, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① 运行合规 ✅**：HEAD `b84d5996`，`git diff b0e372be..HEAD -- src/ tests/ fixtures/ scripts/` **空**、树 clean、diag8 未入库；仅一对 `test8.stdout/stderr.log`、无 retry/attempt/rerun 标记，时间线 07:43:44 pre-state → 07:43:47 prebuild → 07:43:51/54 test+dump → 07:44:39 summary；prebuild `--no-run` 0.15 s cache hit（exe 07:36 已用 P10 内核重建）；运行 `cargo test … -- --ignored --test-threads=1` → **exit 0 / wall 3.30 s / 2 passed 0 failed 0 ignored**；锁按 pre-state/run-summary 记录（无审计日志，当前 FREE）；GPU pre 7%/3,919 MiB/12,143 free/26℃、post 2%/…（已填，无 `$gpu` 占位）；`body-env.txt` 路径本轮正常 ✅",
+    "**② dump8 与 diag7 对比 ✅**：dump8 **5,930 B / sha `7fe32fc6c0bc1345298103f3f62b1e8903aafbece118d5fc213f2f211978d267`**，`schema=2`、kind/env 正确；`rgb/depth/seg_mismatches` **全 0**、6 帧全零、near_miss 每帧 `equal=76,800/mismatched=0`；diag7（55,485 B/`8cadf764…`）的 4 px `[(0,1,13268),(1,1,10744),(1,1,22903),(1,1,39492)]` 在 diag8 **全部清空且无新增**；`diagnostics` 只在失配条目出现，空集时不存在与契约一致 ✅",
+    "**③ exe/身份 ✅**：exe 实测 **92,590,602 B / `73245bbf175bf10c3332b6f3180ae6bc600a6db5fadb55e873ebfdd69a0d2542`**、mtime 2026-11-11T07:36:07；我按 `mod.rs` 顺序独立重算拼接 source：megakernel **110,509 B/`6b1ade37…`**、depth_seg **53,552 B/`1e3f273c…`** —— 与 P10 基线逐位一致（PTX `48f8e7f8…`/348,399、`31912377…`/138,857 已在 P10 复核以同方法验证；本轮 src 相对 `b0e372be` 零 diff）✅",
+    "**④ 断言通过性 ✅（1 信息观察）**：重读 `tests/render_per_world_light.rs`——entity 用例含 C（`verdict==PassMargin`、`check_capture_c1==Compared`）、A（6 帧逐项 assert 全 0）、B（`(xpos_mismatched,xdir_mismatched)==(0,0)`）、两跑 sha（`assert_eq!`）、world 隔离（world0/world2 false、world1 any true）断言 ⇒ **exit 0 即全部成立**；pilot 断言 §2.4 计数（c1 `[38285,40644]`/bitwise `[43604,41815]`、c2 depth `[35828,33883]`、seg `[16041,16754]`、PassMargin）并通过 ✅。**信息观察**：cargo 捕获通过用例 stdout，B/两跑 sha/world 隔离/C 的具体打印值未落盘（A 可从 dump8 frames 直接看到全 0）；attempt 4 将 `--nocapture` 补落，建议届时把原文写入窗口证据 ✅",
+    "**⑤ 口径 ✅**：本复核只核运行与 dump 合规，**不判定修复效果/整窗结论**（A 归零的最终判定与 G-L2 状态更新由 Chief 裁定），不改判据/阈值/参考/容差，零 GPU，未重跑/未重冻；dump 留 `target/` 不入库 ✅",
+    "**结论：PASS（0 阻断，1 条信息观察）。** 运行/dump 合规，P10 修复在实体上的表现由本轮回放数据支持（A 全 0）；整窗结论待 attempt 4。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin",
+      "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag8-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核诊断轮 #8（P10 验证，A 归零），快落卡。结论 PASS（0 阻断，1 信息观察）。已核：HEAD b84d5996 相对 b0e372be 的 src/tests/fixtures/scripts diff 空、树 clean、diag8 未入库；单次/无重试（一对 test8 日志、无 retry 标记、时间线 07:43:44→07:43:54→07:44:39）、prebuild 0.15s cache hit；实体 exit 0/2 passed 0 failed/wall 3.30s、pilot 通过；exe 92,590,602/73245bbf（07:36 P10 后构建）；P10 双内核身份 source 我独立重算 mega 110,509/6b1ade37、depth 53,552/1e3f273c 与基线一致；dump8 5,930B/7fe32fc6、schema==2、rgb/depth/seg 全 0、6 帧全零、near_miss 76800 全等；diag7 4 px [(0,1,13268),(1,1,10744),(1,1,22903),(1,1,39492)] 全清空无新增；B/两跑 sha/world 隔离/C 由 exit 0 保证（打印值本轮未落盘，attempt4 --nocapture 补）；body-env 本次无转义污染。不判定修复效果/整窗结论、不改判据、dump 不入库。",
+  "revision": {
+    "before": "4899d86e5b8df14f99b74c334aa00a369716b21c",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:46:29.000Z",
+  "updated_at": "2026-11-10T23:46:29.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag8-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-gl2-diag8-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag8-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
