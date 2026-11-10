@@ -5,7 +5,7 @@
     "zh": "perworld L v2 G-L2 验证窗执行（guards 107 冻结 + authoring 例外门禁复核 + 12 个冻结 exe 单次运行；实体 render_per_world_light 判据 A/B/C + §2.4 对账）",
     "en": "Per-world L v2 G-L2 validation window (freeze guards 107, monitor gate, single run of the 12 frozen executables; entity render_per_world_light criteria A/B/C + section 2.4 cross-check)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "执行 S-3 双签授权的 G-L2 验证窗（唯一执行者 Backend，锁 owner=Backend 全程持有）：登记窗卡 → T0 冻结 → 仅冻结阶段编译（cargo test --locked --no-run）→ 冻结 guards（12 exe + 93 输入 + 2 清单 = 107，-AllowOldStashDrift 理由记录）→ 冻结后零编译 monitor 60/60 util<40 → 三点基线与 floor_effective=max(signed 9,956, onspot) → 报 Chief 获 GO → 按 guards 清单单次运行 12 个冻结 exe（--ignored --test-threads=1），实体 render_per_world_light 必须判据 A/B/C PASS、C1/C2 两对 ≥576、§2.4 对账 check_capture_c1=Compared、两跑 sha、world 隔离；11 个回归 exe 全绿；运行后再核 live==guard==stash。本卡只出验证事实，不改判据/阈值/参考。",
     "en": "Execute the S-3 dual-signed G-L2 validation window as the sole writer (repo-write-lock owner=Backend for the whole window): window card, T0 freeze, compile only in the freeze stage (cargo test --locked --no-run), freeze the guards (12 exes + 93 inputs + 2 outline lists = 107; record the -AllowOldStashDrift reason), zero-compile monitor 60/60 util<40 after the freeze, three-point baseline with floor_effective=max(signed 9,956, onspot), Chief GO, one run of the 12 frozen executables (--ignored --test-threads=1), the entity render_per_world_light must pass criteria A/B/C with C1/C2 pairs >=576 and section 2.4 cross-check = Compared, two-run sha and world isolation, 11 regression executables green, and live==guard==stash re-checked. Facts only: no criterion/threshold/reference changes."
@@ -39,14 +39,13 @@
     "resources": [],
     "priority": 70
   },
-  "note": "Chief 2026-11-11 03:25 G-L2 token（S-3 双签 ea91108e + QA dd9b9bc6 PASS；现场 HEAD dd9b9bc6、树 clean、锁 FREE、0 构建、GPU util 38%/free 12,060 MiB）。执行者 Backend 唯一写者、锁 owner=Backend 全程持有；冻结阶段唯一允许编译（cargo test --locked --no-run），冻结后零编译；monitor 常规 util<40、验证窗不适用 authoring 例外；floor signed 9,956；GO 后 12 个冻结 exe 各跑一次，实体 §2.4 对账必须 Compared。停手点：monitor 不成立、free<floor_effective、冻结校验失败、第 5 步后编译、exe 失败或 Skipped、树脏 → 停手报 Chief。",
+  "note": "Chief 2026-11-11 03:25 G-L2 token（S-3 双签 ea91108e + QA dd9b9bc6 PASS；现场 HEAD dd9b9bc6、树 clean、锁 FREE、0 构建、GPU util 38%/free 12,060 MiB）。执行者 Backend 唯一写者、锁 owner=Backend 全程持有；冻结阶段唯一允许编译（cargo test --locked --no-run），冻结后零编译；monitor 常规 util<40、验证窗不适用 authoring 例外；floor signed 9,956；GO 后 12 个冻结 exe 各跑一次，实体 §2.4 对账必须 Compared。停手点：monitor 不成立、free<floor_effective、冻结校验失败、第 5 步后编译、exe 失败或 Skipped、树脏 → 停手报 Chief。\n\nattempt 1（2026-11-11 03:25 token）处置（Chief 2026-11-11 03:52 裁决）：该 token 把构建+冻结排在 monitor 之前，与已签 S-3 计划纪律（monitor PASS 后才冻结；冻结阶段才允许 cargo test --no-run）不符；attempt 1 未运行任何 exe，作废重来。attempt 1 monitor 不成立：354 samples、clean 297、longest_clean 21<60、util 1–53%（峰值≥40）、free 11,283–12,232 MiB 全程 ≥ floor 9,956、compute_filtered=0、build=0 → 停手。attempt 1 冻结产物已移出仓保存为异常证据：target/render-bvh/perworld-l-v2-gl2/attempt1/guards-perworld-l2-light.json（sha 7d755a73918704fb2c0aae14824f1cecfb4aec22ad2af63ad50e57205c934d67、43,729 B、aggregate c213c3cf4eb3bbe1afe24b960e95e0c20a54b6b28626a072edfc71fb7e5590e2），不提交、不删除。attempt 2 严格按正确顺序执行：monitor 先行 → PASS 后才构建+冻结 → 三点基线 → GO → 单次运行 12 个冻结 exe。",
   "revision": {
-    "before": "822cfd0b8f4d96889eb45954bbcbed7ac4e301c3",
+    "before": "c2b4c28f5f17f8e3811a1d92a5bfbb34230bf84a",
     "after": null
   },
   "created_at": "2026-11-11T03:25:00.000Z",
-  "updated_at": "2026-11-11T03:25:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T19:17:10.096Z",
   "checks": [
     {
       "kind": "gate",
