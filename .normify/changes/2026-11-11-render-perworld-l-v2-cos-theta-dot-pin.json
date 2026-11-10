@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin",
+  "title": {
+    "zh": "perworld L v2 残余像素 P9：spot 灯 cos_theta 的 dot 次序 pin（3×mul + 2×add + neg，无 fma；零 GPU；新内核身份基线）",
+    "en": "Per-world L v2 residual pixels P9: spot-light cos_theta dot-order pin (3x mul + 2x add + neg, no fma; zero GPU; new kernel identity baseline)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Arch 站点审计（`target/render-bvh/gl2-ptx-diff/site-conformance-audit.md` §B；参考真值=`reference_li_128.ptx` 指令 8715-8720，pinned upstream `mujoco_warp/_src/render.py:907` = `wp.dot(-L, lightdir)`）修残余像素的 spot 灯站点：产品 `render_shade.cu:426` 现用 `dot3_ba(-L.x,-L.y,-L.z, lightdir...)`（1 mul + 2 fma 收缩），参考是 **3 个 plain `mul.f32` + 1 `neg` + 2 `sub.f32`（完全无 fma）**；数值 = `-(rnd(rnd(Lx·dx + Ly·dy) + Lz·dz))`。P9 只改这一行 + 注释，用显式 `__fmul_rn`/`__fadd_rn` 固定三次乘各自舍入、两次加各舍入，`neg` 精确外提：`float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x,lightdir.x), __fmul_rn(L.y,lightdir.y)), __fmul_rn(L.z,lightdir.z));`。不改 `dot3_ba` 本体、`cos_cutoff` 比较与 `powf(fmaxf(cos_theta,0),lightexp)` 组合、其它 `.cu`。记录 old→new `MEGAKERNEL_SOURCE` sha 与 megakernel/aa_resolve/depth_seg PTX sha+bytes；离线 NVRTC PTX 证明该站点新序列 = 3×mul 各自舍入 + 2×add + 1×neg，与参考 `mul;mul;neg;sub;mul;sub` 在 neg 精确意义上逐位等价。不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁与证据按既有口径。修完由 Chief 发诊断轮 #6 token 验证。",
+    "en": "Apply Arch's site audit (`target/render-bvh/gl2-ptx-diff/site-conformance-audit.md` section B; reference ground truth = `reference_li_128.ptx` instructions 8715-8720, pinned upstream `mujoco_warp/_src/render.py:907` = `wp.dot(-L, lightdir)`) to the residual-pixel spot-light site: the product currently uses `dot3_ba(-L.x,-L.y,-L.z, lightdir...)` at `render_shade.cu:426` (1 mul + 2 fma contraction), while the reference is **3 plain `mul.f32` + 1 `neg` + 2 `sub.f32` with no fma**, numerically `-(rnd(rnd(Lx*dx + Ly*dy) + Lz*dz))`. P9 changes only that line plus a comment, using explicit `__fmul_rn`/`__fadd_rn` to round each product and each add separately with the exact neg hoisted out: `float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x,lightdir.x), __fmul_rn(L.y,lightdir.y)), __fmul_rn(L.z,lightdir.z));`. The `dot3_ba` body, the `cos_cutoff` comparison and the `powf(fmaxf(cos_theta,0),lightexp)` combination, and all other `.cu` files stay untouched. Record old->new `MEGAKERNEL_SOURCE` sha and the megakernel/aa_resolve/depth_seg PTX sha+bytes; offline NVRTC PTX proof that the new site is 3x mul (each rounded) + 2x add + 1x neg, bitwise-equivalent to the reference `mul;mul;neg;sub;mul;sub` under exact negation. No criterion/reference/tolerance changes; zero GPU, no capture, no diagnostic run; standard gates and evidence. A diagnostic-round #6 token follows from the Chief."
+  },
+  "modules": {},
+  "acceptance": [
+    "**P9 改动（1 行 + 注释）**：`src/render/kernel/cuda/render_shade.cu:426` `float cos_theta = dot3_ba(-L.x, -L.y, -L.z, lightdir.x, lightdir.y, lightdir.z);` → `float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x, lightdir.x), __fmul_rn(L.y, lightdir.y)), __fmul_rn(L.z, lightdir.z));`，配注释说明参考为 3×plain mul + neg + 2×sub（无 fma）、neg 精确可外提。",
+    "**映射核对**：落地前核对 `L`（spot 分支由 `delta/norm` 三次除法得到）与 `lightdir`（`light_xdir_in`）的来源、以及参考 `wp.dot(-L, lightdir)`（render.py:907）语义；`dot3_ba` 本体、`cos_cutoff = cosf(lightcutoff_rad)` 比较、`attenuation * powf(fmaxf(cos_theta,0),lightexp)` 组合均**不动**。",
+    "**范围钉死**：只改 `render_shade.cu` 这一行 + 注释；`render_common.cu`/`render_megakernel.cu`/`render_math.cu`/`render_shadow.cu`/`render_flex.cu`/`render.cu`/`aa_resolve.cu`/`scene.cu` 全部零改动；`render_shade.cu` 行数仍 ≤500。",
+    "**内核身份新基线**：记录 old→new `MEGAKERNEL_SOURCE` sha、megakernel PTX sha+bytes、aa_resolve 三值（预期不变）、depth_seg 三值（预期不变）；采集方式=NVRTC 纯编译（两个 identity 用例，不建 GPU 会话），附按 `mod.rs` `include_str!` 顺序的独立拼接复算。",
+    "**离线 PTX 证明（零 GPU）**：用离线 NVRTC harness（product 选项 + `--generate-line-info`）编译 old/new 拼接源码，对该站点给出 PTX 指令窗口：old = 1×mul + 2×fma（dot3_ba 收缩）；new = **3×mul.rn + 2×add.rn + 1×neg**（各乘/各加单独舍入），并说明与参考 `mul;mul;neg;sub;mul;sub` 在 neg 精确意义上逐位等价（`-(rnd(rnd(Lx dx + Ly dy) + Lz dz))`）。",
+    "**构建/静态验证（零 GPU）**：`cargo build --locked --features cuda-probe`、`cargo test --locked --features cuda-probe --no-run`、四门禁 fmt/clippy/clippy-cuda/unit（unit 1,387 过 0 败 / 402 ignored）全过；证据目录 `docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin/`（README/receipt/manifest + logs：old/new identity、独立复算、离线 PTX/窗口/证明、src.diff、build/no-run）；manifest 自核、UTF-8/LF/无 BOM；diff 统计写实际 `git diff --stat` 数字。",
+    "**边界与非声明**：`unchanged fixtures/`、`unchanged tests/`、`unchanged scripts/`、其余 `.cu` 与既有证据目录只读；零 GPU、不采集、不跑诊断、不动冻结件/guards；本卡不宣称修复生效（需 Chief 诊断轮 #6 验证）、不改 G-L2 判定（判据 A FAIL 维持）、不改判据/阈值/参考/容差。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_shade.cu",
+      "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 06:14 插队派工（扩展 dump 卡暂停，未做任何改动）：Arch 站点审计 §B 高置信新站点 spot 灯 `cos_theta = wp.dot(-L, lightdir)`。参考真值=3×plain mul + neg + 2×sub（无 fma），产品现为 dot3_ba 的 1 mul + 2 fma。P9 只改 render_shade.cu:426 一行 + 注释（显式 `__fmul_rn`/`__fadd_rn`，neg 精确外提）；其余不动。产出：新内核身份 old→new + 离线 NVRTC PTX 窗口证明 + 四门禁 + 新证据目录；零 GPU、不跑诊断、不宣称生效。",
+  "revision": {
+    "before": "638fee725c46cc453e09c0f0ce02a9181b7e0a68",
+    "after": null
+  },
+  "created_at": "2026-11-10T22:15:07.000Z",
+  "updated_at": "2026-11-10T22:15:07.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "tests/",
+        "scripts/",
+        "src/render/kernel/cuda/render_common.cu",
+        "src/render/kernel/cuda/render_math.cu",
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "src/render/kernel/cuda/render_flex.cu",
+        "src/render/kernel/cuda/render_shadow.cu",
+        "src/render/kernel/cuda/render.cu",
+        "src/render/kernel/cuda/aa_resolve.cu",
+        "src/render/bvh/cuda/scene.cu",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/"
+      ]
+    }
+  ]
+}
