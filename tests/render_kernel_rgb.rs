@@ -50,8 +50,8 @@ fn reference_fixture_and_light_data_poses() {
         2,
         "跨配方偏差记录"
     );
-    // 81 槽（1 bounds + 73 数组 + 7 标量）与 S7a 冻结签名一致。
-    assert_eq!(MEGAKERNEL_SLOTS.len(), 81);
+    // 82 槽（1 bounds + 73 数组 + 8 标量）：S7a 冻结 81 槽 + 1 个尾随诊断扩展槽（P10）。
+    assert_eq!(MEGAKERNEL_SLOTS.len(), 82);
     assert_eq!(
         MEGAKERNEL_SLOTS[0],
         mjwarp_rs::runtime::launcher::RenderArgKind::Bounds2D

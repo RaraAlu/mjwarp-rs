@@ -161,7 +161,7 @@ fn kernel_flag_bits_and_slot_signature_unchanged() {
     ] {
         assert!(MEGAKERNEL_CU.contains(define), "缺位定义: {define}");
     }
-    assert_eq!(MEGAKERNEL_SLOTS.len(), 81);
+    assert_eq!(MEGAKERNEL_SLOTS.len(), 82);
     let scalars = MEGAKERNEL_SLOTS
         .iter()
         .filter(|kind| matches!(kind, RenderArgKind::Scalar(_)))
@@ -170,7 +170,7 @@ fn kernel_flag_bits_and_slot_signature_unchanged() {
         .iter()
         .filter(|kind| matches!(kind, RenderArgKind::Bounds2D))
         .count();
-    assert_eq!((bounds, scalars), (1, 7));
+    assert_eq!((bounds, scalars), (1, 8));
 }
 
 /// 测试参考：上游 `sample_skybox`（render.py L503-554）的方向→(face, s, v)。

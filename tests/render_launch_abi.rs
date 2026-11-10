@@ -52,7 +52,7 @@ fn warp_grid() -> LaunchDims {
 #[test]
 fn megakernel_signature_covers_upstream_argument_classes() {
     let slots = &MEGAKERNEL_SLOTS;
-    assert_eq!(slots.len(), 81, "1 bounds + 73 数组 + 7 标量");
+    assert_eq!(slots.len(), 82, "1 bounds + 73 数组 + 7 标量");
     assert_eq!(slots[0], RenderArgKind::Bounds2D);
     let arrays = slots
         .iter()
@@ -62,7 +62,7 @@ fn megakernel_signature_covers_upstream_argument_classes() {
         .iter()
         .filter(|slot| matches!(slot, RenderArgKind::Scalar(_)))
         .count();
-    assert_eq!((arrays, scalars), (73, 7));
+    assert_eq!((arrays, scalars), (73, 8));
     for elem in RenderElem::ALL {
         assert!(
             slots.contains(&RenderArgKind::Array(elem)),
@@ -83,7 +83,7 @@ fn megakernel_signature_covers_upstream_argument_classes() {
     }
     let signature = RenderSignature::MEGAKERNEL;
     assert_eq!(signature.name(), "_render_megakernel");
-    assert_eq!(signature.len(), 81);
+    assert_eq!(signature.len(), 82);
     assert_eq!(signature.block(), BlockRule::WarpGrid);
     assert_eq!(signature.block().threads(), 256);
 }

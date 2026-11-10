@@ -130,7 +130,7 @@ fn resolved_context_carries_shadow_parameters() {
 #[test]
 fn megakernel_slots_signature_is_unchanged() {
     // 81 槽 S7a 冻结签名：R09-S2 不增槽（shadow_light_fraction 复用 scale_constants 数组）。
-    assert_eq!(MEGAKERNEL_SLOTS.len(), 81);
+    assert_eq!(MEGAKERNEL_SLOTS.len(), 82);
     assert_eq!(MEGAKERNEL_SLOTS[0], RenderArgKind::Bounds2D);
     assert_eq!(MEGAKERNEL_ENTRY, "render_megakernel");
 }
