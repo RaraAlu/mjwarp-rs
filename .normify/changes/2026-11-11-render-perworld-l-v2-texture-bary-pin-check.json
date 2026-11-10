@@ -5,7 +5,7 @@
     "zh": "QA 复核 P7 纹理重心插值舍入次序 pin 修复卡（`4e6e47b1`）：仅 `render_shade.cu::texture_mesh` +4/−2（u/v 两行改 `__fmaf_rn(uv2,w2, __fmaf_rn(uv0,w0, __fmul_rn(uv1,w1)))`，`w0/w1/w2` 字面未动、其它 `.cu` 0 diff、462→464 行）、落地式与 spec §A 参考序列逐项一致（mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2)）、离线 NVRTC+lineinfo 站点证明 old mul→fma→fma 单独舍入项写反→new 同形参考、新内核身份 source 独立复算 `92771543…`→`eb59dd78…` 一致（PTX `e44ac85c…`/344,169→`e91b7d85…`/344,175；aa_resolve/depth_seg 源未变）、四门禁 1387/0/402、manifest 17/17、边界零越界、口径不宣称生效且 G-L2 维持未通过 → PASS（可发诊断轮 #5）",
     "en": "QA review of the P7 texture barycentric interpolation rounding-order pin: only render_shade.cu texture_mesh +4/-2, landing form matching spec section A, offline NVRTC lineinfo site proof, independently reproduced kernel source identity, gates 1387/0/402, manifest 17/17, boundary clean, non-claims correct - PASS (diagnostic round 5 may be issued)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 P7 修复卡（提交 **`4e6e47b1`**，卡 `2026-11-11-render-perworld-l-v2-texture-bary-pin`）做独立只读复核（零 GPU；**未重新编译**以免干扰诊断轮 #5 前的 live/冻结件状态）：① 改动面——仅 `src/render/kernel/cuda/render_shade.cu` **+4/−2**，单 hunk 位于 `texture_mesh` 的 `has_uv` 分支 u/v 两行，`w0=bary_u`/`w1=bary_v`/`w2=1.0f-bary_u-bary_v` 字面未动，其它 `.cu` 0 diff，文件 462→464 行；② 落地式与 `target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` §A 参考序列逐项一致；③ 核离线 NVRTC+lineinfo 站点证明（old `mul(uv2*w2)→fma(uv1*w1)→fma(uv0*w0)` → new `mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2)`）；④ 独立复算叠加 source 身份与 aa_resolve/depth_seg 未变；⑤ 门禁/manifest/边界/编码；⑥ 口径（不宣称生效、G-L2 维持未通过）。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the P7 fix card: change surface, landing form versus spec section A, offline PTX site proof, independently reproduced kernel identity, gates/manifest/boundary, and non-claims."
@@ -35,12 +35,12 @@
   },
   "note": "Chief 2026-11-11 派工：优先复核 P7 纹理重心插值舍入次序 pin 修复卡 4e6e47b1（零 GPU）。结论 PASS（0 阻断）→ 可发诊断轮 #5 token；本复核不判定修复效果。核心：仅 render_shade.cu::texture_mesh +4/−2（u/v 两行 + 2 行注释）、w0/w1/w2 字面未动、其它 .cu 0 diff、462→464 行；落地式 __fmul_rn(uv1,w1)+__fmaf_rn(uv0,w0)+__fmaf_rn(uv2,w2) 与 spec §A 参考序列逐项一致；离线 NVRTC+lineinfo 站点证明 old mul(uv2*w2)→fma(uv1*w1)→fma(uv0*w0) 与 new mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2) 齐备；新内核身份 source 独立复算 92771543→eb59dd78 一致、PTX e44ac85c/344,169→e91b7d85/344,175、aa_resolve/depth_seg 未变；四门禁 1387/0/402、manifest 17/17、边界零越界、stash 未动、17 证据文件全 LF 无 BOM；非声明在位（不宣称生效、G-L2 维持未通过）。观察：PTX 层为 Backend 离线证据（我未重跑 nvrtc、未编译）；live exe 再次变化需下次窗口重冻；4 px 前提来自轮 #4 通告待轮 #5 验证。",
   "revision": {
-    "before": "820d10a5efcda6018f44b08cb6a3d96c8e900caa",
+    "before": "c77a8577911450db443c79defac9c9d523e44814",
     "after": null
   },
   "created_at": "2026-11-11T06:06:00.000Z",
-  "updated_at": "2026-11-11T06:06:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T22:07:44.980Z",
+  "closed_at": "2026-11-10T22:07:44.980Z",
   "checks": [
     {
       "kind": "gate",

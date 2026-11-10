@@ -1,0 +1,82 @@
+{
+    "verdict":  "PASS",
+    "gates":  {
+                  "clippy_cuda":  "pass",
+                  "fmt":  "pass",
+                  "unit":  "1387 passed / 0 failed / 402 ignored",
+                  "clippy":  "pass"
+              },
+    "boundary":  {
+                     "live_vs_guard_mismatches_after_rebuild":  12,
+                     "guards_json_changed":  0,
+                     "pins2_evidence_changed":  0,
+                     "fixtures_changed":  0,
+                     "frozen_stash_vs_guard_mismatches":  0,
+                     "g_l2_evidence_changed":  0,
+                     "tests_changed":  0,
+                     "scripts_changed":  0
+                 },
+    "observations":  4,
+    "blockers":  0,
+    "manifest":  {
+                     "entries":  17,
+                     "mismatches":  0
+                 },
+    "reviewed_task_id":  "2026-11-11-render-perworld-l-v2-texture-bary-pin",
+    "non_claim":  [
+                      "does not claim criterion A is fixed, does not claim G-L2 passed or recovered, does not claim upstream equivalence",
+                      "no criterion/threshold/reference/camera/recipe change; G-L2 verdict stays not passed"
+                  ],
+    "offline_ptx_proof":  {
+                              "compiler":  "pinned CUDA 12.8.1 NVRTC, --generate-line-info, no GPU session",
+                              "self_consistent":  true,
+                              "stitched_source":  "92771543.../104103 B -\u003e eb59dd78.../104382 B",
+                              "recompiled_by_qa":  false,
+                              "new_chain":  "mul.rn.f32(uv1.x*w1) -\u003e fma(uv0.x*w0) -\u003e fma(uv2.x*w2)",
+                              "old_chain":  "mul.f32(uv2.x*w2) -\u003e fma(uv1.x*w1) -\u003e fma(uv0.x*w0)",
+                              "lineinfo_ptx":  "6cec0f62.../580289 B -\u003e cf619209.../580295 B"
+                          },
+    "schema":  1,
+    "evidence_hygiene":  "all 17 evidence files LF, no BOM, no CR (previous src.diff CRLF issue did not recur)",
+    "diff":  {
+                 "w0_w1_w2_literal_untouched":  true,
+                 "file_lines":  "462 -\u003e 464 (verified via blob bytes/LF count)",
+                 "files_changed":  1,
+                 "other_cu_changed":  0,
+                 "render_shade_cu":  "+4/-2 single hunk in texture_mesh has_uv branch (u/v two lines + 2 comment lines)"
+             },
+    "kind":  "qa-review",
+    "evidence_hashes":  {
+                            "readme":  "008d8cbba9d489b43e30b541cf7c71f628ec31ea8c46c0ac8457064655319828 / 6651 B",
+                            "manifest":  "ca45bb29785c4349be40d3fb594126c5818a1032aa2ef877c80d95926b6d36f8 / 1857 B",
+                            "receipt":  "c734694cdad2694040338fef495a0fe8e276303a613daa52ca908e7176bb01d1 / 7233 B"
+                        },
+    "reviewer":  "QA",
+    "task_id":  "2026-11-11-render-perworld-l-v2-texture-bary-pin-check",
+    "landing_form":  {
+                         "match":  true,
+                         "separately_rounded_term":  "uv1*w1 (middle term, __fmul_rn)",
+                         "spec_section_a_reference":  "mul(uv1*bary_v) -\u003e fma(uv0*bary_u) -\u003e fma(uv2*w) (PTX 7900-7936)",
+                         "implementation":  "__fmaf_rn(uv2, w2, __fmaf_rn(uv0, w0, __fmul_rn(uv1, w1)))"
+                     },
+    "date":  "2026-11-11",
+    "non_claims_verified":  [
+                                "does not claim the fix is effective; one diagnostic round 5 token is required",
+                                "G-L2 verdict unchanged (criterion A FAIL stands)",
+                                "no criterion/threshold/reference/tolerance change",
+                                "kernel identity change is an implementation-fix new baseline"
+                            ],
+    "reviewed_commit":  "4e6e47b1",
+    "kernel_identity":  {
+                            "megakernel_ptx":  "e44ac85c.../344169 B -\u003e e91b7d85.../344175 B (from identity log)",
+                            "megakernel_source":  "92771543... -\u003e eb59dd78... (independently recomputed and matched)",
+                            "aa_resolve":  "unchanged (0bf8af5a... / b28e155c... / 27536 B)",
+                            "depth_seg":  "unchanged (b546ef08... / e8d84963... / 138540 B); render_shade.cu not in their concat"
+                        },
+    "observations_detail":  [
+                                "O1 (info): the PTX-level site comparison uses the backend offline NVRTC artifacts (method/inputs/lineinfo mapping complete and reproducible); QA did not rerun NVRTC or compile, to avoid disturbing the live exes/frozen state before round 5",
+                                "O2 (info): the rebuild changes all live exes again; the next formal window must re-freeze and establish a new baseline",
+                                "O3 (info): the 4-pixel premise comes from the round 4 notice (not in this commit) and is correctly marked pending round 5",
+                                "O4 (info): w0/w1/w2 definitions and the w2=(1-u)-v chain are untouched, matching the spec section A register mapping"
+                            ]
+}

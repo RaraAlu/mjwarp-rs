@@ -1,0 +1,22 @@
+# QA verification facts for the P7 texture barycentric pin review (4e6e47b1)
+
+## change surface (git numstat)
+  src/render/kernel/cuda/render_shade.cu  4  2   (single hunk, texture_mesh has_uv branch)
+  other .cu files: 0 changed
+  render_shade.cu lines: 462 -> 464 (blob bytes/LF count)
+
+## kernel source identity recompute (LF byte concat in mod.rs include_str order)
+  megakernel = eb59dd78c8deca505415d2b5bb9a45554ee1e22afcde3713b35f01491bb051ee (claim: eb59dd78..., match)
+  depth_seg  = b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931 (unchanged)
+  aa_resolve = 0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 (unchanged)
+
+## landing form (render_shade.cu, committed)
+  u: __fmaf_rn(uv2.x, w2, __fmaf_rn(uv0.x, w0, __fmul_rn(uv1.x, w1)))
+  v: __fmaf_rn(uv2.y, w2, __fmaf_rn(uv0.y, w0, __fmul_rn(uv1.y, w1)))
+  w0/w1/w2 lines and uv0/uv1/uv2 lines untouched (context only in the diff)
+
+## boundary
+  tests / fixtures / scripts: 0 changed
+  G-L2 evidence, fix-card-2 evidence, guards json: 0 changed
+  frozen stash 12/12 still equals guards
+  manifest 17/17 recomputed clean; all evidence files LF, no BOM, no CR
