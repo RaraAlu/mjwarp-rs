@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-post-errata",
+  "title": {
+    "zh": "perworld L v2 G-L2 后置 errata 批（body env 契约 + guards body_env 缺字段 + dump 字段表述 + 修复卡-1 证据 errata；零 GPU；零代码改动）",
+    "en": "Per-world L v2 G-L2 post-closeout errata batch (body env contract + missing guards body_env + dump field naming + fix card-1 evidence errata; zero GPU; zero code changes)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G-L2 收口后的纯文档/证据 errata 批（Chief 2026-11-11 05:53 派工），零 GPU、零代码改动、不改判据/参考/容差、不动已签材料：① 在 G-L2 证据新增 `body-env-contract-errata.md`，写清验证窗 body 前置契约（pinned CUDA bin 加入 PATH；`MJWARP_RENDER_OUTLINE_LIST_DIR` 与 `MJWARP_REQUIRE_OUTLINE_CRITERION=1` 必须成对——两者全缺回落 raw 位级比较、缺一即 panic、两者都在则列表外位级+列表内 `|ULP|<=128` fail-closed）并归因两次 INVALID_ROUND（run-0 NVRTC PATH 缺失、run-1 outline env 缺失假红）；② guards JSON/冻结器缺 `body_env` 记录的问题记入文档 backlog（不改冻结器/guards）；③ 证据/解析文档里 dump 字段 `geom_type` 更正为 `objtype`（实际是 `seg[1]=mjOBJ_GEOM(5)`，真实命中 geom 3 = 模型 `geom_type=7` MESH）；dump/receipt 代码字段改名只记 backlog；④ 修复卡-1 证据：`logs/src.diff` 做 LF 复核（已 LF、字节未变）、README 追加两条 errata（P2 已被卡-2 R1 撤销、指向卡-2 证据目录；+17/−3 与实际提交信息 +37/−3 差异说明，QA O1/O2）；⑤ 重算各目录 manifest、四门禁、`normify check`、提交、写本批证据 README/receipt/manifest 并发 QA 复核。",
+    "en": "Documentation/evidence-only errata batch after the G-L2 closeout (Chief 2026-11-11 05:53): zero GPU, zero code changes, no criterion/reference/tolerance change, signed materials untouched. (1) Add `body-env-contract-errata.md` to the G-L2 evidence spelling out the validation-window body prerequisites (pinned CUDA bin on PATH; `MJWARP_RENDER_OUTLINE_LIST_DIR` and `MJWARP_REQUIRE_OUTLINE_CRITERION=1` must be exported together -- neither => raw bitwise fallback, one only => panic, both => outside-list bitwise + in-list |ULP| <= 128 fail-closed) and attributing the two INVALID_ROUNDs (run-0 missing NVRTC PATH, run-1 missing outline env false red); (2) record the missing guards `body_env` field as documentation backlog (no freeze-tool/guards change); (3) correct the evidence/parse wording for the dump field `geom_type` -> `objtype` (actually `seg[1]=mjOBJ_GEOM(5)`; the real hit is geom 3 = model `geom_type=7` MESH); code field rename is backlog only; (4) fix card-1 evidence: verify `logs/src.diff` is LF-only (already LF, bytes unchanged) and append two errata lines to its README (P2 reverted by card-2's R1, pointing at the card-2 evidence dir; +17/-3 vs the commit message's +37/-3, QA O1/O2); (5) rebuild manifests, run the four gates, `normify check`, commit, write this batch's README/receipt/manifest, and hand off for QA review."
+  },
+  "modules": {},
+  "acceptance": [
+    "**body env 契约**：`docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/body-env-contract-errata.md` 新增，写清 PATH 前置（`run-window.ps1:307-308`）、outline env 成对语义（`run-window.ps1:291-292`、`tests/support/render_bvh/outline.rs` 模块文档 1-16 / `enabled()` 50-68 / `diff_depth_with_outline()` 359-391）、pre/post 列表校验（`run-window.ps1:280-298`，recipe/aa2 指纹与 bound 128）、run-0/run-1 两次 INVALID_ROUND 归因；该目录 README 追加 §11 指针；`window/**` 运行记录字节不动。",
+    "**guards `body_env` 缺字段**：只写文档 backlog（guards 顶层键审计 + 风险 + 建议字段），不改冻结器、不改 `scripts/validate/render-bvh/guards-perworld-l2-light.json`（sha `fad2ed37…`/43,729 B 不变）。",
+    "**dump 字段表述**：`perworld-l-v2-entity-diagnostic-dump/README.md` 中 `geom_type=5（cylinder）` 等误读更正为 `objtype`（`seg[1]=mjOBJ_GEOM(5)`；真实命中 geom 3 = 模型 `geom_type=7` MESH、mat 0 = mat-red/grid），并追加 §5 errata（dump 代码字段与 receipt 字样改名记 backlog，receipt 字节不动）。",
+    "**修复卡-1 证据 errata**：`perworld-l-v2-ptx-order-pins/logs/src.diff` 做 LF 复核（已 LF、与 HEAD blob 逐字节一致、无需归一化字节改动）；该目录 README 追加两条 errata（① P2 已被修复卡-2 `7aa99c9b` 的 R1 撤销并指向卡-2 证据目录；② 统计口径 +17/−3 与提交 `358b84fc` message 的 +37/−3 差异说明，QA O1/O2；历史记录不改写）；`receipt.json` 等其余文件字节不动。",
+    "**manifest 与证据**：三个被改目录的 `manifest.txt` 重算并自核（无 missing/extra/bad）；新增本批证据目录 `perworld-l-v2-gl2-post-errata/`（README/receipt/manifest + `artifacts/` 5 件：outline-env-contract、guards-json-body-env-audit、ptx-order-pins-src-diff-eol、changed-files-sha256、manifests-selfcheck）；UTF-8/LF/无 BOM。",
+    "**门禁与边界**：四门禁 fmt/clippy/clippy-cuda/unit 全过（unit 1,387 过 0 败 / 402 ignored）；`normify check` 全过；`unchanged src/`、`unchanged tests/`、`unchanged fixtures/`、`unchanged scripts/`、已签 S-1 spec 目录与 S-2/S-3 签名材料目录只读；零 GPU、不采集、不跑诊断、不重冻、不改判据/参考/容差。",
+    "**收尾**：中文提交（带 `Normify-Task`）、发 QA 复核（预登记 `-check` 卡）、在「开发团队」群以成员身份不带 @ 发里程碑留痕、报 Chief 提交号与证据哈希。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-11 05:53 派工：G-L2 后置 errata 批（纯文档/证据、零 GPU、零代码改动）。四项：① G-L2 证据新增 body env 契约 addendum（PATH + outline 成对 env + pre/post 列表校验 + 两次 INVALID_ROUND 归因）；② guards body_env 缺字段记文档 backlog；③ dump 字段表述 geom_type→objtype 更正（代码改名只记 backlog）；④ 修复卡-1 证据 src.diff LF 复核 + README 两条 errata。边界：不动已签 S-1 spec（`bb064fe0…`）与 S-2/S-3 签名材料正文、不改 guards/冻结件/源码/测试/fixtures/scripts、不改判据/参考/容差；收尾重算 manifest、四门禁、写本批证据、提交、发 QA 复核、群里留痕。",
+  "revision": {
+    "before": "a675d36811f36eb9f0e4ff32a0f7f9842b879b98",
+    "after": null
+  },
+  "created_at": "2026-11-10T21:57:02.000Z",
+  "updated_at": "2026-11-10T21:57:02.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3-signature-check/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2-signature-check/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump-check/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-check/"
+      ]
+    }
+  ]
+}
