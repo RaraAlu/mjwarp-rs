@@ -1,0 +1,31 @@
+# 像素/射线映射、view_dir 派生、color→packed 绑定、与 diag6 一致性
+
+ray_index checks (per-world launch; PIXELS=camera pixels=320*240=76800):
+  px(w0,c1,13268) x,y=(148, 41) y*320+x=13268 ray.ray_index=90068 diag.ray=90068 expected=90068 ok=True
+  px(w1,c1,10744) x,y=(184, 33) y*320+x=10744 ray.ray_index=87544 diag.ray=87544 expected=87544 ok=True
+  px(w1,c1,22903) x,y=(183, 71) y*320+x=22903 ray.ray_index=99703 diag.ray=99703 expected=99703 ok=True
+  px(w1,c1,39492) x,y=(132, 123) y*320+x=39492 ray.ray_index=116292 diag.ray=116292 expected=116292 ok=True
+  sample field values: [0, 0, 0, 0]
+
+view_dir = -ray_dir exact sign-bit flip (all 4 px, all 3 components):
+  px 13268 flip=True rd=[1057217927, 3210179511, 3190179467] vd=[3204701575, 1062695863, 1042695819]
+  px 10744 flip=True rd=[1055203886, 3210864070, 3189023325] vd=[3202687534, 1063380422, 1041539677]
+  px 22903 flip=True rd=[1054991279, 3210628315, 3194482538] vd=[3202474927, 1063144667, 1046998890]
+  px 39492 flip=True rd=[1057347390, 3209195688, 3198981597] vd=[3204831038, 1061712040, 1051497949]
+  all flip=True
+
+color binding: kernel packs trunc(hit_color*255) (render_megakernel.cu pack_rgba_to_uint32(hit_color.x*255,...));
+diagnostics color_bits are the pre-pack hit_color -> trunc(color*255) must equal product bytes:
+  px 13268 color=[1.0, 0.110776544, 0.11372561] trunc=[255, 28, 29] product.bytes=[255, 28, 29] match=True
+  px 10744 color=[1.0, 0.168627307, 0.173293635] trunc=[255, 42, 44] product.bytes=[255, 42, 44] match=True
+  px 22903 color=[0.483017117, 0.171638846, 0.35294053] trunc=[123, 43, 89] product.bytes=[123, 43, 89] match=True
+  px 39492 color=[0.473466545, 0.164706215, 0.343747318] trunc=[120, 42, 87] product.bytes=[120, 42, 87] match=True
+  all 12 channels match: True
+
+diag6 vs diag7:
+  diag6 dump: 44977 B sha256=521718e5493c7864f97b51e06a7e109cab09af05570ae984befcb6881e9e51d3 schema=1 diagnostics present=False
+  pixel sets identical: True [(0, 1, 13268), (1, 1, 10744), (1, 1, 22903), (1, 1, 39492)]
+  packed product identical: True
+  packed reference identical: True
+  all non-diagnostics entry fields identical: True
+  top-level diffs excluding rgb_mismatches/generated_at/schema: []

@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-diag7-check",
+  "status": "qa_review_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "PASS",
+  "subject": {
+    "round": "diagnostic round #7 (product-side extended dump)",
+    "token_baseline": "a3dc5e7b19d1e26672f12b5fe81b9354ff8759ba",
+    "review_head": "a78418349d5c79c4231bb6d131c4b9c06ff36a27",
+    "dump": "target/render-bvh/perworld-l-v2-gl2/diag7/pixel-dump.json",
+    "dump_sha256": "8cadf76492e150da5e193b701d808666b197a3cea4ddde1669616605d0e584d7",
+    "dump_bytes": 55485,
+    "exe": "target/debug/deps/render_per_world_light-8f8e60a38d5a26c5.exe",
+    "exe_bytes": 92588042,
+    "exe_sha256": "5ca3619cc6910e464f091e54d03cbee73fa5f5d851b3066ccee20e5364aeb763"
+  },
+  "verified": {
+    "run_compliance": "HEAD a7841834; git diff a3dc5e7b..HEAD for src/tests/fixtures/scripts is EMPTY; tree clean; diag7 not tracked. Exactly one test7 stdout/stderr pair, no retry/attempt/rerun markers; timeline pre-state 07:22:07 -> dump/logs 07:22:18 -> analysis 07:22:27/35 -> summary 07:22:43. Entity exit 101 expected (criterion A still FAIL), wall 2.73 s; pilot_c1_crosscheck_matches_readout ok; prebuild --no-run 0.13 s cache hit. Lock acquire/release recorded (no audit log in repo -> record/disclosure based; current lock FREE).",
+    "exe_and_identity": "exe 92,588,042 B / 5ca3619c..., mtime 2026-11-11T07:03:02 (post fix-card build; dump schema==2 proves test-side SCHEMA=2). Kernel identity: QA independently recomputed the 7-file MEGAKERNEL_SOURCE stitch = 109,384 B / 624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2; identity-check.log PTX 1fd53131.../347,070 (offline NVRTC); no .cu changes.",
+    "dump_schema": "dump 55,485 B / 8cadf764...; top-level schema=2, kind=g-l2-entity-pixel-diagnostic, env=MJWARP_DIAG_PIXEL_DUMP; rgb_mismatches=4 all with diagnostics; depth_mismatches=0; seg_mismatches=0. Each diagnostics has 18 keys (bary/base_color/color/encoding/face/hit_point/light_slots/lights/mesh_id/normal/ray/ray_dir/stride/t/tex_color/tex_uv/view_dir/view_dir_derivation), stride=64, light_slots=4, 4 light slots x 8 values. Field counts match the dump-ext README section 2 offset table.",
+    "ray_mapping": "ray_index = cam*76800 + pixel and y*320+x == pixel for all 4 pixels: 13268->90068, 10744->87544, 22903->99703, 39492->116292; ray.ray_index == diagnostics.ray; sample=0",
+    "binding_checks_added_by_qa": "view_dir_bits == ray_dir_bits ^ 0x80000000 for all 12 components (exact sign flip); color binding: kernel packs trunc(hit_color*255) via pack_rgba_to_uint32, and trunc(decoded color*255) == product.bytes for all 4 px x 3 channels = 12/12, proving the diagnostics belong to the right ray/pixel and that the color offset/encoding are correct.",
+    "stats": "stdout: c1_rgb_changed=[38285, 40644], c2_depth_changed=[35828, 33883], c2_seg_changed=[16041, 16754], verdict=PassMargin, capture C1=Compared, diag campersp depth/seg 0/0, camhinge rgb [50363, 52329] - identical to previous rounds. A frames from dump: rgb 0/0, 0/1, 0/0, 0/3, 0/0, 0/0 (max byte diff 1); depth/seg 0 for all frames.",
+    "diag6_consistency": "diag6 dump 44,977 B / 521718e5..., schema=1 without diagnostics. Identical pixel set; identical product/reference packed_u32; all non-diagnostics mismatch entry fields identical; top-level identical except schema/generated_at_unix/rgb diagnostics -> the 'only new fields, 44,977 -> 55,485 B' claim is reproducible.",
+    "non_committed": "dump and logs stay in target/ (git ignores them); git status clean; git ls-files target/.../diag7 empty"
+  },
+  "low_residuals": [
+    {"code": "R1", "title": "post-run GPU not recorded; placeholder timestamps", "detail": "run-summary.txt has literal 'gpu_after=$gpu' and 'time=...07:2x...'" },
+    {"code": "R2", "title": "body-env.txt path escapes corrupted", "detail": "2 TABs + 1 backspace: 'where nvrtc64_120_0.dll' path unreadable and PATH_PREPEND line textually lacks the target segment; record-generation bug only, the run itself succeeded (pilot passed, dump produced, NVRTC loaded)"},
+    {"code": "R3", "title": "GPU numbers differ from dispatch message", "detail": "on-disk pre-state says 2% / 3,924 MiB / 12,138 free / 26C, while the dispatch says pre 4% / 3,919 MiB / 26C and post 2% / 3,914 MiB / 26C; post value is missing on disk (R1). Reconcile sampling times and record the post value."}
+  ],
+  "observations": [
+    {"code": "O1", "title": "preflight.txt placeholder and stale exe note", "detail": "preflight section 6 heading keeps '({ts})'; section 1 records the pre-fix exe (92,558,136 / fcfc9035...) and self-notes it is stale, with section 6 explaining the #7 rebuild -> not contradictory with run-summary, but confusing on first read"},
+    {"code": "O2", "title": "lock discipline relies on disclosure", "detail": "no lock audit log exists in the repo; the acquire/release claim is record/disclosure based; no evidence of concurrent writes or a second run"}
+  ],
+  "non_claims": [
+    "does not judge the effect of any fix: 4 residual pixels remain and criterion A still FAILs",
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "dump is diagnostic only and is not committed",
+    "no criterion/threshold/reference/tolerance/camera/recipe change; zero GPU; no rerun/refreeze"
+  ],
+  "artifacts": [
+    "artifacts/run-compliance.txt",
+    "artifacts/dump-schema.txt",
+    "artifacts/dump-binding.txt",
+    "artifacts/stats.txt"
+  ]
+}

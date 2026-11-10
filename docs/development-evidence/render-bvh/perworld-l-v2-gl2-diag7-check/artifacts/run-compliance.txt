@@ -1,0 +1,45 @@
+# 诊断轮 #7 运行合规核对（现场只读）
+
+head now: a78418349d5c79c4231bb6d131c4b9c06ff36a27
+git diff a3dc5e7b..HEAD -- src/ tests/ fixtures/ scripts/ : []
+tree clean: [] ; diag7 tracked by git: []
+
+diag7 file timestamps:
+  analysis.txt                  8380  07:22:27
+  body-env.txt                   631  07:22:07
+  diagnostics-decoded.txt       4759  07:22:35
+  identity-check.log             724  06:51:43
+  pixel-dump.json              55485  07:22:18
+  pre-state.txt                  390  07:22:07
+  prebuild-norun.log             182  07:22:11
+  preflight.txt                 4865  07:04:19
+  qa-dump-check.txt            12162  07:23:45
+  qa-dump-check2.txt            3424  07:24:06
+  qa-dump-check3.txt            1261  07:24:15
+  qa-dump-check4.txt            2451  07:24:34
+  qa-run-check.txt              2501  07:24:44
+  run-summary.txt               2524  07:22:43
+  test7.stderr.log               248  07:22:18
+  test7.stdout.log              1322  07:22:18
+
+single-run evidence: exactly one test7.stdout/stderr pair; no retry/attempt/rerun markers: []
+test7.stdout tail: FAILED entity + 'pilot_c1_crosscheck_matches_readout ... ok'; test result FAILED 1 passed/1 failed
+exit=101 expected (criterion A FAIL); wall=2.73s (run-summary)
+prebuild log: 'Finished test profile in 0.13s' (cache hit, no recompile); exe mtime 2026-11-11T07:03:02.140
+exe now: 92588042 B sha256=5ca3619cc6910e464f091e54d03cbee73fa5f5d851b3066ccee20e5364aeb763
+run-summary exe: 92588042 / 5ca3619cc6910e464f091e54d03cbee73fa5f5d851b3066ccee20e5364aeb763 -> match=True
+
+lock: pre-state.txt/run-summary.txt record acquire by Backend + release after the run; repo has NO lock audit log
+      (scripts/validate/repo-write-lock.ps1 keeps current state only) -> record-only claim; current lock state FREE
+
+GPU records (raw):
+  pre-state: gpu_pre=2 %, 3924 MiB, 12138 MiB, 26
+  pre-state: build_processes=none
+  run-summary: gpu_after=$gpu
+  OBSERVATION: post-run GPU value is not recorded (literal '$gpu'); pre-state=2%/3924MiB/12138free/26C differs
+  from the dispatch message pre=4%/3919MiB/26C and post=2%/3914MiB/26C -> record inconsistency, see residual R1/R3.
+
+body-env.txt quirks (record generation, not runtime): TABs=2 backspaces=1 in path lines
+  line2 b'PATH_PREPEND=D:\\Rust\\mjwarp-rs\\toolchains\\cuda-12.8.1\\bin;<inherited PATH>'
+  line3 b'where nvrtc64_120_0.dll -> D:\\Rust\\mjwarp-rs\target\toolchains\\cuda-12.8.1\x08in'
+  MJWARP_DIAG_PIXEL_DUMP line points at diag7/pixel-dump.json; outline env pair NOT set (entity needs PATH only) - correct

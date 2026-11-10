@@ -1,0 +1,26 @@
+# dump 顶层 schema / 字段完整性与编码（对照 dump-ext README §2）
+
+diag7 dump: 55485 B sha256=8cadf76492e150da5e193b701d808666b197a3cea4ddde1669616605d0e584d7
+expected: 55485 / 8cadf76492e150da5e193b701d808666b197a3cea4ddde1669616605d0e584d7
+schema=2 kind='g-l2-entity-pixel-diagnostic' env='MJWARP_DIAG_PIXEL_DUMP' generated_at_unix=1794352938
+top-level keys: ['camera_poses', 'depth_mismatches', 'env', 'frames', 'generated_at_unix', 'kind', 'model', 'near_miss', 'rgb_mismatches', 'schema', 'seg_mismatches']
+rgb_mismatches=4 depth_mismatches=0 seg_mismatches=0
+all rgb_mismatches carry diagnostics: True
+
+diagnostics keys (n=18): ['bary_bits', 'base_color_bits', 'color_bits', 'encoding', 'face', 'hit_point_bits', 'light_slots', 'lights', 'mesh_id', 'normal_bits', 'ray', 'ray_dir_bits', 'stride', 't_bits', 'tex_color_bits', 'tex_uv_bits', 'view_dir_bits', 'view_dir_derivation']
+encoding='f32 values are u32 bit patterns (to_bits); face/mesh_id are decoded i32' stride=64 light_slots=4 ray=90068
+light slots per mismatch: [4, 4, 4, 4]
+each light keys: ['half_bits', 'ndoth_bits', 'ndotl_bits', 'pow_bits', 'visible_bits', 'weight_bits']
+
+field-by-field mapping vs README section 2 (offsets 0-2 color, 3-5 base_color, 6-7 tex_uv, 8-10 tex_color,
+11/12 bary, 13 t, 14 face, 15 mesh_id, 16-18 hit_point, 19-21 normal, 22-24 ray_dir, 25-56 lights 4x8, 57-63 reserved):
+  px(w0,c1,13268): color=3 base=3 tex_uv=2 tex_color=3 bary=2 t=1058623301 face=2 mesh_id=0 hit=3 normal=3 ray_dir=3 lights=4x6
+  px(w1,c1,10744): color=3 base=3 tex_uv=2 tex_color=3 bary=2 t=1058666931 face=2 mesh_id=0 hit=3 normal=3 ray_dir=3 lights=4x6
+  px(w1,c1,22903): color=3 base=3 tex_uv=2 tex_color=3 bary=2 t=1058356928 face=2 mesh_id=0 hit=3 normal=3 ray_dir=3 lights=4x6
+  px(w1,c1,39492): color=3 base=3 tex_uv=2 tex_color=3 bary=2 t=1058058747 face=2 mesh_id=0 hit=3 normal=3 ray_dir=3 lights=4x6
+
+decoded samples (f32, from bit patterns):
+  px 13268 color=[1.0, 0.110777, 0.113726] base_color=[0.762353, 0.014902, 0.014902] tex_color=[0.847059, 0.14902, 0.14902] view_dir=[-0.515099, 0.841609, 0.162378] face=2 mesh_id=0
+  px 10744 color=[1.0, 0.168627, 0.173294] base_color=[0.762353, 0.014902, 0.014902] tex_color=[0.847059, 0.14902, 0.14902] view_dir=[-0.447526, 0.882412, 0.145151] face=2 mesh_id=0
+  px 22903 color=[0.483017, 0.171639, 0.352941] base_color=[0.134118, 0.014902, 0.084706] tex_color=[0.14902, 0.14902, 0.847059] view_dir=[-0.44119, 0.86836, 0.226499] face=2 mesh_id=0
+  px 39492 color=[0.473467, 0.164706, 0.343747] base_color=[0.134118, 0.014902, 0.084706] tex_color=[0.14902, 0.14902, 0.847059] view_dir=[-0.522816, 0.782969, 0.337081] face=2 mesh_id=0
