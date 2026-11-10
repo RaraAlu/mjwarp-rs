@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix",
+  "title": {
+    "zh": "产品侧扩展像素 dump 修复卡（B1：schema 1→2；QA G1–G4 记录面与纯 CPU 单测；零 GPU）",
+    "en": "Product-side extended pixel dump fix card (B1: schema 1->2; QA G1-G4 documentation and pure-CPU tests; zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "依据 QA 对扩展 dump 两卡的复核（提交 00bfaef8）：修复阻断项 B1（`tests/support/render_bvh/light/diag.rs` 的 `SCHEMA` 实为 1，但 dump-ext README/receipt/验收/提交信息均声明 schema 2），并一并修复记录面问题 G1（引用不存在的 `render_diag.cu`、README §1/§4 与 7 文件拼接表矛盾）、G2（dump 记录下标口径与实现 `rayid*STRIDE` 不符，需写清 per-world 单发射等价与 multi-world 单发射静默风险）、G3（README 行数 473/414 应为 478/499；源文件计数按实际）、G4（新增纯 CPU 合成记录往返单测）与低优先项（ABI 棘轮陈旧文字 7 标量/`is_unchanged` 名称、PTX 字节含尾部 NUL 的口径、`nlight>=4` 灯槽冲突 backlog）。纯文档/测试与诊断代码注释修复，零 GPU、不改任何 `.cu`/算术/判据/参考/容差；内核身份预期完全不变。",
+    "en": "Fix QA review blocking item B1 (SCHEMA constant is 1 while docs/acceptance claimed schema 2) plus record-level items G1 (references to a never-created render_diag.cu; README section 1/4 vs the 7-file stitch), G2 (dump record index wording vs rayid*STRIDE implementation; document per-world single-launch equivalence and the silent multi-world single-launch risk), G3 (README line counts), G4 (pure-CPU synthetic record round-trip test) and low-priority wording items. Documentation/test/comment only; zero GPU; no .cu/arithmetic/criterion/reference/tolerance change; kernel identity expected to stay identical."
+  },
+  "modules": {},
+  "acceptance": [
+    "**B1（阻断）**：`tests/support/render_bvh/light/diag.rs` 的 `SCHEMA` 改为 2；dump 顶层 `schema` 实际输出 2。新增纯 CPU 单测断言 (a) `SCHEMA == 2` 且顶层 document 的 `schema == 2`，(b) 每个 rgb 失配条目恒带 `diagnostics` 键（未启用 env 时为 null，不缺失）。",
+    "**G1**：清除全部不存在的 `render_diag.cu` 引用（dump-ext README §1、`src/render/kernel/diag.rs` 模块文档、`tests/support/render_bvh/light/diag_ext.rs` 模块文档）；写明 `MEGAKERNEL_SOURCE` 仍是原 7 文件拼接（scene/render_math/render_flex/render_common/render_shadow/render_shade/render_megakernel.cu）、DIAG 布局与 store helper 内置于 `render_megakernel.cu`；README §1/§4 不再自相矛盾，并注明原卡 schedule 曾规划该文件但最终未新增。",
+    "**G2**：README/代码文档统一记录下标口径：内核按 `rayid * DIAG_STRIDE` 写（单次发射内的 rayid）；per-world 单次发射下等价于按 `(world, rayid)` 取；multi-world 单次发射会因所有 world 写同一 `rayid` 区间而静默覆盖/取空，属已知约束（本实体测试走 per-world 单发射），风险写清。",
+    "**G3**：README 行数按实测更正为 `render_shade.cu` 478、`render_megakernel.cu` 499、`megakernel.rs` 500、测试 `diag.rs` 496、`render_per_world_light.rs` 494；源文件计数按实际（本卡 10 个 src/tests 文件：8 src + 2 tests；配套卡 5 个：`diag_ext.rs` + 4 个 ABI 棘轮测试；合计 15）。",
+    "**G4**：新增纯 CPU 合成记录往返单测：构造 64 f32 记录（含 color/base_color/tex_uv/tex_color/bary/t/face/mesh_id/hit_point/normal/ray_dir/lights），`DiagRecord::from_slice` 解码后逐字段位型一致，`face`/`mesh_id` i32 位型正确，`view_dir` 为 `ray_dir` 的精确负号位翻转（含 -0.0 边界），再编码回 64 f32 逐位相等；错误长度返回 None。不需要 GPU。",
+    "**低优先**：ABI 棘轮陈旧文字更正（`tests/render_launch_abi.rs` 断言消息 7 标量→8 标量；`tests/render_skybox.rs` 注释 81 槽/7 标量→82 槽/8 标量且上游 81 槽不变；`tests/render_lighting_kernel.rs` 文档与 `megakernel_slots_signature_is_unchanged` 名称改为反映「上游 81 槽保留 + 1 尾随诊断槽」）；证据 README/receipt 补 PTX 字节口径（离线 nvrtc 输出文件含尾部 NUL，+1 B：344,182/347,071 为文件字节、344,181/347,070 为 identity 文本字节；trim NUL 后 sha 与 identity 一致，已用 `target/render-bvh/gl2-ptx-diff/ptx/p9_landed_128.ptx` 实测验证）；`nlight>=4` 时第 4 灯槽与 headlight 槽冲突记 backlog（仅诊断字段，不影响渲染）。",
+    "**errata/证据**：dump-ext 卡 README 追加 errata 节 + receipt 增 `errata_fix` 节，写明「原提交信息声称 schema 2，代码实际 1，已在本次修复；历史提交说明不改写」；manifest 重算自核；四门禁 + `normify check/done`；中文提交。",
+    "**边界/非声明**：不改任何 `.cu`/算术指令/内核签名（内核身份预期 source `624ab298…`、PTX `1fd53131…`/347,070 不变；若变化说明改到 .cu 需停下报告）；`unchanged fixtures/`、`unchanged scripts/`、`unchanged src/render/kernel/cuda/`；零 GPU、不跑实体/诊断；不宣称修复渲染效果；G-L2 判定维持未通过（判据 A FAIL）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-diag-dump-ext",
+      "2026-11-11-render-megakernel-slot-82-ratchet-support"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/support/render_bvh/light/diag.rs",
+      "tests/support/render_bvh/light/diag_ext.rs",
+      "src/render/kernel/diag.rs",
+      "tests/render_launch_abi.rs",
+      "tests/render_skybox.rs",
+      "tests/render_lighting_kernel.rs",
+      "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "QA 复核提交 00bfaef8：阻断 1（SCHEMA 1 vs 声明 2）+ 一般 4（G1–G4）+ 低优先 5。本卡只修测试/注释/文档与证据，不改 .cu 与算术；提交信息不可改写，schema 声明错误以 dump-ext 卡 README/receipt errata 记录。",
+  "revision": {
+    "before": "67684a3b2b74c8ad3d058f7b29db7829459c07df",
+    "after": null
+  },
+  "created_at": "2026-11-10T22:56:55.377Z",
+  "updated_at": "2026-11-10T22:56:55.377Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "src/render/kernel/cuda/",
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/megakernel_args.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "src/render/kernel/mod.rs",
+        "src/runtime/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/"
+      ]
+    }
+  ]
+}
