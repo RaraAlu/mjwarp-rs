@@ -1,0 +1,13 @@
+ENV_SELFCHECK_PASS failures=0
+
+ENV contract (G-L2 post-closeout errata section 1):
+body env exported for all 12 frozen exes:
+PATH = D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin;<inherited PATH>
+MJWARP_RENDER_OUTLINE_LIST_DIR = D:\Rust\mjwarp-rs\docs\development-evidence\render-bvh\sdf-validate-window\attempts\attempt5\outline
+MJWARP_REQUIRE_OUTLINE_CRITERION = 1
+(per G-L2 post-closeout errata contract: pinned CUDA bin PATH is mandatory for all; the criterion v2.2 outline env pair must be exported together -- neither => raw fallback, one only => panic, both => frozen outline enforcement. Both were exported here, matching run-window.ps1:291-292.)
+
+12 frozen exes env needs (from test sources; errata section 1.5):
+  render_e2e / render_kernel_rgb / render_mesh_bvh / render_hfield_reference / render_shadow_reference / render_skybox_reference: PATH + criterion v2.2 outline pair
+  render_per_world / render_context_lifecycle / render_r10_multi_world / render_kernel_depth_seg / render_kernel_flags / render_per_world_light: PATH only
+  (both outline envs were exported for the whole body, matching run-window.ps1:291-292 semantics; exporting them for PATH-only exes is a no-op)
