@@ -1,0 +1,49 @@
+# G-L2 attempt-2 run-1 ROOT CAUSE (supersedes the "regression failure" reading): missing env-gated criterion v2.2 outline exports
+
+## One line
+`render_e2e` did NOT fail as a product/regression result. My direct frozen-exe launch was missing the two
+env-gated criterion-v2.2 exports (`MJWARP_RENDER_OUTLINE_LIST_DIR`, `MJWARP_REQUIRE_OUTLINE_CRITERION=1`)
+that the canonical window runner sets; without them the scene-a sphere-outline exemption is disabled and the
+raw bitwise comparison reports exactly the 183 frozen outline pixels → the assertion panics.
+
+## Evidence chain (all read-only)
+1. Test support semantics — `tests/support/render_bvh/outline.rs`:
+   - module doc lines 1-16: disabled (neither env var) => callers keep the RAW product comparison;
+   - `enabled()` lines 51-68: true only when `MJWARP_RENDER_OUTLINE_LIST_DIR` and
+     `MJWARP_REQUIRE_OUTLINE_CRITERION=1` are both set; single-var misconfig panics;
+   - `depth_stats()` lines 290-300: `if !enabled() { return None; }` → raw comparison;
+   - `diff_depth_with_outline()` lines 359-391: disabled ⇒ returns raw `diff_depth`;
+     enabled ⇒ outside-list pixels must be bitwise, in-list pixels allowed `|ULP| <= 128`,
+     any violation panics fail-closed; on success `mismatched = outside_mismatch`.
+2. Canonical runner exports the vars before the body — `scripts/validate/render-bvh/run-window.ps1`:
+   - lines 280-298: verifies the frozen lists (sha/bytes/rows/first_pixel + bounds sidecar vs guards),
+     then sets `$env:MJWARP_RENDER_OUTLINE_LIST_DIR = $outlineDirFull` and
+     `$env:MJWARP_REQUIRE_OUTLINE_CRITERION = '1'`; lines 307-308: prepends the pinned CUDA bin to PATH.
+3. Frozen exemption numbers — `guards-perworld-l2-light.json` `outline_lists[0]` (arm recipe):
+   path `docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline/scene-a-sphere-outline-recipe.txt`,
+   sha256 `cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee`, bytes 10,099,
+   **rows 183, first_pixel 28969, exact_max_ulp 73**, bound 128; arm aa2: 9,509 B / 172 rows / 29448 / 91.
+   On-disk files + sidecars + `outline-lists.json` re-hashed now: all match the guards entries.
+4. Observed failure numbers from run-1 (`run2/exe-logs/render_e2e.stdout.log`):
+   cam0: compared=76,800 mismatch=0 max_ulp=0 seg=0; cam1: compared=43,200 **mismatch=183 max_ulp=73 seg=0**;
+   panic first mismatch cam1 pixel **28969** (x=169,y=120) — i.e. exactly the frozen list (183 rows / first 28969 / exact max 73).
+   That is the raw-comparison signature of the disabled exemption, not a new behavioural drift.
+5. New entity `render_per_world_light` has no outline dependency (grep of `tests/support/render_bvh/light.rs`
+   and `tests/render_per_world_light.rs`: no outline/env use). `render_per_world` (exe 1, PASSED) also has none.
+   The outline-dependent entities are the 6 scene-a regressions listed in guards `outline_lists[].entities`.
+
+## Material/executor defect
+- Signed S-3 material `materials/command.txt` §5 says only "run the 12 frozen entity executables in the guards
+  JSON entity_order" and does NOT spell out the required env exports (pinned CUDA bin PATH; criterion-v2.2
+  outline list dir + require flag; pre-body outline-list hash/rows/first_pixel verification).
+  `materials/entity-expectations.txt:39` does acknowledge "the 10 existing regression entities keep the two
+  signed v2.2 outline lists", but the command skeleton never exports them.
+- Executor (me) launched the frozen exes directly per that skeleton with only the CUDA-bin PATH fixed, and
+  did not replicate the canonical runner's outline env exports → false red on `render_e2e`.
+- Fix for any next round: replicate run-window.ps1 lines 280-298 and 307-308 exactly (verify frozen lists
+  fail-closed, export both env vars + PATH), then run the frozen exes.
+
+## Classification request
+This is another launch-environment omission (no criterion evaluated a product difference): request Chief ruling
+as INVALID_ROUND (no validation round consumed). The previous "render_e2e regression failure" reading is
+withdrawn on this evidence.

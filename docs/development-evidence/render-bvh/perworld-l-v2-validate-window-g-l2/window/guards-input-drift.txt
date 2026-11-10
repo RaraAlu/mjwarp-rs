@@ -1,0 +1,20 @@
+# R2 guards guard_inputs inherited drift (do NOT re-freeze, do NOT change the old suite or the freezer)
+recorded_at=2026-11-11T04:29:36.973+08:00
+
+row: fixtures/render-bvh/scene-e2e/camlight-model.json
+guards-recorded value: bytes=6434 sha256=470adbefd90e9395ee9bfd6dddbb6cfa4ee1407306494bfba690faa0d3e26dc5
+current disk/HEAD value: bytes=6020 sha256=e44786d62282b095f28f2fe3e9e5da57ee0980fdcbfeb94dfa89d4a97e5ca9de
+
+cause: the old perworld-s1 suite (frozen 2026-11-03) recorded this file at its then-current state; the file was
+subsequently edited by commit 18ae7157 (tests/support/render_bvh/e2e.rs + this fixture: reverted/replaced camlight
+model fixture as part of the S8 tamper-control work). The L2 freezer inherits the old suite 83 inputs verbatim
+(freeze-guards-perworld-l2-light.ps1 copies old guard_inputs), so this row still carries the pre-18ae7157 value.
+
+impact surface: tests/support/render_bvh/e2e.rs embeds the fixture via include_str! (line 31), so the COMPILED
+render_e2e test uses the CURRENT bytes (e44786d6..., 6,020 B), not the guards-recorded bytes. Therefore this row
+cannot be an input-binding claim for the current frozen exe; it is an inherited record drift only.
+decision (Chief R2): no re-freeze, no old-suite change, no freezer change; recorded here as known inherited drift;
+this round makes no input-binding assertion for this row. All other 92 guard_inputs match byte-for-byte
+(see actual-input-hashes.txt: match=92 drift=1 missing=0 of 93).
+
+drift rows found: fixtures/render-bvh/scene-e2e/camlight-model.json

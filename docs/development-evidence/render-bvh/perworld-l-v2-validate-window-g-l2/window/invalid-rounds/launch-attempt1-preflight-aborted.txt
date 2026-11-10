@@ -1,0 +1,15 @@
+# G-L2 attempt-2 run-1 launch attempt 1: preflight aborted (no executable ever launched)
+
+- when: 2026-11-11T04:19:5x +08:00 (immediately after the re-taken three-point baseline)
+- what: my local runner script (target/render-bvh/perworld-l-v2-gl2/attempt2/run2/run-frozen-exes.ps1)
+  threw during the preflight guard-identity check, BEFORE the executable loop.
+- cause: wrong old-suite guard path in the script (`scripts/validate/render-bvh/guards-perworld-s1.json`
+  does not exist). The freezer default (scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1:29)
+  is `docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/guards-perworld-s1.json`
+  (sha256 ca3ecd5c407e0e5273a2867794591026d55ee1904f1cf55b689bdc6c8844a15a / 38,659 B).
+- effect: 0 of 12 frozen executables launched; no GPU work by this harness; no criterion / C1 / C2 / §2.4 result.
+  `window/body-env.txt` had already been written (PATH injection record); it is unchanged by this fix.
+- disposition: fixed ONLY the local runner script path (file lives under target/, not the repo);
+  launch attempt 2 started immediately; the validation run (12 frozen exes, each exactly once) is still
+  exactly one execution of the frozen set.
+- classification: harness/script path error, not a validation result, not a consumed validation run.

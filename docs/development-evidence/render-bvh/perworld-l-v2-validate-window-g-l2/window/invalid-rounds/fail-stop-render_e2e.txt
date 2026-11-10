@@ -1,0 +1,61 @@
+# G-L2 attempt-2 run-1 FAIL-STOP: regression exe `render_e2e` failed (cam1 depth 183 pixel mismatches)
+
+## Sequence inside the corrected (PATH-fixed) run
+1. three-point baseline re-taken 2026-11-11T04:19:44..04:19:54: free 12,148 / 12,148 / 12,148 MiB,
+   util 2/2/4 %, temp 27/27/26 C, build_processes=0, tree clean → baseline_free=12,148, onspot=9,076,
+   floor_effective=max(9,956, 9,076)=9,956 MiB, all three points free>=floor and util<40 → OK.
+2. corrected launch started 04:20:16 (inside the 5-minute window of the baseline), PATH prefixed with
+   `target/toolchains/cuda-12.8.1/bin` → `window/body-env.txt`.
+3. launch attempt 2: exe 1 `render_per_world` executed once and PASSED
+   (`1 passed; 0 failed; finished in 1.90s`, stderr empty), then the harness died on a recording-line typo
+   (`$p` vs `$proc`) AFTER the process had exited (see `launch-attempt2-harness-error.txt`).
+   exe 1 result preserved; exe 1 NEVER re-run.
+4. continuation (`run-frozen-exes-continue.ps1`, started 04:20:51):
+   exe 2 `render_e2e` executed once → **FAILED**, fail-stop, remaining 10 exes NOT run.
+
+## render_e2e failure facts (frozen exe sha 963d81bc…/97,438,339 B, unchanged)
+- `test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 8.93s`
+- failing test: `end_to_end_two_cameras_match_same_recipe_reference`
+  - cam0 depth: compared=76,800 mismatch=0 max_ulp=0 seg_mismatch=0
+  - cam1 depth: compared=43,200 mismatch=183 max_ulp=73 seg_mismatch=0
+  - panic: `tests\support\render_bvh\e2e.rs:350:9: assertion left == right failed: cam1 depth 必须与同配方参考位等（first=Some(Mismatch { camera: 1, pixel: 28969, x: 169, y: 120 })）: left: 183 right: 0`
+  - other 4 tests in the exe passed (lifecycle create/refit/render/destroy, negative controls,
+    product camlight pose bits, reverse fixture-pose control).
+- exe stdout/stderr kept verbatim (raw UTF-8 as written by the process):
+  `run2/exe-logs/render_e2e.stdout.log`, `run2/exe-logs/render_e2e.stderr.log`
+  (console display of these files is mojibake under the legacy console codepage; the files themselves are the
+  process's raw bytes).
+- binary identity note: the current frozen exes are NOT the S-1 binaries (e.g. render_e2e sha here
+  963d81bc…/97,438,339 B vs S-1 guards 20a8eeee…/96,185,370 B), i.e. this failure is on the current build,
+  not a replay of the S-1-validated binaries.
+
+## Stop-state integrity (all intact)
+- 12/12 live==guard==stash after the stop; guards json sha256 unchanged fad2ed37…/43,729 B;
+  aggregate c213c3cf…; old guards ca3ecd5c… unchanged.
+- build_processes=0, residual `render_*` processes=0; tree: `?? scripts/validate/render-bvh/guards-perworld-l2-light.json`.
+- GPU after stop: 3 %, 3,914 MiB used, 12,148 MiB free, 27 C.
+- repo-write-lock still held by Backend (pid 88116).
+- no retry, no relaxation, entity `render_per_world_light` not run; exes 3..12 not run.
+
+## UPDATE 2026-11-11 04:2x: this failure is a FALSE RED (launch environment, not product/regression)
+See run1-rootcause-false-red-outline-env.txt: the frozen criterion-v2.2 outline exemption was disabled because my
+direct frozen-exe launch did not export MJWARP_RENDER_OUTLINE_LIST_DIR / MJWARP_REQUIRE_OUTLINE_CRITERION=1
+(canonical runner does at scripts/validate/render-bvh/run-window.ps1:280-298, PATH at :307-308).
+The observed 183 / max_ulp 73 / first 28969 is exactly guards outline_lists[0] (rows 183, first_pixel 28969, exact_max_ulp 73).
+The earlier 'regression failure' reading is withdrawn; classification awaiting Chief ruling (INVALID_ROUND requested).
+
+## R4 (2026-11-11): explicit classification appended
+- run-1 (this fail-stop) is recorded as INVALID_ROUND #2: the criterion-v2.2 outline env exports were missing at
+  launch, so the raw comparison produced a false red on render_e2e. It is NOT a product/regression failure.
+- no validation round was consumed by run-1; exe 1 (render_per_world PASS) and exe 2 (render_e2e false red) results
+  are discarded; run-1 is not used anywhere as evidence.
+- the authoritative body run is run3 (canonical env, pre/post outline verification, baseline within 5 minutes);
+  see run3/run-summary-canonical.json and run3/fail-stop-entity-criterion-a.txt.
+
+## R4 (2026-11-11): explicit classification appended
+- run-1 (this fail-stop) is recorded as INVALID_ROUND #2: the criterion-v2.2 outline env exports were missing at
+  launch, so the raw comparison produced a false red on render_e2e. It is NOT a product/regression failure.
+- no validation round was consumed by run-1; exe 1 (render_per_world PASS) and exe 2 (render_e2e false red) results
+  are discarded; run-1 is not used anywhere as evidence.
+- the authoritative body run is run3 (canonical env, pre/post outline verification, baseline within 5 minutes);
+  see run3/run-summary-canonical.json and run3/fail-stop-entity-criterion-a.txt.

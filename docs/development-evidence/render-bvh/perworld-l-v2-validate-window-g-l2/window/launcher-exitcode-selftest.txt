@@ -1,0 +1,28 @@
+# R1 launcher exit-code capture self-test (harmless commands only; run 2026-11-11 after the canonical body)
+tested_at=2026-11-11T04:29:33.643+08:00
+
+mechanism used by run3/run-frozen-exes-canonical.ps1: .NET ProcessStartInfo + RedirectStandardOutput/Error
+  + async ReadToEnd + WaitForExit(timeout) + $proc.ExitCode (deterministic; stdout/stderr captured as UTF-8).
+
+self-test cases:
+  cmd "/c exit 0" expect=0 | ProcessStartInfo exit=0 ok=True | Start-Process exit=0 ok=True
+  cmd "/c exit 7" expect=7 | ProcessStartInfo exit=7 ok=True | Start-Process exit=7 ok=True
+  cmd "/c exit 101" expect=101 | ProcessStartInfo exit=101 ok=True | Start-Process exit=101 ok=True
+
+evidence that the actual canonical body captured exit codes (run3/run-summary-canonical.json):
+  render_per_world         exit=0 test_result="test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 1.70s"
+  render_e2e               exit=0 test_result="test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.19s"
+  render_kernel_rgb        exit=0 test_result="test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.83s"
+  render_kernel_depth_seg  exit=0 test_result="test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 4.51s"
+  render_kernel_flags      exit=0 test_result="test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 10.16s"
+  render_r10_multi_world   exit=0 test_result="test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 2.49s"
+  render_skybox_reference  exit=0 test_result="test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.57s"
+  render_context_lifecycle exit=0 test_result="test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 7.77s"
+  render_mesh_bvh          exit=0 test_result="test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.75s"
+  render_hfield_reference  exit=0 test_result="test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 2.60s"
+  render_shadow_reference  exit=0 test_result="test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 4.62s"
+  render_per_world_light   exit=101 test_result="test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 1.67s"
+
+cross-check: 11 exit=0 entries all have "test result: ok"; the single exit=101 has "test result: FAILED" ->
+the captured exit code is consistent with the harness result line, i.e. no null/off-by-one capture in this run.
+self_test_verdict=PASS

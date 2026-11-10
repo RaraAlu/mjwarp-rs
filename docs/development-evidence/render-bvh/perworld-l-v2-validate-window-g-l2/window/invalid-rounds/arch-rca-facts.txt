@@ -1,0 +1,45 @@
+# Read-only RCA facts for Arch (G-L2 attempt-2, 2026-11-11)
+
+NOTE: the render_e2e "failure" in this run is now classified as a FALSE RED (missing env-gated criterion v2.2
+outline exports; see run1-rootcause-false-red-outline-env.txt). RCA on product drift is therefore not required
+unless the Chief wants the identity history recorded anyway.
+
+## Fact 1: frozen exe identity — S-1 window (2026-11-03) vs current L2 freeze (2026-11-11)
+All 12 current frozen exes differ from the recorded S-1 suite values (current = guards-perworld-l2-light.json,
+old = docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/guards-perworld-s1.json).
+Current exe build mtime: 2026-11-08T18:26:57 (cargo cache hot at the L2 freeze, wall 0.43 s).
+
+| entity | old sha256 / bytes (S-1) | current sha256 / bytes |
+| --- | --- | --- |
+| render_per_world | 3d3794c8…477a73 / 101,620,144 | 8feede22…e28fc / 102,846,204 |
+| render_e2e | 20a8eeee…296653 / 96,185,370 | 963d81bc…c13f2 / 97,438,339 |
+| render_kernel_rgb | 0f17fcd4…7f2f2f / 95,852,801 | 5fcc6d84…11eb1e / 97,121,272 |
+| render_kernel_depth_seg | 9e2d64f5…b7f2f / 92,726,744 | 9b6ca42f…992cbf / 93,993,384 |
+| render_kernel_flags | 7f8ae87d…7c4e15 / 97,796,926 | bdf82453…92f1af / 99,052,859 |
+| render_r10_multi_world | 6e736ff0…6b38103 / 95,965,432 | ce9e7f8f…b8103 / 97,226,233 |
+| render_skybox_reference | 606c456c…e42c5b22 / 101,191,899 | 6bec1003…259158 / 102,415,133 |
+| render_context_lifecycle | ef865b49…a992368 / 87,387,987 | 0eba8150…d1e9f4 / 88,537,653 |
+| render_mesh_bvh | 96c0cbf4…f85c4 / 88,343,839 | b5bf193b…451eb / 89,500,508 |
+| render_hfield_reference | 4db7ed36…40614 / 101,556,898 | 38246e93…52f70 / 102,775,995 |
+| render_shadow_reference | ce513922…091fa / 101,102,921 | ec0467ca…be56 / 102,081,874 |
+| render_per_world_light | (did not exist) | f11efd3e…d520f / 90,803,382 |
+
+- The S-1 stash is preserved on disk and still matches the S-1 guards (e.g.
+  `target/render-bvh/perworld-s1-window/frozen-exes/render_e2e.exe` = 20a8eeee…/96,185,370 B,
+  last write 2026-11-03T12:11:48), so the old binaries are available for A/B comparison (GPU work needs a ruling).
+- `guard_inputs` diff S-1 → now: the 83 common inputs are byte-identical; the 10 new inputs are the G-L1
+  perworld reference (5), scene-a-light `scene.xml`, 3 capture scripts, the L v2 spec. No e2e fixture changed.
+- `outline_lists` (2 criterion v2.2 lists): identical paths/bytes/sha in both suites.
+
+## Fact 2: has any window re-verified / re-frozen render_e2e since S-1?
+- S-1 evidence `perworld-impl-s1/window-attempt{2,3}`: render_e2e exit=0 (8,441 ms / 8,874 ms); attempt1 invalid
+  (exit=101, invalid round).
+- `git log -S'render_e2e.log' --since=2026-11-04 -- docs` → EMPTY: no evidence commit after 2026-11-03 contains a
+  render_e2e body log. The only post-S-1 mentions of render_e2e in docs are planning/dry-run artifacts
+  (`perworld-l-v2-validate-window-s3/artifacts/freeze-plan-dryrun.json`), not window runs.
+- The L2 window (2026-11-11 04:15:26) re-FROZE the 12 current exes (new guards JSON) but no body run had been
+  performed since S-1 until this attempt; today's run-1 is now classified INVALID_ROUND (env omission), so it
+  does not count as a verification either.
+- Test-source history since S-1: `tests/support/render_bvh/e2e.rs` changed once (ebba11f7 2026-11-03,
+  `Option<Arm>` → `Arm` signature only, judge-neutral). `tests/render_e2e.rs` unchanged. So the e2e assertion
+  logic is the same as what passed at S-1.

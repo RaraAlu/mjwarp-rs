@@ -1,0 +1,71 @@
+# G-L2 attempt-2 window-body first run: environment failure (fail-stop, no retry)
+
+- execution: frozen stash exe rendered directly (direct paths, zero compile) with `--ignored --test-threads=1 --nocapture`.
+- first exe `render_per_world` exit 101 in 0.209 s BEFORE any test body work:
+  stderr: `thread 'gpu_per_world_matches_captured_reference' panicked at tests/support/render_bvh/r10.rs:52:72:
+  context 创建: Owner(Transfer(Backend(NvrtcUnavailable)))`
+- root cause: the direct exe launch inherited a PATH WITHOUT the pinned CUDA bin, so cudarc could not load NVRTC;
+  the repo's sanctioned window runners set `$env:PATH = "<repo>/target/toolchains/cuda-12.8.1/bin;" + $env:PATH`
+  before the body (scripts/validate/render-bvh/run-window.ps1:307-308; scripts/g01-fast.ps1:40-41).
+  CudaBin present: True (86728192 B); current PATH has no CUDA bin.
+- fail-stop: only 1 of 12 executables was attempted; the remaining 11 were NOT run (single-run discipline kept, no retry).
+- integrity after the failure: all 12 live/stash hashes intact=True, old guards unchanged=True, build_processes=0, residual render processes=0.
+- guards JSON sha256=fad2ed37ea3d1e17a5f0e3b13158eb3e66d185b4dd7f09682d9e143cbeea9e2d (frozen product unchanged); tree: ?? scripts/validate/render-bvh/guards-perworld-l2-light.json
+- repo-write-lock: REPO_WRITE_LOCK_HELD pid=88116 owner=Backend host=DARKSEA started=2026-11-11T03:49:35+08:00 expires=2026-11-11T05:19:35+08:00 age_min=27.8 reason=G-L2 validation window attempt 2 (correct order: monitor first, freeze after)
+- GPU now: [3 %, 12143 MiB, 27]
+- ruling needed: this is a run-environment omission (no test body / criterion / reference was evaluated). Any re-run requires a Chief ruling (single-run token discipline) and, if >5 minutes pass, a fresh three-point baseline.
+
+# Chief ruling (2026-11-11 04:21): run-0 recorded as INVALID_ROUND — environment mistake, no validation round consumed
+
+- run-0 = the 04:16:39 attempt above: direct frozen-stash exe launch with a PATH lacking the pinned CUDA bin.
+- evidence: `render_per_world` exit 101 @ 0.209 s, panic at `tests/support/render_bvh/r10.rs:52:72` BEFORE any test body:
+  `Owner(Transfer(Backend(NvrtcUnavailable)))`; no criterion / C1 / C2 / §2.4 result was produced;
+  11 regression exes and the entity `render_per_world_light` were NOT run.
+- consumed validation rounds: 0. Frozen products unchanged (12/12 live==guard==stash, guards sha256=fad2ed37…/43,729 B,
+  aggregate=c213c3cf…, old suite ca3ecd5c…).
+- Chief authorization: after correcting ONLY the launch environment, run the same 12 frozen exes exactly once
+  (no re-freeze, no rebuild, no result selection).
+- corrected environment: `$env:PATH = "<repo>/target/toolchains/cuda-12.8.1/bin;" + $env:PATH`
+  (same as scripts/validate/render-bvh/run-window.ps1:307-308); recorded in window/body-env.txt.
+- rerun records: run2/ (per-exe stdout/stderr/exit/wall, summary); three-point baseline re-taken because >5 minutes
+  elapsed since the 04:15:55 baseline → window/baseline-run2-three-points.txt; floor_effective checked again before running.
+- material errata (signature materials NOT touched in this window): S-3 `materials/command.txt` §5 body command skeleton
+  does not spell out the CUDA-bin PATH prefix; recorded as post-G-L2 material errata to be fixed later.
+
+# Corrected-run outcome (after the Chief ruling): 1 exe PASS, 1 exe FAIL → FAIL-STOP
+
+- three-point baseline re-taken 04:19:44..04:19:54 (5-minute rule): free 12,148×3 MiB, util 2/2/4 %, temp 27/27/26 C,
+  build_processes=0, tree clean → baseline_free=12,148, onspot=9,076, floor_effective=max(9,956,9,076)=9,956 MiB → OK.
+- corrected launch started 04:20:16 (inside the 5-minute window), PATH prefixed with target/toolchains/cuda-12.8.1/bin
+  → window/body-env.txt.
+- launch attempt 2: exe 1 `render_per_world` executed once → PASSED (1 passed; 0 failed; finished in 1.90s; stderr empty),
+  then the harness died on a recording-line typo (`$p` vs `$proc`) AFTER process exit
+  (run2/launch-attempt2-harness-error.txt). exe 1 result preserved; exe 1 NEVER re-run.
+- launch attempt 1 (04:19:5x) aborted in preflight on a wrong old-suite path in my runner script;
+  0 executables launched (run2/launch-attempt1-preflight-aborted.txt).
+- continuation started 04:20:51: exe 2 `render_e2e` executed once → **FAILED** →
+  `end_to_end_two_cameras_match_same_recipe_reference` cam0 depth mismatch 0 max_ulp 0;
+  cam1 depth compared=43,200 mismatch=183 max_ulp=73 seg_mismatch=0; first mismatch cam1 pixel 28969 (x=169,y=120);
+  4 other tests in the exe passed; 8.93 s. Full record: run2/fail-stop-render_e2e.txt.
+- fail-stop per token: exes 3..12 and the entity `render_per_world_light` were NOT run; no retry, no relaxation.
+- stop-state integrity: 12/12 live==guard==stash, guards sha fad2ed37… unchanged, aggregate c213c3cf…,
+  old guards ca3ecd5c… unchanged, build_processes=0, residual render procs=0, tree only the untracked guards JSON,
+  GPU 3 %/12,148 MiB free/27 C, lock still owner=Backend.
+
+# INVALID rounds list (attempt 2 window body) and the authoritative canonical run
+- INVALID_ROUND #1 (run-0, 2026-11-11T04:16:39): direct frozen-exe launch without the pinned CUDA bin on PATH ->
+  NvrtcUnavailable, exit 101 before any test body; no validation round consumed.
+- launcher preflight abort (2026-11-11T04:19:5x): my runner script had a wrong old-suite path; 0 exes launched;
+  not a body run.
+- INVALID_ROUND #2 (run-1, 2026-11-11T04:20:16/51): direct frozen-exe launch without the criterion-v2.2 outline
+  env exports -> render_e2e reported the 183 frozen outline pixels as mismatches (false red); no validation round consumed.
+- run3 (2026-11-11T04:27:20): CANONICAL body run (PATH + both outline env vars, pre/post outline verification,
+  baseline within 5 minutes, exit codes captured). 11/11 regression exes PASS; entity render_per_world_light FAILS
+  criterion A (world0 cam1: 2 rgb pixels, 1 byte). See run3/fail-stop-entity-criterion-a.txt.
+- R1 exit-code self-test: window/launcher-exitcode-selftest.txt (PASS: 0/7/101 captured by both mechanisms).
+- R2 inherited guard-input drift: window/guards-input-drift.txt + window/actual-input-hashes.txt (93 inputs: 92 match,
+  1 inherited drift fixtures/render-bvh/scene-e2e/camlight-model.json; no re-freeze, no old-suite/freezer change).
+- R3 run2 continuation summary index off-by-one fixed from guards entity_order.
+- R4 run2 fail-stop record annotated: INVALID_ROUND #2 false red, no round consumed, not used as evidence.
+- R5 S-3 material command.txt missing body env exports recorded as post-G-L2 errata: window/material-errata.txt
+- repo state after the run: tree only the untracked guards JSON; lock owner=Backend; guards/stash untouched; zero compile.

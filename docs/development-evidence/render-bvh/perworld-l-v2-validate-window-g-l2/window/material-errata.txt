@@ -1,0 +1,18 @@
+# R5 S-3 signed material defect (post-G-L2 errata; NOT changed in this window)
+recorded_at=2026-11-11T04:29:36.984+08:00
+
+File: docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/materials/command.txt section 5
+
+Defect: the body command skeleton only says "run the 12 frozen entity executables in the guards JSON entity_order"
+and does not export the environment that the entity bodies require. The canonical runner
+(scripts/validate/render-bvh/run-window.ps1) does it at lines 280-298 and 307-308, and this omission caused two
+invalid rounds (NVRTC PATH missing; criterion v2.2 outline env missing).
+
+Errata to apply AFTER G-L2 (not now; signed material and its manifest/sha must not be altered in-window):
+  1. $env:PATH = "<repo>/target/toolchains/cuda-12.8.1/bin;" + $env:PATH
+  2. $env:MJWARP_RENDER_OUTLINE_LIST_DIR = "<repo>/docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline"
+  3. $env:MJWARP_REQUIRE_OUTLINE_CRITERION = "1"   # both vars must be exported together (one alone panics, neither = silent raw comparison)
+  4. pre-body verification of both outline lists per run-window.ps1:280-298 (list sha/bytes/rows/first_pixel +
+     bounds sidecar + exact_max_ulp <= bound_ulp), fail-closed with stop if mismatch; repeat post-body.
+
+This window records the ACTUAL environment in window/body-env.txt (run3) and window/canonical-env-checklist.txt.

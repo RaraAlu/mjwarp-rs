@@ -1,0 +1,22 @@
+# G-L2 attempt-2 run-1 launch attempt 2: exe 1 executed and PASSED, then harness died on a recording-line typo
+
+- when: launched 2026-11-11T04:20:16 +08:00 (within 5 minutes of the re-taken 04:19:54 baseline;
+  PATH corrected with `target/toolchains/cuda-12.8.1/bin` first).
+- what happened:
+  - preflight OK: guards sha fad2ed37…, aggregate c213c3cf…, 107 counts, old guards ca3ecd5c…,
+    12/12 live==guard==stash.
+  - exe 1 `render_per_world` (index 1 of entity_order) ran exactly once and PASSED:
+    stdout: `running 1 test` / `test gpu_per_world_matches_captured_reference ... ok` /
+    `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 1.90s`;
+    stderr empty (0 B). Launched 04:20:16, stdout closed 04:20:20.251.
+  - the script then threw at its recording line (`$p.WaitForExit()` typo: `$p` held a preflight PSCustomObject,
+    the process object was `$proc`) AFTER the process had already exited. The exception killed the script
+    before it could record exe 1's result and before exes 2..12.
+- classification: harness bug after the exe finished; NOT a validation failure and NOT a reason to re-run exe 1.
+  exe 1's run stands exactly once (result preserved from its captured stdout/stderr; OS exit code was not
+  captured by the buggy recording line).
+- disposition: exe 1 result preserved and NEVER re-run; a continuation script runs exes 2..12 exactly once
+  each in entity_order and records full stdout/stderr/exit/wall. The set execution remains: each frozen exe
+  executed exactly once (exe 1 in launch attempt 2, exes 2..12 in the continuation).
+- baseline note: the run started 04:20:16, inside the 5-minute window of the 04:19:54 three-point baseline
+  (baseline_free=12,148 MiB, floor_effective=max(9,956, 9,076)=9,956 MiB, all three points free>=floor, util<40).

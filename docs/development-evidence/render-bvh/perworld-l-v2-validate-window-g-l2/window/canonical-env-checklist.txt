@@ -1,0 +1,58 @@
+# G-L2 attempt-2 run-2 canonical environment self-check (dry-run, no exe launched)
+checked_at=2026-11-11T04:26:37.399+08:00
+
+## 1) ALL $env: assignments inside scripts/validate/render-bvh/run-window.ps1
+  291: $env:MJWARP_RENDER_OUTLINE_LIST_DIR = $outlineDirFull
+  292: $env:MJWARP_REQUIRE_OUTLINE_CRITERION = '1'
+  307: $oldPath = $env:PATH
+  308: $env:PATH = "$CudaBin;" + $env:PATH
+  346: $env:PATH = $oldPath
+  367: $env:MJWARP_RENDER_OUTLINE_LIST_DIR = ''
+  368: $env:MJWARP_REQUIRE_OUTLINE_CRITERION = ''
+
+result: exactly two exports are active in the body window (PATH + criterion v2.2 pair);
+        lines 346/367/368 are the post-body restore/clear only.
+
+## 2) env exports to apply before the body (same as run-window.ps1:307-308 + :291-292)
+  PATH = D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin;D:\UbuntuWorkspace\vmware\bin\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Users\zhang\.cargo\bin;C:\Users\zhang\AppData\Local\codegraph\current\bin;C:\Users\zhang\.local\bin;C:\Users\zhang\AppData\Local\Microsoft\WindowsApps;C:\Users\zhang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\zhang\AppData\Roaming\npm;C:\Users\zhang\AppData\Local\Programs\Magpie
+  MJWARP_RENDER_OUTLINE_LIST_DIR = D:\Rust\mjwarp-rs\docs\development-evidence\render-bvh\sdf-validate-window\attempts\attempt5\outline
+  MJWARP_REQUIRE_OUTLINE_CRITERION = 1
+  cuda_bin ok; nvrtc64_120_0.dll bytes=86728192
+  cudart64_12.dll bytes=573952
+
+## 3) pre-body outline-list checks (run-window.ps1 Verify-OutlineLists semantics)
+  arm=recipe path=docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline/scene-a-sphere-outline-recipe.txt
+    expect sha=cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee bytes=10099 rows=183 first_pixel=28969 exact_max_ulp=73
+    actual sha=cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee bytes=10099 rows=183 first_pixel=28969
+    sidecar expect sha=8a80fb0a43cbe1c2805ce7307c1ed62f0f7f1f42cf2ded621dcec3d658cf7948 bytes=5027 actual sha=8a80fb0a43cbe1c2805ce7307c1ed62f0f7f1f42cf2ded621dcec3d658cf7948 bytes=5027 ok=True
+  arm=aa2 path=docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/outline/scene-a-sphere-outline-aa2.txt
+    expect sha=14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab bytes=9509 rows=172 first_pixel=29448 exact_max_ulp=91
+    actual sha=14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab bytes=9509 rows=172 first_pixel=29448
+    sidecar expect sha=f23ca697f34ebd75a21c618ae5c309cfc710d2f2ad82349f864f02dcb30fc303 bytes=4734 actual sha=f23ca697f34ebd75a21c618ae5c309cfc710d2f2ad82349f864f02dcb30fc303 bytes=4734 ok=True
+  outline_lists_ok=2/2 bad=0
+
+## 4) outline-lists.json (test-time metadata; fail-closed in tests/support/render_bvh/outline.rs)
+  path=D:\Rust\mjwarp-rs\docs\development-evidence\render-bvh\sdf-validate-window\attempts\attempt5\outline\outline-lists.json bytes=2808 sha256=c2dd876d0e21649addfd01c5da4903d2e653bc66ecf7987e68b3432b69c6d79e
+  criterion_version=render-sdf-criterion-v2.2 ok=True; bound_ulp=128 ok=True
+  arm=recipe json(rows=183,first_pixel=28969,exact_max_ulp=73,sha=cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee,bytes=10099) guard_match=True
+  arm=aa2 json(rows=172,first_pixel=29448,exact_max_ulp=91,sha=14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab,bytes=9509) guard_match=True
+
+## 5) per-exe environment needs (12 frozen exes, entity_order)
+  render_per_world         PATH only
+  render_e2e               PATH + outline(recipe/aa2)
+  render_kernel_rgb        PATH + outline(recipe/aa2)
+  render_kernel_depth_seg  PATH + outline(recipe/aa2)
+  render_kernel_flags      PATH + outline(recipe/aa2)
+  render_r10_multi_world   PATH + outline(recipe/aa2)
+  render_skybox_reference  PATH + outline(recipe/aa2)
+  render_context_lifecycle PATH only
+  render_mesh_bvh          PATH only
+  render_hfield_reference  PATH only
+  render_shadow_reference  PATH only
+  render_per_world_light   PATH only
+
+  evidence that these 12 exes read no other env var: grep of tests/render_*.rs + tests/support/render_bvh returned
+  only tests/support/render_bvh/outline.rs env reads (ENV_LIST_DIR / ENV_REQUIRE); hfield.rs/shadow_scene.rs
+  MJWARP_CAPTURE_AT mentions are comments only. No other MJWARP_* read by these targets.
+
+verdict=ENV_SELFCHECK_PASS failures=0
