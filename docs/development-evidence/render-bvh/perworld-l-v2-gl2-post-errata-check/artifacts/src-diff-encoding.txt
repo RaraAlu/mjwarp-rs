@@ -1,0 +1,17 @@
+# errata 项 4：logs/src.diff 编码实测（errata 声称「已 LF / CRLF 0」）
+
+worktree bytes=6772 sha256=12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f
+HEAD blob identical=True
+magic=b'\xff\xfed\x00'  -> UTF-16LE with BOM
+byte CR=64 LF=62 CRLF-pairs=0 (UTF-16LE: CR=0D 00, LF=0A 00 so no 0D0A adjacency)
+valid UTF-8 = False
+decoded chars=3385 CRLF=60 lone LF=0 lone CR=0 TAB=0
+note: raw byte CR/LF counts include low bytes of CJK code units in UTF-16LE and are not line-terminator counts
+decoded first line: diff --git a/src/render/kernel/cuda/render_common.cu b/src/render/kernel/cuda/render_common.cu
+
+errata claims (README §3 line 41, receipt fix_card_1_errata.src_diff_lf_verification,
+evidence template + commit message): '6,772 B, CRLF 0, LF 62, sha 12be6af5…, byte-identical to HEAD
+=> already LF, no byte change required'.
+measured: bytes/sha/byte-identical TRUE; 'CRLF 0 / already LF / UTF-8' FALSE (UTF-16LE + BOM; decoded 60x CRLF, 0 lone LF/CR).
+
+sibling card-2 logs/src.diff for contrast: UTF-8/ASCII plain

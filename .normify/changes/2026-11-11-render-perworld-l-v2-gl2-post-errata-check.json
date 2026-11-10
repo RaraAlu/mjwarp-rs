@@ -5,7 +5,7 @@
     "zh": "QA 复核 G-L2 后置 errata 批（`dde275c1` + 口径更正 `26d3cada`）：①边界零越界（仅 docs/.normify；`src/tests/fixtures/scripts`、guards、冻结件、`window/**`、已签 S-1 spec 与 S-2/S-3 材料零 diff）✅；②四项 errata 落地——body env 契约（新增 6,009 B 文档 + README 仅追加 §11）、guards `body_env` 缺字段（只记文档/backlog，guards `fad2ed37…`/43,729 B 未动）✅、dump 字段 `geom_type`→`objtype` 更正（`seg[1]=mjOBJ_GEOM(5)`；模型 `geom_type[3]=7` MESH、`mat 0`）✅、P2 撤销交叉引用 ✅；③契约语义/两次 INVALID_ROUND/canary/12 exe env 需求与源码与窗口证据逐项一致 ✅；④四 manifest 独立重算 66/12/12/7 全对 ✅；⑤`26d3cada` 仅改口径（16→15 = 7 改 + 8 新）且证据零字节变化 ✅；**但项 4 的「`logs/src.diff` 已 LF / CRLF 0」不实——实为 UTF-16LE + BOM（解码 60×CRLF，UTF-8=False）→ 1 严重**，另 3 低 + 2 观察 → **不通过（1 严重须更正记录面）**",
     "en": "QA review of the G-L2 post-errata batch: boundary clean, errata items 1-3 correct, cross references correct, body-env contract matches source and window evidence, manifests recomputed 66/12/12/7, correction commit only changes wording with zero evidence bytes; however item 4's claim that logs/src.diff is already LF/CRLF-0 is false (it is UTF-16LE with BOM) - one severe finding, 3 low items, 2 observations - FAIL pending record correction"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 G-L2 后置 errata 批（主提交 **`dde275c1`**，20 文件；口径更正 **`26d3cada`**，1 文件；卡 `2026-11-11-render-perworld-l-v2-gl2-post-errata` verified）做独立只读复核（零 GPU）：①四项 errata 是否落地且只动文档/证据（源码/测试/fixtures/scripts/guards/冻结件/已签材料正文零 diff）；②交叉引用是否正确（卡-1 → 卡-2）；③body env 契约（env 成对语义、两次 INVALID_ROUND 归因）与实际源码/证据是否一致；④manifest 行级重算；⑤`26d3cada` 是否只改口径、证据零字节变化；⑥记录锁纪律过程观察。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the G-L2 post-errata batch: scope, cross references, body-env contract semantics against source/window evidence, manifest line-level recompute, correction-commit scope, plus a process observation on the disclosed unlocked writes."
@@ -42,12 +42,12 @@
   },
   "note": "Chief 2026-11-11 派工：复核 G-L2 后置 errata 批（dde275c1 主 + 26d3cada 口径更正；零 GPU）。结论：不通过（1 严重 + 3 低 + 2 观察）。严重 S1：errata 项 4 声称 perworld-l-v2-ptx-order-pins/logs/src.diff 已 LF/CRLF 0，实测为 UTF-16LE+BOM（FF FE）、UTF-8=False、解码 60×CRLF；四处记录（README §3 L41、receipt 字段、artifact worktree_crlf=0、提交信息）不实；bytes/sha/与 HEAD 逐字节一致三项说对了。已独立核：边界零越界（dde275c1 仅 docs/.normify 20 文件；src/tests/fixtures/scripts/guards/window/S-1 spec/S-2/S-3 材料全零 diff）；项 1-3 落地正确（body env 契约文档 6,009 B、guards 19 键无 body_env、dump 字段 geom_type→objtype 且模型 geom_type[3]=7 MESH/mat 0 实测一致）；P2 被卡-2 R1 撤销的交叉引用目录存在且与卡-2 记录一致；body env 语义/两次 INVALID_ROUND（04:16:39 NvrtcUnavailable；04:20:16/51 outline env 假红 183/73/28969）/canary violations=0/12 exe env 需求与源码窗口证据逐项一致；四 manifest 独立重算 66/12/12/7 全对且 ASCII 有序；26d3cada 仅卡 JSON、docs 零字节变化、addenda 16→15（7 改+8 新）核数正确。低项：manifest 行序重排未如实记录、行号引用不精确、轮 #4 事实缺路径。观察：169 个 UTF-16 BOM 证据文件（系统性）、Backend 披露无锁写（仓内无可核日志，补救 addenda 待下一张治理卡）。不改 G-L2 判定。",
   "revision": {
-    "before": "67684a3b2b74c8ad3d058f7b29db7829459c07df",
+    "before": "8e7fb3a00b3cceb3d953ded89bc42da95dad93c6",
     "after": null
   },
   "created_at": "2026-11-10T23:08:28.000Z",
-  "updated_at": "2026-11-10T23:08:28.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T23:09:31.617Z",
+  "closed_at": "2026-11-10T23:09:31.617Z",
   "checks": [
     {
       "kind": "gate",

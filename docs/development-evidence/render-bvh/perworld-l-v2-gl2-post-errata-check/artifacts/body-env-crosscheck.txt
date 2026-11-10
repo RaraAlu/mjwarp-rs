@@ -1,0 +1,46 @@
+# body env 契约交叉核对（errata 描述 vs 源码/窗口证据实测）
+
+outline.rs:51: pub fn enabled() -> bool {
+outline.rs:293: pub fn depth_stats(
+outline.rs:363: pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Arm) -> DepthDiff {
+enabled() body (51-68): both unset -> false; one only -> panic; both set with REQUIRE=1 -> true  [matches errata §1.2]
+diff_depth_with_outline: !enabled() -> raw diff; enabled -> depth_stats; violations!=0 -> assert panics (fail-closed)  [matches errata §1.2]
+run-window.ps1:246: $outlineCheck = Verify-OutlineLists 'guards'
+run-window.ps1:283: $preBody = Verify-OutlineLists 'pre-body'
+run-window.ps1:291: $env:MJWARP_RENDER_OUTLINE_LIST_DIR = $outlineDirFull
+run-window.ps1:292: $env:MJWARP_REQUIRE_OUTLINE_CRITERION = '1'
+run-window.ps1:307: $oldPath = $env:PATH
+run-window.ps1:308: $env:PATH = "$CudaBin;" + $env:PATH
+run-window.ps1:346: $env:PATH = $oldPath
+run-window.ps1:358: $postBody = Verify-OutlineLists 'post-window'
+run-window.ps1:367: $env:MJWARP_RENDER_OUTLINE_LIST_DIR = ''
+run-window.ps1:368: $env:MJWARP_REQUIRE_OUTLINE_CRITERION = ''
+note: pre-body check at :283, post-window check at :358 -> errata/README 'pre/post ... (280-298)' cites only the pre range
+
+guards top-level keys: ["schema", "suite", "task_id", "generated_at", "repo", "attempt", "criterion_version", "bound_ulp", "counts", "aggregate_algorithm", "aggregate_sha256", "frozen_exe_stash_dir", "entity_order", "frozen_exes", "guard_inputs", "outline_lists", "old_suite", "old_stash_drift", "optional_inputs"]
+guards body_env present: False
+outline arm=recipe bytes=10099 sha=cfd1038a1cc5… rows=183 first_pixel=28969 exact_max_ulp=73
+outline arm=aa2 bytes=9509 sha=14893fc6a247… rows=172 first_pixel=29448 exact_max_ulp=91
+
+window-incidents> # Chief ruling (2026-11-11 04:21): run-0 recorded as INVALID_ROUND — environment mistake, no validation round consumed
+window-incidents> - run-0 = the 04:16:39 attempt above: direct frozen-stash exe launch with a PATH lacking the pinned CUDA bin.
+window-incidents> cam1 depth compared=43,200 mismatch=183 max_ulp=73 seg_mismatch=0; first mismatch cam1 pixel 28969 (x=169,y=120);
+window-incidents> - INVALID_ROUND #1 (run-0, 2026-11-11T04:16:39): direct frozen-exe launch without the pinned CUDA bin on PATH ->
+window-incidents> - INVALID_ROUND #2 (run-1, 2026-11-11T04:20:16/51): direct frozen-exe launch without the criterion-v2.2 outline
+window-incidents> env exports -> render_e2e reported the 183 frozen outline pixels as mismatches (false red); no validation round consumed.
+window-incidents> - R4 run2 fail-stop record annotated: INVALID_ROUND #2 false red, no round consumed, not used as evidence.
+
+canary> outline[recipe] cam1: list_rows=183 outside_mismatch=0 in_list_differing=183 in_list_max_ulp=73 violations=0 exact_max_ulp=73 list=D:\Rust\mjwarp-rs\docs\development-evidence\render-bvh\sdf-validate-window\attempts\attem
+checklist> render_per_world         PATH only
+checklist> render_e2e               PATH + outline(recipe/aa2)
+checklist> render_kernel_rgb        PATH + outline(recipe/aa2)
+checklist> render_kernel_depth_seg  PATH + outline(recipe/aa2)
+checklist> render_kernel_flags      PATH + outline(recipe/aa2)
+checklist> render_r10_multi_world   PATH + outline(recipe/aa2)
+checklist> render_skybox_reference  PATH + outline(recipe/aa2)
+checklist> render_context_lifecycle PATH only
+checklist> render_mesh_bvh          PATH only
+checklist> render_hfield_reference  PATH only
+checklist> render_shadow_reference  PATH only
+checklist> render_per_world_light   PATH only
+checklist> verdict=ENV_SELFCHECK_PASS failures=0

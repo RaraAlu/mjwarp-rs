@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-post-errata-check",
+  "status": "qa_review_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "FAIL",
+  "subject": {
+    "batch_card": "2026-11-11-render-perworld-l-v2-gl2-post-errata",
+    "main_commit": "dde275c16becd486fa3bb433710680b484bd1054",
+    "main_files": 20,
+    "correction_commit": "26d3cada85e371ca5a9617e054dab138d9556cc7",
+    "correction_files": 1,
+    "review_base_head": "00bfaef8b36cd1953ff7b6c14eff5579ecf81bdd"
+  },
+  "severe_findings": [
+    {
+      "code": "S1",
+      "title": "errata item 4 claims logs/src.diff is already LF / CRLF 0, but the file is UTF-16LE with BOM",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/logs/src.diff",
+      "measured": {
+        "bytes": 6772,
+        "sha256": "12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f",
+        "byte_identical_to_head": true,
+        "magic_hex": "fffe6400",
+        "encoding": "UTF-16LE with BOM",
+        "valid_utf8": false,
+        "decoded_chars": 3385,
+        "decoded_crlf": 60,
+        "decoded_lone_lf": 0,
+        "decoded_lone_cr": 0
+      },
+      "claims_contradicted": [
+        "main README section 3 line 41: '6,772 B, CRLF 0, LF 62, sha 12be6af5..., byte-identical to HEAD => already LF'",
+        "receipt.json fix_card_1_errata.src_diff_lf_verification (same wording)",
+        "artifacts/ptx-order-pins-src-diff-eol.txt: worktree_crlf=0",
+        "dde275c1 commit message item 4: 'logs/src.diff LF 复核（已 LF、字节未变）'"
+      ],
+      "assessment": "bytes/sha/byte-identical are correct; 'CRLF 0', 'already LF' and implied UTF-8 are false. LF=62 was the raw 0x0A byte count, which in UTF-16 includes low bytes of CJK code units, not line count. The batch's own 15-file encoding self-check does not include this file (7 modified + 8 new), so that self-check is not wrong; the item-4 audit conclusion is.",
+      "impact": "evidence hygiene requirement (UTF-8/LF/no BOM) remains unmet and the errata record is factually wrong; does not affect the G-L2 verdict or any numeric evidence",
+      "fix": "correct README section 3 / receipt field / artifact measurement to state UTF-16LE+BOM (not LF); Chief decides whether to normalize the historical evidence bytes (changes sha + manifest line) or to register it as a -text binary evidence file"
+    }
+  ],
+  "low_findings": [
+    {"code": "L1", "title": "three manifests were re-sorted to ASCII order; commit message says only README line + one new line changed", "detail": "G-L2 66, pins-1 12, entity 12 manifests: line contents unchanged but line positions changed (e.g. window/baseline.txt, monitor.csv, preflight-attempt1.txt, README.md). Content-level claim holds, order-level does not; the new ASCII order is the canonical one (improvement)"},
+    {"code": "L2", "title": "line-number citations imprecise", "detail": "enabled() is at outline.rs:51 (cited 50-68 incl. doc comment), diff_depth_with_outline() at :363 (cited 359-391 incl. doc comment), pre/post verification at run-window.ps1:283/:358 (cited together as 280-298, post is outside)"},
+    {"code": "L3", "title": "round #4 facts cited without a traceable evidence path", "detail": "item 4 cites 'diagnostic round #4 measured: A still FAIL, 13268 regressed, world1 three pixels unchanged' but no path; fact matches Chief's 2026-11-11 05:49 notice as recorded in the pins-2 check card note and perworld-l-v2-ptx-order-pins-2-check/README.md"}
+  ],
+  "observations": [
+    {"code": "O1", "title": "UTF-16 BOM evidence files are systemic", "detail": "169 files under docs/development-evidence carry a UTF-16 BOM (legacy PowerShell redirection logs); this batch touches one of them. Recommend a separate evidence-encoding census, out of scope here."},
+    {"code": "O2", "title": "process: Backend disclosed unlocked writes for dde275c1/26d3cada", "detail": "no lock audit log exists in the repo, so this cannot be verified from the repository; recorded as a disclosed process observation. Chief says the remedy is scheduled in the next governance card addenda; I could not find that addenda in the current tree (no 2026-11-11 card mentions lock discipline), to be checked once it lands."}
+  ],
+  "independently_verified": {
+    "boundary_only_docs": "dde275c1 touches only docs/ + .normify (7 modified + 8 new evidence files + 4 gate runs + card); 26d3cada touches only the card JSON; git diff bb29e351..26d3cada for src/ tests/ fixtures/ scripts/ = empty; guards JSON zero diff (fad2ed37.../43729); 12 frozen exe stash untouched; G-L2 window/** byte-unchanged; S-1 spec 39,379 B bb064fe0...; S-2 and S-3 materials dirs zero diff",
+    "item1_body_env": "body-env-contract-errata.md 6,009 B cf0e7b90...; window README append is +5 lines only (verdict sentence untouched); contract semantics match outline.rs (enabled() both-unset->raw, one-only->panic, both->outside bitwise / in-list |ULP|<=bound fail-closed)",
+    "item2_guards_body_env": "guards JSON top-level 19 keys contain no body_env; audit artifact matches; freezer/guards/frozen artifacts not modified",
+    "item3_dump_field": "seg[1]=mjOBJ_GEOM(5); model fixtures geom_type=[0,6,2,7,3,5,4] so hit geom_id=3 is geom_type=7 MESH; geom_matid[3]=0; README wording corrected and section 5 added; table numbers/verdict unchanged; code/receipt rename left as backlog",
+    "item4_cross_ref": "perworld-l-v2-ptx-order-pins-2/ directory exists; R1 reverts P2 half-vector normalization to normalize3_rays and adds P5/P6, consistent with the pins-2 card record; +17/-3 stat is correct (render_common +11, render_megakernel +2/-1, render_shade +4/-2)",
+    "body_env_evidence": "run-window.ps1 outline exports :291-292, PATH :307-308 (g01-fast.ps1:40-41 same); guards outline_lists recipe cfd1038a.../10099/183/28969/73 and aa2 14893fc6.../9509/172/29448/91; outline-lists.json c2dd876d.../2808 bound_ulp=128; window-incidents INVALID_ROUND #1 (04:16:39 NvrtcUnavailable) and #2 (04:20:16/51 outline env false red 183/73/28969) match the errata table; canary 'violations=0'; canonical-env-checklist ENV_SELFCHECK_PASS and 6 PATH+outline / 6 PATH-only split",
+    "manifests": "independent recompute: G-L2 66, pins-1 12, entity 12, post-errata 7 entries; bad/missing/extra all empty; all ASCII-sorted; 7 changed-file old/new sha+bytes match bb29e351/dde275c1 blobs",
+    "correction_commit": "26d3cada changes only the card JSON (updated_at + addenda: 16 -> 15 files = 7 modified + 8 new); docs zero byte change"
+  },
+  "non_claims": [
+    "does not change the G-L2 verdict (still not passed; criterion A FAIL stands)",
+    "does not claim any fix works",
+    "no criterion/threshold/reference/tolerance/camera/recipe change",
+    "does not run or re-freeze anything; zero GPU",
+    "S1 is a record/hygiene correction, not a criterion relaxation; disposition of the historical src.diff bytes is for the Chief to decide"
+  ],
+  "artifacts": [
+    "artifacts/scope-zero-diff.txt",
+    "artifacts/body-env-crosscheck.txt",
+    "artifacts/manifest-check.txt",
+    "artifacts/src-diff-encoding.txt",
+    "artifacts/26d3cada-check.txt"
+  ]
+}
