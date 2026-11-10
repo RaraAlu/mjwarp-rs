@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-ptx-order-pins",
+  "title": {
+    "zh": "perworld L v2 残余 4 px：P2/P3/P4 PTX 归一化次序 pin（normalize3_midpref + 灯 L 三次除法；零 GPU；新内核身份基线）",
+    "en": "Per-world L v2 residual 4 px: P2/P3/P4 PTX normalization-order pins (normalize3_midpref + per-component light-L division; zero GPU; new kernel identity baseline)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Arch 离线 PTX 对齐证据（`target/render-bvh/gl2-ptx-diff/`，零 GPU；地面真值=采集时 warp 缓存模块/PTX）修复残余 4 px 的 ULP 级站点：① `render_common.cu` 新增 `normalize3_midpref`（中间项单独舍入：`mul(y*y) → fma(x*x) → fma(z*z)`，与参考 `vec.h:1113-1115` 一致；不动既有 `normalize3_rays`）；② **P2** `render_shade.cu:446` 的 `half = normalize3_rays(add(L, view_dir))` → `normalize3_midpref`（量化影响最大：预测 2–11 px，实测 4）；③ **P3** `render_megakernel.cu:273` 的 `normal = normalize3_rays(mat_vec(geom_mat, vn))` → `normalize3_midpref`（指令对齐必要项）；④ **P4** `render_shade.cu:412` 点/spot 灯 `L = scale(delta, 1/norm)` → 逐分量除法 `v3(delta.x/norm, delta.y/norm, delta.z/norm)`（与上游 `normalize_with_norm` 同构）。记录 old→new `MEGAKERNEL_SOURCE` sha 与 PTX 三变体（megakernel/aa_resolve/depth_seg）sha+bytes；`.version`/build-id 注释差异属 NVRTC 版本注释、不属指令差异。不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁与证据按既有口径。修完由 Chief 发唯一一轮诊断轮 token 验证 4 px 是否归零。",
+    "en": "Apply the Arch offline PTX alignment findings (`target/render-bvh/gl2-ptx-diff/`, zero GPU; ground truth = the warp cache module/PTX used at capture time) to the residual 4 px ULP sites: (1) add `normalize3_midpref` to `render_common.cu` (middle term rounded by itself: `mul(y*y) -> fma(x*x) -> fma(z*z)`, matching the reference `vec.h:1113-1115`; leave the existing `normalize3_rays` untouched); (2) **P2** `render_shade.cu:446` `half = normalize3_rays(add(L, view_dir))` -> `normalize3_midpref` (largest quantified impact: predicted 2-11 px, measured 4); (3) **P3** `render_megakernel.cu:273` `normal = normalize3_rays(mat_vec(geom_mat, vn))` -> `normalize3_midpref` (necessary instruction-alignment item); (4) **P4** `render_shade.cu:412` point/spot light `L = scale(delta, 1/norm)` -> per-component division `v3(delta.x/norm, delta.y/norm, delta.z/norm)` (same shape as upstream `normalize_with_norm`). Record old->new `MEGAKERNEL_SOURCE` sha and the megakernel/aa_resolve/depth_seg PTX sha+bytes; the `.version`/build-id comment differences are NVRTC version comments, not instruction differences. No criterion/reference/tolerance changes; zero GPU, no capture, no diagnostic run; standard gates and evidence. One final diagnostic-round token follows from the Chief to verify the 4 px go to zero."
+  },
+  "modules": {},
+  "acceptance": [
+    "**helper（P1 基础）**：`src/render/kernel/cuda/render_common.cu` 新增 `normalize3_midpref`：`float l = sqrtf(fmaf(a.z, a.z, fmaf(a.x, a.x, a.y * a.y))); if (l > 0.0f) return v3(a.x/l, a.y/l, a.z/l); return v3(0,0,0);`；既有 `normalize3_rays` 字面不动（S5 已验路径不变）。",
+    "**P2**：`render_shade.cu:446` `V3 half = normalize3_midpref(add(L, view_dir));`（原 `normalize3_rays`）。",
+    "**P3**：`render_megakernel.cu:273` `normal = normalize3_midpref(mat_vec(geom_mat, vn));`（原 `normalize3_rays`）。",
+    "**P4**：`render_shade.cu:412` 点/spot 灯方向 `L = scale(delta, 1.0f / norm);` → `L = v3(delta.x / norm, delta.y / norm, delta.z / norm);`（与上游 `normalize_with_norm` 的三次除法同构）。",
+    "**内核身份新基线**：记录 old→new `MEGAKERNEL_SOURCE` sha、megakernel PTX sha+bytes、`DEPTH_SEG_SOURCE`/depth_seg PTX（本卡三文件不在 depth_seg 拼接中，预期不变）、aa_resolve 三值（预期不变）；采集方式=NVRTC 纯编译（两个 identity 用例，不建 GPU 会话），附独立拼接复算；`.version`/build-id 注释差异单独说明（非指令差异）。属实现修复新基线，不改判据。",
+    "**构建/静态验证（零 GPU）**：`cargo build --features cuda-probe`、`cargo test --features cuda-probe --no-run`、四门禁 fmt/clippy/clippy-cuda/unit（unit 1,387 过 0 败 / 402 ignored）全过；证据 README/receipt/manifest + logs（old/new identity、独立复算、src.diff、build/no-run）；manifest 自核、UTF-8/LF/无 BOM。",
+    "**边界与非声明**：`unchanged fixtures/`、`unchanged tests/`、`unchanged scripts/`；其它证据目录只读；零 GPU、不采集、不跑诊断、不动冻结件/guards；本卡不宣称修复生效（需唯一一轮诊断轮验证）、不改 G-L2 判定（判据 A FAIL 维持）、不改判据/阈值/参考/容差。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/cuda/render_shade.cu",
+      "src/render/kernel/cuda/render_megakernel.cu",
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-11 05:31 派工：按 Arch 离线 PTX 对齐（`target/render-bvh/gl2-ptx-diff/README.md` 附录 A/B/C + `spec_sensitivity.json`；零 GPU）做 P2/P3/P4 三处 ULP 对齐 pin。改动全在 `.cu`：新增 `normalize3_midpref`（中间项单独舍入，对齐参考 `vec.h:1113-1115`）+ P2 `render_shade.cu:446` half-vector + P3 `render_megakernel.cu:273` mesh 顶点法线 + P4 `render_shade.cu:412` 点/spot 灯 L 三次除法。记录 old→new source/PTX 三变体（`.version`/build-id 注释差异说明）；不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁+证据；修完等 Chief 唯一一轮诊断轮 token。",
+  "revision": {
+    "before": "8cbd78e6a038500dec38cc79a395d5c44c20e16d",
+    "after": null
+  },
+  "created_at": "2026-11-10T21:31:42.000Z",
+  "updated_at": "2026-11-10T21:31:42.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "tests/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/"
+      ]
+    }
+  ]
+}
