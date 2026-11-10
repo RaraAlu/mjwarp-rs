@@ -402,7 +402,7 @@ impl RenderArgKind {
 ///
 /// 顺序取自 S7a 预检从 Warp 1.15 生成的 CUDA 源（`_build_megakernel__locals___render_megakernel_*`）
 /// 的真实 `extern "C"` 签名；S7a 只用它验证 ABI 表达能力与拒绝面，S7b 才实现同名内核。
-pub static MEGAKERNEL_SLOTS: [RenderArgKind; 81] = {
+pub static MEGAKERNEL_SLOTS: [RenderArgKind; 82] = {
     use RenderArgKind::{Array as A, Bounds2D as B, Scalar as S};
     use RenderElem::{
         Bool, F32, I32, Mat33, Quat, Texture2d, U32, U64, Vec2, Vec2I, Vec3, Vec3I, Vec4,
@@ -490,5 +490,7 @@ pub static MEGAKERNEL_SLOTS: [RenderArgKind; 81] = {
         A(Vec3),
         A(F32),
         A(Vec2I),
+        // P10 诊断扩展槽（第 82 槽，不属于上游 81 槽签名）：opt-in diag 设备地址（0=关闭）。
+        S(SU),
     ]
 };

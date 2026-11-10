@@ -38,12 +38,10 @@ use super::megakernel_arrays::{
 use super::world_light::{WorldLightPoses, flatten_light_poses, select_world_lights};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
-// 拆分①：上传段以 `#[path]` 在本文件内声明为子模块（卡片 scope；`lighting.rs` 同款先例）。
 #[path = "megakernel_uploads.rs"]
 mod megakernel_uploads;
 
 // R06-S2：宿主 flex 通道（`FlexHostInputs` + 校验 + 上传）以 `#[path]` 挂在本文件下
-// （同款先例；`megakernel.rs` 450 死线、`megakernel_uploads.rs` 480 行都塞不下）。
 #[path = "flex_channel.rs"]
 mod flex_channel;
 pub use flex_channel::FlexHostInputs;
@@ -73,6 +71,7 @@ pub struct MegakernelRenderer {
     session: TransferSession,
     kernel: RenderKernel,
     aa: AAResolve,
+    pub(super) diag: super::diag::DiagState,
 }
 
 impl MegakernelRenderer {
@@ -92,6 +91,7 @@ impl MegakernelRenderer {
             session: session.clone(),
             kernel,
             aa,
+            diag: super::diag::DiagState::new(Vec::new()),
         })
     }
 
@@ -453,6 +453,7 @@ impl MegakernelRenderer {
             adr_world: world,
         })?;
         let u = &uploads;
+        let diag_buffer = super::diag::DiagBuffer::new(&self.session, launch_worlds * total_rays)?;
         // ---- 81 槽实参（顺序 = S7a MEGAKERNEL_SLOTS）：装配段拆分至 `megakernel_args.rs`（R06-S1a） ----
         let mut args: Vec<RenderArg> = Vec::with_capacity(MEGAKERNEL_SLOTS.len());
         megakernel_args::push_megakernel_args(
@@ -472,6 +473,7 @@ impl MegakernelRenderer {
                 depth_pixels: layout.depth_pixels,
                 seg_slots: layout.seg_slots,
                 flags_word,
+                diag_addr: super::diag::arg_addr(&diag_buffer)?,
             },
         )?;
 
@@ -488,6 +490,7 @@ impl MegakernelRenderer {
             nsamples,
             total_rays,
         )?;
+        self.finish_diag(diag_buffer, world);
         if nsamples == 1 {
             return Ok(());
         }

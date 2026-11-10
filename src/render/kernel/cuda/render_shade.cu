@@ -182,6 +182,11 @@ __device__ __forceinline__ void texture_box(V3 local, V3 local_normal, const flo
 }
 
 // 上游 `_texture_hfield`（render.py L332-350）：水平范围 `[-size[0], size[0]] x [-size[1], size[1]]`，
+// P10 诊断 helper 的前向声明（定义在 `render_megakernel.cu` 的 DIAG 段；仅 opt-in 时被调用）。
+__device__ __forceinline__ void diag_store_tex(float* d, float u, float v, V3 tex_color);
+__device__ __forceinline__ void diag_store_light(float* d, float weight, float visible, float ndotl);
+__device__ __forceinline__ void diag_store_light_spec(float* d, float ndoth, V3 half, float spec_pow);
+
 // `s0 = max(size[0], 1e-6)`、`s1 = max(size[1], 1e-6)`；UV 不依赖命中面/法线。
 __device__ __forceinline__ void texture_hfield(V3 local, const float* size, const float* repeat,
                                                 bool tex_uniform, V3* uv, V3* offset, V3* rep) {
@@ -264,7 +269,7 @@ __device__ __forceinline__ V3 sample_texture(const int* geom_type, const int* me
                                               const float* mesh_texcoord,
                                               const int* mesh_texcoord_offsets, V3 hit_point,
                                               V3 normal, float bary_u, float bary_v, int face,
-                                              int mesh_id) {
+                                              int mesh_id, float* diag_tex) {
     V3 uv = v3(0.0f, 0.0f, 0.0f);
     V3 offset = v3(0.0f, 0.0f, 0.0f);
     V3 rep = v3(repeat[0], repeat[1], 0.0f);
@@ -293,6 +298,7 @@ __device__ __forceinline__ V3 sample_texture(const int* geom_type, const int* me
     u = u - floorf(u);
     v = v - floorf(v);
     wp::vec4 tex_color = wp::texture_sample<wp::vec4>(tex, wp::vec2(u, v), 0.0f);
+    diag_store_tex(diag_tex, u, v, v3(tex_color[0], tex_color[1], tex_color[2]));
     return v3(tex_color[0], tex_color[1], tex_color[2]);
 }
 
@@ -395,7 +401,7 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
                                                   float mat_shin_exp, bool enable_specular,
                                                   bool use_shadows, bool cast_shadow,
                                                   float shadow_light_fraction, V3* diff_rgb,
-                                                  V3* spec_rgb) {
+                                                  V3* spec_rgb, float* diag_light) {
     *diff_rgb = v3(0.0f, 0.0f, 0.0f);
     *spec_rgb = v3(0.0f, 0.0f, 0.0f);
     if (!lightactive) {
@@ -442,12 +448,14 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
     }
     // R09-S2 阴影可见度：仅 `use_shadows && cast_shadow` 时发射阴影射线（上游 L919）；
     // 命中时 `visible = shadow_light_fraction`，否则 1.0。
-    float weight = attenuation * shadow_visibility(
+    float visible = shadow_visibility(
                                         scene, blob, flex, geom_type, geom_dataid, geom_matid,
                                         geom_rgba, mat_rgba, hfield_bvh_id, worldid,
                                         cull_backfaces, normal, hitpoint, L, lighttype,
                                         dist_to_light, use_shadows, cast_shadow,
                                         shadow_light_fraction);
+    float weight = attenuation * visible;
+    diag_store_light(diag_light, weight, visible, ndotl);
     *diff_rgb = v3(lightdiff.x * (ndotl * weight), lightdiff.y * (ndotl * weight),
                    lightdiff.z * (ndotl * weight));
     if (enable_specular) {
@@ -455,7 +463,9 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
             // R1：参考核 half-vector 归一化是**首项**单独舍入（Arch 附录 D），保持 `normalize3_rays`。
             V3 half = normalize3_rays(add(L, view_dir));
             float ndoth = fmaxf(0.0f, dot3_ba(normal.x, normal.y, normal.z, half.x, half.y, half.z));
-            float energy = mat_spec * powf(ndoth, mat_shin_exp) * weight;
+            float spec_pow = powf(ndoth, mat_shin_exp);
+            float energy = mat_spec * spec_pow * weight;
+            diag_store_light_spec(diag_light, ndoth, half, spec_pow);
             *spec_rgb = v3(lightspec.x * energy, lightspec.y * energy, lightspec.z * energy);
         }
     }

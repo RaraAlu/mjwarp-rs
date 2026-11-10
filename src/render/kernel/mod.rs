@@ -25,6 +25,7 @@
 //! `cvt.rn.f64.s64` + `mul.rn.f64`(0d3BF921FB54442D19) + `cvt.rn.f32.f64` 三元组。
 
 pub mod cast;
+pub mod diag;
 pub mod launch;
 pub mod megakernel;
 mod megakernel_aa;
@@ -36,6 +37,7 @@ mod world_arrays;
 pub mod world_camera;
 mod world_light;
 
+pub use diag::{DiagLight, DiagRecord};
 pub use megakernel::MegakernelRenderer;
 pub use megakernel_arrays::{LightDataPose, light_data_poses};
 pub use per_world::{reject_multi_sample, render_per_world, render_per_world_with_lights};

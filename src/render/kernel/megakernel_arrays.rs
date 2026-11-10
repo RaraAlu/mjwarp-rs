@@ -402,7 +402,8 @@ mod tests {
     /// 冻结签名的第 40 槽（0-based）= 1-based 第 41 项 = `Scalar(Bool)`；81 槽不变。
     #[test]
     fn slot_40_is_bool_scalar_in_frozen_signature() {
-        assert_eq!(MEGAKERNEL_SLOTS.len(), 81);
+        // P10：上游 81 槽 + 1 个尾随诊断槽 = 82。
+        assert_eq!(MEGAKERNEL_SLOTS.len(), 82);
         assert_eq!(
             MEGAKERNEL_SLOTS[40],
             RenderArgKind::Scalar(RenderScalarKind::Bool)

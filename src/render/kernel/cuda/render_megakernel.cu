@@ -54,6 +54,91 @@ __device__ __forceinline__ void aa_store(wp::array_t<wp::vec3> aa_accum, long of
 #define MK_DEFAULT_MAT_EMISSION 0.0f
 #define MK_NO_LIGHT_AMBIENT_FALLBACK 0.3f
 
+// P10 诊断：opt-in 像素中间量 dump 布局常量与 store helper（仅新增 store/分支；`diag_ptr == 0` 时全部首行返回）。
+// 本段只被 `render_shade.cu`（前向声明）与下方 megakernel 的诊断分支调用。
+#define DIAG_STRIDE 64
+#define DIAG_COLOR 0
+#define DIAG_BASE_COLOR 3
+#define DIAG_TEX_UV 6
+#define DIAG_TEX_COLOR 8
+#define DIAG_BARY_U 11
+#define DIAG_BARY_V 12
+#define DIAG_T 13
+#define DIAG_FACE 14
+#define DIAG_MESH_ID 15
+#define DIAG_HIT_POINT 16
+#define DIAG_NORMAL 19
+#define DIAG_RAY_DIR 22
+#define DIAG_LIGHT_BASE 25
+#define DIAG_LIGHT_STRIDE 8
+#define DIAG_LIGHT_SLOTS 4
+
+// 纹理链：wrap 后的采样 uv（f32 位型原样）与硬件采样结果。
+__device__ __forceinline__ void diag_store_tex(float* d, float u, float v, V3 tex_color) {
+    if (d == nullptr) {
+        return;
+    }
+    d[DIAG_TEX_UV + 0] = u;
+    d[DIAG_TEX_UV + 1] = v;
+    d[DIAG_TEX_COLOR + 0] = tex_color.x;
+    d[DIAG_TEX_COLOR + 1] = tex_color.y;
+    d[DIAG_TEX_COLOR + 2] = tex_color.z;
+}
+
+// 每灯：weight/visible/ndotl 在 `compute_lighting` 尾部写；ndoth/half/pow 只在 specular 分支写。
+__device__ __forceinline__ void diag_store_light(float* d, float weight, float visible, float ndotl) {
+    if (d == nullptr) {
+        return;
+    }
+    d[0] = weight;
+    d[1] = visible;
+    d[2] = ndotl;
+}
+
+__device__ __forceinline__ void diag_store_light_spec(float* d, float ndoth, V3 half,
+                                                      float spec_pow) {
+    if (d == nullptr) {
+        return;
+    }
+    d[3] = ndoth;
+    d[4] = half.x;
+    d[5] = half.y;
+    d[6] = half.z;
+    d[7] = spec_pow;
+}
+
+// 命中链：打包前 f32 颜色、纹理后 base_color、求交量（face/mesh_id 以 i32 位型存）、
+// 命中点/法线/ray_dir_world。只在命中分支调用；未命中像素不写记录。
+// 存 ray_dir_world 而非 view_dir：view_dir = -ray_dir_world 为精确负号位翻转，可在 host 侧
+// 无损派生；避免为落盘额外 materialize（否则会多出 3 条 neg.f32，破坏「算术未变」）。
+__device__ __forceinline__ void diag_store_hit(float* d, V3 color, V3 base_color, V3 hit_point,
+                                               V3 normal, V3 ray_dir, float bary_u, float bary_v,
+                                               float t, int face, int mesh_id) {
+    if (d == nullptr) {
+        return;
+    }
+    d[DIAG_COLOR + 0] = color.x;
+    d[DIAG_COLOR + 1] = color.y;
+    d[DIAG_COLOR + 2] = color.z;
+    d[DIAG_BASE_COLOR + 0] = base_color.x;
+    d[DIAG_BASE_COLOR + 1] = base_color.y;
+    d[DIAG_BASE_COLOR + 2] = base_color.z;
+    d[DIAG_BARY_U] = bary_u;
+    d[DIAG_BARY_V] = bary_v;
+    d[DIAG_T] = t;
+    d[DIAG_FACE] = __int_as_float(face);
+    d[DIAG_MESH_ID] = __int_as_float(mesh_id);
+    d[DIAG_HIT_POINT + 0] = hit_point.x;
+    d[DIAG_HIT_POINT + 1] = hit_point.y;
+    d[DIAG_HIT_POINT + 2] = hit_point.z;
+    d[DIAG_NORMAL + 0] = normal.x;
+    d[DIAG_NORMAL + 1] = normal.y;
+    d[DIAG_NORMAL + 2] = normal.z;
+    d[DIAG_RAY_DIR + 0] = ray_dir.x;
+    d[DIAG_RAY_DIR + 1] = ray_dir.y;
+    d[DIAG_RAY_DIR + 2] = ray_dir.z;
+}
+
 extern "C" __global__ void render_megakernel(
     wp::launch_bounds_t<2> dim, wp::array_t<wp::int32> geom_type,
     wp::array_t<wp::int32> geom_dataid, wp::array_t<wp::int32> geom_matid,
@@ -93,7 +178,7 @@ extern "C" __global__ void render_megakernel(
     wp::array_t<wp::vec4> splat_rgba, wp::uint64 splat_bvh_id,
     wp::array_t<wp::int32> splat_group_root, wp::array_t<wp::uint32> rgb_out,
     wp::array_t<wp::vec3> aa_accum_out, wp::array_t<float> depth_out,
-    wp::array_t<wp::vec2i> seg_out) {
+    wp::array_t<wp::vec2i> seg_out, wp::uint64 diag_ptr) {
     size_t index = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= dim.size) {
         return;
@@ -190,6 +275,8 @@ extern "C" __global__ void render_megakernel(
     int depth_pitch = depth_out.shape.dims[1];
     int seg_pitch = seg_out.shape.dims[1];
     long rgb_offset = (long)worldid * rgb_pitch + rgb_adr.data[camid] + rayid_local;
+    float* diag = (float*)(unsigned long long)diag_ptr;
+    float* diag_rec = diag != nullptr ? diag + (long)rayid * DIAG_STRIDE : nullptr;
     // 上游：「Depth and seg are single-sample outputs: only the first pass writes them」
     // （render.py `if ray_base == 0`）。AA 时后续子样本不覆盖；spp=1 时恒真。
     bool first_sample = ray_base == 0;
@@ -308,7 +395,8 @@ extern "C" __global__ void render_megakernel(
                 (const float*)(mat_texrepeat.data + mat_id), tex_uniform, textures.data[tex_id],
                 v3(geom_pos[0], geom_pos[1], geom_pos[2]), geom_mat,
                 (const int*)mesh_facetexcoord.data, (const float*)mesh_texcoord.data,
-                mesh_texcoord_offsets.data, hit_point, normal, hit.bary_u, hit.bary_v, face, mesh_id);
+                mesh_texcoord_offsets.data, hit_point, normal, hit.bary_u, hit.bary_v, face, mesh_id,
+                diag_rec);
             base_color = cw_mul(base_color, tex_color);
         }
     }
@@ -359,6 +447,10 @@ extern "C" __global__ void render_megakernel(
         float exponent = light_exponent.data[light];
         V3 diff_rgb;
         V3 spec_rgb;
+        int diag_slot = light < DIAG_LIGHT_SLOTS - 1 ? light : DIAG_LIGHT_SLOTS - 1;
+        float* diag_light = diag_rec != nullptr
+                                ? diag_rec + DIAG_LIGHT_BASE + diag_slot * DIAG_LIGHT_STRIDE
+                                : nullptr;
         compute_lighting(scene, blob, flex, geom_type.data, geom_dataid.data, geom_matid.data,
                          (const float*)geom_rgba.data, (const float*)mat_rgba.data,
                          hfield_bvh_id.data, worldid,
@@ -366,7 +458,7 @@ extern "C" __global__ void render_megakernel(
                          exponent, to_v3(light_diffuse.data[light]),
                          to_v3(light_specular.data[light]), normal, hit_point, view_dir, mat_spec,
                          mat_shin_exp, enable_specular, use_shadows, light_castshadow.data[light],
-                         shadow_light_fraction, &diff_rgb, &spec_rgb);
+                         shadow_light_fraction, &diff_rgb, &spec_rgb, diag_light);
         result = add(add(result, cw_mul(base_color, diff_rgb)), spec_rgb);
     }
 
@@ -377,6 +469,9 @@ extern "C" __global__ void render_megakernel(
         V3 cam_fwd = v3(-cam_mat[2], -cam_mat[5], -cam_mat[8]);
         V3 diff_rgb;
         V3 spec_rgb;
+        float* diag_headlight = diag_rec != nullptr
+                                    ? diag_rec + DIAG_LIGHT_BASE + (DIAG_LIGHT_SLOTS - 1) * DIAG_LIGHT_STRIDE
+                                    : nullptr;
         // R09-S2：headlight 不投影（上游 L1457-1459 传 `lightcastshadow=False`）。
         compute_lighting(scene, blob, flex, geom_type.data, geom_dataid.data, geom_matid.data,
                          (const float*)geom_rgba.data, (const float*)mat_rgba.data,
@@ -384,12 +479,14 @@ extern "C" __global__ void render_megakernel(
                          cull_backfaces, true, 1, ray_origin_world, cam_fwd, v3(1.0f, 0.0f, 0.0f),
                          0.0f, 0.0f, headlight_diffuse, headlight_specular, normal, hit_point,
                          view_dir, mat_spec, mat_shin_exp, enable_specular, use_shadows, false,
-                         shadow_light_fraction, &diff_rgb, &spec_rgb);
+                         shadow_light_fraction, &diff_rgb, &spec_rgb, diag_headlight);
         result = add(add(result, cw_mul(base_color, diff_rgb)), spec_rgb);
     }
 
     V3 hit_color = v3(fminf(result.x, 1.0f), fminf(result.y, 1.0f), fminf(result.z, 1.0f));
     hit_color = v3(fmaxf(hit_color.x, 0.0f), fmaxf(hit_color.y, 0.0f), fmaxf(hit_color.z, 0.0f));
+    diag_store_hit(diag_rec, hit_color, base_color, hit_point, normal, ray_dir_world, hit.bary_u,
+                   hit.bary_v, hit.dist, face, mesh_id);
     if (aa) {
         aa_store(aa_accum_out, rgb_offset, hit_color, ray_base == 0);
         return;

@@ -17,6 +17,8 @@
 mod light;
 #[path = "support/render_bvh/light/diag.rs"]
 mod light_diag;
+#[path = "support/render_bvh/light/diag_ext.rs"]
+mod light_diag_ext;
 
 use mjwarp_rs::render::kernel::{MegakernelRenderer, render_per_world_with_lights};
 use mjwarp_rs::render::{WorldScenePoses, resolve_context};
@@ -369,6 +371,7 @@ fn gpu_per_world_light_matches_reference() {
         camera_poses: &camera_poses,
         lights: &lights,
         resolved: &resolved,
+        renderer: Some(&renderer),
     });
     for (world, row) in criterion_a_stats.iter().enumerate() {
         for (cam, stats) in row.iter().enumerate() {

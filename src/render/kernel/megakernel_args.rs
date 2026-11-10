@@ -33,6 +33,7 @@ pub(super) struct MegakernelArgsInputs<'a> {
     pub(super) depth_pixels: usize,
     pub(super) seg_slots: usize,
     pub(super) flags_word: u64,
+    pub(super) diag_addr: u64,
 }
 
 /// 按 `MEGAKERNEL_SLOTS` 顺序 push 81 槽实参（零行为：与拆分前逐项相同）。
@@ -250,5 +251,7 @@ pub(super) fn push_megakernel_args(
         u.light_active.len(),
         u.mat_texid.len(),
     );
+    // P10：尾随诊断扩展槽（0=关闭，正常路径零副作用）。
+    args.push(RenderArg::Scalar(RenderScalar::U64(inputs.diag_addr)));
     Ok(())
 }

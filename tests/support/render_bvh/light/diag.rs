@@ -25,6 +25,7 @@ pub const SCHEMA: u32 = 1;
 
 /// dump 的全部输入（只读借用；`stats` 为已算好的判据 A 统计，dump 不重跑渲染）。
 pub struct DumpInput<'a> {
+    pub renderer: Option<&'a mjwarp_rs::render::kernel::MegakernelRenderer>,
     pub reference: &'a Reference,
     pub product: &'a [Vec<Frame>],
     pub stats: &'a [Vec<FrameStats>],
@@ -338,6 +339,8 @@ fn rgb_mismatches(input: &DumpInput<'_>, model: Option<&Value>) -> Vec<Value> {
                     "ray": camera_ray_bits(input, cam, pixel),
                     "camera": pose.map(|pose| json!({ "cam": cam, "xpos_bits": bits3(pose.xpos), "xmat_bits": bits9(pose.xmat) })),
                     "lights": world_light_bits(input, world),
+                    "diagnostics": super::light_diag_ext::pixel_diagnostics(
+                        input.renderer, world, cam, pixel),
                 }));
             }
         }

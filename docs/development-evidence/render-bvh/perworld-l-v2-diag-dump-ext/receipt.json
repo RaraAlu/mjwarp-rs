@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-diag-dump-ext",
+  "status": "diagnostic_feature_implemented_zero_gpu",
+  "slice": "perworld-l-v2-diag-dump-ext",
+  "owner": "Backend",
+  "kind": "product-side-extended-pixel-dump",
+  "authorization": {
+    "chief_assignment": "2026-11-11 06:25 (restore the paused extended pixel-dump card; zero GPU; pure diagnostics)",
+    "arch_field_spec": "target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md section C",
+    "next_step_owned_by_chief": "diagnostic round #7 (product-side same-pixel dump) and reference-side gated dump session; not run in this card"
+  },
+  "changes": {
+    "kernel_signature": "render_megakernel tail arg wp::uint64 diag_ptr (0=off); MEGAKERNEL_SLOTS 81 -> 82 (trailing Scalar(U64), outside the upstream 81-slot signature)",
+    "kernel_files": {
+      "new": [],
+      "modified": [
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "src/render/kernel/cuda/render_shade.cu"
+      ]
+    },
+    "rust_files": {
+      "new": [
+        "src/render/kernel/diag.rs"
+      ],
+      "modified": [
+        "src/render/kernel/mod.rs",
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/megakernel_args.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "src/runtime/launcher/render/args.rs"
+      ]
+    },
+    "test_files": {
+      "new": [
+        "tests/support/render_bvh/light/diag_ext.rs"
+      ],
+      "modified": [
+        "tests/support/render_bvh/light/diag.rs",
+        "tests/render_per_world_light.rs"
+      ]
+    },
+    "module_sources": "normify module source mjwarp.render.kernel --add src/render/kernel/diag.rs (27 sources; no new .cu so the precision CUDA-surface snapshot stays at 42 files)",
+    "line_budget": "render_shade.cu 478, render_megakernel.cu 499, megakernel.rs 500 (500-line ratchet), test diag.rs 496, test entry 494",
+    "abi_ratchet_tests": "tests/render_kernel_rgb.rs, tests/render_launch_abi.rs, tests/render_lighting_kernel.rs, tests/render_skybox.rs: frozen slot-count assertions 81 -> 82 (1 bounds + 73 arrays + 8 scalars); upstream 81-slot semantics/order unchanged, one trailing diagnostic scalar appended",
+    "precision_surface_snapshot": "unchanged (42 CUDA files; no new .cu added)"
+  },
+  "dump_schema": {
+    "env": "MJWARP_DIAG_PIXEL_DUMP (same as test-side dump; unset/empty => zero allocation/readback/output, kernel diag_ptr=0)",
+    "stride_f32": 64,
+    "record_index": "worldid * total_rays + rayid (per-world launch: rayid = cam*PIXELS + pixel)",
+    "fields": {
+      "color": "0-2 f32 bits (pre-pack hit_color)",
+      "base_color": "3-5 f32 bits",
+      "tex_uv": "6-7 f32 bits (wrapped)",
+      "tex_color": "8-10 f32 bits",
+      "bary_u/bary_v": "11-12 f32 bits",
+      "t": "13 f32 bits (hit.dist)",
+      "face": "14 i32 stored as f32 bit pattern",
+      "mesh_id": "15 i32 stored as f32 bit pattern",
+      "hit_point": "16-18 f32 bits",
+      "normal": "19-21 f32 bits",
+      "ray_dir": "22-24 f32 bits; view_dir = -ray_dir derived exactly on host",
+      "lights": "25-56: 4 slots x 8 f32 (weight, visible, ndotl, ndoth, half.xyz, spec_pow); headlight = slot 3",
+      "reserved": "57-63 = 0"
+    },
+    "json_location": "pixel-dump.json schema 2: each rgb_mismatches[i].diagnostics (absent when env unset)",
+    "encoding": "f32 values emitted as u32 bit patterns; face/mesh_id decoded i32; view_dir = exact sign flip of ray_dir"
+  },
+  "kernel_identity": {
+    "record": "logs/identity-new-flags.log + logs/kernel-identity-old-new values below",
+    "capture_method": "NVRTC 12.8.93 pure compile via identity tests (no GPU session): render_kernel_flags + render_kernel_depth_seg",
+    "artifacts": {
+      "megakernel": {
+        "source_sha256_old": "02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1",
+        "source_sha256_new": "624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2",
+        "ptx_sha256_old": "7fd86b859793a18ed4f3ed042add0d10b7c82064bcb312ac3f10db47ba995c7e",
+        "ptx_bytes_old": 344181,
+        "ptx_sha256_new": "1fd531314875e52a08ffda3fd63e93184e46ebda207378d5378c25b878c430b8",
+        "ptx_bytes_new": 347070
+      },
+      "aa_resolve": {
+        "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes": 27536,
+        "changed": false
+      },
+      "depth_seg": {
+        "source_sha256": "b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931",
+        "ptx_sha256": "e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7",
+        "ptx_bytes": 138540,
+        "changed": false
+      }
+    },
+    "old_source_independent_recompute": "logs/old-source-recompute.txt",
+    "new_source_independent_recompute": "logs/new-source-recompute.txt"
+  },
+  "arithmetic_unchanged_proof": {
+    "record": "logs/ptx-arith-compare.txt",
+    "method": "offline NVRTC with product options; extract all f32 arithmetic opcodes (add/sub/mul/fma/div/sqrt/rcp/neg/min/max/abs + cvt.*.f32) from old (HEAD) and new (worktree) stitched sources; compare opcode sequences",
+    "old_stitched": {
+      "bytes": 104676,
+      "sha256": "02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1"
+    },
+    "new_stitched": {
+      "bytes": 109384,
+      "sha256": "624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2"
+    },
+    "old_ptx": {
+      "bytes": 344182,
+      "sha256": "5abc0b4e3cd7bd6ea89cd0df0aaa19bdb9e9266e4f7906fd2a4dcf8800fac853"
+    },
+    "new_ptx": {
+      "bytes": 347071,
+      "sha256": "c2d8a885e3f05ba798a3b66c22065855ea8eb641d8515a3b28ca278f7d2a162a"
+    },
+    "arith_op_count": 3148,
+    "sequence_identical": true,
+    "multiset_identical": true,
+    "design_notes": [
+      "visible / spec_pow promoted to locals and reused (no duplicated powf/shadow_visibility calls; expression tree unchanged)",
+      "kernel stores ray_dir instead of view_dir; the first iteration that stored view_dir forced 3 extra neg.f32 (materialization) and was rejected/rewritten; view_dir is derived on the host by exact sign-bit flip"
+    ]
+  },
+  "verification": {
+    "cargo_build_cuda_probe": {
+      "exit": 0,
+      "log": "logs/build-cuda-probe.log"
+    },
+    "cargo_test_cuda_probe_no_run": {
+      "exit": 0,
+      "log": "logs/no-run-cuda-probe.log"
+    },
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": {
+        "passed": 1387,
+        "failed": 0,
+        "ignored": 402
+      }
+    },
+    "kernel_identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
+    "gpu_run": "none (zero GPU; no capture; no diagnostic run)"
+  },
+  "boundaries": {
+    "unchanged_fixtures": true,
+    "unchanged_scripts": true,
+    "unchanged_other_cu": true,
+    "guards_frozen_stash_and_frozen_exe_evidence": "untouched",
+    "paused_card_note": "this card had been paused before any registration or edit; no prior WIP beyond the three untracked files reported to the Chief"
+  },
+  "non_claims": [
+    "does not claim any rendering fix; pure diagnostics feature",
+    "the G-L2 verdict is unchanged (criterion A FAIL stands)",
+    "no criterion/threshold/reference/tolerance change",
+    "dump records are collected for every rendered ray when enabled; the test filters to mismatched pixels"
+  ]
+}
