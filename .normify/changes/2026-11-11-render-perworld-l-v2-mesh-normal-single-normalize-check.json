@@ -5,7 +5,7 @@
     "zh": "QA 复核 mesh 法线链单次归一化修复卡（`f728b2d7`）：唯一代码文件 `render_math.cu` -1/+3（`*out_normal = min_normal` + 2 行注释）、`render_common.cu`/`render.cu`/`render_shadow.cu` 零改动、`mesh_query_ray` 除 normal 外输出未动、两个消费端各归一化一次且 culling 只用符号、shadow 用归一化 normal、hfield/SDF 同路、内核身份新基线（megakernel `796bade6…`→`4d932c90…`、PTX `aa51258b…`→`13ac8a2e…`/344,186 B、aa_resolve 未变、depth_seg `562113a2…`→`b546ef08…`，source-sha 独立复算一致）、四门禁 1387/0、两内核身份用例 passed、manifest 13/13、边界零越界 → PASS（可发诊断轮 token 验证修复；不宣称修复已生效）",
     "en": "QA review of the mesh normal single-normalize fix card: minimal one-file change, both consumers normalize once after the mat transform, intersection outputs untouched, new kernel identity baseline independently reproduced, gates 1387/0, identity tests passed, manifest 13/13, boundary clean - PASS (diagnostic token may be issued to verify the fix; does not claim the fix is effective)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 mesh 法线链单次归一化修复卡（提交 **`f728b2d7`**）做**独立只读复核**（零 GPU）：① 最小改动——仅 `src/render/kernel/cuda/render_math.cu` **-1/+3**（`*out_normal = normalize3_mesh(min_normal)` → `*out_normal = min_normal` + 2 行口径注释），`render_common.cu`/`render.cu`/`render_shadow.cu` 与其它 `.cu` **零改动**，`intersect_tri` 仍返回未归一化 `cross`，`mesh_query_ray` 的 `t/u/v/sign/face` 未动；② 调用链——全仓 `mesh_query_ray` 调用方**仅 2 处**（`render_common.cu:194`、`render.cu:225`），二者均在 `mat_vec` 后 `normalize3_mesh` 一次，culling 只用 `dot` 符号，shadow 用已归一化 `hit.normal` 作偏移，hfield(gtype=1)/SDF(gtype=8) 同走 `ray_mesh_leaf`；③ 内核身份新基线——独立复算 megakernel/depth_seg/aa_resolve 的 source-sha 与 PTX 变体，核对属实现修复而非判据/阈值/参考变更；④ 门禁/边界/卫生——build/no-run exit 0、四门禁 unit 1387/0、两内核身份用例 passed、`unchanged fixtures/scripts/tests`、G-L2/诊断/RCA 证据与 guards/冻结 stash 零改动、manifest 13/13、编码卫生。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the mesh normal single-normalize fix: minimal diff, call-chain audit against source, independently reproduced kernel identity baseline, gates and boundaries."
@@ -34,12 +34,12 @@
   },
   "note": "Chief 2026-11-11 派工：快速复核 mesh 法线修复卡 f728b2d7（只读、零 GPU）。结论 PASS → 可发诊断轮 token（验证修复）。核心：唯一源码文件 render_math.cu -1/+3、其它 .cu 零改动、mesh_query_ray 除 normal 外输出未动；两个消费端各归一化一次、culling 只用符号、hfield/SDF 同路；内核身份 source-sha 我独立复算一致（megakernel 4d932c90、depth_seg b546ef08、aa_resolve 未变）与 PTX 变体一致；四门禁 1387/0/402、两 identity 用例 passed、manifest 13/13、边界零越界、冻结 stash 12/12 未动。观察：live exe 已随重建改变（下次窗口须重冻）、mesh_bvh_ray 同构站点未改（后续 H2-class）、未验证 5 px 归零故只到「可发诊断轮 token」。",
   "revision": {
-    "before": "8cca2a13cbfa4522328599b66a5ecca653c7c691",
+    "before": "faccc980119fbd6a4ee0da2545a0a23649a1170a",
     "after": null
   },
   "created_at": "2026-11-11T05:15:00.000Z",
-  "updated_at": "2026-11-11T05:15:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T21:10:16.846Z",
+  "closed_at": "2026-11-10T21:10:16.846Z",
   "checks": [
     {
       "kind": "gate",
