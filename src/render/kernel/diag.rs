@@ -4,10 +4,13 @@
 //! 默认渲染路径传 `diag_addr = 0`，内核所有诊断 store 被首行 `nullptr` 判断跳过。
 //!
 //! 启用时每次 `render_impl` 分配一块设备缓冲区（`launch_worlds * total_rays * STRIDE` 个 f32），
-//! 内核按 `(worldid * total_rays + rayid)` 写固定 stride 记录；launch 后回读并按 world 保存，
-//! 测试侧 dump 通过 [`MegakernelRenderer::diag_record`] 取单条记录并解码。
+//! 内核按 `rayid * STRIDE` 写固定 stride 记录——`rayid` 是**单次发射内**的射线号，不是全局下标。
+//! 因此诊断采集要求 **per-world 单次发射**：此时每个 world 单独回读、按 `diag_record(world, ray)` 取值
+//! 即等价；若将来改成多 world 单次发射，各 world 会把记录写到同一 `rayid` 区间并静默互相覆盖
+//! （诊断数据失效，不影响渲染数值）——约束与风险见证据 README §2。
 //!
-//! 布局与 `src/render/kernel/cuda/render_diag.cu` 的 `DIAG_*` 常量逐项对应（schema 见证据 README）。
+//! 布局与 `src/render/kernel/cuda/render_megakernel.cu` 顶部的 `DIAG_*` 常量逐项对应（该文件是
+//! `MEGAKERNEL_SOURCE` 7 文件拼接之一；**没有**单独的 `render_diag.cu`；schema 见证据 README）。
 
 use std::sync::Mutex;
 
@@ -220,5 +223,123 @@ impl super::MegakernelRenderer {
         }
         let start = ray.checked_mul(STRIDE)?;
         DiagRecord::from_slice(capture.values.get(start..start + STRIDE)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 按内核布局把一条记录编码成 64 个 f32 槽位（仅测试：模拟设备侧 store 的位型落盘）。
+    fn encode(record: &DiagRecord) -> [f32; STRIDE] {
+        let mut slots = [0.0f32; STRIDE];
+        slots[COLOR..COLOR + 3].copy_from_slice(&record.color);
+        slots[BASE_COLOR..BASE_COLOR + 3].copy_from_slice(&record.base_color);
+        slots[TEX_UV..TEX_UV + 2].copy_from_slice(&record.tex_uv);
+        slots[TEX_COLOR..TEX_COLOR + 3].copy_from_slice(&record.tex_color);
+        slots[BARY_U] = record.bary_u;
+        slots[BARY_V] = record.bary_v;
+        slots[T] = record.t;
+        slots[FACE] = f32::from_bits(record.face as u32);
+        slots[MESH_ID] = f32::from_bits(record.mesh_id as u32);
+        slots[HIT_POINT..HIT_POINT + 3].copy_from_slice(&record.hit_point);
+        slots[NORMAL..NORMAL + 3].copy_from_slice(&record.normal);
+        slots[RAY_DIR..RAY_DIR + 3].copy_from_slice(&record.ray_dir);
+        for (slot, light) in record.lights.iter().enumerate() {
+            let base = LIGHT_BASE + slot * LIGHT_STRIDE;
+            slots[base] = light.weight;
+            slots[base + 1] = light.visible;
+            slots[base + 2] = light.ndotl;
+            slots[base + 3] = light.ndoth;
+            slots[base + 4..base + 7].copy_from_slice(&light.half);
+            slots[base + 7] = light.spec_pow;
+        }
+        slots
+    }
+
+    fn bits(values: &[f32]) -> Vec<u32> {
+        values.iter().map(|value| value.to_bits()).collect()
+    }
+
+    /// G4：纯 CPU 合成记录往返（64 f32 编码 → 解码 → 再编码），不依赖 GPU。
+    #[test]
+    fn synthetic_record_round_trips_bit_exactly() {
+        let light0 = DiagLight {
+            weight: 0.5,
+            visible: 1.0,
+            ndotl: 0.25,
+            ndoth: 0.125,
+            half: [0.1, 0.2, 0.3],
+            spec_pow: 8.0,
+        };
+        let light3 = DiagLight {
+            weight: 0.75,
+            visible: 0.0,
+            ndotl: -0.5,
+            ndoth: 0.0,
+            half: [-0.1, 0.0, 0.4],
+            spec_pow: 32.0,
+        };
+        let record = DiagRecord {
+            color: [0.25, -1.5, 3.5],
+            base_color: [0.1, 0.2, 0.3],
+            tex_uv: [0.75, 0.125],
+            tex_color: [1.0, 0.5, 0.0],
+            bary_u: 0.375,
+            bary_v: 0.25,
+            t: 12.5,
+            face: -3,
+            mesh_id: 42,
+            hit_point: [1.0, -2.0, 3.0],
+            normal: [0.0, 0.0, 1.0],
+            ray_dir: [-0.0, 0.5, -1.0],
+            view_dir: [0.0, 0.0, 0.0],
+            lights: [light0, DiagLight::default(), DiagLight::default(), light3],
+        };
+        let slots = encode(&record);
+        let decoded = DiagRecord::from_slice(&slots).expect("64 f32 记录应可解码");
+        assert_eq!(bits(&decoded.color), bits(&record.color));
+        assert_eq!(bits(&decoded.base_color), bits(&record.base_color));
+        assert_eq!(bits(&decoded.tex_uv), bits(&record.tex_uv));
+        assert_eq!(bits(&decoded.tex_color), bits(&record.tex_color));
+        assert_eq!(
+            bits(&[decoded.bary_u, decoded.bary_v]),
+            bits(&[record.bary_u, record.bary_v])
+        );
+        assert_eq!(decoded.t.to_bits(), record.t.to_bits());
+        assert_eq!(decoded.face, -3, "face 以 i32 位型解码");
+        assert_eq!(decoded.mesh_id, 42, "mesh_id 以 i32 位型解码");
+        assert_eq!(bits(&decoded.hit_point), bits(&record.hit_point));
+        assert_eq!(bits(&decoded.normal), bits(&record.normal));
+        assert_eq!(bits(&decoded.ray_dir), bits(&record.ray_dir));
+        // view_dir = -ray_dir 的精确负号位翻转（含 -0.0 边界：-(-0.0) = +0.0）。
+        let expected_view: Vec<u32> = record
+            .ray_dir
+            .iter()
+            .map(|value| value.to_bits() ^ 0x8000_0000)
+            .collect();
+        assert_eq!(bits(&decoded.view_dir), expected_view);
+        assert_eq!(decoded.view_dir[0].to_bits(), 0x0000_0000);
+        // 灯槽位型往返：第 1 与第 4（headlight）slot。
+        for slot in [0usize, LIGHT_SLOTS - 1] {
+            let (expected, actual) = (&record.lights[slot], &decoded.lights[slot]);
+            assert_eq!(actual.weight.to_bits(), expected.weight.to_bits());
+            assert_eq!(actual.visible.to_bits(), expected.visible.to_bits());
+            assert_eq!(actual.ndotl.to_bits(), expected.ndotl.to_bits());
+            assert_eq!(actual.ndoth.to_bits(), expected.ndoth.to_bits());
+            assert_eq!(bits(&actual.half), bits(&expected.half));
+            assert_eq!(actual.spec_pow.to_bits(), expected.spec_pow.to_bits());
+        }
+        // 保留槽 57..63 恒 0；再编码回 64 f32 与原始编码逐位一致。
+        assert_eq!(bits(&slots[57..]), vec![0u32; STRIDE - 57]);
+        assert_eq!(bits(&encode(&decoded)), bits(&slots));
+    }
+
+    /// 长度不符必须拒绝（诊断失败不 panic、不影响默认路径）。
+    #[test]
+    fn decode_rejects_wrong_length() {
+        assert!(DiagRecord::from_slice(&[0.0f32; STRIDE - 1]).is_none());
+        assert!(DiagRecord::from_slice(&[0.0f32; STRIDE + 1]).is_none());
+        assert!(DiagRecord::from_slice(&[0.0f32; STRIDE]).is_some());
     }
 }

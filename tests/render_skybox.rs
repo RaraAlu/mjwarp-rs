@@ -144,7 +144,8 @@ fn skybox_texture_id_must_be_in_range() {
 }
 
 /// 内核 `MK_FLAG_*` 位表：既有 bit0-8 定义不得被本片改动，bit9 追加且不与既有位冲突；
-/// `MEGAKERNEL_SLOTS` 81 槽种类与顺序零改动（1 bounds + 73 数组 + 7 标量）。
+/// `MEGAKERNEL_SLOTS` 上游 81 槽种类与顺序零改动，P10 追加 1 个尾随诊断标量槽
+/// （82 槽 = 1 bounds + 73 数组 + 8 标量）。
 #[test]
 fn kernel_flag_bits_and_slot_signature_unchanged() {
     for define in [

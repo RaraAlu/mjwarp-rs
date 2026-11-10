@@ -52,7 +52,11 @@ fn warp_grid() -> LaunchDims {
 #[test]
 fn megakernel_signature_covers_upstream_argument_classes() {
     let slots = &MEGAKERNEL_SLOTS;
-    assert_eq!(slots.len(), 82, "1 bounds + 73 数组 + 7 标量");
+    assert_eq!(
+        slots.len(),
+        82,
+        "上游 81 槽 + 1 尾随诊断槽（1 bounds + 73 数组 + 8 标量）"
+    );
     assert_eq!(slots[0], RenderArgKind::Bounds2D);
     let arrays = slots
         .iter()

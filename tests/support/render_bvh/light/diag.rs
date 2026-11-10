@@ -8,7 +8,6 @@
 //! 5 个非失配像素的分 geom 归属」。
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use mjwarp_rs::render::RayBuffer;
@@ -21,7 +20,7 @@ use crate::light::{FrameStats, HEIGHT, MODEL, PIXELS, WIDTH, WORLDS};
 use crate::{Frame, Reference};
 
 pub const ENV: &str = "MJWARP_DIAG_PIXEL_DUMP";
-pub const SCHEMA: u32 = 1;
+pub const SCHEMA: u32 = 2;
 
 /// dump 的全部输入（只读借用；`stats` 为已算好的判据 A 统计，dump 不重跑渲染）。
 pub struct DumpInput<'a> {
@@ -106,6 +105,25 @@ fn build_document(input: &DumpInput<'_>) -> Value {
             })
         })
         .collect();
+    document_from_parts(
+        frames,
+        camera_poses,
+        rgb_mismatches(input, model.as_ref()),
+        depth_mismatches(input),
+        seg_mismatches(input),
+        super::light_diag_ext::near_miss(input, model.as_ref()),
+    )
+}
+
+/// dump 顶层组装（schema 与各节）；拆出纯函数便于 CPU 单测（不需要渲染/GPU）。
+fn document_from_parts(
+    frames: Vec<Value>,
+    camera_poses: Vec<Value>,
+    rgb_mismatches: Vec<Value>,
+    depth_mismatches: Vec<Value>,
+    seg_mismatches: Vec<Value>,
+    near_miss: Value,
+) -> Value {
     json!({
         "schema": SCHEMA,
         "kind": "g-l2-entity-pixel-diagnostic",
@@ -115,12 +133,24 @@ fn build_document(input: &DumpInput<'_>) -> Value {
         "model": "tests/support/render_bvh/light/model-315.json",
         "frames": frames,
         "camera_poses": camera_poses,
-        "rgb_mismatches": rgb_mismatches(input, model.as_ref()),
-        "depth_mismatches": depth_mismatches(input),
-        "seg_mismatches": seg_mismatches(input),
-        "near_miss": near_miss(input, model.as_ref()),
-
+        "rgb_mismatches": rgb_mismatches,
+        "depth_mismatches": depth_mismatches,
+        "seg_mismatches": seg_mismatches,
+        "near_miss": near_miss,
     })
+}
+
+/// 把 `diagnostics` 挂到失配条目上：**无论 env 是否启用都保留该键**（未启用为 null），
+/// 避免「字段缺失」与「未采集」混淆（B1 修复后的字段契约）。
+fn attach_diagnostics(
+    mut entry: Value,
+    renderer: Option<&mjwarp_rs::render::kernel::MegakernelRenderer>,
+    world: usize,
+    cam: usize,
+    pixel: usize,
+) -> Value {
+    entry["diagnostics"] = super::light_diag_ext::pixel_diagnostics(renderer, world, cam, pixel);
+    entry
 }
 
 #[rustfmt::skip]
@@ -130,7 +160,7 @@ fn bits3(values: [f32; 3]) -> [u32; 3] { values.map(f32::to_bits) }
 fn bits9(values: [f32; 9]) -> [u32; 9] { values.map(f32::to_bits) }
 
 #[rustfmt::skip]
-fn unpack(packed: u32) -> [u8; 3] {
+pub(crate) fn unpack(packed: u32) -> [u8; 3] {
     [((packed >> 16) & 0xFF) as u8, ((packed >> 8) & 0xFF) as u8, (packed & 0xFF) as u8]
 }
 
@@ -156,7 +186,7 @@ fn ulp(actual: f32, expected: f32) -> u32 {
 fn pixel_index(x: usize, y: usize) -> usize { y * WIDTH + x }
 
 #[rustfmt::skip]
-fn pixel_coords(pixel: usize) -> (usize, usize) { (pixel % WIDTH, pixel / WIDTH) }
+pub(crate) fn pixel_coords(pixel: usize) -> (usize, usize) { (pixel % WIDTH, pixel / WIDTH) }
 
 fn array_f32(model: &Value, name: &str) -> Vec<f32> {
     model["arrays"][name]["values"]
@@ -201,7 +231,7 @@ fn material_values(model: &Value, name: &str, mat: i32) -> Value {
 }
 
 /// seg `(id,type)` 对应的 geom / mat 归属 + 材质标量（模型数组只读；缺模型则给 null）。
-fn segment_attribution(model: Option<&Value>, seg: [i32; 2]) -> Value {
+pub(crate) fn segment_attribution(model: Option<&Value>, seg: [i32; 2]) -> Value {
     let (geom_id, geom_type) = (seg[0], seg[1]);
     let Some(model) = model else {
         return json!({ "geom_id": geom_id, "geom_type": geom_type, "mat_id": Value::Null });
@@ -306,7 +336,7 @@ fn rgb_mismatches(input: &DumpInput<'_>, model: Option<&Value>) -> Vec<Value> {
                 let product_bytes = unpack(left);
                 let reference_bytes = unpack(right);
                 let pose = input.camera_poses.get(cam);
-                out.push(json!({
+                let entry = json!({
                     "world": world,
                     "cam": cam,
                     "pixel": pixel,
@@ -339,9 +369,8 @@ fn rgb_mismatches(input: &DumpInput<'_>, model: Option<&Value>) -> Vec<Value> {
                     "ray": camera_ray_bits(input, cam, pixel),
                     "camera": pose.map(|pose| json!({ "cam": cam, "xpos_bits": bits3(pose.xpos), "xmat_bits": bits9(pose.xmat) })),
                     "lights": world_light_bits(input, world),
-                    "diagnostics": super::light_diag_ext::pixel_diagnostics(
-                        input.renderer, world, cam, pixel),
-                }));
+                });
+                out.push(attach_diagnostics(entry, input.renderer, world, cam, pixel));
             }
         }
     }
@@ -390,107 +419,48 @@ fn seg_mismatches(input: &DumpInput<'_>) -> Vec<Value> {
     out
 }
 
-/// near-miss：同字节像素的 0/255 饱和区比例 + 最接近失配的 5 个非失配像素的分 geom 归属。
-fn near_miss(input: &DumpInput<'_>, model: Option<&Value>) -> Value {
-    let mut by_frame = Vec::new();
-    for world in 0..WORLDS {
-        for cam in 0..input.product[world].len() {
-            let frame = &input.product[world][cam];
-            let reference = &input.reference.frames[world][cam];
-            let mut equal = 0usize;
-            let mut saturated_any = 0usize;
-            let mut zero_counts = [0usize; 3];
-            let mut full_counts = [0usize; 3];
-            let mut mismatches = Vec::new();
-            for pixel in 0..PIXELS {
-                let product_bytes = unpack(frame.rgb[pixel]);
-                if product_bytes == unpack(reference.rgb[pixel]) {
-                    equal += 1;
-                    let mut any = false;
-                    for (channel, byte) in product_bytes.iter().enumerate() {
-                        if *byte == 0 {
-                            zero_counts[channel] += 1;
-                        }
-                        if *byte == 255 {
-                            full_counts[channel] += 1;
-                        }
-                        if *byte == 0 || *byte == 255 {
-                            any = true;
-                        }
-                    }
-                    if any {
-                        saturated_any += 1;
-                    }
-                } else {
-                    mismatches.push(pixel);
-                }
-            }
-            let ratio = if equal == 0 {
-                0.0
-            } else {
-                saturated_any as f64 / equal as f64
-            };
-            let mut nearest = Vec::new();
-            let mut histogram: BTreeMap<String, usize> = BTreeMap::new();
-            if !mismatches.is_empty() {
-                let mut candidates: Vec<(u64, usize, usize)> = Vec::new();
-                for pixel in 0..PIXELS {
-                    if mismatches.contains(&pixel) {
-                        continue;
-                    }
-                    let (x, y) = pixel_coords(pixel);
-                    let mut best = u64::MAX;
-                    for target in &mismatches {
-                        let (tx, ty) = pixel_coords(*target);
-                        let (dx, dy) = (x as i64 - tx as i64, y as i64 - ty as i64);
-                        let distance = (dx * dx + dy * dy) as u64;
-                        best = best.min(distance);
-                    }
-                    candidates.push((best, pixel, distance_owner(&mismatches, pixel)));
-                }
-                candidates.sort_unstable();
-                for (distance_sq, pixel, target) in candidates.into_iter().take(5) {
-                    let (x, y) = pixel_coords(pixel);
-                    let attribution = segment_attribution(model, frame.seg[pixel]);
-                    let geom = frame.seg[pixel][0];
-                    *histogram.entry(geom.to_string()).or_insert(0) += 1;
-                    nearest.push(json!({
-                        "pixel": pixel, "x": x, "y": y,
-                        "distance_px": (distance_sq as f64).sqrt(),
-                        "nearest_mismatch_pixel": target,
-                        "seg": frame.seg[pixel],
-                        "attribution": attribution,
-                    }));
-                }
-            }
-            by_frame.push(json!({
-                "world": world,
-                "cam": cam,
-                "pixels": PIXELS,
-                "equal_byte_pixels": equal,
-                "mismatched_pixels": mismatches.len(),
-                "saturated_any_pixels": saturated_any,
-                "saturated_any_ratio_of_equal": ratio,
-                "zero_pixels_by_channel": zero_counts,
-                "full_pixels_by_channel": full_counts,
-                "nearest_to_mismatch": nearest,
-                "nearest_geom_histogram": histogram,
-            }));
-        }
-    }
-    json!({ "by_frame": by_frame })
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn distance_owner(mismatches: &[usize], pixel: usize) -> usize {
-    let (x, y) = pixel_coords(pixel);
-    let mut best = (u64::MAX, mismatches[0]);
-    for target in mismatches {
-        let (tx, ty) = pixel_coords(*target);
-        let (dx, dy) = (x as i64 - tx as i64, y as i64 - ty as i64);
-        let distance = (dx * dx + dy * dy) as u64;
-        if distance < best.0 {
-            best = (distance, *target);
-        }
+    #[test]
+    fn schema_constant_and_document_top_level_agree() {
+        // B1：dump 顶层 schema 必须是 2（与 README/receipt 声明一致）。
+        assert_eq!(SCHEMA, 2, "dump schema 常量为 2");
+        let document = document_from_parts(
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            json!({}),
+        );
+        assert_eq!(
+            document["schema"].as_u64(),
+            Some(2),
+            "顶层 schema 实际输出为 2"
+        );
+        assert_eq!(document["env"].as_str(), Some(ENV));
+        assert_eq!(
+            document["kind"].as_str(),
+            Some("g-l2-entity-pixel-diagnostic")
+        );
+        assert!(document["rgb_mismatches"].is_array());
     }
-    best.1
+
+    #[test]
+    fn rgb_mismatch_entries_always_carry_diagnostics_key() {
+        // 未启用 env（renderer=None）时 diagnostics 为 null，但键必须存在（不缺失）。
+        let entry = attach_diagnostics(json!({"world": 0, "cam": 1, "pixel": 2}), None, 0, 1, 2);
+        assert!(
+            entry.get("diagnostics").is_some(),
+            "rgb 失配条目必须始终带 diagnostics 键"
+        );
+        assert!(
+            entry["diagnostics"].is_null(),
+            "未启用 dump 时 diagnostics 为 null"
+        );
+        assert_eq!(entry["world"].as_u64(), Some(0));
+        assert_eq!(entry["pixel"].as_u64(), Some(2));
+    }
 }

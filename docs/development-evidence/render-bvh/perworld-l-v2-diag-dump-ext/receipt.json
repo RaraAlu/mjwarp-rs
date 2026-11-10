@@ -48,7 +48,7 @@
   "dump_schema": {
     "env": "MJWARP_DIAG_PIXEL_DUMP (same as test-side dump; unset/empty => zero allocation/readback/output, kernel diag_ptr=0)",
     "stride_f32": 64,
-    "record_index": "worldid * total_rays + rayid (per-world launch: rayid = cam*PIXELS + pixel)",
+    "record_index": "kernel writes at rayid * STRIDE (rayid = per-launch ray number; no worldid term). With per-world single launch the test reads (world, cam*PIXELS+pixel) from that world's own readback (equivalent). Multi-world single launch would write every world onto the same rayid range and silently overwrite each other (diagnostic data invalid; rendering values unaffected) -- documented constraint.",
     "fields": {
       "color": "0-2 f32 bits (pre-pack hit_color)",
       "base_color": "3-5 f32 bits",
@@ -142,7 +142,32 @@
       }
     },
     "kernel_identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
-    "gpu_run": "none (zero GPU; no capture; no diagnostic run)"
+    "gpu_run": "none (zero GPU; no capture; no diagnostic run)",
+    "focused_cpu_tests_after_errata_fix": {
+      "src_unit_decode_roundtrip": {
+        "command": "cargo test --locked --features cuda-probe --lib render::kernel::diag",
+        "exit": 0,
+        "result": "2 passed / 0 failed",
+        "tests": [
+          "render::kernel::diag::tests::synthetic_record_round_trips_bit_exactly",
+          "render::kernel::diag::tests::decode_rejects_wrong_length"
+        ]
+      },
+      "dump_schema_tests": {
+        "command": "cargo test --locked --features cuda-probe --test render_per_world_light light_diag::tests",
+        "exit": 0,
+        "result": "2 passed / 0 failed",
+        "tests": [
+          "light_diag::tests::schema_constant_and_document_top_level_agree",
+          "light_diag::tests::rgb_mismatch_entries_always_carry_diagnostics_key"
+        ]
+      },
+      "abi_ratchet_files": {
+        "render_launch_abi": "4 passed / 0 failed / 2 ignored",
+        "render_skybox": "10 passed / 0 failed",
+        "render_lighting_kernel": "5 passed / 0 failed"
+      }
+    }
   },
   "boundaries": {
     "unchanged_fixtures": true,
@@ -150,6 +175,29 @@
     "unchanged_other_cu": true,
     "guards_frozen_stash_and_frozen_exe_evidence": "untouched",
     "paused_card_note": "this card had been paused before any registration or edit; no prior WIP beyond the three untracked files reported to the Chief"
+  },
+  "errata_fix": {
+    "task_id": "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix",
+    "trigger": "QA review commit 00bfaef8: 1 blocking (B1) + 4 general (G1-G4) + 5 low-priority items",
+    "schema_message_errata": "The original commit message (bb29e351) and this receipt claimed dump schema 2, but the SCHEMA constant was actually 1 and the dump wrote \"schema\":1. Fixed in the fix card (SCHEMA = 2 + pure-CPU tests); commit message history is not rewritten -- this receipt section and the README errata section are the correction record.",
+    "b1_schema": "tests/support/render_bvh/light/diag.rs SCHEMA 1 -> 2; two pure-CPU tests assert top-level schema == 2 and that rgb mismatch entries always carry the diagnostics key (null when env unset)",
+    "g1_render_diag_cu": "render_diag.cu was never created; DIAG layout + store helpers live in render_megakernel.cu, MEGAKERNEL_SOURCE stays the 7-file stitch; README section 1/4, src/render/kernel/diag.rs and diag_ext.rs docs corrected; the original card schedule had planned the file but it was not created",
+    "g2_record_index": "kernel index is rayid*STRIDE (per-launch ray number, no worldid term); per-world single launch is equivalent to (world, rayid) lookup; multi-world single launch would silently overwrite across worlds -- constraint/risk documented in README section 2 and code docs",
+    "g3_counts": "README line counts corrected to measured 478/499/500/496/494; file counts corrected to main card 10 (8 src + 2 tests) + companion card 5 (diag_ext + 4 ABI ratchet) = 15; actual numstat per commit recorded in README section 1",
+    "g4_roundtrip_test": "src/render/kernel/diag.rs: pure-CPU synthetic 64-f32 encode->decode->encode round-trip test (color/base_color/tex_uv/tex_color/bary/t/hit_point/normal/ray_dir/lights bits, face/mesh_id i32 bit patterns, view_dir exact sign-bit flip including -0.0, reserved slots 57-63 zero, length rejection)",
+    "low_priority": {
+      "abi_ratchet_wording": "render_launch_abi assertion message 7 -> 8 scalars; render_skybox doc 81/7 -> 82/8 (upstream 81 unchanged); render_lighting_kernel doc + test name megakernel_slots_signature_is_unchanged -> megakernel_slots_keep_frozen_81_and_append_diagnostic_slot",
+      "ptx_byte_basis": "offline NVRTC PTX files include the trailing NUL (+1 B): 344,182/347,071 are file bytes, 344,181/347,070 are identity PTX-text bytes; verified with target/render-bvh/gl2-ptx-diff/ptx/p9_landed_128.ptx (344,182 B, last byte 0x00; trimmed 344,181 B sha 7fd86b85... matches identity)",
+      "nlight_slot_backlog": "lights[4] clamps light >= 3 into slot 3, so nlight >= 4 collides light 3 with the headlight slot (diagnostic fields only; rendering unaffected; not triggered with nlight = 3); backlog"
+    },
+    "kernel_identity_unchanged": "fix card keeps unchanged src/render/kernel/cuda/; no .cu touched; megakernel source 624ab298... / PTX 1fd53131... / 347,070; aa_resolve and depth_seg unchanged",
+    "boundaries": {
+      "zero_gpu": true,
+      "no_cu_change": true,
+      "no_arithmetic_change": true,
+      "no_criterion_change": true
+    },
+    "line_ratchet_split": "After the B1/G4 fix, tests/support/render_bvh/light/diag.rs grew from 496 to 572 lines, exceeding the 500-line ratchet. Fixed by the sanctioned 'extract submodule by function' route: near_miss + distance_owner (104 lines) moved verbatim to tests/support/render_bvh/light/diag_ext.rs (pure move, no behavior change); post-fix line counts diag.rs 466 / diag_ext.rs 186 (both <= 500)."
   },
   "non_claims": [
     "does not claim any rendering fix; pure diagnostics feature",

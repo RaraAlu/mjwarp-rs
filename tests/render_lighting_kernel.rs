@@ -4,7 +4,7 @@
 //! - `MEGAKERNEL_SOURCE` 已拼接 `render_shadow.cu`（方案 A：复用 first-hit `cast_ray`）；
 //! - `shadow_light_fraction` 经 `scale_constants[0][2]`（原占位 unused）传入内核；
 //! - `use_shadows` 由 `ResolvedContext` 接线（不再是 host 硬编码 false）；
-//! - 81 槽冻结签名不变（`MEGAKERNEL_SLOTS` 长度/首槽）。
+//! - 上游 81 槽冻结签名不变（语义/顺序）；P10 追加 1 个尾随诊断标量槽（`MEGAKERNEL_SLOTS` 82 槽、首槽仍为 bounds）。
 //!
 //! 上游锚点：冻结 MJWarp 3.15 `render.py`（`71da24d`）L830/L850/L866/L880/L919-961。
 
@@ -128,8 +128,9 @@ fn resolved_context_carries_shadow_parameters() {
 }
 
 #[test]
-fn megakernel_slots_signature_is_unchanged() {
-    // 81 槽 S7a 冻结签名：R09-S2 不增槽（shadow_light_fraction 复用 scale_constants 数组）。
+fn megakernel_slots_keep_frozen_81_and_append_diagnostic_slot() {
+    // 上游 81 槽 S7a 冻结签名不变（R09-S2 不增槽：shadow_light_fraction 复用 scale_constants 数组）；
+    // P10 诊断在末尾追加 1 个 `Scalar(U64)` 槽 => 82。
     assert_eq!(MEGAKERNEL_SLOTS.len(), 82);
     assert_eq!(MEGAKERNEL_SLOTS[0], RenderArgKind::Bounds2D);
     assert_eq!(MEGAKERNEL_ENTRY, "render_megakernel");

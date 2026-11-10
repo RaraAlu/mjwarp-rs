@@ -5,7 +5,7 @@
     "zh": "产品侧扩展像素 dump 修复卡（B1：schema 1→2；QA G1–G4 记录面与纯 CPU 单测；零 GPU）",
     "en": "Product-side extended pixel dump fix card (B1: schema 1->2; QA G1-G4 documentation and pure-CPU tests; zero GPU)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "依据 QA 对扩展 dump 两卡的复核（提交 00bfaef8）：修复阻断项 B1（`tests/support/render_bvh/light/diag.rs` 的 `SCHEMA` 实为 1，但 dump-ext README/receipt/验收/提交信息均声明 schema 2），并一并修复记录面问题 G1（引用不存在的 `render_diag.cu`、README §1/§4 与 7 文件拼接表矛盾）、G2（dump 记录下标口径与实现 `rayid*STRIDE` 不符，需写清 per-world 单发射等价与 multi-world 单发射静默风险）、G3（README 行数 473/414 应为 478/499；源文件计数按实际）、G4（新增纯 CPU 合成记录往返单测）与低优先项（ABI 棘轮陈旧文字 7 标量/`is_unchanged` 名称、PTX 字节含尾部 NUL 的口径、`nlight>=4` 灯槽冲突 backlog）。纯文档/测试与诊断代码注释修复，零 GPU、不改任何 `.cu`/算术/判据/参考/容差；内核身份预期完全不变。",
     "en": "Fix QA review blocking item B1 (SCHEMA constant is 1 while docs/acceptance claimed schema 2) plus record-level items G1 (references to a never-created render_diag.cu; README section 1/4 vs the 7-file stitch), G2 (dump record index wording vs rayid*STRIDE implementation; document per-world single-launch equivalence and the silent multi-world single-launch risk), G3 (README line counts), G4 (pure-CPU synthetic record round-trip test) and low-priority wording items. Documentation/test/comment only; zero GPU; no .cu/arithmetic/criterion/reference/tolerance change; kernel identity expected to stay identical."
@@ -46,7 +46,8 @@
     "after": null
   },
   "created_at": "2026-11-10T22:56:55.377Z",
-  "updated_at": "2026-11-10T22:57:11.873Z",
+  "updated_at": "2026-11-10T23:03:14.814Z",
+  "closed_at": "2026-11-10T23:02:14.789Z",
   "checks": [
     {
       "kind": "gate",
@@ -83,6 +84,14 @@
         "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
         "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-11-10T23:03:14.814Z",
+      "reason": "500 行棘轮：B1/G4 修复使 tests/support/render_bvh/light/diag.rs 496→572 行超限，按「按功能抽出子模块」把 near_miss+distance_owner（104 行）原样迁至 diag_ext.rs（纯搬迁、行为不变；修复后 466/186 行）；证据 README/receipt 补记该处置",
+      "prev": null,
+      "hash": "sha256:afe2cee136a469a32a3b1c049135efbd956df77880e93597a36ce4c4317e6d3e"
     }
   ]
 }
