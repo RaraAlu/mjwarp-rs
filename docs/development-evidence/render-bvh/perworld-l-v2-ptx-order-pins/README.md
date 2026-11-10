@@ -54,7 +54,7 @@ __device__ __forceinline__ V3 normalize3_midpref(V3 a) {
 | `render_shade.cu` | `f8394d73…9d587046e` / 20,485 | `69d3a2e2…4247299` / 20,758 |
 | `render_megakernel.cu` | `6d718100…5d75675` / 21,167 | `c3936f86…a3b3d32` / 21,261 |
 
-改动统计：3 个 `.cu`，**+37 / −3**（含注释）；`render_math.cu`、`render.cu`、`render_shadow.cu`、`render_flex.cu` 等零改动。
+改动统计：3 个 `.cu`，**+17 / −3**（`render_common.cu` +11、`render_megakernel.cu` +2/−1、`render_shade.cu` +4/−2，含注释）；`render_math.cu`、`render.cu`、`render_shadow.cu`、`render_flex.cu` 等零改动。
 
 ## 2. 内核身份新基线（`logs/kernel-identity-old-new.txt`；NVRTC 12.8.93 纯编译，无 GPU 会话）
 
