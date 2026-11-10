@@ -2,7 +2,7 @@
 uid = "bc631296"
 id = "mjwarp.render.kernel"
 tags = ["engine", "render", "kernel", "gpu"]
-fingerprint = "01b3d40a4ed5422d286e57f65956b3f3e57610d320c0bb3bc745dbe68a332104"
+fingerprint = "678975ef56a135b205d94af5951dc975f329ecafa4c16821ff2bbc389f0d800d"
 
 [name]
 zh = "渲染内核与内核实参"

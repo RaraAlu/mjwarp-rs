@@ -28,7 +28,7 @@ __device__ __forceinline__ V3 normalize3_rays(V3 a) {
 }
 
 // 上游 `vec.h:1113-1115` 的 normalize：平方和中**中间项单独舍入**（mul y*y → fma x*x → fma z*z）。
-// G-L2 残余 4 px 的 PTX 次序 pin（P2/P3）：仅用于 half-vector 与 mesh 顶点法线两处；
+// G-L2 残余像素的 PTX 次序 pin（P3）：仅用于 mesh 顶点法线一处；
 // `normalize3_rays` 是 S5 已验路径，保持字面不变。
 __device__ __forceinline__ V3 normalize3_midpref(V3 a) {
     float l = sqrtf(fmaf(a.z, a.z, fmaf(a.x, a.x, a.y * a.y)));
@@ -36,6 +36,20 @@ __device__ __forceinline__ V3 normalize3_midpref(V3 a) {
         return v3(a.x / l, a.y / l, a.z / l);
     }
     return v3(0.0f, 0.0f, 0.0f);
+}
+
+// 上游 `wp.length(vec3)`：平方和中**中间项单独舍入**（mul dy*dy → fma dx*dx → fma dz*dz）。
+// G-L2 残余像素的 PTX 次序 pin（P6）：仅用于点/spot 灯 L 的模；`scene.cu::length3` 其它调用方共用，保持不动。
+__device__ __forceinline__ float length3_midpref(V3 a) {
+    return sqrtf(__fmaf_rn(a.z, a.z, __fmaf_rn(a.x, a.x, __fmul_rn(a.y, a.y))));
+}
+
+// 上游 `wp.dot(normal, L)`（ndotl）的收缩次序是**首项单独舍入**：
+// mul(nx*Lx) → fma(ny*Ly) → fma(nz*Lz)。G-L2 残余像素的 PTX 次序 pin（P5）：仅用于 ndotl；
+// `dot3_ba` 的中间项单独舍入次序保持不变。
+__device__ __forceinline__ float dot3_first(float a0, float a1, float a2, float b0, float b1,
+                                            float b2) {
+    return __fmaf_rn(a2, b2, __fmaf_rn(a1, b1, __fmul_rn(a0, b0)));
 }
 
 // `render_util.py::compute_ray` 的 f32 翻译（与 S5 `build_rays.cu` 逐字一致）。

@@ -406,7 +406,8 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
         L = scale(lightdir, -1.0f);
     } else {
         V3 delta = sub(lightpos, hitpoint);
-        float len = length3(delta);
+        // P6：对齐上游 `wp.length` 的中间项单独舍入次序（原为 `length3`，未 pin）。
+        float len = length3_midpref(delta);
         float norm = len;
         if (norm > 0.0f) {
             // P4：对齐上游 `normalize_with_norm` 的三次除法（原为 `scale(delta, 1.0f / norm)` 倒数乘）。
@@ -428,7 +429,8 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
             attenuation = attenuation * powf(fmaxf(cos_theta, 0.0f), lightexp);
         }
     }
-    float ndotl = fmaxf(0.0f, dot3_ba(normal.x, normal.y, normal.z, L.x, L.y, L.z));
+    // P5：对齐上游 `wp.dot(normal, L)` 的首项单独舍入次序（原为 `dot3_ba` 的中间项）。
+    float ndotl = fmaxf(0.0f, dot3_first(normal.x, normal.y, normal.z, L.x, L.y, L.z));
     if (ndotl == 0.0f) {
         return;
     }
@@ -444,8 +446,8 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
                    lightdiff.z * (ndotl * weight));
     if (enable_specular) {
         if (mat_spec > 0.0f && mat_shin_exp > 0.0f) {
-            // P2：对齐参考核 half-vector 归一化的中间项单独舍入次序（量化影响最大站点）。
-            V3 half = normalize3_midpref(add(L, view_dir));
+            // R1：参考核 half-vector 归一化是**首项**单独舍入（Arch 附录 D），保持 `normalize3_rays`。
+            V3 half = normalize3_rays(add(L, view_dir));
             float ndoth = fmaxf(0.0f, dot3_ba(normal.x, normal.y, normal.z, half.x, half.y, half.z));
             float energy = mat_spec * powf(ndoth, mat_shin_exp) * weight;
             *spec_rgb = v3(lightspec.x * energy, lightspec.y * energy, lightspec.z * energy);

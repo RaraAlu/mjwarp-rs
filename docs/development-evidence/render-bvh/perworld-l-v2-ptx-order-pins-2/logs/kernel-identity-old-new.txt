@@ -1,0 +1,33 @@
+== G-L2 residual-pixel PTX pin-2 (R1+P5+P6) kernel identity old -> new ==
+
+task: 2026-11-11-render-perworld-l-v2-ptx-order-pins-2
+compiler: pinned CUDA 12.8.1 NVRTC (nvrtc64_120_0.dll 86,728,192 B sha256 02d2d7ef...); render precision gate f32-render
+compile options: exactly the product path (cudarc CompileOptions::build + CompileRecipe::WARP_1_15_RENDER); no GPU session is created (NVRTC compile only)
+capture commands:
+  cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture
+  cargo test --locked --features cuda-probe --test render_kernel_depth_seg depth_seg_source_compiles_under_render_gate -- --ignored --nocapture
+
+raw capture lines (old, from logs/identity-old-flags.log and logs/identity-old-depth-seg.log):
+  s7b3 megakernel: source_sha256=d3e04aa773105aaf1b031521fa98e2cbb6f27e7c1743e8dae06b7422b0eec4f7 ptx_sha256=98f09afc14e521c301a6b0d1d38ebb89173c907cd2b2b94b68b07cf1f9e6c228 ptx_bytes=344166
+  s7b3 aa_resolve: source_sha256=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 ptx_sha256=b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 ptx_bytes=27536
+  s7b1 ptx: source_sha256=b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931 ptx_sha256=e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7 ptx_bytes=138540
+
+raw capture lines (new, from logs/identity-new-flags.log and logs/identity-new-depth-seg.log):
+  s7b3 megakernel: source_sha256=92771543665d222d985a44bbad1d7acfe771acaf639047e3bc4dfe09effec30f ptx_sha256=e44ac85c166a80743465c5f7e00ff92ef48f0876d0cea8408930881a2bdae8d2 ptx_bytes=344169
+  s7b3 aa_resolve: source_sha256=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 ptx_sha256=b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 ptx_bytes=27536
+  s7b1 ptx: source_sha256=b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931 ptx_sha256=e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7 ptx_bytes=138540
+
+artifact       value              old (HEAD 0ad4795a)                                                          new (worktree)
+megakernel     source sha256      d3e04aa773105aaf1b031521fa98e2cbb6f27e7c1743e8dae06b7422b0eec4f7          92771543665d222d985a44bbad1d7acfe771acaf639047e3bc4dfe09effec30f
+megakernel     PTX sha256         98f09afc14e521c301a6b0d1d38ebb89173c907cd2b2b94b68b07cf1f9e6c228          e44ac85c166a80743465c5f7e00ff92ef48f0876d0cea8408930881a2bdae8d2
+megakernel     PTX bytes          344166                                                        344169
+aa_resolve     source sha256      0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76          unchanged
+aa_resolve     PTX sha256         b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70          unchanged
+aa_resolve     PTX bytes          27536                                                         unchanged
+depth_seg      source sha256      b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931          unchanged
+depth_seg      PTX sha256         e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7          unchanged
+depth_seg      PTX bytes          138540                                                        unchanged
+
+reason aa/depth_seg unchanged: render_common.cu / render_shade.cu are not in DEPTH_SEG_SOURCE (scene.cu + render_math.cu + render.cu) nor in AA_RESOLVE_SOURCE (aa_resolve.cu)
+independent recompute: byte-concat sha256 in src/render/kernel/mod.rs include_str! order (old = HEAD blobs, new = worktree) matches the printed values exactly -> logs/old-source-recompute.txt, logs/new-source-recompute.txt
+comment note: old and new use the same NVRTC 12.8.93 with the same options, so the PTX delta (344,166 -> 344,169 B) is source-pin driven, not a cross-version .version/build-id comment difference
