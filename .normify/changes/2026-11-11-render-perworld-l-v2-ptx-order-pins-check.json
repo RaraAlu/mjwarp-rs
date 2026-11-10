@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-ptx-order-pins-check",
+  "title": {
+    "zh": "QA 复核 P2/P3/P4 PTX 次序 pin 修复卡（`358b84fc` + errata `0ad4795a`）：仅 3 个 `.cu`（common +11 helper、shade +4/−2 P2+P4、megakernel +2/−1 P3）、`normalize3_rays` 字面未动、helper 公式与 Arch 目标 PTX 序列一致（mul y*y→fma x*x→fma z*z→sqrt→÷×3）、P4 逐分量三次除法、内核身份 old→new 独立复算一致（megakernel `4d932c90…`→`d3e04aa7…`、PTX `13ac8a2e…`/344,186→`98f09afc…`/344,166、aa_resolve/depth_seg 未变）、四门禁 1387/0、manifest 12/12、边界零越界、diff 统计 +17/−3 已由 errata 更正 → PASS（可发诊断轮 token；不宣称修复生效）",
+    "en": "QA review of the P2/P3/P4 PTX order pin fix card plus its errata: three .cu files only, helper formula matches the Arch target PTX sequence, per-component divisions, kernel identity independently reproduced, gates 1387/0, manifest 12/12, boundary clean, diff stat corrected to +17/-3 - PASS (diagnostic token may be issued; fix effectiveness not claimed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 P2/P3/P4 PTX 归一化次序 pin 修复卡（**`358b84fc`** + errata **`0ad4795a`**，卡 `2026-11-11-render-perworld-l-v2-ptx-order-pins`）做**独立只读复核**（零 GPU）：① 改动面——仅 3 个 `.cu`（`render_common.cu` +11 helper、`render_shade.cu` +4/−2、`render_megakernel.cu` +2/−1），既有 `normalize3_rays` 字面未动；② helper 公式是否与 Arch 目标 PTX 序列一致（`mul y*y → fma x*x → fma z*z → sqrt.rn → div.rn ×3`）；③ P4 是否改为逐分量除法；④ 内核身份 old→new 是否可独立复算（megakernel source `4d932c90…`→`d3e04aa7…`、PTX `13ac8a2e…`/344,186 B→`98f09afc…`/344,166 B；aa_resolve/depth_seg 未变）；⑤ 门禁/边界/卫生（unit 1387/0、`unchanged fixtures/tests/scripts`、guards/冻结件/其它证据零改、manifest 12/12）；⑥ 证据中 diff 统计 +17/−3 与实际 git stat 一致、errata 已更正主提交 message 误写 +37/−3。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the P2/P3/P4 PTX order pin fix: change surface, helper formula vs the Arch target PTX sequence, per-component divisions, independently reproduced kernel identity, gates/boundary, and the diff-stat errata."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动面最小且准确 ✅**：`358b84fc` 的 `.cu` 改动仅 3 个文件——`render_common.cu` **+11**（新增 `normalize3_midpref`：`sqrtf(fmaf(a.z,a.z, fmaf(a.x,a.x, a.y*a.y)))` + `v3(a.x/l, a.y/l, a.z/l)`，含注释）、`render_shade.cu` **+4/−2**（P2 half-vector、P4 灯 L）、`render_megakernel.cu` **+2/−1**（P3 mesh 顶点法线）；git numstat 合计 **+17/−3** 与证据 README/receipt 一致；`render_math.cu`/`render.cu`/`render_shadow.cu`/`render_flex.cu` 等 **0 diff**；**`normalize3_rays` 函数体未出现在 diff 中（字面未动）**，helper 新增于其后，拼接顺序保证下游可见 ✅",
+    "**helper 公式与 Arch 目标 PTX 序列一致 ✅**：Arch 离线证据 `target/render-bvh/gl2-ptx-diff/README.md:70` 的目标序列为 `mul y*y ; fma x*x ; fma z*z ; sqrt.rn.f32 ; div.rn.f32 ×3`；实现的 C 表达式求值次序正是 `a.y*a.y`（mul）→ `fmaf(a.x,a.x,…)` → `fmaf(a.z,a.z,…)` → `sqrtf` → 三次除法，逐项对应；与上游 `vec.h:1113-1115` 的「中间项单独舍入」语义一致；`l > 0` 分支保留、零向量返回零（与 `normalize3_rays` 语义一致）✅",
+    "**P4 为逐分量除法 ✅**：`L = scale(delta, 1.0f / norm)` → `L = v3(delta.x / norm, delta.y / norm, delta.z / norm)`（hunk `render_shade.cu:412` 附近），与 Arch 证据第 12 项「上游 `normalize_with_norm`：`L = x / norm` 三次除法」一致；点/spot 灯路径其余未动 ✅",
+    "**内核身份新基线（我独立复算）✅**：按 `mod.rs` include_str 顺序 LF 字节串联——megakernel source **`4d932c90…` → `d3e04aa7…`**（复算一致）、depth_seg `b546ef08…`（**未变**，render_common/shade/megakernel 不在其拼接内）、aa_resolve `0bf8af5a…`（未变）；PTX：megakernel old `13ac8a2e…`/344,186 B → new **`98f09afc…`/344,166 B**、aa_resolve `b28e155c…`/27,536 B 未变、depth_seg `e8d84963…`/138,540 B 未变——与 `logs/kernel-identity-old-new.txt`、四个 identity 日志逐项一致；证据明写「实现修复新基线，非判据/阈值/参考变更」 ✅",
+    "**门禁/边界/卫生 ✅（1 项低观察）**：四门禁 runs 全 `passed=true`、unit **1387/0/402**；`tests/`/`fixtures/`/`scripts/` **0 diff**；G-L2/RCA/mesh-fix 证据目录 **0**；`guards-perworld-l2-light.json` **0**（`fad2ed37…`/43,729 B 未变）、**冻结 stash 12/12 仍 == guards**；manifest **12/12 独立重算全对**；README/receipt/卡 addenda 采用 LF。**低观察 O1**：`logs/src.diff` 含 **64 个 CR**（CRLF），而同目录其余 10 个日志与工作树 `.cu` 均为 LF ⇒ 该单个 artifact 违反「证据 UTF-8/LF/无裸 CR」口径（内容本身与 git diff 一致、不影响结论），建议后续 errata 归一化并重算 manifest ✅",
+    "**diff 统计与 errata ✅**：证据 README/receipt 的改动统计为 **+17/−3**（common +11、megakernel +2/−1、shade +4/−2），与实际 git stat 完全一致；errata `0ad4795a` 将原 **+37/−3** 更正为 +17/−3 并重算 manifest（代码零改动，仅 README/manifest/receipt + 卡 addenda + runs 刷新）；**主提交 `358b84fc` 的 commit message 仍含 +37/−3**（git message 不可改写），errata/card 已成文更正 ⇒ 记录口径正确，仅读者从 message 处仍会看到旧数字（观察 O2，信息级）✅",
+    "**观察项（信息级）**：O1 上述 `src.diff` CRLF（低，建议 errata 归一化）；O2 主提交 message 的 +37/−3 无法改写（errata 已更正正文与卡）；O3 Arch 自己的证据明确写「dump2 CPU 重放显示该次序改变**不移动**这 4 px，重放 depth 3/4 像素差 1 ULP，结论不算铁」⇒ 本 pin 属**指令对齐/敏感性推导**，修复效果未证；本卡 README 已如实写「不宣称修复生效、需唯一一轮诊断轮验证 4 px 归零」，口径正确；O4 源码再改使 12 个 live exe 再次 ≠ guards（预期）⇒ 下一次正式窗口必须重新冻结建新基线。",
+    "**结论**：**PASS（0 阻断）→ 可发诊断轮 token**。不宣称修复生效、不宣称判据 A 已修复或 G-L2 通过/恢复、不宣称上游等价；不改判据/阈值/参考/相机/recipe；G-L2 判定维持未通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-ptx-order-pins",
+      "2026-11-11-render-perworld-l-v2-mesh-normal-single-normalize-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-check/"
+    ],
+    "resources": [],
+    "priority": 96
+  },
+  "note": "Chief 2026-11-11 派工：快速复核 P2/P3/P4 pin 修复卡 358b84fc + errata 0ad4795a（零 GPU）。结论 PASS → 可发诊断轮 token。核心：3 个 .cu（+11/+4−2/+2−1 = +17/−3）、normalize3_rays 未动、helper 公式与 Arch 目标 PTX 序列逐项一致（mul y*y→fma x*x→fma z*z→sqrt→÷×3）、P4 三次除法、内核身份 source-sha 我独立复算一致（megakernel d3e04aa7、PTX 98f09afc/344,166；aa_resolve/depth_seg 未变）、四门禁 1387/0/402、manifest 12/12、边界零越界、stash 未动、diff 统计 +17/−3 已由 errata 更正（主提交 message 仍 +37/−3，不可改写）。观察：src.diff 有 64 CR（低，建议 errata 归一化）；Arch 证据自述次序改变不移动 4 px（效果未证，卡片口径正确）；live exe 再次变化需下次窗口重冻。",
+  "revision": {
+    "before": "589bc8cba4eae19eb90be002d7c2fe3cb821ef3a",
+    "after": null
+  },
+  "created_at": "2026-11-11T05:42:00.000Z",
+  "updated_at": "2026-11-11T05:42:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-ptx-order-pins-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
