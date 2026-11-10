@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-normify-dependency-graph-repair-check",
+  "title": {
+    "zh": "QA 复核 normify 依赖图修复（`496c01e6`）：53 条任务记录逐键比对只改 depends_on/note、零 status 迁移（verified 826→827 仅来自本卡自身）、死边 65→0 且 62 条逐边可追溯到 verified 后继、2 waive/1 T4/5 伞卡/8 Linux 如实、0 自依赖 0 环 0 悬空、占位 note 45+8 且四张指定卡保持 proposed、边界零越界（src/tests/fixtures/scripts 与 W0 冻结输入逐文件核实）、四门禁 1387/0/402 → PASS",
+    "en": "QA review of normify dependency-graph repair 496c01e6: all 53 task records differ only in schedule.depends_on and note, zero status transitions, dead edges 65 to 0 with per-edge traceability to verified successors, waive/T4/umbrella/Linux exceptions as declared, acyclic graph, note wording 45+8 with the four named cards still proposed, no boundary violation, four gates 1387/0/402 - PASS"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Arch 的治理级 planning 卡 `2026-11-11-normify-dependency-graph-repair`（提交 **`496c01e6`**，parent `c6ea92b8`）做**独立只读复核**，重点核**边界不可越界**：① 53 条任务记录与 parent 逐 JSON 叶子路径比对，只允许 `schedule.depends_on` 与 `note` 变化，acceptance/scope/status/owner/title/modules/revision/时间戳一律不得动，且不得 start/verified 任何占位卡（verified 数变化只应来自新卡自身 +1）；② 全量重算依赖图：开放任务依赖 abandoned 卡的边 0（before 65）、62 条改指逐条有 verified 后继、2 条 waive（a06-p10，依据 graph.rs + launcher_graph.rs，无卡）、1 条 T4 例外（drop t4-artifacts + 追加 t4-historical-capture-rebaseline-decision）、5 条伞卡下游改指收口卡、Linux 8 条；③ 占位 note 措辞 45 统一 + 8 变体、g10-p5/r07-p8/m03-p8/m10-p10 保持 proposed；④ 图完整性（自依赖/环/悬空）；⑤ 证据 manifest 7/7 与编码卫生；⑥ 边界：`496c01e6` 只含 53 任务记录 + 卡 + runs + 证据，`src/`/`tests/`/`fixtures/`/`scripts/` 零 diff，**W0/G-L2 冻结输入逐文件核实未动**（perworld 三脚本、冻结器脚本、`scene-a-light`（含参考 5 文件）、spec、S-3 材料 16 文件、guards 清单）；⑦ 四门禁复跑与 `normify status`/`check`/`validate` 复核。**只读被复核内容，只写本卡与本卡证据；零 GPU。**",
+    "en": "Independent read-only review of the governance planning card: per-key JSON diff of all 53 task records, full dependency-graph recompute and per-edge attribution to verified successors, note wording and keep-proposed cards, graph integrity (self-deps/cycles/dangling), evidence manifest and encoding hygiene, boundary verification including explicit W0/G-L2 frozen inputs, and four-gate plus normify re-runs."
+  },
+  "modules": {},
+  "acceptance": [
+    "**边界（最高优先，逐项独立核）**：`496c01e6` 共 66 文件 = 58 `.normify`（53 条任务记录 + 1 新卡 + 4 门禁 runs）+ 8 本卡证据；`src/`/`tests/`/`fixtures/`/`scripts/` 与 `docs/` 中 plan 目录外**全部零 diff**；**W0/G-L2 冻结输入逐文件核实父提交与 HEAD blob 相同**：`scripts/capture_render_perworld.py`（`e57d45a6…`）、`scripts/perworld_capture_meta.py`（`20216d19…`）、`scripts/perworld_light_prep.py`（`d89c3fbb…`）、`scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1`（`06e5cbde…`）、`fixtures/render-bvh/scene-a-light/scene.xml`（`f4376874…`）、spec.md（39,379 B / sha256 `bb064fe0…`）、S-3 材料树 16/16、参考 5 文件 5/5 ✅。",
+    "**只改依赖与 note（逐键比对）**：自建 JSON 叶子路径 diff 脚本对 53 条记录逐条比 parent 与 HEAD，**差异路径 100% 落在 `ROOT.note` 或 `ROOT.schedule.depends_on[*]`**（Files with non-allowed key changes = **0**）；title/intent/acceptance/modules/schedule.phase/owner/files/priority/status/revision/created_at/updated_at/checks 均逐字节相同；53 条 note 全部为**纯追加**（旧 note 为新 note 前缀）；**status 迁移 0 条**：abandoned 115/115、backlog 40/40、proposed 18/18、verified 826→827（+1 为本题新卡自身），记录数 999→1000 ✅。",
+    "**死边清零且可追溯**：全量重算（自建脚本解析两棵 `.normify` 树）——开放任务（58）依赖 abandoned 卡的边 **65 → 0**、含死依赖的开放任务 **17 → 0**；开放任务依赖边 241 → 293（净 +52 = −65 死边 +108 后继 +1 T4 +8 Linux，伞卡 5 条为等量替换，算术自洽）；**逐边归因**：TSV 中 65 条 abandoned 边全部带自身 `旧卡 -> 后继` 依据，**62 条箭头映射 + 2 条 waive + 1 条 drop**，每条命名后继都真实出现在该任务的 added 集合中且状态为 **verified**（bad=0，命名后继引用 128 条去重后 113 条 = 108+5）✅。",
+    "**例外如实**：`a06-p10` 为 abandoned 且其自身 note 逐字写明「放弃：分诊b：A06 执行图已由 src/runtime/launcher/graph.rs 与 launcher_graph 测试实现。；依据：src/runtime/launcher/graph.rs；tests/launcher_graph.rs」，两个文件实存（14,055 B / 14,969 B），无后继卡可指 → 2 条 waive 成立；T4 例外 drop `2026-10-16-next-t4-artifacts` 并追加 `2026-10-27-t4-historical-capture-rebaseline-decision`（backlog，使「等用户 A/B/C」成为图上真实阻塞）；伞卡 5 条改指 `2026-11-04-render-r06-flex-closeout` / `2026-11-04-render-r05-r09-r10-family-closeout`（均 verified），占位伞卡本身保持 proposed；Linux 8 条任务全部追加 `2026-10-24-linux-batch-retest`（backlog）且与声明清单逐条一致 ✅。",
+    "**图完整性与就绪**：**自依赖 0、依赖环 0、悬空依赖引用 0**（自建 DFS 全图检测）；proposed 18 / blocked 11 / ready 7，与 `normify status`（就绪7 阻塞11 待办40、错误0 警告0）逐项一致；ready 7 与 `artifacts/ready-after.txt`、receipt `ready_after` 完全一致，其中 **6 张为 checks=0 占位卡**（g10-p5/r06-p8/r07-p8/m03-p8/m10-p10/r10-p10）、真可执行仅 `tie-order-r4`（checks=5）；**ready 列表含占位卡属 normify 只看依赖、不读 note 的已知缺口**，README §4 与 receipt `ready_note` 已如实登记并提出需改 status 才能消除（越界未做），**不作为阻断** ✅。",
+    "**占位 note 与保持 proposed**：全库扫描 note 措辞——统一阶段占位措辞 **45** 张、deferred/backlog 变体 **8** 张，与 `artifacts/placeholder-notes.txt` 两段清单**逐 id 完全一致**（差集为空）；两类卡 `checks>0` 均为 0（确实零机器检查）；开放零检查记录 **53** 张与「53 张加 note」一致；`g10-p5`/`r07-p8`/`m03-p8`/`m10-p10` 均仍为 proposed 且 checks=0 ✅。",
+    "**证据/门禁**：被复核证据 manifest **7/7 独立重算逐字节一致**（README `d2fc3c29…`/12,111 B、receipt `1b24b7ae…`/3,859 B、5 artifacts）；8 个证据文件 BOM=False、CR=0、TAB=0（`dependency-diff.tsv` 96 个 TAB 为 TSV 分隔符，属设计）；README §3 的 23 行「修后仍阻塞」列与实测「当前非 verified 依赖集合」**逐行完全一致（0 mismatch）**；四门禁在 HEAD 独立复跑 fmt/clippy/clippy-cuda/cargo test **全部 exit 0**、unit **1387 passed / 0 failed / 402 ignored**（与 `.normify/runs/…` 记录一致）；`normify check` 本卡 exit 0「全部检查通过」；`normify validate` 错误 0（5 条架构级警告为预存在、与本卡无关）✅。",
+    "**结论与观察项**：PASS，边界未越界，可用于后续派工依据。观察项（均不阻断）：O1（信息）README §2.7 写「被改依赖的 17 个任务」追加指向行，实测为 **23** 个（commit message 亦写 23），属 README 措辞与实际的口径差；O2（信息）README §2.2/§2.3 写「note 记依据」，实际 p10/p11 与 next-t4-numeric 的 note 只有指向证据目录的通用一行，具体 waive/T4 依据落在 `artifacts/dependency-diff.tsv` 的 basis 列（可追溯链完整，仅措辞偏强）；O3（信息）53 条记录手工编辑未刷新 `updated_at`（validate 未报警，不影响 status/校验）；O4（信息）`normify status` 的「冲突52」未在本卡范围内核查前后值，但 `files`/`modules`/scope 未改、开放集合未变，按实现口径不应变化。",
+    "**非声明**：本复核只针对排程图治理与边界，不构成任何阶段验收、不改变判据/参考、不宣称任何功能完成，也不代表 W0/G-L2 窗口状态。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-normify-dependency-graph-repair"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/plan/normify-dependency-graph-repair-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工：复核 planning 卡（依赖图修复）`496c01e6`，重点核边界不可越界。结论 PASS：53 条记录逐键比对只改 depends_on/note、零 status 迁移、死边 65→0 且 62 条逐边可追溯到 verified 后继、2 waive/1 T4/5 伞卡/8 Linux 如实、0 自依赖 0 环 0 悬空、45+8 note 与四张保持 proposed、边界零越界（W0 冻结输入逐文件核实）、四门禁 1387/0/402。4 条观察项均信息级、不阻断。零 GPU、未改进度群。",
+  "revision": {
+    "before": "bf8b4049c657052f766ab2df6f9aac04a670a492",
+    "after": null
+  },
+  "created_at": "2026-11-11T00:25:00.000Z",
+  "updated_at": "2026-11-11T00:25:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/plan/normify-dependency-graph-repair/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/normify-dependency-graph-repair-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-normify-dependency-graph-repair-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/normify-dependency-graph-repair-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "阶段验收通过",
+        "功能已完成",
+        "上游等价"
+      ]
+    }
+  ]
+}
