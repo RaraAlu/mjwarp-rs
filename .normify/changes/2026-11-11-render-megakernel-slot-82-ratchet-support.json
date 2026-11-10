@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-megakernel-slot-82-ratchet-support",
+  "title": {
+    "zh": "扩展 dump 配套：MEGAKERNEL_SLOTS 82 槽 ABI 棘轮测试与测试侧 diag_ext 解码（配套卡；零 GPU）",
+    "en": "Extended-dump companion: MEGAKERNEL_SLOTS 82-slot ABI ratchet tests and test-side diag_ext decoder (companion card; zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "为 `2026-11-11-render-perworld-l-v2-diag-dump-ext`（产品侧扩展像素 dump）提供**配套范围**：① 四个冻结 ABI 棘轮测试（`tests/render_kernel_rgb.rs`、`tests/render_launch_abi.rs`、`tests/render_lighting_kernel.rs`、`tests/render_skybox.rs`）把槽位数断言从 81 同步为 82（1 bounds + 73 数组 + 8 标量；上游 81 槽语义与顺序不变，仅在末尾追加诊断槽）；② 测试侧 dump 的 `diagnostics` JSON 编码模块 `tests/support/render_bvh/light/diag_ext.rs`（f32 位型输出、face/mesh_id 解码、view_dir 由 ray_dir 精确派生）。本卡仅收口上述配套测试文件，产品源码与主证据在扩展 dump 卡中。零 GPU、不跑诊断；不改判据/参考/容差。",
+    "en": "Companion scope for `2026-11-11-render-perworld-l-v2-diag-dump-ext` (product-side extended pixel dump): (1) four frozen ABI ratchet tests (`tests/render_kernel_rgb.rs`, `tests/render_launch_abi.rs`, `tests/render_lighting_kernel.rs`, `tests/render_skybox.rs`) sync the slot-count assertion 81 -> 82 (1 bounds + 73 arrays + 8 scalars; upstream 81-slot semantics/order unchanged, one trailing diagnostic slot appended); (2) the test-side diagnostics JSON encoder `tests/support/render_bvh/light/diag_ext.rs` (f32 bit patterns, face/mesh_id decode, view_dir derived exactly from ray_dir). This card only owns those companion test files; the product sources and main evidence live in the extended-dump card. Zero GPU, no diagnostic run; no criterion/reference/tolerance change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**ABI 棘轮同步**：四个测试文件的 `MEGAKERNEL_SLOTS.len()`/`signature.len()` 断言 81→82，`(arrays, scalars)` (73,7)→(73,8)、`(bounds, scalars)` (1,7)→(1,8)；注释同步说明「S7a 冻结 81 槽 + 1 个尾随诊断扩展槽」。上游 81 槽语义与顺序不变。",
+    "**测试侧 diag_ext 解码**：`tests/support/render_bvh/light/diag_ext.rs` 把 `DiagRecord` 编码为 JSON（color/base_color/tex_uv/tex_color/bary/t/face/mesh_id/hit_point/normal/ray_dir/view_dir/lights；f32 以 u32 位型、view_dir 由 ray_dir 精确负号位派生、含编码说明）；仅在 `MJWARP_DIAG_PIXEL_DUMP` opt-in 时被调用。",
+    "**门禁**：fmt/clippy/clippy-cuda/unit 全过（unit 1,387 过 0 败 / 402 ignored；本卡配套文件使扩展 dump 卡的 82 槽断言通过）。",
+    "**边界与非声明**：零 GPU、不采集、不跑诊断；只改上述 5 个测试文件（4 个 ABI 棘轮 + 1 个测试支撑模块）；不改产品源码/判据/参考/容差；不宣称修复、G-L2 维持未通过。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_kernel_rgb.rs",
+      "tests/render_launch_abi.rs",
+      "tests/render_lighting_kernel.rs",
+      "tests/render_skybox.rs",
+      "tests/support/render_bvh/light/diag_ext.rs"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "Chief 2026-11-11 06:25 恢复扩展 dump 卡后的配套范围拆分：主卡提交被 commit-msg 以「超出范围」拒绝上述 5 个配套测试文件；按 normify 单卡范围规则拆出本配套卡（先提交），再提交主卡。内容：4 个 ABI 棘轮测试 81→82 断言 + 测试侧 diag_ext 解码模块。零 GPU。",
+  "revision": {
+    "before": "83d7a7c0ae58f57a5c9783f10bb3d2a1eb0fecf5",
+    "after": null
+  },
+  "created_at": "2026-11-10T22:43:20.000Z",
+  "updated_at": "2026-11-10T22:43:20.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    }
+  ]
+}
