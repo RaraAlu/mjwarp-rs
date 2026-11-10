@@ -1,0 +1,21 @@
+# QA verification facts for the P9 spot-light cos_theta dot pin review (e22891da)
+
+## change surface (git numstat)
+  src/render/kernel/cuda/render_shade.cu  5  1   (single hunk, cos_theta one-line + 3 comment lines)
+  other .cu files: 0 changed
+  render_shade.cu lines: 468 (blob LF count)
+
+## numerical equivalence spot check (f32, 4000 random samples)
+  sub(a,-b) vs add(a,b)                        : 0 differences
+  reference neg/sub chain vs landing form      : 0 differences
+  old dot3_ba vs new form                      : 1447/4000 inputs differ (the pin changes values)
+
+## kernel source identity recompute (LF byte concat in mod.rs include_str order)
+  megakernel = 02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1 (claim: 02160146..., match)
+  depth_seg  = b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931 (unchanged)
+  aa_resolve = 0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 (unchanged)
+
+## boundary
+  tests / fixtures / scripts: 0 changed
+  P7 evidence, guards json: 0 changed; frozen stash 12/12 still equals guards
+  manifest 17/17 recomputed clean; all evidence files LF, no BOM, no CR

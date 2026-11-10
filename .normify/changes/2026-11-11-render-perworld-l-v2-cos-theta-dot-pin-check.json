@@ -5,7 +5,7 @@
     "zh": "QA 复核 P9 spot 灯 cos_theta dot 次序 pin 修复卡（`e22891da`）：仅 `render_shade.cu` +5/−1（cos_theta 一行改 `-__fadd_rn(__fadd_rn(__fmul_rn(Lx,dx), __fmul_rn(Ly,dy)), __fmul_rn(Lz,dz))` + 4 行注释；`dot3_ba` 本体/cutoff/powf 组合/P4/P6 未动、其它 `.cu` 0 diff、468 行）、落地式与参考 `mul;mul;neg;sub;mul;sub` 逐舍入点等价（解析推导 + 4000 例数值复算：`sub(a,−b)==add(a,b)` 0 失败、参考 neg/sub 链与落地式 0 差异、旧 `dot3_ba` 与新式 36% 输入不同）、离线 NVRTC lineinfo 站点证明自洽、source 身份独立复算 `eb59dd78…`→`02160146…`（PTX `e91b7d85…`/344,175→`7fd86b85…`/344,181；aa_resolve/depth_seg 未变）、四门禁 1387/0/402、manifest 17/17、边界零越界、口径不宣称生效且 G-L2 维持未通过 → PASS（可发诊断轮 #6）",
     "en": "QA review of the P9 spot-light cos_theta dot order pin: one-line change in render_shade.cu, rounding points bit-equivalent to the reference mul/mul/neg/sub/mul/sub sequence (analytic plus 4000-sample numeric check), offline NVRTC lineinfo site proof, independently reproduced source identity, gates 1387/0/402, manifest 17/17, boundary clean, non-claims correct - PASS (diagnostic round 6 may be issued)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 P9 修复卡（提交 **`e22891da`**，卡 `2026-11-11-render-perworld-l-v2-cos-theta-dot-pin`，登记 `fd6b0d45` / start `d137ca66`）做独立只读复核（零 GPU；**未重新编译**以不扰动诊断轮 #6 前的 live/冻结件）：① 改动面——仅 `render_shade.cu` **+5/−1**（spot 分支 `cos_theta` 一行 + 4 行注释），`dot3_ba` 本体、`cos_cutoff` 比较、`attenuation*powf(fmaxf(cos_theta,0),lightexp)`、P4 三次除法/P6 `length3_midpref` 均未动，其它 `.cu` 0 diff，文件 468 行；② 落地式与参考真值 `mul;mul;neg;sub;mul;sub` 的**逐舍入点等价性**（3 乘各自舍入 + 2 加各舍入 + neg 精确外提），并用 f32 数值复算验证；③ 离线 NVRTC+lineinfo 站点证明自洽；④ 叠加 source 身份独立复算、aa_resolve/depth_seg 未变；⑤ 门禁/manifest/边界/卫生；⑥ 口径。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the P9 fix card: change surface, bit-equivalence of the landing form with the reference rounding sequence (analytic and numeric), offline PTX site proof, independently reproduced kernel identity, gates/manifest/boundary, and non-claims."
@@ -35,12 +35,12 @@
   },
   "note": "Chief 2026-11-11 派工：复核 P9 spot 灯 cos_theta dot 次序 pin 修复卡 e22891da（零 GPU）。结论 PASS（0 阻断）→ 可发诊断轮 #6；本复核不判定修复效果。核心：仅 render_shade.cu +5/−1（cos_theta 一行 + 注释）、dot3_ba/cutoff/powf/P4/P6 未动、其它 .cu 0 diff、468 行；落地式 3×__fmul_rn + 2×__fadd_rn + 外提 neg 与参考 mul;mul;neg;sub;mul;sub 逐舍入点等价（解析 + 4000 例数值：sub(a,−b)==add(a,b) 0 失败、参考链与落地式 0 差异、旧 dot3_ba 与新式 36% 不同）；离线 NVRTC lineinfo 站点证明自洽（寄存器映射 L=div.rn×3、lightdir=ld.global）；source 身份独立复算 eb59dd78→02160146 一致、PTX e91b7d85/344,175→7fd86b85/344,181、aa_resolve/depth_seg 未变；四门禁 1387/0/402、manifest 17/17、边界零越界、stash 未动、证据全 LF 无 BOM；非声明在位（不宣称生效、G-L2 维持未通过）。观察：PTX 层为 Backend 离线证据（我未重跑 nvrtc）；±0 角无实际影响；live exe 再次变化需下次窗口重冻；残余像素前提待轮 #6 验证。",
   "revision": {
-    "before": "41491d5136821f1f1ba3f278fbf16e988501a2f6",
+    "before": "f2d1e0dd412535483a24902cb1ad420e46e66d66",
     "after": null
   },
   "created_at": "2026-11-11T06:30:00.000Z",
-  "updated_at": "2026-11-11T06:30:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T22:21:40.139Z",
+  "closed_at": "2026-11-10T22:21:40.139Z",
   "checks": [
     {
       "kind": "gate",

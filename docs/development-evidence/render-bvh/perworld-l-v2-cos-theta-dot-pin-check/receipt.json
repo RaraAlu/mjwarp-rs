@@ -1,0 +1,85 @@
+{
+    "verdict":  "PASS",
+    "gates":  {
+                  "clippy_cuda":  "pass",
+                  "fmt":  "pass",
+                  "unit":  "1387 passed / 0 failed / 402 ignored",
+                  "clippy":  "pass"
+              },
+    "boundary":  {
+                     "tests_changed":  0,
+                     "live_vs_guard_mismatches_after_rebuild":  12,
+                     "guards_json_changed":  0,
+                     "scripts_changed":  0,
+                     "fixtures_changed":  0,
+                     "frozen_stash_vs_guard_mismatches":  0,
+                     "p7_evidence_changed":  0
+                 },
+    "observations":  4,
+    "blockers":  0,
+    "manifest":  {
+                     "entries":  17,
+                     "mismatches":  0
+                 },
+    "reviewed_task_id":  "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin",
+    "non_claim":  [
+                      "does not claim criterion A is fixed, does not claim G-L2 passed or recovered, does not claim upstream equivalence",
+                      "no criterion/threshold/reference/camera/recipe change; G-L2 verdict stays not passed"
+                  ],
+    "offline_ptx_proof":  {
+                              "recompiled_by_qa":  false,
+                              "old_chain":  "neg x3 + mul.rn + fma.rn + fma.rn (dot3_ba)",
+                              "new_chain":  "mul.rn x3 + add.rn x2 + neg.f32",
+                              "self_consistent":  true,
+                              "register_mapping":  "L = %f5156/%f5157/%f5158 from three div.rn (P4); lightdir = %f911/%f912/%f913 from ld.global"
+                          },
+    "schema":  1,
+    "evidence_hygiene":  "all 17 evidence files LF, no BOM, no CR",
+    "diff":  {
+                 "render_shade_cu":  "+5/-1 (cos_theta one-line + 3 comment lines; +1 code line split)",
+                 "other_cu_changed":  0,
+                 "cos_cutoff_and_powf_lines_touched":  false,
+                 "dot3_ba_body_changed":  0,
+                 "p4_p6_lines_touched":  false,
+                 "file_lines":  468,
+                 "files_changed":  1
+             },
+    "kind":  "qa-review",
+    "evidence_hashes":  {
+                            "readme":  "0bcff5e31a63297ff4ad189d1b1c97326042a8cfed328a5880e5539526e4275e / 6215 B",
+                            "manifest":  "e7a2189ca28a58c86195356cd539f0056f2e074db3b5ea42d8781e349ff25887 / 1862 B",
+                            "receipt":  "262b770dc50cb0c156bf2e0ff4a81ba9c3a97b3e2500d2baa4e304ecd0ac3b44 / 6788 B"
+                        },
+    "observations_detail":  [
+                                "O1 (info): PTX-level comparison relies on the backend offline NVRTC artifacts (method/inputs/register mapping complete and reproducible); QA did not rerun NVRTC to avoid disturbing the live exes/frozen state before round 6",
+                                "O2 (info): signed-zero corner - with all three products equal to same-signed zero the externally-negated landing form may produce -0 while the reference neg/sub chain may produce +0; numerically equal, comparison and fmaxf unaffected",
+                                "O3 (info): the rebuild changes all live exes again; the next formal window must re-freeze",
+                                "O4 (info): the residual-pixel premise comes from the post-round-5 site audit (not in this commit) and is correctly marked pending round 6"
+                            ],
+    "reviewer":  "QA",
+    "task_id":  "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin-check",
+    "date":  "2026-11-11",
+    "non_claims_verified":  [
+                                "does not claim the fix is effective; one diagnostic round 6 token is required",
+                                "G-L2 verdict unchanged (criterion A FAIL stands)",
+                                "no criterion/threshold/reference/tolerance change",
+                                "kernel identity change is an implementation-fix new baseline"
+                            ],
+    "reviewed_commit":  "e22891da",
+    "kernel_identity":  {
+                            "megakernel_ptx":  "e91b7d85.../344175 B -\u003e 7fd86b85.../344181 B (from identity log)",
+                            "megakernel_source":  "eb59dd78... -\u003e 02160146... (independently recomputed and matched)",
+                            "aa_resolve":  "unchanged (0bf8af5a... / b28e155c... / 27536 B)",
+                            "depth_seg":  "unchanged (b546ef08... / e8d84963... / 138540 B)"
+                        },
+    "equivalence":  {
+                        "reference":  "mul;mul;neg;sub;mul;sub (PTX 8715-8720); value = -(rnd(rnd(m0+m1)+m2))",
+                        "numeric_4000":  {
+                                             "reference_chain_vs_landing_failures":  0,
+                                             "old_dot3ba_vs_new_differ":  1447,
+                                             "sub_neg_eq_add_failures":  0
+                                         },
+                        "analytic":  "neg exact; sub(x,-y) rounds as add(x,y); (-x)-y equals -(x+y) =\u003e same rounding points",
+                        "landing":  "-__fadd_rn(__fadd_rn(__fmul_rn(Lx,dx), __fmul_rn(Ly,dy)), __fmul_rn(Lz,dz))"
+                    }
+}
