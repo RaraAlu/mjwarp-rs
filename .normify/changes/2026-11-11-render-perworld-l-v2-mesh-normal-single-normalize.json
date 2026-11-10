@@ -5,7 +5,7 @@
     "zh": "perworld L v2 mesh 法线链单次归一化对齐上游（render_math.cu 返回未归一化 cross；零 GPU；新内核身份基线）",
     "en": "Per-world L v2 mesh normal chain: single normalize to match upstream (render_math.cu returns the unnormalized cross; zero GPU; new kernel identity baseline)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "按 Arch 只读 RCA（H2 源码级、唯一站点）修复 mesh 法线链多归一化一次：上游 `cross(ab,ac)` 未归一化 → `mat@n` → `normalize` 一次；我方 `render_math.cu:239` 先 `normalize3_mesh(cross)`、`render_common.cu:200` 再 `normalize3_mesh(mat@n)` 归一化两次。最小面修法：`render_math.cu` 的 `mesh_query_ray` 返回**未归一化**的三角面 `cross`，由 `render_common.cu`/`render.cu` 消费端保留其唯一一次 `normalize3_mesh(mat_vec(mat, n_local))`；culling 只用符号（不变）、shadow 的 `hitpoint + normal*1e-4` 使用消费端归一化后的 normal（与上游一致）。同时盘点 hfield(gtype1)/SDF(gtype8) 同一 `ray_mesh_leaf` 调用链无二次依赖；记录新内核身份基线（MEGAKERNEL_SOURCE/DEPTH_SEG_SOURCE source sha 与 megakernel/aa_resolve/depth_seg 三份 PTX 的 sha+bytes，old→new，NVRTC 纯编译、不建 GPU 会话）。本卡不改判据/阈值/参考/相机/recipe/tests/fixtures/scripts；修完不跑 GPU，随后由 Chief 发诊断轮 token 验证 5 px 是否归零，通过后才重冻 + 开 G-L2 attempt 3。",
     "en": "Apply the Arch read-only RCA (H2 source-level, single site): the upstream mesh normal chain is `cross(ab,ac)` (unnormalized) -> `mat@n` -> one `normalize`; our `render_math.cu:239` normalizes the cross first and `render_common.cu:200` normalizes `mat@n` again (double normalize). Minimal fix: make `mesh_query_ray` in `render_math.cu` return the unnormalized triangle cross and keep the single `normalize3_mesh(mat_vec(mat, n_local))` at the consumers (`render_common.cu` / `render.cu`); culling only uses the sign (unchanged) and the shadow `hitpoint + normal*1e-4` uses the consumer-normalized normal (upstream-consistent). Also audit the hfield (gtype 1) / SDF (gtype 8) `ray_mesh_leaf` chain for a second dependency on the pre-normalized normal; record the new kernel identity baseline (MEGAKERNEL_SOURCE / DEPTH_SEG_SOURCE source sha and the megakernel / aa_resolve / depth_seg PTX sha+bytes, old->new, via NVRTC compile only, no GPU session). No criterion/threshold/reference/camera/recipe/test/fixture/script change; no GPU run in this card; the diagnostic-round token and, only after it passes, the re-freeze + G-L2 attempt 3 remain with the Chief."
@@ -32,16 +32,28 @@
   },
   "note": "Chief 2026-11-11 05:00 派工：按 Arch RCA（`2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca`，H2 源码级：上游 cross 未归一化 → mat@n → normalize 一次；我方 render_math.cu:239 先归一化、render_common.cu:200 再归一化）做**修复卡**：只改代码与证据、先不跑 GPU。最小面=mesh_query_ray 返回未归一化 cross；盘点 hfield/SDF 同链；记录新内核身份三份 PTX 基线；定向构建/单测/clippy/no-run；证据 README/receipt/manifest；unchanged fixtures/scripts/tests；四门禁。修完等 Chief 诊断轮 token（验 5 px 归零、A/B/sha/隔离），通过后才重冻 + G-L2 attempt 3。",
   "revision": {
-    "before": "2dccded21c08e2778940366c978ba978969f6c1d",
+    "before": "ebfcfc66b3ce03ae67f3a9af529214c4cc8afd2b",
     "after": null
   },
   "created_at": "2026-11-10T21:01:56.188Z",
-  "updated_at": "2026-11-10T21:01:56.188Z",
+  "updated_at": "2026-11-10T21:02:38.203Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "unchanged",
       "paths": [
