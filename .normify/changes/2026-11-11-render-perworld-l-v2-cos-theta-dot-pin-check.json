@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin-check",
+  "title": {
+    "zh": "QA 复核 P9 spot 灯 cos_theta dot 次序 pin 修复卡（`e22891da`）：仅 `render_shade.cu` +5/−1（cos_theta 一行改 `-__fadd_rn(__fadd_rn(__fmul_rn(Lx,dx), __fmul_rn(Ly,dy)), __fmul_rn(Lz,dz))` + 4 行注释；`dot3_ba` 本体/cutoff/powf 组合/P4/P6 未动、其它 `.cu` 0 diff、468 行）、落地式与参考 `mul;mul;neg;sub;mul;sub` 逐舍入点等价（解析推导 + 4000 例数值复算：`sub(a,−b)==add(a,b)` 0 失败、参考 neg/sub 链与落地式 0 差异、旧 `dot3_ba` 与新式 36% 输入不同）、离线 NVRTC lineinfo 站点证明自洽、source 身份独立复算 `eb59dd78…`→`02160146…`（PTX `e91b7d85…`/344,175→`7fd86b85…`/344,181；aa_resolve/depth_seg 未变）、四门禁 1387/0/402、manifest 17/17、边界零越界、口径不宣称生效且 G-L2 维持未通过 → PASS（可发诊断轮 #6）",
+    "en": "QA review of the P9 spot-light cos_theta dot order pin: one-line change in render_shade.cu, rounding points bit-equivalent to the reference mul/mul/neg/sub/mul/sub sequence (analytic plus 4000-sample numeric check), offline NVRTC lineinfo site proof, independently reproduced source identity, gates 1387/0/402, manifest 17/17, boundary clean, non-claims correct - PASS (diagnostic round 6 may be issued)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 P9 修复卡（提交 **`e22891da`**，卡 `2026-11-11-render-perworld-l-v2-cos-theta-dot-pin`，登记 `fd6b0d45` / start `d137ca66`）做独立只读复核（零 GPU；**未重新编译**以不扰动诊断轮 #6 前的 live/冻结件）：① 改动面——仅 `render_shade.cu` **+5/−1**（spot 分支 `cos_theta` 一行 + 4 行注释），`dot3_ba` 本体、`cos_cutoff` 比较、`attenuation*powf(fmaxf(cos_theta,0),lightexp)`、P4 三次除法/P6 `length3_midpref` 均未动，其它 `.cu` 0 diff，文件 468 行；② 落地式与参考真值 `mul;mul;neg;sub;mul;sub` 的**逐舍入点等价性**（3 乘各自舍入 + 2 加各舍入 + neg 精确外提），并用 f32 数值复算验证；③ 离线 NVRTC+lineinfo 站点证明自洽；④ 叠加 source 身份独立复算、aa_resolve/depth_seg 未变；⑤ 门禁/manifest/边界/卫生；⑥ 口径。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the P9 fix card: change surface, bit-equivalence of the landing form with the reference rounding sequence (analytic and numeric), offline PTX site proof, independently reproduced kernel identity, gates/manifest/boundary, and non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动面唯一 ✅**：`e22891da` 的源码改动**只有** `src/render/kernel/cuda/render_shade.cu` **+5/−1**（spot 分支 `cos_theta` 一行替换 + 4 行新增=1 行代码拆 2 行 + 3 行注释；删除 1 行旧调用）；`dot3_ba` 本体（`render_math.cu`）**0 diff**；`cos_cutoff` 比较行、`attenuation = attenuation * powf(fmaxf(cos_theta, 0.0f), lightexp)` 行、spot 的 L 归一化（P4 三次除法/P6 `length3_midpref`）行均**未出现在 diff 中**；其它 `.cu` 0 diff；文件 **468 行**（blob LF 独立核实）✅",
+    "**落地式与参考序列逐舍入点等价 ✅**：实现 `float cos_theta = -__fadd_rn(__fadd_rn(__fmul_rn(L.x, lightdir.x), __fmul_rn(L.y, lightdir.y)), __fmul_rn(L.z, lightdir.z));` = 3 次 `mul.rn`（各自舍入）+ 2 次 `add.rn`（各自舍入，结合序 `((m0+m1)+m2)`）+ 外部 `neg`。参考真值（spec/审计 §B、PTX 8715-8720）为 `mul;mul;neg;sub;mul;sub`，数值 = `-(rnd(rnd(m0+m1)+m2))`。**解析**：`neg` 精确；`sub(x, −y)` 与 `add(x, y)` 舍入相同；`(-x)−y` 与 `-(x+y)` 结果位型相同 ⇒ 两个序列在**每个舍入点**一致。**数值复算**（f32，4000 随机例）：`sub(a,−b)` vs `add(a,b)` **0/4000 差异**；参考 `sub(sub(neg(m0),m1),m2)` vs 落地式 **0/4000 差异**；旧 `dot3_ba` 与新式 **1447/4000（36%）输入不同** ⇒ pin 确实改变数值（与「≈5 px 翻转」预期同向）✅",
+    "**离线 NVRTC lineinfo 站点证明自洽 ✅**：`logs/p9-site-proof.txt`（pinned CUDA 12.8.1 NVRTC、`--fmad=true --generate-line-info`、零 GPU）给 old `neg×3 + mul.rn + fma.rn + fma.rn`（`dot3_ba`），new `mul.rn×3 + add.rn×2 + neg.f32`，并给寄存器映射（`L.x/y/z` 来自 spot 分支 3 次 `div.rn` — P4 落地；`lightdir.x/y/z` 来自 `ld.global`），推导 `value = -(rnd(rnd(m1+m2)+m3))` 与参考一致；与我对源码/参考序列的独立推导**同结论** ✅",
+    "**内核身份/不变项（独立复算）✅**：按 `mod.rs` include_str 顺序 LF 字节串联复算 megakernel source = **`02160146…`**（与 identity 日志一致，old `eb59dd78…`）；PTX 取自同批 identity 日志 `e91b7d85…`/344,175 B → **`7fd86b85…`/344,181 B**；**aa_resolve** `0bf8af5a…`/`b28e155c…`/27,536 B 与 **depth_seg** `b546ef08…`/`e8d84963…`/138,540 B **均未变**（`render_shade.cu` 不在两者拼接内，逻辑自洽）；属实现修复新基线，非判据/阈值/参考变更 ✅",
+    "**门禁/边界/卫生 ✅**：四门禁 runs 全 `passed=true`、unit **1387/0/402**；`tests/`/`fixtures/`/`scripts/` **0 diff**；修复卡-1（P7）证据目录 **0**；guards JSON **0**（`fad2ed37…`/43,729 B）、**冻结 stash 12/12 仍 == guards**；manifest **17/17 独立重算全对**，README `0bcff5e3…`/6,215 B、receipt `262b770d…`/6,788 B、manifest `e7a2189c…`/1,862 B 与其自报逐字节一致；17 个证据文件 **无 CR、无 BOM**（LF）✅",
+    "**口径（非声明）✅**：README L6/L92 与 receipt `non_claims` 明写「**不宣称修复生效**（需诊断轮 #6 token）、**G-L2 判定维持未通过（判据 A FAIL）**、不改判据/阈值/参考/容差、内核身份变更属实现修复新基线」；全文无「已修复/已通过/等价」正面表述 ✅",
+    "**结论**：**PASS（0 阻断，4 条信息级观察）→ 可发诊断轮 #6 token**。本复核只核代码/证据/边界/口径与等价性，**不判定修复效果**；G-L2 判定维持未通过。观察：O1 PTX 层对照取自 Backend 离线 NVRTC 证据（方法/输入/寄存器映射完整可复现），我未重跑 NVRTC（避免扰动轮 #6 前 live/冻结件）；O2 ±0 角：当三项乘积全为同号零时，`neg` 外提的落地式可能给出 `-0`，而参考 `neg;sub` 链取决于被 neg 的项可能是 `+0`——两者数值相等，`cos_theta < cos_cutoff` 与 `fmaxf` 判定不受影响（信息级，无实际影响）；O3 源码再改 ⇒ 12 个 live exe 与 guards 再次不同（预期），下次正式窗口必须重新冻结建新基线；O4 残余像素前提来自轮 #5 零效果后的站点审计（不在本提交），卡内已如实标注待轮 #6 验证。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin",
+      "2026-11-11-render-perworld-l-v2-texture-bary-pin-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核 P9 spot 灯 cos_theta dot 次序 pin 修复卡 e22891da（零 GPU）。结论 PASS（0 阻断）→ 可发诊断轮 #6；本复核不判定修复效果。核心：仅 render_shade.cu +5/−1（cos_theta 一行 + 注释）、dot3_ba/cutoff/powf/P4/P6 未动、其它 .cu 0 diff、468 行；落地式 3×__fmul_rn + 2×__fadd_rn + 外提 neg 与参考 mul;mul;neg;sub;mul;sub 逐舍入点等价（解析 + 4000 例数值：sub(a,−b)==add(a,b) 0 失败、参考链与落地式 0 差异、旧 dot3_ba 与新式 36% 不同）；离线 NVRTC lineinfo 站点证明自洽（寄存器映射 L=div.rn×3、lightdir=ld.global）；source 身份独立复算 eb59dd78→02160146 一致、PTX e91b7d85/344,175→7fd86b85/344,181、aa_resolve/depth_seg 未变；四门禁 1387/0/402、manifest 17/17、边界零越界、stash 未动、证据全 LF 无 BOM；非声明在位（不宣称生效、G-L2 维持未通过）。观察：PTX 层为 Backend 离线证据（我未重跑 nvrtc）；±0 角无实际影响；live exe 再次变化需下次窗口重冻；残余像素前提待轮 #6 验证。",
+  "revision": {
+    "before": "41491d5136821f1f1ba3f278fbf16e988501a2f6",
+    "after": null
+  },
+  "created_at": "2026-11-11T06:30:00.000Z",
+  "updated_at": "2026-11-11T06:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-cos-theta-dot-pin-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
