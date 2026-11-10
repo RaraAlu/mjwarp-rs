@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca",
+  "kind": "rca-evidence",
+  "title": "G-L2 criterion A FAIL read-only RCA: 5 one-byte rgb mismatches are caused by one extra normalization in the mesh normal chain (H2, source-level); site = render_math.cu:239 + render_common.cu:200 vs upstream ray.py:727-729",
+  "status": "rca_recorded_pending_fix_card",
+  "owner": "Arch",
+  "date": "2026-11-11",
+  "gpu_free": true,
+  "no_rerun": true,
+  "inputs": {
+    "pixel_dump": {
+      "path": "target/render-bvh/perworld-l-v2-gl2/diag/pixel-dump.json",
+      "sha256": "68b3f78ed9586a83c47cfad8ab722407d27c8571cd82c92a5f9b4c6050326089",
+      "bytes": 51388
+    },
+    "reference_dir": "fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/",
+    "reference_files": {
+      "rgb.npz": {"sha256": "602574c213d848ddc674244b11ac518fe42e54cf373f43784e143292e960493f", "bytes": 5531026},
+      "depth.npz": {"sha256": "82eec6dab866f5ba54e3df0f3592d7198efb6ab5fc832627d98f4d56f079e92d", "bytes": 1844650},
+      "seg.npz": {"sha256": "c3f09b16b6c02f972d5f7b535a39a94a6850bc1362e8399543cdb384781142f0", "bytes": 3687826},
+      "state.npz": {"sha256": "a1c5a32154370551923a8a4ef394c62d5f9e0d9dbb468e707f77175f8c0c6aca", "bytes": 2486},
+      "capture.json": {"sha256": "8b53e1221faf9c524b9f42640764a850d7e723de61ebc84342ee6b63137720a9", "bytes": 12251}
+    },
+    "model_dump": "tests/support/render_bvh/light/model-315.json",
+    "upstream": {
+      "path": "target/mjwarp-parallel/upstream",
+      "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "clean": true
+    },
+    "warp_headers": ["include/warp-headers/intersect.h", "include/warp-headers/vec.h", "include/warp-headers/mat.h"]
+  },
+  "attribution_correction": {
+    "seg_semantics": "seg = (objid, objtype); seg[1] is the MuJoCo object type, NOT the geom type",
+    "seg_observed": [3, 5],
+    "objtype_5": "mjOBJ_GEOM",
+    "real_geom": {
+      "geom_id": 3,
+      "model_geom_type": 7,
+      "model_geom_type_name": "MESH",
+      "material_id": 0,
+      "material": "mat-red",
+      "material_fields": {
+        "texture": "grid checker",
+        "emission": 0.05,
+        "specular": 0.4,
+        "shininess": 0.6,
+        "texrepeat": [2, 3],
+        "texuniform": false
+      }
+    },
+    "wrong_reading_rejected": "geom_type 5 would be CYLINDER (mat-green/ramp); dump attribution.geom_type took seg[1] and is mislabelled; rename to objtype listed for errata",
+    "dump_side_note": "tests/support/render_bvh/light/diag.rs segment_attribution() names seg[1] as geom_type"
+  },
+  "method": {
+    "kind": "read-only f32 CPU replay",
+    "script": "artifacts/replay_mesh_normal.py",
+    "output": "artifacts/replay-output.txt",
+    "steps": [
+      "rebuild the camera-space ray from dump direction bits + camera pose bits (offset 0)",
+      "map to geom 3 local frame with state.npz geom_xpos/geom_xmat bits (mat_t_vec order pinned as in the product)",
+      "run warp intersect_ray_tri_woop (diff_product, fma emulated exactly via float64) over the 4 mesh triangles; pick nearest t",
+      "compute depth = t * (-dir_local.z) (product write path) and compare with the dumped reference depth bits",
+      "independently cross-check the hit (face/uv/t) in float64",
+      "recompute the shading normal under both chains: upstream normalize(mat @ cross) vs product normalize(mat @ normalize(cross))"
+    ],
+    "replay_validation": {
+      "all_pixels_hit_face": 2,
+      "depth_bits_equal": 2,
+      "depth_bits_off_by_1_ulp": 3,
+      "note": "the 1-ULP offsets are replay-contraction artefacts; product-vs-reference depth is bit-identical at these pixels (dump depth.ulp = 0), which is what excludes the intersection side"
+    }
+  },
+  "root_cause": {
+    "verdict": "H2",
+    "verdict_meaning": "source-level structural difference (one extra normalization), not a compiler-version/libdevice difference",
+    "primary_site": "src/render/kernel/cuda/render_math.cu:239 + src/render/kernel/cuda/render_common.cu:200 (product normalizes twice) vs mujoco_warp/_src/ray.py:727-729 (upstream normalizes once)",
+    "product_chain": "mesh_query_ray: *out_normal = normalize3_mesh(min_normal); then ray_mesh_leaf: *normal = normalize3_mesh(mat_vec(mat, n_local)) => normalize(mat @ normalize(cross))",
+    "upstream_chain": "warp intersect_ray_tri_woop returns the unnormalized cross(ab, ac); ray_mesh_with_bvh then does normal = mat @ n; normal = wp.normalize(normal) => normalize(mat @ cross)",
+    "relation": "the extra normalization changes the pre-vertex-normal normal by 1 ULP; because vertex_normal() rejects 2 of 3 vertex normals on this face, the face normal dominates the interpolated shading normal, which then differs by 1 ULP",
+    "scope": "mesh-only (and hfield/SDF share the path; absent in this scene)"
+  },
+  "pixels": [
+    {"world": 0, "cam": 1, "pixel": 13268, "x": 148, "y": 41, "face": 2, "product_bytes": [255, 28, 29], "reference_bytes": [255, 28, 28], "diff": "B +1", "pre_normal_ulp_diff": [0, 1, 1], "final_normal_ulp_diff": [0, 0, 1]},
+    {"world": 0, "cam": 1, "pixel": 31154, "x": 114, "y": 97, "face": 2, "product_bytes": [255, 18, 19], "reference_bytes": [255, 18, 18], "diff": "B +1", "pre_normal_ulp_diff": [0, 1, 1], "final_normal_ulp_diff": [0, 0, 1]},
+    {"world": 1, "cam": 1, "pixel": 27360, "x": 160, "y": 85, "face": 2, "product_bytes": [126, 46, 92], "reference_bytes": [126, 46, 93], "diff": "B -1", "pre_normal_ulp_diff": [0, 1, 1], "final_normal_ulp_diff": [1, 0, 0]},
+    {"world": 1, "cam": 1, "pixel": 28614, "x": 134, "y": 89, "face": 2, "product_bytes": [255, 48, 48], "reference_bytes": [255, 47, 48], "diff": "G +1", "pre_normal_ulp_diff": [0, 1, 1], "final_normal_ulp_diff": [1, 0, 0]},
+    {"world": 1, "cam": 1, "pixel": 39492, "x": 132, "y": 123, "face": 2, "product_bytes": [120, 42, 87], "reference_bytes": [120, 41, 87], "diff": "G +1", "pre_normal_ulp_diff": [0, 1, 1], "final_normal_ulp_diff": [0, 1, 0]}
+  ],
+  "mechanism": {
+    "vertex_normal_threshold": 0.8,
+    "face2_vertex_normal_dots": [0.4664, 1.0, 0.5726],
+    "rejected_count": 2,
+    "kept_count": 1,
+    "consequence": "two of the three interpolation weights use the face normal, so the pre-normal difference propagates into the shading normal",
+    "byte_flip": "1-ULP normal change propagates through lighting (specular pow(ndoth, 76.8) amplifies) and flips one byte only at rgb quantization boundaries",
+    "channel_pattern": "3 of 5 flips are in B, 2 in G; G is texture-invariant for this checker (G=0.15 in both texels), so the G flips prove the difference is in lighting (normal), not in texture sampling",
+    "camera_pattern": "cam0 shows no mismatch because the mesh is not visible there (only floor + background)",
+    "legacy_pattern": "legacy/ v2.2 rgb tolerance is <= 1 LSB, so a one-byte difference was tolerated there; spec v3 criterion A requires 0 bytes (section 13 risk 10 pre-declared this exact risk)",
+    "expected_count_check": "face-2 pixels per world = 16,515 with ~1 ULP final-normal difference; boundary probability x specular amplification predicts ~1-4 flips per world; observed 2 / 3 / 0"
+  },
+  "h1_refutation": [
+    "the difference is a concrete source-structure difference (one extra normalize), not the same expression compiled differently",
+    "product dot/mat/normalize helper orders (dot3_ba, mat_vec, mat_t_vec, normalize3_rays) are pinned from prior empirical RCa and reproduce the reference depth to <= 1 ULP in this replay, so they are not the site",
+    "a pure compiler-version difference cannot explain why the normal bits differ at exactly the mesh-only chain and at 5/5 mismatched pixels"
+  ],
+  "fix_direction": {
+    "minimal": "make the mesh normal chain match upstream: return the unnormalized triangle cross from the mesh query (render_math.cu:239) and keep the single normalize after the geom transform (render_common.cu:200)",
+    "culling_note": "culling uses the dot sign only; normalization does not change the sign",
+    "shadow_note": "shadow origin = hit + normal*1e-4 becomes upstream-identical as a side effect",
+    "impact": {
+      "kernel_identity": "MEGAKERNEL_SOURCE and PTX change",
+      "refreeze": "required (12 frozen exes + new PTX baseline)",
+      "window": "one full G-L2 window re-run (1 slice + 1 window)",
+      "signature": "none: criteria / reference / spec / signed material unchanged; no user signature required"
+    },
+    "suggested_order": "diagnostic round with the patched entity exe (not G-L2 evidence, no refreeze) to confirm the 5 pixels go to zero, then the formal refreeze + attempt3"
+  },
+  "risks": [
+    "product woop intersection does not implement upstream's double-precision recompute of U/V/W when any of them is exactly zero (render_math.cu:100-108 comment); excluded this time because product-vs-reference depth bits are identical at all 5 pixels (that branch would change t), but it stays a latent alignment gap",
+    "criterion B, two-run sha and world isolation were not evaluated in this run (the assertion aborted earlier); this card makes no statement about them",
+    "if the fix still leaves a few one-byte differences, the same method (depth-bit validation + normal bit diff) should be repeated for the remaining normalization/contraction sites"
+  ],
+  "boundary": {
+    "gpu_free": true,
+    "no_rerun": true,
+    "no_fix": true,
+    "src_unchanged": true,
+    "tests_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "signed_material_unchanged": true
+  },
+  "non_claim": [
+    "does not claim G-L2 pass, criterion A/B/C satisfaction, upstream equivalence, or any render numeric conclusion",
+    "does not change any criterion, threshold, reference, spec, frozen artefact or window state",
+    "the fix direction is registered only; this card does not implement it"
+  ],
+  "materials": [
+    "README.md",
+    "receipt.json",
+    "manifest.txt",
+    "artifacts/pixel-dump-excerpt.json",
+    "artifacts/replay-output.txt",
+    "artifacts/replay_mesh_normal.py"
+  ]
+}
