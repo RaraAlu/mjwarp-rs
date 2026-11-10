@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-diag-dump-ext-check",
+  "status": "qa_review_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "BLOCKED",
+  "subject": {
+    "main_card": "2026-11-11-render-perworld-l-v2-diag-dump-ext",
+    "main_commit": "bb29e351a4c83907654e05d099ff506beb701cf1",
+    "main_files": 28,
+    "main_diff": "+425/-16",
+    "companion_card": "2026-11-11-render-megakernel-slot-82-ratchet-support",
+    "companion_commit": "e7fc06f7830622f4328812358061f884224d5a86",
+    "companion_files": 10,
+    "companion_diff": "+144/-10",
+    "review_base_head": "26d3cada85e371ca5a9617e054dab138d9556cc7",
+    "registration_commit": "435e39a3f5b08530422e670c5160acaaf1f18626"
+  },
+  "blocking": [
+    {
+      "code": "B1",
+      "title": "dump top-level SCHEMA is still 1 while every record claims schema 2",
+      "evidence": {
+        "code": "tests/support/render_bvh/light/diag.rs:24 pub const SCHEMA: u32 = 1;",
+        "emitted": "tests/support/render_bvh/light/diag.rs:110 \"schema\": SCHEMA -> JSON top-level schema = 1",
+        "claimants": [
+          "main card README section 2 title + line 61 (schema 2 / 1 -> 2)",
+          "main card receipt dump_schema.json_location (schema 2)",
+          "main card acceptance and companion card title/acceptance (schema 2)",
+          "commit messages of bb29e351 and e7fc06f7 (schema 2)"
+        ]
+      },
+      "impact": "declared data contract does not match the artefact; consumers/replay keyed on schema 2 (diagnostics present) mis-read the dump",
+      "fix": "bump SCHEMA to 2 (one line) or correct every record; since commit messages are immutable, bump the code and record an errata",
+      "blocking_scope": "must be fixed before the product-side dump is used as the diagnostic-round-7 data source"
+    }
+  ],
+  "general_findings": [
+    {
+      "code": "G1",
+      "title": "records still reference the non-existent render_diag.cu",
+      "detail": "main README section 1 table + main acceptance + src/render/kernel/diag.rs:10 + tests/support/render_bvh/light/diag_ext.rs:4 + main card scope list a cuda/render_diag.cu that does not exist; no new .cu was added and MEGAKERNEL_SOURCE still has 7 entries (the helpers live in render_megakernel.cu), which is by design to keep the 42-file precision snapshot"
+    },
+    {
+      "code": "G2",
+      "title": "documented record index formula differs from the implementation; multi-world single launch has no diagnostics",
+      "detail": "README/receipt say record index = worldid*total_rays + rayid; kernel uses diag + rayid*STRIDE (render_megakernel.cu:279). Equivalent and correct on the only used path (per-world single-world launch, launch_worlds=1, kernel worldid=0), but render_impl(world=None) writes all worlds into the first total_rays records and diag_record(world) keys on Some(world) -> diagnostics silently null (no wrong data)"
+    },
+    {
+      "code": "G3",
+      "title": "README line counts / file counts wrong",
+      "detail": "README section 6 says render_shade.cu 473 and render_megakernel.cu 414 lines; measured 478 / 499 (receipt line_budget 478/499/500/496/494 is correct). README section 1 says 11 source files; the main commit actually has 8 src + 2 test files (companion adds 5 test files)"
+    },
+    {
+      "code": "G4",
+      "title": "new decode path has no self-test",
+      "detail": "DiagRecord::from_slice and the diag_ext JSON encoder have no unit tests; offsets/bit patterns/view_dir derivation are only exercised by the diagnostic round. Recommend a CPU-only synthetic 64xf32 round-trip test"
+    }
+  ],
+  "low_findings": [
+    {"code": "L1", "title": "stale ABI ratchet messages/names (7 scalars / slots_signature_is_unchanged)"},
+    {"code": "L2", "title": "README section 4 PTX byte counts include the trailing NUL (344,182/347,071 vs identity 344,181/347,070); PTX content identical"},
+    {"code": "L3", "title": "arithmetic-gate extraction script/command not archived (logs only)"},
+    {"code": "L4", "title": "light slot collision when nlight >= 4 (slot = min(light, 3) shares slot 3 with the headlight); G-L2 scene unaffected"},
+    {"code": "L5", "title": "observation: Backend disclosed CPU cargo build/test overlapping Arch's minutes-long GPU window; CPU-only load, GPU compute not overlapped"}
+  ],
+  "independently_verified": {
+    "arithmetic_unchanged_gate": {
+      "compiler": "repo pinned CUDA 12.8.1 NVRTC (target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll)",
+      "options": "--fmad=true --std=c++17 --gpu-architecture=compute_70 --device-as-default-execution-space --include-path=include/warp-headers",
+      "old_rev": "755b3d07 (P9 build)",
+      "source_old": {"bytes": 104676, "sha256": "02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1"},
+      "source_new": {"bytes": 109384, "sha256": "624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2"},
+      "ptx_old": {"bytes": 344181, "sha256": "7fd86b859793a18ed4f3ed042add0d10b7c82064bcb312ac3f10db47ba995c7e"},
+      "ptx_new": {"bytes": 347070, "sha256": "1fd531314875e52a08ffda3fd63e93184e46ebda207378d5378c25b878c430b8"},
+      "arith_op_counts": {"qa_rule_contains": [3124, 3124], "qa_rule_endswith": [3151, 3151], "card_claimed": [3148, 3148]},
+      "sequence_identical": true,
+      "multiset_identical": true
+    },
+    "zero_side_effect_when_env_unset": "DiagBuffer::new -> Ok(None) (no alloc), arg_addr -> 0, finish_diag(None) no-op, kernel diag_rec=nullptr with first-line nullptr returns in all four store helpers; test-side dump gated by the same env",
+    "abi": {"kernel_params": 82, "slots": 82, "composition": "1 bounds + 73 arrays + 8 scalars", "tail_slot": "Scalar(U64)", "upstream_81_order_unchanged": true, "launch_arg_count_guards": ["src/runtime/launcher/render.rs:97", "src/runtime/launcher/render.rs:162"]},
+    "schema_offsets_consistent": "README table == kernel DIAG_* == src/render/kernel/diag.rs decoder == diag_ext JSON keys (stride 64, lights 4x8 at 25..56, reserved 57..63)",
+    "gates": {"fmt": "pass", "clippy": "pass", "clippy_cuda": "pass", "unit": {"passed": 1387, "failed": 0, "ignored": 402}},
+    "main_evidence_manifest": {"files": 10, "selfcheck": "10/10", "README": "c5e2197239c97ca1aef94557c3fc96648fb604b9107aabc152429a50495d40ee/9646", "receipt": "fc0494f233ce4c9e87aaee27dd47e5f7a0167f66b2da03f6a7c97757b5839840/7381", "manifest": "78c4db9f8722f964af32a1f5301ed53a1d0dd30ac06758fa5d05e217d2350084/1173"},
+    "encoding_hygiene": "10/10 evidence files UTF-8, no BOM, 0 CR, 0 TAB",
+    "boundaries": "commits only touch src/ tests/ evidence and card records; fixtures/ scripts/ zero diff; guards JSON fad2ed37.../43729 untouched; 12 frozen exe stash untouched; no new .cu (42-file CUDA surface snapshot intact); line counts 478/499/500 within the 500-line ratchet"
+  },
+  "tests_change_scope": "main commit tests diff = DumpInput.renderer field + diagnostics key + module mount (3 lines); companion = 4 slot-count assertions 81->82 + new diag_ext encoder; no threshold/reference/camera-ownership/criterion-A logic change",
+  "non_claims": [
+    "does not judge the effect of any rendering fix",
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "does not change any criterion/threshold/reference/tolerance",
+    "B1 fix is a data-contract consistency fix, not a criterion relaxation",
+    "zero GPU: no capture, no diagnostic run, no compile of frozen artefacts"
+  ],
+  "gate_records": ".normify/runs/2026-11-11-render-perworld-l-v2-diag-dump-ext-check/{fmt,clippy,clippy-cuda,unit}.json",
+  "artifacts": [
+    "artifacts/arith-independent.txt",
+    "artifacts/crosscheck.txt",
+    "artifacts/gates.txt"
+  ]
+}

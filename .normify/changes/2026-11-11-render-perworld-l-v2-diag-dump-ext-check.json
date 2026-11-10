@@ -5,7 +5,7 @@
     "zh": "QA 复核产品侧扩展像素 dump 两卡（主卡 `bb29e351` + 配套卡 `e7fc06f7`）：**算术未变门独立复现**（pinned NVRTC 12.8.1 + product 选项编译 old/new 拼接源，old PTX `7fd86b85…`/344,181、new `1fd53131…`/347,070，f32 算术 opcode 序列完全一致）、env 未设零副作用、82 槽 ABI 一致（kernel 形参 82 == `MEGAKERNEL_SLOTS` 82）、schema 偏移/编码四方一致、门禁 1387/0/402、manifest 10/10、边界零越界；但 **`SCHEMA` 仍为 1，与 README/receipt/两卡验收/提交信息声称的 schema 2 不符（阻断 1 项）**，另有 4 一般 + 5 低 → **阻断 1 项（须先修 schema 标记或更正记录面）**",
     "en": "QA review of the product-side extended pixel-dump pair (main bb29e351 + companion e7fc06f7): arithmetic-unchanged gate independently reproduced (pinned NVRTC 12.8.1, identical f32 arithmetic opcode sequence), zero side effect when env unset, 82-slot ABI consistency, schema offsets/encoding cross-checked, gates 1387/0/402, manifest 10/10, boundary clean; however SCHEMA is still 1 while every record claims schema 2 - BLOCKED by one item"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对「产品侧扩展像素 dump」两卡（主卡 **`bb29e351`**：产品实现 + 证据；配套卡 **`e7fc06f7`**：82 槽 ABI 棘轮测试 + 测试侧 `diag_ext`）做独立只读复核（零 GPU）：① 算术未变门（关键）——自己用仓库 pinned CUDA 12.8.1 NVRTC + product 选项分别编译 old（`755b3d07` blobs）/new（工作树）拼接源，抽取全部 f32 算术 opcode 序列比对；② env 未设零副作用（分配/回读/输出/内核 store）；③ 82 槽 ABI 与 kernel 形参、`MEGAKERNEL_SLOTS`、`RenderSignature`、launch 校验一致，上游 81 槽顺序未动；④ dump schema 偏移/编码（README 表 / kernel `DIAG_*` / `diag.rs` 解码 / `diag_ext` JSON）四方一致；⑤ 门禁/manifest/边界/卫生；⑥ 口径（不宣称修复、G-L2 维持未通过）。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the product-side extended pixel dump pair: arithmetic-unchanged gate reproduced with the pinned toolchain, zero side effect when the env is unset, 82-slot ABI consistency, dump schema cross-check, gates/manifest/boundary, non-claims."
@@ -46,12 +46,12 @@
   },
   "note": "Chief 2026-11-11 派工：优先复核产品侧扩展像素 dump 两卡（主卡 bb29e351 + 配套卡 e7fc06f7；零 GPU）。结论：阻断 1 项（dump 顶层 SCHEMA 仍为 1，与 README/receipt/两卡验收/提交信息声称的 schema 2 不符，需一行修复或记录面更正）+ 4 一般 + 5 低。已独立复现关键门：pinned NVRTC 12.8.1 product 选项编译 old(755b3d07)/new(工作树) 拼接源，source 02160146/104676→624ab298/109384、PTX 7fd86b85/344181→1fd53131/347070，f32 算术 opcode 序列完全一致（我的口径 3124==3124 与 3151==3151）；env 未设零副作用（零分配/零回读/内核 nullptr 首行返回）；kernel 形参 82==SLOTS 82（1+73+8）、末槽 Scalar(U64)；schema 偏移/编码四方一致；四门禁 1387/0/402；manifest 10/10；fixtures/scripts/guards/stash 零改动、无新增 .cu（42 文件源面快照过）。一般项：记录面仍引用不存在的 render_diag.cu、记录索引公式与实现不符且多 world 单次发射静默无诊断、README 行数(473/414 vs 478/499)与文件数写错、新解码路径无自证测试。低项：ABI 测试消息/名称陈旧、§4 PTX 字节含尾部 NUL 口径、抽取脚本未归档、nlight>=4 灯槽冲突、CPU build 与 GPU 窗口时间重叠观察。",
   "revision": {
-    "before": "1507d181aa180628d0904821f2af69ca63ad2f89",
+    "before": "28fda11ca61dac82fbba2db6df8f65c168f09f91",
     "after": null
   },
   "created_at": "2026-11-10T22:52:00.000Z",
-  "updated_at": "2026-11-10T22:52:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-11-10T22:53:52.855Z",
+  "closed_at": "2026-11-10T22:53:52.855Z",
   "checks": [
     {
       "kind": "gate",

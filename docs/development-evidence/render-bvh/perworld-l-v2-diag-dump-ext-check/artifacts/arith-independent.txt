@@ -1,0 +1,32 @@
+# 算术未变门：QA 独立离线 NVRTC 复算（零 GPU）
+
+compiler: repo pinned CUDA 12.8.1 NVRTC = target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll (nvrtc 12.8)
+options : --fmad=true --std=c++17 --gpu-architecture=compute_70 --device-as-default-execution-space --include-path=include/warp-headers
+old     : git 755b3d07 blobs (P9 build, before dump-ext), byte-concat in src/render/kernel/mod.rs include_str! order
+new     : working tree files (post bb29e351), same order
+
+stitched source old: 104676 B sha256 02160146de4ea26b2e96efb2309f02dda0c26a525747cd2f28ea8f0d02e260a1
+stitched source new: 109384 B sha256 624ab298e82e7c94dc66b101ca5e2abd141556beaf2d53485f0b3b8c4f6bb3e2
+
+per-file (old rev 755b3d07 -> worktree):
+  src/render/bvh/cuda/scene.cu                          17834 caac8c86a4e4  ->  17834 caac8c86a4e4
+  src/render/kernel/cuda/render_math.cu                 12566 4f103495f4cc  ->  12566 4f103495f4cc
+  src/render/kernel/cuda/render_flex.cu                  7056 fe88cc4c9e80  ->   7056 fe88cc4c9e80
+  src/render/kernel/cuda/render_common.cu               22348 9116ce26ae60  ->  22348 9116ce26ae60
+  src/render/kernel/cuda/render_shadow.cu                2049 ead1602d66dd  ->   2049 ead1602d66dd
+  src/render/kernel/cuda/render_shade.cu                21562 7c4ee441004a  ->  22289 04836b89dfec  CHANGED
+  src/render/kernel/cuda/render_megakernel.cu           21261 c3936f862881  ->  25242 86e2b457905f  CHANGED
+
+PTX old: 344181 B sha256 7fd86b859793a18ed4f3ed042add0d10b7c82064bcb312ac3f10db47ba995c7e
+PTX new: 347070 B sha256 1fd531314875e52a08ffda3fd63e93184e46ebda207378d5378c25b878c430b8
+
+extraction rule cvt=contains: old=3151 new=3151 sequence_identical=True multiset_identical=True
+extraction rule cvt=endswith: old=3124 new=3124 sequence_identical=True multiset_identical=True
+
+evidence-claimed rule (add/sub/mul/fma/div/sqrt/rcp/neg/min/max/abs .f32 + cvt.*.f32): 3,148 == 3,148,
+sequence identical = True, multiset identical = True (logs/ptx-arith-compare.txt) -> independently reproduced
+with two differing cvt filters (3,124==3,124 and 3,151==3,151); the equality conclusion holds under all three rules.
+
+note: README section 4 quotes old/new PTX as 344,182 / 347,071 B sha 5abc0b4e/c2d8a885, while the identity
+cases quote 344,181 / 347,070 B sha 7fd86b85/1fd53131; this QA run reproduces the latter exactly. The
+1-byte delta is the trailing NUL of the NVRTC output buffer included by the offline harness (sha differs).

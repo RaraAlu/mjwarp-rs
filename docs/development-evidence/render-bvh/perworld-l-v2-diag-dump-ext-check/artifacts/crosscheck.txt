@@ -1,0 +1,79 @@
+# QA 交叉核对：schema / ABI / 偏移 / 行数 / 边界（全部现场实测）
+
+## B1. dump 顶层 schema 声明 vs 实现
+tests/support/render_bvh/light/diag.rs:
+  pub const SCHEMA: u32 = 1;
+  "schema": SCHEMA,
+observation: SCHEMA still 1; README section 2 + L61, receipt dump_schema.json_location, both cards'
+acceptance and both commit messages claim schema 2 (top-level schema bump 1 -> 2).
+
+## G1. render_diag.cu references vs actual files
+actual new .cu in commits: none (git show --name-status bb29e351/e7fc06f7 | *.cu -> only 2 modified)
+MEGAKERNEL_SOURCE entries (src/render/kernel/mod.rs):
+  include_str!("../bvh/cuda/scene.cu"),
+  include_str!("cuda/render_math.cu"),
+  include_str!("cuda/render_flex.cu"),
+  include_str!("cuda/render_common.cu"),
+  include_str!("cuda/render_shadow.cu"),
+  include_str!("cuda/render_shade.cu"),
+  include_str!("cuda/render_megakernel.cu"),
+render_diag.cu exists on disk: False
+references to render_diag.cu (git grep):
+  .normify/changes/2026-11-11-render-perworld-l-v2-diag-dump-ext.json:15:    "**内核诊断写（opt-in）**：`MEGAKERNEL_SOURCE` 追加新文件 `src/render/kernel/cuda/render_diag.cu`（在 `render_common.cu` 之后、`render_shadow.cu` 之前拼接），定义 dump 布局常量（stride 64）与 store helper；`render_megakernel.cu` 签名末尾追加 `wp::uint64 diag_ptr`（0=关闭），命中分支在打包前写 color/base_color/求交/法线/view_dir 记录（face/mesh_id 以 i32 位型存）；`render_shade.cu::sample_texture` 写 tex_uv/tex_color、`compute_lighting` 写每灯 weight/visible/ndotl/ndoth/half/pow（headlight 用第 4 slot）。**normal 路径 diag_ptr=0，不写任何 store**。",
+  .normify/changes/2026-11-11-render-perworld-l-v2-diag-dump-ext.json:27:      "src/render/kernel/cuda/render_diag.cu",
+  .normify/changes/2026-11-11-render-perworld-l-v2-diag-dump-ext.json:43:  "note": "Chief 2026-11-11 06:25 恢复派工：产品侧扩展像素 dump 实现卡（纯诊断、零 GPU）。依据 texture-chain-and-dump-spec §C 字段表。做法：MEGAKERNEL_SOURCE 新增 render_diag.cu（布局常量+store helper）+ megakernel 签名尾随 diag_ptr（0=off）+ 着色/纹理/每灯中间量 store；Rust env 门控分配/回读/按 world 保存；测试 dump schema 2 给失配像素附 diagnostics。硬约束：env 未设零副作用、只加 store/分支不改 f32 表达式、离线 NVRTC PTX 证明算术 opcode 序列与 e22891da 完全一致（不一致则停手报告）。产出 dump schema 文档 + 新内核身份 + PTX 未变证明 + 四门禁 + 证据目录 + 中文提交。",
+  src/render/kernel/diag.rs:10://! 布局与 `src/render/kernel/cuda/render_diag.cu` 的 `DIAG_*` 常量逐项对应（schema 见证据 README）。
+  tests/support/render_bvh/light/diag_ext.rs:4://! 记录布局与编码见 `src/render/kernel/diag.rs` 与 `cuda/render_diag.cu`：f32 一律以
+
+## ABI: kernel params vs MEGAKERNEL_SLOTS
+kernel params: 82 (last: wp::uint64 diag_ptr)
+MEGAKERNEL_SLOTS len: 82
+tail slots of MEGAKERNEL_SLOTS:
+  S(SU),
+  S(SU),
+  // P10 诊断扩展槽（第 82 槽，不属于上游 81 槽签名）：opt-in diag 设备地址（0=关闭）。
+  S(SU),
+launch arg-count guards: src/runtime/launcher/render.rs lines
+  97: if args.len() != slots.len() {
+  162: if args.len() != self.signature.len() {
+
+## dump schema offsets: kernel DIAG_* vs src/render/kernel/diag.rs consts vs README table
+kernel DIAG_*: DIAG_STRIDE=64, DIAG_COLOR=0, DIAG_BASE_COLOR=3, DIAG_TEX_UV=6, DIAG_TEX_COLOR=8, DIAG_BARY_U=11, DIAG_BARY_V=12, DIAG_T=13, DIAG_FACE=14, DIAG_MESH_ID=15, DIAG_HIT_POINT=16, DIAG_NORMAL=19, DIAG_RAY_DIR=22, DIAG_LIGHT_BASE=25, DIAG_LIGHT_STRIDE=8, DIAG_LIGHT_SLOTS=4
+diag.rs consts: STRIDE=64, LIGHT_STRIDE=8, LIGHT_SLOTS=4, COLOR=0, BASE_COLOR=3, TEX_UV=6, TEX_COLOR=8, BARY_U=11, BARY_V=12, T=13, FACE=14, MESH_ID=15, HIT_POINT=16, NORMAL=19, RAY_DIR=22, LIGHT_BASE=25
+(fields 0-2 color, 3-5 base_color, 6-7 tex_uv, 8-10 tex_color, 11/12 bary, 13 t, 14 face, 15 mesh_id,
+ 16-18 hit_point, 19-21 normal, 22-24 ray_dir, 25-56 lights[4]x8, 57-63 reserved, stride 64)
+
+## line counts (LF splitlines) vs 500-line ratchet
+  src/render/kernel/cuda/render_shade.cu               478
+  src/render/kernel/cuda/render_megakernel.cu          499
+  src/render/kernel/megakernel.rs                      500
+  src/render/kernel/diag.rs                            224
+  tests/support/render_bvh/light/diag.rs               496
+  tests/render_per_world_light.rs                      494
+  tests/support/render_bvh/light/diag_ext.rs           76
+README section 6 claims render_shade.cu 473 / render_megakernel.cu 414 -> WRONG (478 / 499);
+receipt line_budget 478/499/500/496/494 matches the measurement.
+
+## boundary: guarded artefacts untouched at HEAD/working tree
+guards JSON: 43729 B sha256 fad2ed37ea3d1e17a5f0e3b13158eb3e66d185b4dd7f09682d9e143cbeea9e2d
+frozen exe stash: 12 files
+git status for fixtures/ scripts/ guards: ''
+
+## subject commit file lists
+bb29e351: 28 files
+  src/render/kernel/cuda/render_megakernel.cu
+  src/render/kernel/cuda/render_shade.cu
+  src/render/kernel/diag.rs
+  src/render/kernel/megakernel.rs
+  src/render/kernel/megakernel_args.rs
+  src/render/kernel/megakernel_arrays.rs
+  src/render/kernel/mod.rs
+  src/runtime/launcher/render/args.rs
+  tests/render_per_world_light.rs
+  tests/support/render_bvh/light/diag.rs
+e7fc06f7: 10 files
+  tests/render_kernel_rgb.rs
+  tests/render_launch_abi.rs
+  tests/render_lighting_kernel.rs
+  tests/render_skybox.rs
+  tests/support/render_bvh/light/diag_ext.rs
