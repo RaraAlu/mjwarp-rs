@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-mesh-normal-single-normalize",
+  "status": "fix_implemented_zero_gpu",
+  "slice": "perworld-l-v2-mesh-normal-single-normalize",
+  "owner": "Backend",
+  "kind": "render-mesh-normal-chain-single-normalize-fix",
+  "authorization": {
+    "chief_assignment": "2026-11-11 05:00 (fix card after Arch RCA; code+evidence only, no GPU, no capture)",
+    "rca_card": "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca (Arch, read-only, H2 source-level, single site)",
+    "rca_commit": "63cf7cc0",
+    "next_steps_owned_by_chief": "diagnostic-round token (rebuild entity exe, check the 5 px go to zero and A/B/sha/isolation) -> re-freeze -> G-L2 attempt 3"
+  },
+  "root_cause": {
+    "h2": "mesh normal chain double-normalized once",
+    "upstream": "cross(ab,ac) (unnormalized) -> mat@n -> normalize once",
+    "ours_before": "render_math.cu:239 normalize3_mesh(cross) then render_common.cu:200 normalize3_mesh(mat@n)",
+    "site": "single site (render_math.cu mesh_query_ray output)"
+  },
+  "fix": {
+    "file": "src/render/kernel/cuda/render_math.cu",
+    "function": "mesh_query_ray",
+    "change": "*out_normal = normalize3_mesh(min_normal); -> *out_normal = min_normal; (+2 lines of upstream-alignment comment)",
+    "diff_lines": "-1 / +3",
+    "file_sha256_old": "2c39c481b4a3f392d852f62e2adc1c6153d46c1fb7d68d405c85c2ac2a170388",
+    "file_bytes_old": 12325,
+    "file_sha256_new": "4f103495f4cc7c9a5da53f4b18e612224a1302a77092a0704bdf4fabca8780a0",
+    "file_bytes_new": 12566,
+    "untouched": [
+      "src/render/kernel/cuda/render_common.cu (consumer keeps the single normalize after mat)",
+      "src/render/kernel/cuda/render.cu (consumer keeps the single normalize after mat)",
+      "src/render/kernel/cuda/render_shadow.cu",
+      "all other .cu files"
+    ]
+  },
+  "call_chain_audit": {
+    "record": "logs/call-chain-audit.txt",
+    "mesh_query_ray_callers": [
+      "render_common.cu:194 ray_mesh_leaf (product megakernel path): culling uses dot(lvec, n_local) sign only; *normal = normalize3_mesh(mat_vec(mat, n_local)) is the single normalize after the mat transform",
+      "render.cu:225 ray_mesh_leaf (depth/seg kernel path): same sign-only culling; single normalize at render.cu:231"
+    ],
+    "shadow": "render_shadow.cu uses shadow_origin = hitpoint + normal * 1e-4 with the consumer-normalized hit.normal (same semantics as before, only the f32 rounding path is now upstream-aligned)",
+    "hfield_gtype1": "render_common.cu:417 gtype==1 goes through the same ray_mesh_leaf -> single normalize",
+    "sdf_gtype8": "render_common.cu:417 gtype==8 goes through the same ray_mesh_leaf -> single normalize; shadow any-hit does not cull mesh/hfield/SDF; device SDF intersection still locked by host reject_sdf_geometry (unreachable), semantics unaffected",
+    "non_normal_outputs": "t/u/v/sign/face outputs of mesh_query_ray unchanged; normal is only used for shading/shadow offset after the hit"
+  },
+  "kernel_identity": {
+    "record": "logs/kernel-identity-old-new.txt",
+    "capture_method": "NVRTC compile + f32-render gate only (no GPU session, no render): render_kernel_flags flag_and_aa_sources_compile_under_render_gate and render_kernel_depth_seg depth_seg_source_compiles_under_render_gate, both --ignored",
+    "independent_recompute": "byte-concat sha256 in mod.rs include_str! order (LF worktree) matches the printed source sha256 for both old and new",
+    "artifacts": {
+      "megakernel": {
+        "source_sha256_old": "796bade6dd21c3deddf796690cfd4d374674ed2497b36901cff91a917a6fc962",
+        "source_sha256_new": "4d932c90f882391d9ea890d1fe316b75f8da6558c7e5d660b8ccaad225bf6080",
+        "ptx_sha256_old": "aa51258b8cac0e52815870131762579f2347517fcacbb4afeda47df726e9e256",
+        "ptx_bytes_old": 345514,
+        "ptx_sha256_new": "13ac8a2e19d6e97774a5167c78d0494ad4e13e5e853dcd30c70d0cb77eeb503d",
+        "ptx_bytes_new": 344186
+      },
+      "aa_resolve": {
+        "source_sha256_old": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "source_sha256_new": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "ptx_sha256_old": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes_old": 27536,
+        "ptx_sha256_new": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes_new": 27536,
+        "changed": false
+      },
+      "depth_seg": {
+        "source_sha256_old": "562113a2057cb79661687f32307d1a89da53d3cd12c19620d754b33073f9b4a9",
+        "source_sha256_new": "b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931",
+        "ptx_sha256_old": "d1e3e57697a2473f1967f31709965f21fd02b0e4a0395936dbd8a3ca12590748",
+        "ptx_bytes_old": 138857,
+        "ptx_sha256_new": "e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7",
+        "ptx_bytes_new": 138540
+      }
+    },
+    "note": "changing the .cu necessarily changes MEGAKERNEL_SOURCE / DEPTH_SEG_SOURCE and the two PTX artifacts (aa_resolve does not include render_math.cu, unchanged); this is an implementation-fix new baseline, not a criterion/threshold/reference change"
+  },
+  "verification": {
+    "cargo_build_cuda_probe": {"exit": 0, "log": "logs/build-cuda-probe.log"},
+    "cargo_test_cuda_probe_no_run": {"exit": 0, "log": "logs/no-run-cuda-probe.log"},
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": {"passed": 1387, "failed": 0}
+    },
+    "kernel_identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
+    "gpu_run": "none (zero GPU; no capture; frozen exe evidence untouched)"
+  },
+  "boundaries": {
+    "unchanged_fixtures": true,
+    "unchanged_scripts": true,
+    "unchanged_tests": true,
+    "read_only_evidence_dirs": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/"
+    ],
+    "guards_frozen_stash_and_12_frozen_exe_evidence": "untouched",
+    "frozen_exe_evidence_recompiled": false
+  },
+  "non_claims": [
+    "the fix is not yet verified on GPU; a diagnostic-round token is required",
+    "the G-L2 verdict is unchanged (criterion A FAIL stands)",
+    "no criterion/threshold/reference/camera/recipe change",
+    "kernel identity change is an implementation-fix new baseline, not a criterion change"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 13,
+    "result": "PASS; rehash of every listed file matches"
+  }
+}

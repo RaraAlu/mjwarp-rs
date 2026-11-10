@@ -1,0 +1,28 @@
+# kernel identity old -> new (NVRTC compile only; no GPU session, no render)
+
+artifact: megakernel (MEGAKERNEL_SOURCE = scene.cu + render_math.cu + render_flex.cu + render_common.cu + render_shadow.cu + render_shade.cu + render_megakernel.cu)
+  source_sha256 old=796bade6dd21c3deddf796690cfd4d374674ed2497b36901cff91a917a6fc962
+  source_sha256 new=4d932c90f882391d9ea890d1fe316b75f8da6558c7e5d660b8ccaad225bf6080
+  ptx_sha256    old=aa51258b8cac0e52815870131762579f2347517fcacbb4afeda47df726e9e256 bytes=345514
+  ptx_sha256    new=13ac8a2e19d6e97774a5167c78d0494ad4e13e5e853dcd30c70d0cb77eeb503d bytes=344186
+
+artifact: aa_resolve (AA_RESOLVE_SOURCE = aa_resolve.cu; expected unchanged)
+  source_sha256 old=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76
+  source_sha256 new=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76
+  ptx_sha256    old=b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 bytes=27536
+  ptx_sha256    new=b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 bytes=27536
+
+artifact: depth_seg (DEPTH_SEG_SOURCE = scene.cu + render_math.cu + render.cu)
+  source_sha256 old=562113a2057cb79661687f32307d1a89da53d3cd12c19620d754b33073f9b4a9
+  source_sha256 new=b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931
+  ptx_sha256    old=d1e3e57697a2473f1967f31709965f21fd02b0e4a0395936dbd8a3ca12590748 bytes=138857
+  ptx_sha256    new=e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7 bytes=138540
+
+reason: align the mesh normal chain with frozen upstream (cross unnormalized -> mat@n -> one normalize);
+        only the normal value changes (shading/shadow offset), intersection/depth/seg outputs unchanged;
+        this is an implementation-fix new baseline, not a criterion/threshold/reference change.
+
+capture method:
+  cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture
+  cargo test --locked --features cuda-probe --test render_kernel_depth_seg depth_seg_source_compiles_under_render_gate -- --ignored --nocapture
+  both are NVRTC compile + f32-render gate only (no GPU session, no render); independent byte-concat recompute matches the printed source sha256.

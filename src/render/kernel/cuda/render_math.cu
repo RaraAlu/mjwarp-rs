@@ -236,7 +236,9 @@ __device__ __forceinline__ bool mesh_query_ray(V3 pnt, V3 vec, float max_t, int 
     *out_u = min_u;
     *out_v = min_v;
     *out_sign = min_sign;
-    *out_normal = normalize3_mesh(min_normal);
+    // 上游 mesh 法线链（G-L2 判据 A RCA H2）：cross(ab,ac) 未归一化 → 消费端 mat@n → normalize 一次。
+    // 本函数返回未归一化的三角面法线；唯一一次归一化由 render_common.cu / render.cu 的消费端完成。
+    *out_normal = min_normal;
     *out_face = min_face;
     return true;
 }

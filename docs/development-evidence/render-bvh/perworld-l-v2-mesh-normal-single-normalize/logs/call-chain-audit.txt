@@ -1,0 +1,39 @@
+# Mesh 法线链调用链盘点（修复后；证据：render_math.cu / render_common.cu / render.cu / render_shadow.cu）
+
+目标：确认把 `mesh_query_ray` 的 `out_normal` 从「已归一化 cross」改为「未归一化 cross」后，没有任何调用方再次假设归一化，且唯一一次归一化仍在消费端（与上游一致）。
+
+## 1. 生产/消费关系
+
+- `render_math.cu::mesh_query_ray`（本次唯一改动点，行 239）：
+  修复前 `*out_normal = normalize3_mesh(min_normal);`；修复后 `*out_normal = min_normal;`（`min_normal` = `intersect_tri` 返回的 `cross(ab, ac)` 原始值，见 `render_math.cu` `intersect_tri` 末尾 `*normal = cross(ab, ac);`）。
+- `mesh_query_ray` 的调用方全仓仅 2 处：
+  1. `render_common.cu:194`（`ray_mesh_leaf`，产品 megakernel 路径）：
+     - 背面剔除判据 `dot(lvec, n_local) < 0`（仅用符号，未归一化不改变符号）；
+     - 命中后 `*normal = normalize3_mesh(mat_vec(mat, n_local));`（**唯一一次**归一化，mat 变换后）——与上游链路 `cross → mat@n → normalize` 一致；
+     - `hit.normal = n` 后由 `render_shadow.cu` 使用 `shadow_origin = hitpoint + normal * 1e-4`，此处 `normal` 是已归一化的消费端 normal，语义与修复前一致（仅 f32 舍入路径对齐上游）。
+  2. `render.cu:225`（depth/seg 内核 `ray_mesh_leaf` 路径）：
+     - 同样仅用 `dot(lvec, n_local) < 0` 符号；
+     - 命中后 `*normal = normalize3_mesh(mat_vec(mat, n_local));`（唯一一次归一化，`render.cu:231`）。
+- 因此修复后每个消费端仍是「mat 变换后归一化一次」；`cross` 本身不再归一化。
+
+## 2. hfield（gtype=1）/ SDF（gtype=8）同路确认
+
+- `render_common.cu:417`：`else if (gtype == 7 || gtype == 1 || gtype == 8)` 三者同走：
+  - gtype=7：`query_mesh = scene.leaf_mesh[leaf]`；
+  - gtype=1（hfield）：`query_mesh = hfield_bvh_id[geom_dataid[geom]]`（`u64::MAX` 哨兵跳过）；
+  - gtype=8（SDF）：上游按底层 mesh 渲染，直接 `scene.leaf_mesh[leaf]`。
+  三者都调用 `ray_mesh_leaf(...)`（`render_common.cu:434-438`），normal 由 `ray_mesh_leaf` 在 mat 变换后归一化一次；本修复对三条路径行为一致。
+- 阴影 any-hit 语义：`render_common.cu:449-451` 对 mesh/hfield/SDF（与 flex mesh）**不参与** `cull_this` 背面剔除，`hit.normal` 仅用于 shadow 自相交偏移（`1e-4`），仍为归一化值；SDF 设备求交尚未解锁（host `reject_sdf_geometry`），该分支当前不可达，语义不受影响。
+- 求交/深度/seg 不依赖 normal 的数值（normal 只在命中后着色/阴影偏移使用），本修复不改变 `d`（t）、`u/v/sign`、face 的返回值——逐字段确认 `mesh_query_ray` 除 `*out_normal` 外所有输出均未改动。
+
+## 3. 上游对齐结论
+
+Arch RCA（H2）：上游 `cross(ab,ac)` 未归一化 → `mat@n` → `normalize` 一次。修复后我方为 `cross`（render_math.cu 不再归一化）→ `mat@n` → `normalize3_mesh` 一次（render_common.cu:187 / render.cu:231），链路与上游一致；culling 只用符号、shadow 用归一化 normal，均与上游一致。
+
+## 4. 非改动清单
+
+- `render_common.cu`：**零改动**（消费端唯一归一化保留）。
+- `render.cu`：**零改动**（消费端唯一归一化保留）。
+- `render_shadow.cu`：**零改动**。
+- `intersect_tri`（`render_math.cu` 内）：本就返回未归一化 `cross`，未改。
+- 求交/深度/seg 输出、判据、阈值、参考、相机、recipe：零改动。
