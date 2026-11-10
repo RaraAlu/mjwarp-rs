@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca",
+  "title": {
+    "zh": "RCA 证据：G-L2 判据 A FAIL（唯一站点 = mesh 法线链多归一化一次，H2 源码级；5 px / 1 字节；零 GPU）",
+    "en": "RCA evidence: G-L2 criterion A failure (single site = one extra normalization in the mesh normal chain, H2 source-level; 5 px / 1 byte; GPU-free)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "记录 G-L2 判据 A 失败的只读 RCA 结论：world0/world1 cam1 共 5 个 1 字节 rgb 失配（B×3 / G×2），全部命中 geom 3 = tri-mesh（model geom_type 7 MESH，mat-red/grid），depth 位级全等、seg 全等。用 dump 的 5 条射线做 f32 重放（woop 逐式、fma 精确模拟），以 dump 的 depth bits 校验（2/5 位等、3/5 差 1 ULP 的重放误差），重建 bary 与法线；对照上游 pinned 71da24d9 `ray.py:727-729`（`normalize(mat @ cross)` 只归一化一次）与产品 `render_math.cu:239` + `render_common.cu:200`（`normalize(mat @ normalize(cross))` 归一化两次）⇒ H2 源码级差异。机制：face 2 的顶点法线 dot=0.4664/1.0000/0.5726，2 个被 0.8 阈值拒绝⇒面法线主导插值；多归一化让 pre-normal 差 1 ULP⇒最终着色法线差 1 ULP⇒经高光 pow(ndoth,76.8) 放大后在量化边界翻 1 字节。G 通道翻转（grid 纹理 G 恒 0.15）证明差异在光照而非纹理。cam0 无 mesh 故全 0；legacy 允许 ≤1 LSB 故历史全绿，spec v3 判据 A 要求 0 字节（§13 风险 #10 已预警）。本卡只记录 RCA；修复与重冻另卡。",
+    "en": "Record the read-only RCA of the G-L2 criterion A failure: 5 one-byte rgb mismatches (3x B, 2x G) in world0/world1 cam1, all on geom 3 = tri-mesh (model geom_type 7 MESH, mat-red/grid), with bit-identical depth and seg. A f32 replay of the 5 dumped rays (woop term by term, exact fma emulation) is validated with the dumped depth bits (2/5 bit-equal, 3/5 off by 1 ULP as replay error), then rebuilds bary and normals; comparing upstream pinned 71da24d9 ray.py:727-729 (normalize(mat @ cross), one normalize) with the product render_math.cu:239 + render_common.cu:200 (normalize(mat @ normalize(cross)), two normalizes) gives an H2 source-level difference. Mechanism: face 2 vertex-normal dots 0.4664/1.0000/0.5726, two rejected by the 0.8 threshold so the face normal dominates; the extra normalize shifts the pre-normal by 1 ULP, the final shading normal by 1 ULP, and specular pow(ndoth, 76.8) then flips one byte at quantization boundaries. G-channel flips (grid texture has constant G=0.15) prove the difference is in lighting, not texture. cam0 has no mesh so it is all zero; legacy allows <=1 LSB so it stayed green, while spec v3 criterion A requires 0 bytes (section 13 risk 10). This card records the RCA only; fix and refreeze are a separate card."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围**：只写 `docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/`（README/receipt/manifest + artifacts 3 个）；`unchanged src/, tests/, fixtures/, scripts/`；零 GPU、零重跑、不实施修复。",
+    "**归属纠正写入 README/receipt**：`seg[1]`=mjOBJ_GEOM(5) 非 geom 类型；真实 geom 3 = tri-mesh（model type 7 MESH，mat-red/grid）；dump `attribution.geom_type` 命名误导列入 errata。",
+    "**方法可复现**：`artifacts/replay_mesh_normal.py` + `artifacts/replay-output.txt` 记录 dump sha `68b3f78e…`/51,388 B、5 条射线的 face/u/v/t、depth 位型校验（2/5 位等 + 3/5 差 1 ULP 的重放误差）、vertex_normal dots、pre-normal/final-normal ULP 差。",
+    "**唯一站点**：README §3 给出上游 `ray.py:727-729` 与产品 `render_math.cu:239`/`render_common.cu:200` 的逐行对照，结论 H2；H1 否证理由写入 §5。",
+    "**非声明与风险**：不宣称判据通过/上游等价/渲染数值结论；登记 woop `U/V/W==0` double 重算未实现（本次被 depth 位等排除）与 B/两跑 sha/隔离未评估。",
+    "**manifest 与门禁**：manifest 5/5 自核；四门禁 fmt/clippy/clippy-cuda/unit；编码卫生（UTF-8/LF/无 BOM/无 TAB）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-11 派工：把 Phase 2b 只读 RCA 落成证据卡（可写仓、零 GPU），README 需含 8 项（归属纠正/方法/唯一站点与两侧公式/为什么 5 px/H1 否证/修复方向与影响面/潜在风险/非声明）。修复卡已派 Backend，两卡串行占锁、写范围不重叠。卡不宣称任何验收结论。",
+  "revision": {
+    "before": "a553363dc5b5104933c604818eae3132f79379e5",
+    "after": null
+  },
+  "created_at": "2026-11-10T21:12:00.000Z",
+  "updated_at": "2026-11-10T21:12:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/"] },
+    { "kind": "unchanged", "paths": ["tests/"] },
+    { "kind": "unchanged", "paths": ["fixtures/"] },
+    { "kind": "unchanged", "paths": ["scripts/"] },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-gl2-criterion-a-rca"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/receipt.json",
+      "pointer": "/root_cause/verdict",
+      "equals": "H2"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/receipt.json",
+      "pointer": "/root_cause/primary_site",
+      "equals": "src/render/kernel/cuda/render_math.cu:239 + src/render/kernel/cuda/render_common.cu:200 (product normalizes twice) vs mujoco_warp/_src/ray.py:727-729 (upstream normalizes once)"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["判据 A 通过", "上游等价", "渲染数值结论"]
+    }
+  ]
+}
