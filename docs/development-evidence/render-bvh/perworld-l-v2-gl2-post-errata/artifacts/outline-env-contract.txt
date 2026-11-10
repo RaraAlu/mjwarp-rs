@@ -1,4 +1,4 @@
-# body env contract — read-only extraction (line numbers are file line numbers)
+# body env contract — read-only extraction (line numbers are file line numbers; QA-corrected 2026-11-11)
 
 ## tests/support/render_bvh/outline.rs (module doc, lines 1-16)
     1: //! Env-gated scene-a sphere-outline exemption support (criterion render-sdf-criterion-v2.2).
@@ -18,8 +18,7 @@
    15: //! (`scene-a-sphere-outline-recipe.txt` / `...-aa2.txt`); the window runner exports the env
    16: //! vars and the expected list sha256 (verified by the runner itself).
 
-## tests/support/render_bvh/outline.rs enabled() (lines 50-68)
-   50: /// True when the env-gated criterion is required; false when the window is not running.
+## tests/support/render_bvh/outline.rs enabled() (lines 51-68)
    51: pub fn enabled() -> bool {
    52:     let dir = std::env::var(ENV_LIST_DIR)
    53:         .ok()
@@ -39,8 +38,19 @@
    67:     }
    68: }
 
-## scripts/validate/render-bvh/run-window.ps1 (outline env + PATH + list verification, lines 279-298)
-  279: }
+## tests/support/render_bvh/outline.rs diff_depth_with_outline() signature + entry (lines 363-372)
+  363: pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Arm) -> DepthDiff {
+  364:     let raw = diff_depth(actual, camera).expect("depth diff");
+  365:     if !enabled() {
+  366:         return raw;
+  367:     }
+  368:     let expected = camera.depth_values();
+  369:     let Some(stats) = depth_stats(actual, &expected, camera.index, arm) else {
+  370:         return raw;
+  371:     };
+  372:     assert_eq!(
+
+## scripts/validate/render-bvh/run-window.ps1 (pre-body outline env export + list verify, lines 280-298)
   280: # criterion v2.1: export the frozen outline lists to the entity body (env-gated test support).
   281: if ($outlineCount -gt 0) {
   282:     $outlineDirFull = Join-Path $RepoRoot (Split-Path -Parent ([string](@($guard.outline_lists)[0].path)))
@@ -60,6 +70,21 @@
   296:         Fact ("outline_list_pre arm={0} sha256={1}" -f $list.arm, $list.sha256)
   297:     }
   298: }
+
+## scripts/validate/render-bvh/run-window.ps1 (post-window outline verify, lines 357-369)
+  357: if ($outlineCount -gt 0) {
+  358:     $postBody = Verify-OutlineLists 'post-window'
+  359:     if ($postBody.bad -ne 0) {
+  360:         Fact 'outline_list_drift=post-window'
+  361:         Fact ('window_end=' + (Iso))
+  362:         Guard 'OUTLINE_LIST_DRIFT exit9'
+  363:         Release-WindowLock
+  364:         exit 9
+  365:     }
+  366:     Fact "outline_lists_post=$($postBody.ok)/$($postBody.count)"
+  367:     $env:MJWARP_RENDER_OUTLINE_LIST_DIR = ''
+  368:     $env:MJWARP_REQUIRE_OUTLINE_CRITERION = ''
+  369: }
 
 ## scripts/validate/render-bvh/run-window.ps1 (PATH prepend, lines 307-308)
   307: $oldPath = $env:PATH

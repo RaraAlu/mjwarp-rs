@@ -69,7 +69,7 @@ $ git show --numstat e7fc06f7 -- tests           # 配套卡（82 槽 ABI 棘轮
 - **编码**：所有 f32 以 `u32` 位型输出（`to_bits`，见 `diag_ext.rs`），JSON 中为整数数组；`face`/`mesh_id` 解码回 i32；`view_dir` 由 `ray_dir` 精确取负派生（避免内核为落盘额外 materialize 3 条 `neg.f32`——这正是「算术未变」要求的直接结果）。
 - **灯槽约束（backlog）**：`lights[4]` 中灯 `0..nlight-1` 用原下标、headlight 固定第 4 slot；内核把 `light >= DIAG_LIGHT_SLOTS-1` 的灯 clamp 到第 3 槽，因此 `nlight >= 4` 时第 3 号灯与 headlight 共槽、更后面的灯也被并入该槽。仅影响诊断字段、不影响渲染数值；本场景 `nlight = 3` 不触发；登记 **backlog**（如需支持 `nlight>=4` 应扩槽或按灯数动态分配）。
 - **未命中/非命中分支像素**：不写记录（缓冲为 0），host 解码为 `null`；本次目标 4 px 均为命中像素。
-- **JSON 位置**：`pixel-dump.json` 的每个 `rgb_mismatches[i].diagnostics`（未启用 env 时不存在该字段，dump 其余行为不变；顶层 `schema` 由 1 → 2）。
+- **JSON 位置**：`pixel-dump.json` 的每个 `rgb_mismatches[i].diagnostics`——**该键始终存在**：未启用 env（`renderer=None`）时为 `null`，启用但该 ray 未命中/越界时也为 `null`，不会缺失（`attach_diagnostics` 契约；顶层 `schema` 由 1 → 2）。
 
 ## 3. 内核身份 old → new（NVRTC 12.8.93 纯编译，无 GPU 会话）
 
@@ -132,6 +132,7 @@ $ git show --numstat e7fc06f7 -- tests           # 配套卡（82 槽 ABI 棘轮
 | G4 | 缺纯 CPU 合成记录往返单测 | `src/render/kernel/diag.rs` 新增 64 f32 编码→解码往返单测（face/mesh_id 位型、`view_dir` 精确负号派生、保留槽 0、长度校验），零 GPU |
 | 低优先 | ABI 棘轮文字陈旧（7 标量、`is_unchanged`）、PTX 字节口径、`nlight>=4` 灯槽冲突 | 三处测试注释/名称更正（82 槽 = 上游 81 + 尾随诊断槽、8 标量）；§4 补 NUL 计长口径；§2 记 `nlight>=4` 槽冲突 backlog |
 
+- **dump-ext 残留更正（2026-11-11，QA 复验低项）**：§2/receipt `json_location` 原写「未启用 env 时不存在该字段」，与新契约「键始终存在、未采集为 null」矛盾，已更正（§2 与 receipt 同步）；提交信息 `8b37670f` 的「配套卡 +86/−8」实为 **+84/−8**（numstat 2/2 + 3/3 + 1/1 + 2/2 + 76/0），历史说明不改写，记录于 errata 批 receipt 与本卡 addenda。
 - **500 行棘轮处置**：B1/G4 修复使 `tests/support/render_bvh/light/diag.rs` 由 496 行增至 572 行而触达 500 行上限，故按「按功能抽出子模块」把 near-miss 统计（`near_miss` + `distance_owner`，共 104 行）**原样搬迁**到 `tests/support/render_bvh/light/diag_ext.rs`（纯搬迁、行为不变）：修复后 `diag.rs` **466** 行、`diag_ext.rs` **186** 行（均 ≤500）。
 - 修复后内核身份不变（本卡 `unchanged src/render/kernel/cuda/`，未改任何 `.cu`）：megakernel source `624ab298…`、PTX `1fd53131…` / 347,070；aa_resolve `0bf8af5a…` / `b28e155c…` / 27,536；depth_seg `b546ef08…` / `e8d84963…` / 138,540。
 - 修复卡只改测试/注释/本目录文档，不改渲染算术与判据；G-L2 判定维持未通过（判据 A FAIL）。

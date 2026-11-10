@@ -35,14 +35,32 @@
 
 ## 3. 关键事实（本批只记文档，不改行为）
 
-- body 环境契约的代码级依据：`tests/support/render_bvh/outline.rs` 模块文档 1-16 行、`enabled()` 50-68 行、`diff_depth_with_outline()` 359-391 行；导出位置 `scripts/validate/render-bvh/run-window.ps1:291-292`（outline 成对）与 `:307-308`（PATH）；pre/post 列表校验 `:280-298`。摘录见 `artifacts/outline-env-contract.txt`。
+- body 环境契约的代码级依据：`tests/support/render_bvh/outline.rs` 模块文档 1-16 行、`enabled()` **51-68** 行、`diff_depth_with_outline()` **363-391** 行；导出位置 `scripts/validate/render-bvh/run-window.ps1:291-292`（outline 成对）与 `:307-308`（PATH）；pre/post 列表校验：pre-body `:280-298`（`Verify-OutlineLists 'pre-body'` 在 283 行）、post-window **`:357-369`**（入口 `Verify-OutlineLists 'post-window'` 在 **358** 行）。摘录见 `artifacts/outline-env-contract.txt`。
 - 两者全缺=静默回落 raw 位级比较；只设一个=panic 拒绝；两者都在=列表外必须位级一致、列表内 `|ULP|<=128`、违规 fail-closed panic。
 - guards JSON（`scripts/validate/render-bvh/guards-perworld-l2-light.json`，sha `fad2ed37…` / 43,729 B）顶层键无 `body_env`；body env 只在窗口证据中。登记 backlog，本批不改冻结器/guards。
-- `perworld-l-v2-ptx-order-pins/logs/src.diff`：6,772 B、CRLF 0、LF 62、sha `12be6af5…`，与 HEAD blob 逐字节一致 ⇒ 已是 LF，无需归一化字节改动；该目录 manifest 变化仅由 README errata 追加引起。
-- 修复卡-1 的 P2 已被卡-2 R1 撤销（诊断轮 #4：A 仍 FAIL、world0 cam1 13268 回退、world1 cam1 三像素不变）；本批只在卡-1 README 加 errata 指针，不改历史记录。
+- `perworld-l-v2-ptx-order-pins/logs/src.diff`（**S1 更正，见 §5**）：6,772 B、sha `12be6af5…`，worktree 与 HEAD blob **逐字节一致**（无 EOL 转换）；但该文件**不是 UTF-8/LF**——实测为 **UTF-16LE + BOM（`FF FE`）**：UTF-8 解码在首字节即失败，按 UTF-16LE 解码为 61 行、**60 个 CRLF**；原始字节扫描 `b"\r\n"=0`、`b"\n"=62` 是把 UTF-16 的 `0D 00 0A 00` / `0A 00` 误当 ASCII 换行的结果（本批原记录据此误判「已 LF」）。按 Chief 裁定**不改历史字节**（证据保全优先），仅更正记录；`docs/development-evidence/** -text -diff` 已覆盖该路径（`git ls-files --eol` = `i/-text w/-text attr/-text`），无需新增属性；不批量转换（UTF-16 BOM 文件：`docs/development-evidence` 内 **169**、全仓 **217** → backlog）。实测命令/输出见 `artifacts/ptx-order-pins-src-diff-eol.txt`。
+- 修复卡-1 的 P2 已被卡-2 R1 撤销（诊断轮 #4：A 仍 FAIL、world0 cam1 13268 回退、world1 cam1 三像素不变；证据路径：`target/render-bvh/perworld-l-v2-gl2/diag4/pixel-dump.json` 44,977 B / sha `48597d0e5c42b84f6c5646e9c100fe347263b0e760289221daf876bf283de071`、`diag4/run-summary.txt` 3,931 B / sha `df653b5b440ed5386f8251418cfeb900f18b11240bc5173fa19b1b33dbb60d00`；dump 留 `target/` 不入库）；本批只在卡-1 README 加 errata 指针，不改历史记录。
 
 ## 4. 边界与非声明
 
 - 只改本批列出的 7 个文件 + 新增本批证据目录；`window/**` 运行记录、guards、冻结件、源码、测试、fixtures、scripts、已签 spec 与 S-2/S-3 材料正文全部零改动。
 - 不宣称 G-L2 通过（判定仍为未通过 / 判据 A FAIL）；不宣称修复生效；不改判据/参考/容差/相机/recipe；不重跑、不挑选结果。
 - backlog 待办：dump 代码字段改名（`diag.rs` 与 receipt 字样）与 guards `body_env` schema 变更均登记 backlog，等 Chief 派工。
+
+## 5. 复核修正（2026-11-11，QA 复核 `b332dcf4` 后；本卡 `2026-11-11-render-perworld-l-v2-gl2-post-errata-fix`）
+
+- **S1（严重）**：本批原记录称 `perworld-l-v2-ptx-order-pins/logs/src.diff`「已 LF / CRLF 0 / 无需归一化」，**实测不成立**：该文件为 **UTF-16LE + BOM（`FF FE`）**、6,772 B、sha `12be6af5…`、UTF-8=False（首字节 `0xFF` 即失败）、按 UTF-16LE 解码 3,386 字符 / 61 行 / **60 个 CRLF**；原脚本按原始字节数 `b"\r\n"=0`、`b"\n"=62` 属误导性度量（UTF-16 的换行是 `0D 00 0A 00` / `0A 00`）。
+  - 四处不实记录已更正：① 本 README 原 §3 该条（见上）；② `receipt.json` 的 `fix_card_1_errata.src_diff_lf_verification`；③ `artifacts/ptx-order-pins-src-diff-eol.txt`（重写为实测编码判定 + 原始输出）；④ 提交信息（不可改写，已在本节与 receipt 记录）。
+  - **不改历史字节**（Chief 裁定：证据保全优先）：`git ls-files --eol` = `i/-text w/-text attr/-text`，`docs/development-evidence/** -text -diff` 已覆盖该路径；worktree 与 HEAD blob 逐字节一致（6,772 B / sha 相同），无 EOL 转换；**不新增/不改写 `.gitattributes`**，**不批量转换**历史文件。
+- **低项 3 条**：① **manifest 行序**：本批重算 manifest 时改为按路径 ASCII 排序，行内容不变、仅行序变化（共同路径行位移实测：G-L2 12 行、修复卡-1 11 行、诊断轮 6 行），此前未如实记录，现补记；② **行号引用**：`outline.rs` 的 `enabled()` 实为 **51-68** 行、`diff_depth_with_outline()` 实为 **363-391** 行；`run-window.ps1` post-window 校验为 **357-369**（入口 358 行），原引用的 50/359/280-298 已在本 README、GL2 `body-env-contract-errata.md` 与 artifact 更正；③ **诊断轮 #4 证据路径**：补 `diag4/pixel-dump.json`（44,977 B / `48597d0e…`）与 `diag4/run-summary.txt`（3,931 B / `df653b5b…`），见上条与修复卡-1 README §5。
+- **观察 2 条**：① **UTF-16 BOM 系统性**：登记 backlog（`docs/development-evidence` 内 **169** 个、全仓 **217** 个），本批不批量改；② **今后口径**：**证据 log 一律 UTF-8/LF 写出**——PowerShell 用 `[IO.File]::WriteAllText(path, text, [Text.UTF8Encoding]::new($false))` 或 `Out-File -Encoding utf8`，**禁止默认 `>` 重定向**（本次 S1 即由此产生：默认重定向写出 UTF-16LE+BOM/CRLF）。
+- **dump-ext 残留 2 条**（QA 复验低项）：① `perworld-l-v2-diag-dump-ext/README.md` §2 与 receipt `json_location` 的「未启用 env 时不存在该字段」更正为「**键始终存在、未采集为 null**」（`attach_diagnostics` 契约）；② 提交信息 `8b37670f` 的「配套卡 +86/−8」更正为实测 **+84/−8**（numstat 2/2 + 3/3 + 1/1 + 2/2 + 76/0 = +84/−8）；历史提交说明不改写，记录于本批 receipt 与卡 addenda。
+- 本批四目录 manifest 全部重算并自核（bad=0 / missing=[] / extra=[]）：本批 **8**、G-L2 **66**、修复卡-1 **12**、诊断轮 **12**；行序按 ASCII 路径排序（见上）。本批只改证据文档与 manifest，`src/`、`tests/`、`fixtures/`、`scripts/`、`.cu`、历史证据字节（含 `logs/src.diff`）、guards/冻结件零改动。
+
+## 6. 过程事件（锁纪律，2026-11-11）
+
+- **事件**：2026-11-11 06:47 取锁执行本 errata 批；主提交 `dde275c1` 后**先释放了锁**，随后为更正提交说明在**无锁状态**执行 `normify fix`/`gate`/`done` 并补提交 `26d3cada`（涉及卡状态 JSON、`.normify/runs/`、`docs/**` 文档与提交）。
+- **当时状态**：无其它成员持有或申请该锁；无并发写冲突；工作树在补提交后干净；未造成数据损坏或他人工作丢失。
+- **违规性质**：按既定纪律「任何仓写（含 `normify fix`/`gate`/`done` 与治理提交）必须先 acquire 锁」，属违规（卡状态 JSON 也算）。
+- **补救/固化**：规则固化为硬约束——任何仓写前先 `repo-write-lock.ps1 -Action status` 必须 FREE 并 `acquire`；无锁一律不写。
+- **互引**：本事件同时记入本 card `2026-11-11-render-perworld-l-v2-gl2-post-errata-fix` 的 addenda（`normify fix` 追加）；本批 receipt `process_events` 节与卡 addenda 互相引用。

@@ -20,12 +20,12 @@
    $env:MJWARP_REQUIRE_OUTLINE_CRITERION = "1"
    ```
 
-   与 `run-window.ps1:291-292` 同口径。语义（`tests/support/render_bvh/outline.rs` 模块文档 1-16 行、`enabled()` 50-68 行、`diff_depth_with_outline()` 359-391 行）：
+   与 `run-window.ps1:291-292` 同口径。语义（`tests/support/render_bvh/outline.rs` 模块文档 1-16 行、`enabled()` **51-68** 行、`diff_depth_with_outline()` **363-391** 行；行号已按 QA 复核更正）：
 
    - **两者全缺**：判据不启用，调用方退回 **raw 位级比较**（不报错，属静默放松，不是验证窗语义）；
    - **只设一个**：`panic!` 拒绝（"set both ... or neither"），不静默放宽；
    - **两者都在**：启用冻结 outline 列表——列表外像素必须位级一致，列表内像素允许 `|ULP| <= bound_ulp`（本窗 128），任何违规 **fail-closed panic**，不静默通过。
-3. **pre/post body 两次 outline 列表校验**（`run-window.ps1:280-298` 语义）：
+3. **pre/post body 两次 outline 列表校验**（pre-body `run-window.ps1:280-298`，`Verify-OutlineLists 'pre-body'` 在 283 行；post-window **`:357-369`**，入口 `Verify-OutlineLists 'post-window'` 在 **358** 行；行号已按 QA 复核更正）：
 
    - recipe：sha `cfd1038a…24ee` / 10,099 B / rows 183 / first_pixel 28,969 / exact_max_ulp 73 / sidecar `8a80fb0a…7948`（5,027 B）；
    - aa2：sha `14893fc6…8eab` / 9,509 B / rows 172 / first_pixel 29,448 / exact_max_ulp 91 / sidecar `f23ca697…c303`（4,734 B）；

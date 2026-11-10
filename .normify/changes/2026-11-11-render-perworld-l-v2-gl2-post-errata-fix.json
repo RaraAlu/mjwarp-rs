@@ -5,7 +5,7 @@
     "zh": "G-L2 后置 errata 批复核修正卡（S1 src.diff 编码记录更正 + 低项/观察 + 过程事件；纯文档；零 GPU）",
     "en": "G-L2 post-closeout errata batch review correction card (S1 src.diff encoding record fix + low items + observations + process event; docs only; zero GPU)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "依据 QA 对 G-L2 后置 errata 批的复核（提交 b332dcf4：1 严重 S1 + 3 低 + 2 观察）：S1=项 4 对 `perworld-l-v2-ptx-order-pins/logs/src.diff` 的「已 LF / CRLF 0 / 无需归一化」记录不实——实测该文件为 **UTF-16LE + BOM（FF FE）**、6,772 B、UTF-8 解码在首字节即失败、按 UTF-16LE 解码后 60 个 CRLF / 61 行；此前脚本按原始字节计 `b\"\\r\\n\"=0` 与 `b\"\\n\"=62` 并据此误判为 LF。按 Chief 裁定**不改历史字节**（证据保全优先），把四处记录（errata 批 README §3、receipt `fix_card_1_errata`、artifact `worktree_crlf=0`、提交信息）更正为实测事实，并说明现有 `.gitattributes` 的 `docs/development-evidence/** -text -diff` 已覆盖该路径（`git ls-files --eol` = `i/-text w/-text attr/-text`，worktree 与 HEAD blob 逐字节一致、无转换），不新增/不改写属性，也不批量转换 169 个（docs/development-evidence 内）UTF-16 BOM 文件（记 backlog 系统性 triage；全仓实测 217 个）。同时修 3 个低项（manifest 行序被 ASCII 重排未记录、行号引用不精确、轮 #4 缺证据路径）、2 个观察（UTF-16 系统性 backlog + 今后证据 log 一律 UTF-8/LF 写出、无默认 `>` 重定向）、2 个 dump-ext 残留（README §2/receipt `json_location` 与新契约矛盾；提交信息配套卡 +86/−8 实为 +84/−8，历史不改写），并把锁纪律「过程事件」落进本卡 addenda 与 receipt 过程节互引。纯文档/证据、零 GPU、零代码；`src/`、`tests/`、`fixtures/`、`scripts/`、`.cu` 零改动。",
     "en": "Per QA review of the G-L2 post-closeout errata batch (commit b332dcf4: 1 severe S1 + 3 low + 2 observations): S1 is the false claim that perworld-l-v2-ptx-order-pins/logs/src.diff is LF-only; measured: UTF-16LE with BOM (FF FE), 6,772 B, UTF-8 decode fails at first byte, UTF-16LE decode has 60 CRLF / 61 lines. Per the Chief's ruling the historical bytes are NOT changed (evidence preservation first); the four false records are corrected, the existing .gitattributes rule (docs/development-evidence/** -text -diff) is shown to cover the path (no conversion, worktree == HEAD blob), and no batch conversion of the 169 UTF-16 BOM files under docs/development-evidence (217 repo-wide) is attempted (backlog). Also fixes 3 low items (manifest line-order reorder unrecorded, imprecise line references, missing round-4 evidence paths), 2 observations (UTF-16 systemic backlog + evidence-log UTF-8/LF policy), 2 dump-ext leftovers (README section 2 / receipt json_location contradicting the new contract; commit message +86/-8 vs actual +84/-8, history not rewritten), and records the lock-discipline process event in this card's addenda with a mutual reference in the receipt process section. Documentation/evidence only; zero GPU; zero code; src/, tests/, fixtures/, scripts/, .cu untouched."
@@ -40,7 +40,8 @@
     "after": null
   },
   "created_at": "2026-11-10T23:11:38.709Z",
-  "updated_at": "2026-11-10T23:11:45.852Z",
+  "updated_at": "2026-11-10T23:13:30.282Z",
+  "closed_at": "2026-11-10T23:13:30.282Z",
   "checks": [
     {
       "kind": "gate",

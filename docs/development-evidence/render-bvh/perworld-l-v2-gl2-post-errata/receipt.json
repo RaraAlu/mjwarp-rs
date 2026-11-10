@@ -38,7 +38,7 @@
     "p2_reverted_by": "2026-11-11-render-perworld-l-v2-ptx-order-pins-2 (commit 7aa99c9b): R1 reverts P2 half-vector normalization to normalize3_rays; adds P5 dot3_first and P6 length3_midpref; keeps P3/P4",
     "diagnostic_round_4_result": "A still FAIL; world0 cam1 pixel 13268 regressed back; world1 cam1 three pixels byte-identical to dump2; fix card-1 P2 change and kernel identity superseded",
     "stat_scope": "evidence uses actual git diff --stat +17/-3 (render_common +11, render_megakernel +2/-1, render_shade +4/-2); commit 358b84fc message wrongly said +37/-3, corrected in 0ad4795a evidence errata and card addenda; code unchanged; history not rewritten",
-    "src_diff_lf_verification": "perworld-l-v2-ptx-order-pins/logs/src.diff 6,772 B, CRLF 0, LF 62, sha256 12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f; byte-identical to HEAD blob => already LF, no byte change; manifest recompute caused by README append only"
+    "src_diff_lf_verification": "S1 CORRECTION (QA review b332dcf4): perworld-l-v2-ptx-order-pins/logs/src.diff is NOT UTF-8/LF. Measured: 6,772 B, sha256 12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f, UTF-16LE with BOM FF FE, UTF-8 decode fails at byte 0 (0xFF), UTF-16LE decode = 3,386 code units / 61 lines / 60 CRLF. The earlier 'CRLF 0 / LF 62' figures came from raw-byte counting (b\"\\r\\n\"=0, b\"\\n\"=62) of UTF-16LE bytes and were a false inference. Worktree bytes are identical to the HEAD blob (no conversion; .gitattributes docs/development-evidence/** -text -diff = i/-text w/-text attr/-text). Per Chief ruling the historical bytes are NOT changed (evidence preservation first); records corrected only. No .gitattributes change needed and no batch conversion of UTF-16 BOM files (169 under docs/development-evidence, 217 repo-wide; backlog). See artifacts/ptx-order-pins-src-diff-eol.txt and README section 5."
   },
   "changed_files": [
     {
@@ -134,6 +134,40 @@
     "rerun": false,
     "refreeze": false
   },
+  "review_corrections": {
+    "task_id": "2026-11-11-render-perworld-l-v2-gl2-post-errata-fix",
+    "trigger": "QA review commit b332dcf4: not passed (1 severe S1 + 3 low + 2 observations)",
+    "s1_src_diff_encoding": "four false records corrected: batch README section 3, this receipt fix_card_1_errata.src_diff_lf_verification, artifacts/ptx-order-pins-src-diff-eol.txt (rewritten with measured encoding facts and raw output), and the commit message (cannot be rewritten; recorded here and in card addenda)",
+    "s1_evidence_preservation": "historical bytes unchanged; worktree == HEAD blob (6,772 B / sha 12be6af5...); git attributes already cover the path (-text); no new attribute; no batch conversion",
+    "low_manifest_line_order": "manifest recomputes switched to ASCII path sorting; line content unchanged, order changed (common-path line moves measured: G-L2 12, card-1 11, diagnostic round 6); recorded here and in README section 5",
+    "low_line_references": "outline.rs enabled() is 51-68 (not 50-68), diff_depth_with_outline() is 363-391 (not 359-391); run-window.ps1 post-window verification is 357-369 (entry Verify-OutlineLists 'post-window' at 358), pre-body at 283; corrected in batch README, GL2 body-env-contract-errata.md and artifacts/outline-env-contract.txt",
+    "low_round4_evidence_paths": "diagnostic round #4 artifacts: target/render-bvh/perworld-l-v2-gl2/diag4/pixel-dump.json 44,977 B sha 48597d0e5c42b84f6c5646e9c100fe347263b0e760289221daf876bf283de071; diag4/run-summary.txt 3,931 B sha df653b5b440ed5386f8251418cfeb900f18b11240bc5173fa19b1b33dbb60d00 (dump stays in target/, not committed)",
+    "observation_utf16_backlog": "UTF-16 BOM historical files: 169 under docs/development-evidence, 217 repo-wide (tracked worktree scan). Backlog only; no batch conversion in this card.",
+    "dump_ext_leftovers": {
+      "wording": "perworld-l-v2-diag-dump-ext README section 2 and receipt json_location said diagnostics is absent when env unset; new contract is that the key always exists and is null when not captured (attach_diagnostics) -- corrected in both places",
+      "companion_numstat": "commit 8b37670f message said companion card +86/-8; actual numstat is +84/-8 (2/2 + 3/3 + 1/1 + 2/2 + 76/0); history not rewritten, recorded here and in card addenda"
+    }
+  },
+  "utf16_bom_backlog": {
+    "scope_docs_development_evidence": 169,
+    "scope_repo_wide": 217,
+    "action": "backlog only; no batch conversion; evidence bytes preserved"
+  },
+  "evidence_log_policy": "Evidence logs must be written as UTF-8/LF from now on: PowerShell [IO.File]::WriteAllText(path, text, [Text.UTF8Encoding]::new($false)) or Out-File -Encoding utf8; default '>' redirection is forbidden (it produced the UTF-16LE+BOM/CRLF file behind S1).",
+  "process_events": [
+    {
+      "at": "2026-11-11 06:47-06:57 +08:00",
+      "commits": [
+        "dde275c1",
+        "26d3cada"
+      ],
+      "what": "after the main errata commit dde275c1 the write lock was released first; the follow-up message correction (normify fix/gate/done) and the follow-up commit 26d3cada were then made WITHOUT holding the lock (card state JSON, .normify/runs/, docs and the commit).",
+      "state": "no other member held or requested the lock; no concurrent write conflict; tree clean after the follow-up commit; no data loss.",
+      "violation": "repo-write discipline requires acquiring the lock before ANY repo write, including normify fix/gate/done and governance commits (card state JSON counts).",
+      "remedy": "rule hardened: check repo-write-lock status == REPO_WRITE_LOCK_FREE and acquire before any repo write; never write without the lock.",
+      "cross_reference": "recorded in the addenda of card 2026-11-11-render-perworld-l-v2-gl2-post-errata-fix via normify fix; this receipt section and that addenda mutually reference each other."
+    }
+  ],
   "non_claims": [
     "does not change the G-L2 verdict (still not passed; criterion A FAIL stands)",
     "does not claim any fix works",

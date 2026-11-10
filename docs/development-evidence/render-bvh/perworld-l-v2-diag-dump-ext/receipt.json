@@ -64,7 +64,7 @@
       "lights": "25-56: 4 slots x 8 f32 (weight, visible, ndotl, ndoth, half.xyz, spec_pow); headlight = slot 3",
       "reserved": "57-63 = 0"
     },
-    "json_location": "pixel-dump.json schema 2: each rgb_mismatches[i].diagnostics (absent when env unset)",
+    "json_location": "pixel-dump.json schema 2: each rgb_mismatches[i].diagnostics -- the key ALWAYS exists (attach_diagnostics contract): null when the diag env is unset (renderer=None) and null when the ray was not captured (miss/out-of-range); it is never absent. (Corrected 2026-11-11 per QA review: the earlier wording said 'absent when env unset'.)",
     "encoding": "f32 values emitted as u32 bit patterns; face/mesh_id decoded i32; view_dir = exact sign flip of ray_dir"
   },
   "kernel_identity": {
@@ -197,7 +197,11 @@
       "no_arithmetic_change": true,
       "no_criterion_change": true
     },
-    "line_ratchet_split": "After the B1/G4 fix, tests/support/render_bvh/light/diag.rs grew from 496 to 572 lines, exceeding the 500-line ratchet. Fixed by the sanctioned 'extract submodule by function' route: near_miss + distance_owner (104 lines) moved verbatim to tests/support/render_bvh/light/diag_ext.rs (pure move, no behavior change); post-fix line counts diag.rs 466 / diag_ext.rs 186 (both <= 500)."
+    "line_ratchet_split": "After the B1/G4 fix, tests/support/render_bvh/light/diag.rs grew from 496 to 572 lines, exceeding the 500-line ratchet. Fixed by the sanctioned 'extract submodule by function' route: near_miss + distance_owner (104 lines) moved verbatim to tests/support/render_bvh/light/diag_ext.rs (pure move, no behavior change); post-fix line counts diag.rs 466 / diag_ext.rs 186 (both <= 500).",
+    "review_leftovers_2026_11_11": {
+      "wording_contract": "README section 2 and receipt json_location previously said the diagnostics field is absent when the env is unset; the new contract is that the key always exists and is null when not captured; both records corrected (QA review low item, not blocking diagnostic round 7).",
+      "companion_numstat": "commit 8b37670f message said companion card +86/-8; measured numstat is +84/-8 (2/2 render_kernel_rgb + 3/3 render_launch_abi + 1/1 render_lighting_kernel + 2/2 render_skybox + 76/0 diag_ext); history not rewritten, recorded in the errata-batch receipt and the fix card addenda."
+    }
   },
   "non_claims": [
     "does not claim any rendering fix; pure diagnostics feature",

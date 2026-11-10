@@ -1,11 +1,27 @@
-# ptx-order-pins logs/src.diff EOL verification (read-only)
+# ptx-order-pins logs/src.diff ENCODING verification (read-only; S1 correction 2026-11-11)
+# previous version of this artifact wrongly concluded "already LF / CRLF 0" from raw-byte counts.
 
 path=docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/logs/src.diff
-worktree_bytes=6772 worktree_crlf=0 worktree_lf=62 worktree_sha256=12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f
-head_bytes=6772 head_crlf=0 head_lf=62 head_sha256=12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f
-worktree_matches_head=True
-git_ls_files_eol=i/-text w/-text attr/-text            	docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/logs/src.diff
+bytes=6772
+sha256=12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f
+first_bytes_hex=fffe640069006600660020002d002d00   # BOM FF FE + UTF-16LE 'diff --'
+last_bytes_hex=29003b000d000a00                     # UTF-16LE ');' + CRLF (0D 00 0A 00)
+worktree_equals_head_blob=True (head_bytes=6772 head_sha256=12be6af5...)
+git_ls_files_eol=i/-text w/-text attr/-text         # covered by .gitattributes: docs/development-evidence/** -text -diff
+encoding_utf16le_with_bom=True
+encoding_utf8=False  (UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0)
+decoded_utf16le: chars=3386 lines=61 crlf=60 lf=60 cr=60
+raw_byte_scan: b"\r\n"=0  b"\n"=62                # MISLEADING: UTF-16LE encodes CRLF as 0D 00 0A 00
 
-verdict: file is already LF-only (0 CRLF); worktree is byte-identical to HEAD; no normalization
-byte change is required. Evidence errata item 4 records this verification (manifest recompute
-comes only from the README errata append).
+verdict: src.diff is a UTF-16LE + BOM historical artifact, NOT UTF-8/LF. It is byte-identical to the
+HEAD blob and git applies -text (no EOL conversion), so the historical bytes are preserved as-is.
+The earlier "already LF / CRLF 0" statement was a false inference from raw-byte counting; corrected
+in the batch README (section 3 and section 5), batch receipt fix_card_1_errata, and this artifact.
+No normalization / byte change is performed (Chief ruling: evidence preservation first).
+No .gitattributes change is needed (existing rule covers the path); no batch conversion of UTF-16 BOM
+files (169 under docs/development-evidence, 217 repo-wide; backlog). Evidence logs must be written
+as UTF-8/LF from now on (PowerShell [IO.File]::WriteAllText with [Text.UTF8Encoding]::new($false) or
+Out-File -Encoding utf8; default '>' redirection is forbidden).
+
+reproduce:
+  python -c "b=open(p,'rb').read(); print(len(b), b[:16].hex(), b.startswith(b'\xff\xfe')); t=b.decode('utf-16-le'); print(t.count('\r\n'), t.count('\n'))"
