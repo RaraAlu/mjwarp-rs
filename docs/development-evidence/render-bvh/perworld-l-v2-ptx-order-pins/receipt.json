@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-ptx-order-pins",
+  "status": "fix_implemented_zero_gpu",
+  "slice": "perworld-l-v2-ptx-order-pins",
+  "owner": "Backend",
+  "kind": "render-ptx-normalization-order-pins-fix",
+  "authorization": {
+    "chief_assignment": "2026-11-11 05:31 (fix card for the residual 4 px; code+evidence only; zero GPU; no capture; no diagnostic run)",
+    "arch_offline_ptx_evidence": "target/render-bvh/gl2-ptx-diff/ (README appendices A/B/C, spec_sensitivity.json; ground truth = warp cache module/PTX at capture time; zero GPU)",
+    "key_finding": "P2 (half-vector normalization order) is the only site with the magnitude to explain 4 px (predicted 2-11, measured 4); P3 is a necessary instruction-alignment item (~0); P4 is a minor candidate (~0.2-1)",
+    "next_steps_owned_by_chief": "one diagnostic-round token (rebuild entity exe, run A/B/C + dump, verify the 4 px go to zero) -> re-freeze -> G-L2 attempt 3"
+  },
+  "root_cause": {
+    "residual_after_mesh_normal_fix": "4 rgb pixels (2 old + 2 new) in world0/world1 cam-hinge, tri-mesh geom 3 / mat-red, single channel +-1 byte; depth/seg bit-equal",
+    "sites": [
+      "P2: render_shade.cu half-vector normalize used first-term-rounded contraction (normalize3_rays) while the reference kernel rounds the middle term",
+      "P3: render_megakernel.cu mesh vertex-normal normalize used the same first-term contraction (instruction-alignment necessity)",
+      "P4: render_shade.cu point/spot light L used reciprocal multiply instead of upstream normalize_with_norm's three divisions"
+    ]
+  },
+  "changes": {
+    "helper": {
+      "file": "src/render/kernel/cuda/render_common.cu",
+      "added": "normalize3_midpref (mid-term-rounded contraction: mul(y*y) -> fma(x*x) -> fma(z*z))",
+      "existing_normalize3_rays": "untouched (S5 verified path literally unchanged)"
+    },
+    "P2": {"file": "src/render/kernel/cuda/render_shade.cu", "line": 446, "change": "half = normalize3_rays(add(L, view_dir)) -> normalize3_midpref(add(L, view_dir))"},
+    "P3": {"file": "src/render/kernel/cuda/render_megakernel.cu", "line": 273, "change": "normal = normalize3_rays(mat_vec(geom_mat, vn)) -> normalize3_midpref(mat_vec(geom_mat, vn))"},
+    "P4": {"file": "src/render/kernel/cuda/render_shade.cu", "line": 412, "change": "L = scale(delta, 1.0f / norm) -> L = v3(delta.x / norm, delta.y / norm, delta.z / norm)"},
+    "file_sha256_old_new": {
+      "render_common.cu": {"old": "9625d6843ed631af45b4b6cdb93af58bfb529d7a75a1e1e4cd9373335ceacb00", "old_bytes": 20974, "new": "887c300075007180d2b1e350292331d626e267b3e7fe580d4fadc99c436ba9a9", "new_bytes": 21495},
+      "render_shade.cu": {"old": "f8394d7376ee018d327b7d10ba881726fd67e73bc964ca8e0cb3e029d587046e", "old_bytes": 20485, "new": "69d3a2e26f3a875d7dfe4065b479319557cb961806298ae555174d3f34247299", "new_bytes": 20758},
+      "render_megakernel.cu": {"old": "6d7181006cf9efd7e41da2997bec68f061386eae2417b287846a2f9fe5d75675", "old_bytes": 21167, "new": "c3936f862881855133683ece8bbe20f4849d33308c94d200eb3d35637a3b3d32", "new_bytes": 21261}
+    },
+    "diff_stat": "+37 / -3 across the 3 .cu files (comments included)",
+    "untouched": ["render_math.cu", "render.cu", "render_shadow.cu", "render_flex.cu", "aa_resolve.cu", "all non-.cu sources"]
+  },
+  "kernel_identity": {
+    "record": "logs/kernel-identity-old-new.txt",
+    "capture_method": "NVRTC 12.8.93 compile + f32-render gate only (no GPU session, no render): render_kernel_flags flag_and_aa_sources_compile_under_render_gate and render_kernel_depth_seg depth_seg_source_compiles_under_render_gate, both --ignored",
+    "independent_recompute": "byte-concat sha256 in mod.rs include_str! order (old=HEAD blobs, new=worktree) matches the printed source sha256",
+    "artifacts": {
+      "megakernel": {
+        "source_sha256_old": "4d932c90f882391d9ea890d1fe316b75f8da6558c7e5d660b8ccaad225bf6080",
+        "source_sha256_new": "d3e04aa773105aaf1b031521fa98e2cbb6f27e7c1743e8dae06b7422b0eec4f7",
+        "ptx_sha256_old": "13ac8a2e19d6e97774a5167c78d0494ad4e13e5e853dcd30c70d0cb77eeb503d",
+        "ptx_bytes_old": 344186,
+        "ptx_sha256_new": "98f09afc14e521c301a6b0d1d38ebb89173c907cd2b2b94b68b07cf1f9e6c228",
+        "ptx_bytes_new": 344166
+      },
+      "aa_resolve": {
+        "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes": 27536,
+        "changed": false
+      },
+      "depth_seg": {
+        "source_sha256": "b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931",
+        "ptx_sha256": "e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7",
+        "ptx_bytes": 138540,
+        "changed": false,
+        "reason": "P2/P3/P4 source files are not part of the DEPTH_SEG_SOURCE concat (scene.cu + render_math.cu + render.cu)"
+      }
+    },
+    "comment_note": "old and new captures use the same NVRTC 12.8.93 and the same compile options, so the PTX delta is source-pin driven (megakernel 344,186 -> 344,166 B), not a cross-version .version/build-id comment difference; the cross-version comment-only result is Arch's gl2-ptx-diff README section 2"
+  },
+  "verification": {
+    "cargo_build_cuda_probe": {"exit": 0, "log": "logs/build-cuda-probe.log"},
+    "cargo_test_cuda_probe_no_run": {"exit": 0, "log": "logs/no-run-cuda-probe.log"},
+    "gates": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": {"passed": 1387, "failed": 0, "ignored": 402}
+    },
+    "kernel_identity_tests": "each 1 passed / 0 failed (NVRTC compile only)",
+    "gpu_run": "none (zero GPU; no capture; no diagnostic run; frozen exe evidence untouched)"
+  },
+  "boundaries": {
+    "unchanged_fixtures": true,
+    "unchanged_tests": true,
+    "unchanged_scripts": true,
+    "read_only_evidence_dirs": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/"
+    ],
+    "guards_frozen_stash_and_frozen_exe_evidence": "untouched",
+    "frozen_exe_evidence_recompiled": false
+  },
+  "non_claims": [
+    "the fix is not yet verified on GPU; one diagnostic-round token is required and the 4 px are not claimed fixed",
+    "the G-L2 verdict is unchanged (criterion A FAIL stands)",
+    "no criterion/threshold/reference/tolerance change",
+    "kernel identity change is an implementation-fix new baseline, not a criterion change"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 12,
+    "result": "PASS; rehash of every listed file matches"
+  }
+}

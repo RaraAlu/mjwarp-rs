@@ -409,7 +409,8 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
         float len = length3(delta);
         float norm = len;
         if (norm > 0.0f) {
-            L = scale(delta, 1.0f / norm);
+            // P4：对齐上游 `normalize_with_norm` 的三次除法（原为 `scale(delta, 1.0f / norm)` 倒数乘）。
+            L = v3(delta.x / norm, delta.y / norm, delta.z / norm);
         } else {
             L = v3(0.0f, 0.0f, 0.0f);
         }
@@ -443,7 +444,8 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
                    lightdiff.z * (ndotl * weight));
     if (enable_specular) {
         if (mat_spec > 0.0f && mat_shin_exp > 0.0f) {
-            V3 half = normalize3_rays(add(L, view_dir));
+            // P2：对齐参考核 half-vector 归一化的中间项单独舍入次序（量化影响最大站点）。
+            V3 half = normalize3_midpref(add(L, view_dir));
             float ndoth = fmaxf(0.0f, dot3_ba(normal.x, normal.y, normal.z, half.x, half.y, half.z));
             float energy = mat_spec * powf(ndoth, mat_shin_exp) * weight;
             *spec_rgb = v3(lightspec.x * energy, lightspec.y * energy, lightspec.z * energy);

@@ -1,0 +1,25 @@
+# kernel identity old -> new (P2/P3/P4 pins; NVRTC 12.8.93 compile only, no GPU session)
+
+artifact: megakernel (MEGAKERNEL_SOURCE = scene.cu + render_math.cu + render_flex.cu + render_common.cu + render_shadow.cu + render_shade.cu + render_megakernel.cu)
+  source_sha256 old=4d932c90f882391d9ea890d1fe316b75f8da6558c7e5d660b8ccaad225bf6080
+  source_sha256 new=d3e04aa773105aaf1b031521fa98e2cbb6f27e7c1743e8dae06b7422b0eec4f7
+  ptx_sha256    old=13ac8a2e19d6e97774a5167c78d0494ad4e13e5e853dcd30c70d0cb77eeb503d bytes=344186
+  ptx_sha256    new=98f09afc14e521c301a6b0d1d38ebb89173c907cd2b2b94b68b07cf1f9e6c228 bytes=344166
+
+artifact: aa_resolve (AA_RESOLVE_SOURCE = aa_resolve.cu; expected unchanged)
+  source_sha256 old=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 (unchanged)
+  ptx_sha256    old=b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 bytes=27536 (unchanged)
+
+artifact: depth_seg (DEPTH_SEG_SOURCE = scene.cu + render_math.cu + render.cu; P2/P3/P4 files not in this concat, expected unchanged)
+  source_sha256 old=b546ef08bbb64f756b2de7fa9809da7d9918dc6a3bb16e07945de0714114d931 (unchanged)
+  ptx_sha256    old=e8d84963285a2a6982d99a51c95786c6a9898883c6a6031e639983ead174e5c7 bytes=138540 (unchanged)
+
+note: same NVRTC (12.8.93) and same compile options in old and new captures, so the PTX delta comes from the source pins,
+      not from a .version/build-id comment change (the cross-version comment-only difference was established separately by Arch,
+      target/render-bvh/gl2-ptx-diff/README.md section 2).
+reason: align the residual 4 px ULP sites with the reference kernel instruction order (midpref normalization + per-component light L division);
+        no criterion/threshold/reference change; this is an implementation-fix new baseline.
+
+capture method:
+  cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture
+  cargo test --locked --features cuda-probe --test render_kernel_depth_seg depth_seg_source_compiles_under_render_gate -- --ignored --nocapture

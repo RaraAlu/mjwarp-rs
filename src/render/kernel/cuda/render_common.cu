@@ -27,6 +27,17 @@ __device__ __forceinline__ V3 normalize3_rays(V3 a) {
     return v3(0.0f, 0.0f, 0.0f);
 }
 
+// 上游 `vec.h:1113-1115` 的 normalize：平方和中**中间项单独舍入**（mul y*y → fma x*x → fma z*z）。
+// G-L2 残余 4 px 的 PTX 次序 pin（P2/P3）：仅用于 half-vector 与 mesh 顶点法线两处；
+// `normalize3_rays` 是 S5 已验路径，保持字面不变。
+__device__ __forceinline__ V3 normalize3_midpref(V3 a) {
+    float l = sqrtf(fmaf(a.z, a.z, fmaf(a.x, a.x, a.y * a.y)));
+    if (l > 0.0f) {
+        return v3(a.x / l, a.y / l, a.z / l);
+    }
+    return v3(0.0f, 0.0f, 0.0f);
+}
+
 // `render_util.py::compute_ray` 的 f32 翻译（与 S5 `build_rays.cu` 逐字一致）。
 __device__ __forceinline__ void compute_ray(int projection, float fovy, float sensor_size_x,
                                             float sensor_size_y, const float* intrinsic, int img_w,

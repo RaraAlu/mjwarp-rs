@@ -270,7 +270,8 @@ extern "C" __global__ void render_megakernel(
             scale(vertex_normal(to_v3(mesh_normal.data[adr + face_normal[1]]), geom_face), hit.bary_v));
         vn = add(vn, scale(vertex_normal(to_v3(mesh_normal.data[adr + face_normal[2]]), geom_face),
                            1.0f - hit.bary_u - hit.bary_v));
-        normal = normalize3_rays(mat_vec(geom_mat, vn));
+        // P3：mesh 顶点法线归一化对齐参考核的中间项单独舍入次序。
+        normal = normalize3_midpref(mat_vec(geom_mat, vn));
     }
     if ((flag_bits & MK_FLAG_CULL_BACKFACES) == 0u && dot3_ba(normal.x, normal.y, normal.z,
                                                                ray_dir_world.x, ray_dir_world.y,
