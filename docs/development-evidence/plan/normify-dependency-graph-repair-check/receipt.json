@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-normify-dependency-graph-repair-check",
+  "kind": "qa-review",
+  "reviewed_task_id": "2026-11-11-normify-dependency-graph-repair",
+  "reviewed_commit": "496c01e6c66c2014c6723402dbfba0b4c59660bb",
+  "reviewed_parent": "c6ea92b8e9aeb1b316aed44842f342559e25466f",
+  "reviewer": "QA",
+  "date": "2026-11-11",
+  "verdict": "PASS",
+  "blockers": 0,
+  "observations": 4,
+  "method": [
+    "git archive both .normify/changes trees (parent 999 records / HEAD 1000 records) into target/; rebuild task-status table and dependency graph with self-written PowerShell 5.1 scripts (no reliance on normify's parser)",
+    "recursive JSON leaf-path diff of all 53 changed task records against parent; allowed set = {ROOT.note, ROOT.schedule.depends_on[*]}",
+    "per-edge attribution: parse basis column of the reviewed dependency-diff.tsv, map each abandoned edge to the actual added set, verify each named successor status",
+    "graph integrity: iterative DFS for self-dependencies / cycles / dangling refs; recompute ready/blocked and reconcile with `normify status`",
+    "boundary: per-path diff counts parent..HEAD plus per-file git blob id comparison for W0/G-L2 frozen inputs",
+    "evidence self-check: recompute reviewed manifest 7/7 sha256+bytes, scan BOM/CR/TAB, diff README section 3 blocked-column against measured non-verified deps",
+    "gates: re-run fmt / clippy / clippy-cuda / cargo test --locked at HEAD; re-run `normify check` and `normify validate`"
+  ],
+  "recompute": {
+    "reviewed_commit_file_count": 66,
+    "reviewed_commit_normify_files": 58,
+    "reviewed_commit_task_records": 53,
+    "reviewed_commit_evidence_files": 8,
+    "task_records_checked": 53,
+    "task_records_with_non_allowed_key_changes": 0,
+    "notes_pure_append": "53/53",
+    "status_transitions_on_existing_records": 0,
+    "records_before": 999,
+    "records_after": 1000,
+    "status_before": { "verified": 826, "abandoned": 115, "backlog": 40, "proposed": 18 },
+    "status_after": { "verified": 827, "abandoned": 115, "backlog": 40, "proposed": 18 },
+    "open_tasks_before": 58,
+    "open_tasks_after": 58,
+    "open_dependency_edges_before": 241,
+    "open_dependency_edges_after": 293,
+    "abandoned_edges_before": 65,
+    "abandoned_edges_after": 0,
+    "open_tasks_with_abandoned_dep_before": 17,
+    "open_tasks_with_abandoned_dep_after": 0,
+    "removed_edges_total": 70,
+    "added_edges_total": 122,
+    "net_edge_delta": 52,
+    "abandoned_edges_attributed_ok": "65/65",
+    "abandoned_edges_bad": 0,
+    "arrow_mappings": 62,
+    "waive_markers": 2,
+    "drop_markers": 1,
+    "successor_refs_named": 128,
+    "added_dep_target_status": { "verified": 113, "backlog": 9 },
+    "added_deps_non_verified_detail": "8x 2026-10-24-linux-batch-retest (backlog) + 1x 2026-10-27-t4-historical-capture-rebaseline-decision (backlog)",
+    "self_dependencies": 0,
+    "dependency_cycles": 0,
+    "dangling_dep_refs": 0,
+    "proposed_after": 18,
+    "blocked_after": 11,
+    "ready_after": 7,
+    "ready_after_checks_zero": 6,
+    "ready_list": [
+      "2026-10-11-roadmap-g10-p5",
+      "2026-10-11-roadmap-m03-p8",
+      "2026-10-11-roadmap-m10-p10",
+      "2026-10-11-roadmap-r06-p8",
+      "2026-10-11-roadmap-r07-p8",
+      "2026-10-11-roadmap-r10-p10",
+      "2026-11-04-render-r06-s3b-flex-tie-order-r4"
+    ],
+    "normify_status_line": "已验收827 运行0 就绪7 阻塞11 待办40 放弃115 未排0; 冲突52 · 错误0 · 警告0",
+    "keep_proposed_cards": {
+      "2026-10-11-roadmap-g10-p5": "proposed",
+      "2026-10-11-roadmap-r07-p8": "proposed",
+      "2026-10-11-roadmap-m03-p8": "proposed",
+      "2026-10-11-roadmap-m10-p10": "proposed"
+    },
+    "umbrella_closeout_targets": {
+      "2026-11-04-render-r06-flex-closeout": "verified",
+      "2026-11-04-render-r05-r09-r10-family-closeout": "verified"
+    },
+    "waive_card": { "id": "2026-10-11-roadmap-a06-p10", "status": "abandoned", "code_refs_exist": true },
+    "linux_policy_dep": { "id": "2026-10-24-linux-batch-retest", "status": "backlog", "tasks": 8 },
+    "t4_followup_dep": { "id": "2026-10-27-t4-historical-capture-rebaseline-decision", "status": "backlog" },
+    "note_wording": { "stage_placeholder": 45, "deferred_variant": 8, "stage_with_checks_gt0": 0, "deferred_with_checks_gt0": 0 },
+    "open_zero_check_records": 53,
+    "notes_pointing_to_evidence_dir": 23,
+    "readme_blocked_column_mismatches": 0,
+    "reviewed_manifest_entries": 7,
+    "reviewed_manifest_mismatches": 0,
+    "reviewed_evidence_encoding": "BOM=False for all 8; CR=0 for all 8; TAB=0 except dependency-diff.tsv (96 tabs, TSV by design)"
+  },
+  "boundary": {
+    "src_changed_files": 0,
+    "tests_changed_files": 0,
+    "fixtures_changed_files": 0,
+    "scripts_changed_files": 0,
+    "docs_outside_plan_changed_files": 0,
+    "w0_frozen_inputs_untouched": true,
+    "w0_frozen_inputs_checked": [
+      "scripts/capture_render_perworld.py (e57d45a6bdea)",
+      "scripts/perworld_capture_meta.py (20216d19e676)",
+      "scripts/perworld_light_prep.py (d89c3fbb4ccf)",
+      "scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1 (06e5cbde0fa4)",
+      "fixtures/render-bvh/scene-a-light/scene.xml (f4376874dfb7)",
+      "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md (39,379 B, bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d)",
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/ (16/16 files same)",
+      "fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/ (5/5 files same)"
+    ],
+    "self_modification_of_reviewed_content": "none"
+  },
+  "gates": {
+    "fmt": "exit 0",
+    "clippy": "exit 0",
+    "clippy_cuda": "exit 0",
+    "unit": "exit 0; 1387 passed / 0 failed / 402 ignored (145 suites)"
+  },
+  "findings": [
+    "boundary: commit contains only task records + card + gate runs + evidence; src/tests/fixtures/scripts and docs outside plan are zero-diff; every W0/G-L2 frozen input verified byte-identical by git blob id",
+    "scope: all 53 record diffs are confined to note and schedule.depends_on; zero status transitions; verified 826->827 comes only from the new card",
+    "dead edges: 65 -> 0 with per-edge traceability; 62 arrow mappings + 2 waive + 1 drop; every named successor present in the added set and verified",
+    "exceptions: a06-p10 waive has its own recorded rationale with existing code/test refs and no successor card; T4 drop+follow-up and 5 umbrella repoints and 8 Linux policy edges match the declared lists exactly",
+    "graph integrity: 0 self-dependencies, 0 cycles, 0 dangling refs; ready/blocked/proposed reconcile exactly with normify status",
+    "notes: 45 stage + 8 deferred wording match the artifact lists item by item; the four named cards remain proposed; ready list containing 6 zero-check placeholders is the documented normify known gap, not introduced by this card",
+    "evidence: reviewed manifest 7/7 recomputed, README blocked column 0 mismatches, four gates 1387/0/402 at HEAD"
+  ],
+  "observations_detail": [
+    "O1 (info): README section 2.7 says 17 tasks got the evidence pointer line; measured 23 (17 = dead-dep tasks, 23 = dep-changed tasks; commit message says 23)",
+    "O2 (info): README sections 2.2/2.3 say 'note 记依据'; the notes on p10/p11/next-t4-numeric carry only the generic evidence pointer, the specific waive/T4 basis lives in dependency-diff.tsv basis column (traceability chain is complete)",
+    "O3 (info): the 53 records were hand-edited without refreshing updated_at; normify validate does not complain and status/checks are unaffected",
+    "O4 (info): normify status conflict count 52 not in scope; files/modules/scope and the open set are unchanged so it should be unchanged"
+  ],
+  "artifacts": [
+    "artifacts/recompute.txt",
+    "artifacts/key-diff.txt",
+    "artifacts/boundary.txt",
+    "artifacts/gates.txt"
+  ],
+  "non_claim": [
+    "schedule-graph governance and boundary review only; no stage acceptance, no criteria/reference change, no functional completion claim",
+    "does not represent any W0/G-L1/G-L2 window state or permission to open a window"
+  ]
+}

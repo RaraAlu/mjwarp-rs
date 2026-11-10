@@ -1,0 +1,59 @@
+# QA independent recompute for normify dependency-graph repair
+# repo D:\Rust\mjwarp-rs; reviewed commit 496c01e6; parent 496c01e6^
+# tool: Windows PowerShell 5.1, self-written scripts under target/qa-dep-graph/ (not committed)
+
+## 1. task-record inventory
+changed_task_records=53  new_card=1  gate_runs=4  evidence_files=8  commit_files=66
+before_status: abandoned=115 backlog=40 proposed=18 verified=826
+after_status:  abandoned=115 backlog=40 proposed=18 verified=827
+records_before=999 records_after=1000
+status_transitions_on_existing_records=0 (verified 826->827 comes only from the new card)
+
+## 2. dependency-edge recompute
+BEFORE: open=58 edges_all=1404 edges_open=241 abandoned_edges=65 open_tasks_with_abandoned=17
+AFTER: open=58 edges_all=1456 edges_open=293 abandoned_edges=0 open_tasks_with_abandoned=0
+removed_edges=70 added_edges=122 net=52 files_with_dep_change=23 notes_pure_append=53/53
+added_dep_target_status: backlog=9 verified=113
+added_deps_targeting_non_verified:
+  2026-10-11-roadmap-d02 -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-11-roadmap-d03 -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-11-roadmap-d03-final -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-11-roadmap-p1 -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-11-roadmap-p11 -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-16-next-t4-numeric -> 2026-10-27-t4-historical-capture-rebaseline-decision (backlog)
+  2026-10-18-layers-linux -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-23-np03-dual-platform -> 2026-10-24-linux-batch-retest (backlog)
+  2026-10-23-np04-performance -> 2026-10-24-linux-batch-retest (backlog)
+
+## 3. per-edge attribution (dependency-diff.tsv basis text vs actual JSON diff)
+abandoned_edges_checked=65 attributed_ok=65 bad=0 arrows=62 waive_markers=2 drop_markers=1 successor_refs_named=128
+conclusion: every removed abandoned edge carries its own successor list in the basis text; every named successor is present in the actual added set and is verified.
+
+## 4. graph integrity
+self_dependencies=0 dangling_dep_refs=0 dependency_cycles=0
+proposed=18 blocked=11 ready=7
+ready_list=2026-10-11-roadmap-g10-p5,2026-10-11-roadmap-m03-p8,2026-10-11-roadmap-m10-p10,2026-10-11-roadmap-r06-p8,2026-10-11-roadmap-r07-p8,2026-10-11-roadmap-r10-p10,2026-11-04-render-r06-s3b-flex-tie-order-r4
+ready_checks_zero=6 of 7
+proposed_all=2026-10-11-roadmap-g10-p5,2026-10-11-roadmap-g11-p7,2026-10-11-roadmap-g12-p6,2026-10-11-roadmap-g13-p6,2026-10-11-roadmap-g14-p6,2026-10-11-roadmap-g15-p6,2026-10-11-roadmap-g17-p6,2026-10-11-roadmap-g25-p10,2026-10-11-roadmap-g25-p7,2026-10-11-roadmap-m03-p8,2026-10-11-roadmap-m10-p10,2026-10-11-roadmap-r06-p8,2026-10-11-roadmap-r07-p8,2026-10-11-roadmap-r10-p10,2026-10-11-roadmap-r10-p8,2026-10-16-next-t4-numeric,2026-10-16-next-t4-performance,2026-11-04-render-r06-s3b-flex-tie-order-r4
+matches `normify status`: 就绪7 阻塞11 待办40 (ready/blocked/backlog), 错误0 警告0
+
+## 5. keep-proposed / closeout targets / waive traceability
+keep_proposed 2026-10-11-roadmap-g10-p5 status=proposed checks=0
+keep_proposed 2026-10-11-roadmap-r07-p8 status=proposed checks=0
+keep_proposed 2026-10-11-roadmap-m03-p8 status=proposed checks=0
+keep_proposed 2026-10-11-roadmap-m10-p10 status=proposed checks=0
+umbrella_closeout_target 2026-11-04-render-r06-flex-closeout status=verified
+umbrella_closeout_target 2026-11-04-render-r05-r09-r10-family-closeout status=verified
+waive_card 2026-10-11-roadmap-a06-p10 status=abandoned
+a06-p10 own rationale line as recorded in its note:
+放弃：分诊b：A06 执行图已由 src/runtime/launcher/graph.rs 与 launcher_graph 测试实现。；依据：src/runtime/launcher/graph.rs；tests/launcher_graph.rs
+file src/runtime/launcher/graph.rs exists=True; tests/launcher_graph.rs exists=True
+linux_dep 2026-10-24-linux-batch-retest status=backlog
+t4_followup 2026-10-27-t4-historical-capture-rebaseline-decision status=backlog
+next-t4-numeric deps: 2026-10-11-g03-mjwarp-reference,2026-10-27-t4-historical-capture-rebaseline-decision
+
+## 6. placeholder note wording
+stage_wording=45 deferred_wording=8 (expect 45 / 8)
+stage_wording_with_checks_gt0=0 deferred_with_checks_gt0=0 (expect 0 / 0)
+open_zero_check_records=53
+notes_pointing_to_evidence_dir=23
