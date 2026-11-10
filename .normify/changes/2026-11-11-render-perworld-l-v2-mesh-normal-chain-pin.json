@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin",
+  "title": {
+    "zh": "P10 修复卡：mesh 法线链（局部归一化恢复 + mat 展开 x 项先舍入；双内核身份新基线；零 GPU）",
+    "en": "P10 fix card: mesh normal chain (restore local normalization + mat expand x-term-first rounding; double kernel identity baseline; zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "P10：G-L2 判据 A 4 px 的首次分岔点已由 Arch 离线重放锁定为 mesh 法线链（4/4 复现参考 normal）。修复三处：① `render_math.cu` 的 `mesh_query_ray` 尾部恢复上游真实存在的**局部归一化** `*out_normal = normalize3_mesh(min_normal);`——`f728b2d7` 基于错误 H2 前提把这次归一化删掉了（上游实际是「局部 normalize → mat@n → 再 normalize」两次），H2 注释同步作废；② `render_math.cu` 新增 `mat_vec_xpref`：上游 warp `mat.h:3180 mul(mat,vec)` 是 **x 项先单独舍入** 再 fma y、fma z（行主序索引与 `scene.cu::mat_vec` 一致），作为 mesh 法线消费点专用；③ `render_common.cu:225` 与 `render.cu:231` 两处 `normalize3_mesh(mat_vec(mat, n_local))` → `normalize3_mesh(mat_vec_xpref(mat, n_local))`。**不动** `scene.cu::mat_vec`/`mat_t_vec`（保 S5 已验路径）、顶点法线链（`render_megakernel.cu` 的 `mat_vec`+`normalize3_midpref`）、`normalize3_mesh` 本体、`render_shadow.cu`。该 `.cu` 同时被 MEGAKERNEL_SOURCE 与 DEPTH_SEG_SOURCE 前置 include ⇒ **双内核身份**都会变（新基线），depth/seg 数值预期不变（不依赖 normal）。产出：离线 NVRTC 证明新链为「局部 mul→fma→fma→sqrt→div 归一化 → mat x 项先舍入 → 再归一化」、旧/新双身份（source/PTX/bytes）、四门禁、证据目录 `perworld-l-v2-mesh-normal-chain-pin/`（README/receipt/manifest 全核，写清与 `f728b2d7` H2 前提作废的关系）、中文提交。零 GPU；不跑诊断轮；不宣称修复生效；G-L2 维持未通过。",
+    "en": "P10: Arch's offline replay pinned the first divergence of the 4 residual G-L2 criterion-A pixels to the mesh normal chain (4/4 reproduces reference normal). Three fixes: (1) render_math.cu mesh_query_ray tail restores the upstream local normalization `*out_normal = normalize3_mesh(min_normal);` which f728b2d7 removed under a wrong H2 premise (upstream = local normalize -> mat@n -> normalize again = two normalizations); H2 comment replaced; (2) new render_math.cu helper `mat_vec_xpref` matching upstream warp mat.h:3180 mul(mat,vec) where the x term is rounded separately first, then fma y, fma z (row-major indices same as scene.cu::mat_vec); (3) two mesh-normal consumers render_common.cu:225 and render.cu:231 switch from normalize3_mesh(mat_vec(...)) to normalize3_mesh(mat_vec_xpref(...)). Untouched: scene.cu::mat_vec / mat_t_vec (keeps the S5-verified path), vertex normal chain in render_megakernel.cu, normalize3_mesh body, render_shadow.cu. The .cu is included by both MEGAKERNEL_SOURCE and DEPTH_SEG_SOURCE => BOTH kernel identities change (new double baseline); depth/seg values are expected unchanged (they do not depend on the normal). Deliverables: offline NVRTC proof of the new chain, old->new double identity, four gates, evidence dir perworld-l-v2-mesh-normal-chain-pin (README/receipt/manifest self-checked, documenting that f728b2d7's H2 premise is void), Chinese commit. Zero GPU; no diagnostic round; does not claim the fix works; G-L2 stays not passed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**代码三处（仅此三处）**：① `render_math.cu` `mesh_query_ray` 尾部 `*out_normal = normalize3_mesh(min_normal);`（恢复 f728b2d7 删掉的局部归一化），H2 注释改写为上游事实（局部 normalize → mat@n → 再 normalize）；② `render_math.cu` 新增 `mat_vec_xpref`（`fmaf(m[2],a.z,fmaf(m[1],a.y,m[0]*a.x))` 三行，x 项独立舍入）；③ `render_common.cu:225` 与 `render.cu:231` 两处消费点改用 `mat_vec_xpref`。不新增 `.cu` 文件（精度源面 42 文件不变）。",
+    "**不动**：`scene.cu::mat_vec`/`mat_t_vec`（S5 已验路径）、`render_megakernel.cu` 顶点法线链（`mat_vec` + `normalize3_midpref`）、`normalize3_mesh` 本体、`render_shadow.cu`、`render_shade.cu`、AA/depth 其它路径；`fixtures/`、`scripts/`、`tests/`、`src/render/bvh/` 零改动。",
+    "**双内核身份新基线**：记录 old→new 的 megakernel 与 depth_seg 各自 source sha / PTX sha / PTX bytes（old = 本卡登记前 HEAD `61dd32c6`：megakernel `624ab298…`/`1fd53131…`/347,070、depth_seg `b546ef08…`/`e8d84963…`/138,540；new 由 identity 用例实测）；aa_resolve 预期不变（未在拼接中）。",
+    "**离线 NVRTC 证明**：用 pinned CUDA 12.8.1 分别编译 old（HEAD blobs）与 new（工作树）拼接源码，在 PTX 中定位 mesh 法线站点，证明新链为「局部 `mul→fma→fma→sqrt→div` 归一化 → `mat` x 项先单独舍入（mul+fma+fma ×3 行）→ 再归一化」；并与旧链（无局部归一化、`mat` y 项先舍入）逐指令对照；给出算术 opcode 序列差异仅限该站点的证据（其余序列/多重集一致）。",
+    "**depth/seg 口径**：说明 depth/seg 数值预期不变（不依赖 normal；culling 只用 `dot(lvec, n_local)` 符号；局部归一化不改变符号）；四门禁与既有 depth_seg 冻结参考用例实测确认。",
+    "**证据**：`docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin/`（README 写清与 `f728b2d7` H2 前提作废的关系、双身份、离线 PTX 证明、diff、验证；receipt；manifest 全核）+ logs（old/new identity、离线 PTX 对照、build/no-run）。",
+    "**门禁/边界/口径**：四门禁 fmt/clippy/clippy-cuda/unit + `normify check/done`；中文提交；零 GPU、不跑诊断轮；不宣称修复生效（需诊断轮 #8）、不改判据/参考/容差、G-L2 判定维持未通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_math.cu",
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/cuda/render.cu",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin/"
+    ],
+    "resources": [],
+    "priority": 97
+  },
+  "note": "Arch 离线重放：4/4 像素参考 normal 复现 = normalize(局部 cross) + mat@n 的 x 项先舍入 + 二次归一化。f728b2d7 的 H2（删局部归一化）前提作废；本卡恢复正确链。该 .cu 同时进入 megakernel 与 depth_seg 两个拼接 → 双身份新基线；depth/seg 数值预期不变。零 GPU。",
+  "revision": {
+    "before": "b074e828a5df55491a92c3364fe41cfe709620bc",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:32:34.799Z",
+  "updated_at": "2026-11-10T23:32:34.799Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "tests/",
+        "src/render/bvh/",
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "src/render/kernel/cuda/render_shade.cu",
+        "src/render/kernel/cuda/render_flex.cu",
+        "src/render/kernel/cuda/render_shadow.cu",
+        "src/render/kernel/cuda/aa_resolve.cu",
+        "src/render/kernel/mod.rs",
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/megakernel_args.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-fix/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins-2/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-texture-bary-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-cos-theta-dot-pin/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/"
+      ]
+    }
+  ]
+}
