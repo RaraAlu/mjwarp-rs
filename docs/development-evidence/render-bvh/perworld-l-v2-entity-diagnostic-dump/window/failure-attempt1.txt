@@ -1,0 +1,23 @@
+# G-L2 entity diagnostic round - FAILED (no dump; environment omission, NOT a criterion result)
+recorded_at=2026-11-11T04:47:02.031+08:00
+
+token: Chief 2026-11-11 04:50 (independent diagnostic round; single run; no retry)
+head=b526d4f1
+command=cargo test --features cuda-probe --test render_per_world_light -- --ignored --test-threads=1
+env=MJWARP_DIAG_PIXEL_DUMP=target\render-bvh\perworld-l-v2-gl2\diag\pixel-dump.json
+missing_env=$env:PATH was NOT prefixed with target\toolchains\cuda-12.8.1\bin (I exported only the dump var)
+
+observed:
+- exit=101, wall=0.537 s
+- test result: FAILED. 1 passed; 1 failed; finished in 0.31s (2 ignored tests selected)
+- failing test panicked BEFORE the entity body / dump hook:
+  tests\support\render_bvh\light.rs:187:30  build_rays 编译: Backend(NvrtcUnavailable)
+- pixel-dump.json NOT created (the dump hook is after build_rays, so it never ran)
+- pilot_c1_crosscheck_matches_readout: ok (host-side, no NVRTC needed)
+
+classification: execution-environment omission (pinned CUDA bin missing from PATH), same class as the G-L2 run-0
+INVALID_ROUND; NOT a criterion-A result and NOT a diagnostic finding. No dump to analyse.
+stop per token: dump missing -> stop and report, no retry.
+
+untouched: guards JSON, frozen stash, 12 frozen exe evidence, G-L2 evidence, tests/src (tree clean after run).
+records: preflight.txt, test.stdout.log, test.stderr.log

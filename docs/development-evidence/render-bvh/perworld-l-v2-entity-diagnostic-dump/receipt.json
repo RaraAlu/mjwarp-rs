@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-entity-diagnostic-dump",
+  "status": "diagnostic_round_executed",
+  "slice": "perworld-l-v2-entity-diagnostic-dump",
+  "owner": "Backend",
+  "kind": "render-criterion-a-pixel-diagnostic-round",
+  "authorization": {
+    "chief_card": "2026-11-11-render-perworld-l-v2-entity-diagnostic-dump (phase-1 code only; no GPU)",
+    "chief_diagnostic_token": "2026-11-11 04:50 (independent diagnostic round: not a G-L2 round, not in the G-L2 evidence chain, no frozen artifact changes, single run, no retry)",
+    "corrected_run_ruling": "Chief authorized one corrected diagnostic run after attempt 1 failed on the missing pinned CUDA bin PATH"
+  },
+  "code_identity": {
+    "work_commit": "6dc5e5f6",
+    "card_close_addenda_commit": "b526d4f1",
+    "new_file": "tests/support/render_bvh/light/diag.rs (493 lines)",
+    "modified_file": "tests/render_per_world_light.rs (478 -> 491 lines; opt-in hook before criterion A assertions; assertions unchanged)",
+    "untouched": "tests/support/render_bvh/light.rs (499 lines), src/, fixtures/, scripts/",
+    "env_gate": "MJWARP_DIAG_PIXEL_DUMP=<output JSON path>; unset/empty => zero side effects"
+  },
+  "attempt1": {
+    "result": "failed_before_entity_body_no_dump",
+    "time": "2026-11-11T04:46 +08:00 (recorded at preflight)",
+    "cause": "launch env omitted the pinned CUDA bin PATH; test panicked at tests/support/render_bvh/light.rs:187 build_rays 编译: Backend(NvrtcUnavailable) before the dump hook",
+    "exit": 101,
+    "wall_seconds": 0.537,
+    "dump_created": false,
+    "rounds_consumed": 0,
+    "records": ["window/preflight-attempt1.txt", "window/failure-attempt1.txt", "window/test-attempt1.stdout.log", "window/test-attempt1.stderr.log"]
+  },
+  "attempt2": {
+    "result": "success_dump_written_expected_criterion_a_failure",
+    "env": {
+      "PATH_injection": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1/bin;<existing PATH>",
+      "MJWARP_DIAG_PIXEL_DUMP": "D:/Rust/mjwarp-rs/target/render-bvh/perworld-l-v2-gl2/diag/pixel-dump.json",
+      "outline_envs": "not set (the entity code path does not trigger the criterion v2.2 outline comparison)"
+    },
+    "env_selfcheck": {
+      "result": "PASS",
+      "path_first_segment": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1/bin",
+      "nvrtc64_120_0.dll_bytes": 86728192,
+      "cudart64_12.dll_bytes": 573952,
+      "where_nvrtc": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll",
+      "no_run_exit": 0,
+      "records": ["window/body-env.txt", "window/preflight2.txt", "window/no-run.log"]
+    },
+    "diagnostic_exe": {
+      "path": "target/debug/deps/render_per_world_light-8f8e60a38d5a26c5.exe",
+      "sha256": "b6a373d2c8a52b6b3fcd2db6d4678024944a2b973b00fc588248469eb78e184d",
+      "bytes": 92353025,
+      "mtime": "2026-11-11T04:44:22+08:00",
+      "note": "new build from current HEAD; NOT a frozen executable and NOT in guards"
+    },
+    "run": {
+      "command": "cargo test --locked --features cuda-probe --test render_per_world_light -- --ignored --test-threads=1",
+      "exit": 101,
+      "exit_note": "expected: criterion A assertion fails after the dump hook runs",
+      "wall_seconds": 2.157,
+      "test_body_seconds": 1.95,
+      "test_result": "FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out",
+      "panic": "tests/render_per_world_light.rs:376 world0 cam1 rgb 不匹配像素 (left 2 right 0)",
+      "other_test": "pilot_c1_crosscheck_matches_readout: ok",
+      "records": ["window/test2.stdout.log", "window/test2.stderr.log"]
+    },
+    "dump": {
+      "path": "target/render-bvh/perworld-l-v2-gl2/diag/pixel-dump.json",
+      "sha256": "68b3f78ed9586a83c47cfad8ab722407d27c8571cd82c92a5f9b4c6050326089",
+      "bytes": 51388,
+      "committed": false,
+      "record": "window/pixel-dump-identity.txt"
+    }
+  },
+  "frames": [
+    {"world": 0, "cam": 0, "camera": "cam-persp", "rgb_mismatched_pixels": 0, "rgb_max_byte_diff": 0, "depth_mismatched_pixels": 0, "seg_mismatched_pixels": 0},
+    {"world": 0, "cam": 1, "camera": "cam-hinge", "rgb_mismatched_pixels": 2, "rgb_max_byte_diff": 1, "depth_mismatched_pixels": 0, "seg_mismatched_pixels": 0},
+    {"world": 1, "cam": 0, "camera": "cam-persp", "rgb_mismatched_pixels": 0, "rgb_max_byte_diff": 0, "depth_mismatched_pixels": 0, "seg_mismatched_pixels": 0},
+    {"world": 1, "cam": 1, "camera": "cam-hinge", "rgb_mismatched_pixels": 3, "rgb_max_byte_diff": 1, "depth_mismatched_pixels": 0, "seg_mismatched_pixels": 0},
+    {"world": 2, "cam": 0, "camera": "cam-persp", "rgb_mismatched_pixels": 0, "rgb_max_byte_diff": 0, "depth_mismatched_pixels": 0, "seg_mismatched_pixels": 0},
+    {"world": 2, "cam": 1, "camera": "cam-hinge", "rgb_mismatched_pixels": 0, "rgb_max_byte_diff": 0, "depth_mismatched_pixels": 0, "seg_mismatched_pixels": 0}
+  ],
+  "rgb_mismatches": [
+    {"world": 0, "cam": 1, "pixel": 13268, "x": 148, "y": 41, "product_bytes": [255, 28, 29], "product_packed_u32": "0xffff1c1d", "reference_bytes": [255, 28, 28], "reference_packed_u32": "0xffff1c1c", "channel_delta": "B 29->28", "geom_id": 3, "geom_type": 5, "mat_id": 0, "depth_ulp": 0, "seg_equal": true},
+    {"world": 0, "cam": 1, "pixel": 31154, "x": 114, "y": 97, "product_bytes": [255, 18, 19], "product_packed_u32": "0xffff1213", "reference_bytes": [255, 18, 18], "reference_packed_u32": "0xffff1212", "channel_delta": "B 19->18", "geom_id": 3, "geom_type": 5, "mat_id": 0, "depth_ulp": 0, "seg_equal": true},
+    {"world": 1, "cam": 1, "pixel": 27360, "x": 160, "y": 85, "product_bytes": [126, 46, 92], "product_packed_u32": "0xff7e2e5c", "reference_bytes": [126, 46, 93], "reference_packed_u32": "0xff7e2e5d", "channel_delta": "B 92->93", "geom_id": 3, "geom_type": 5, "mat_id": 0, "depth_ulp": 0, "seg_equal": true},
+    {"world": 1, "cam": 1, "pixel": 28614, "x": 134, "y": 89, "product_bytes": [255, 48, 48], "product_packed_u32": "0xffff3030", "reference_bytes": [255, 47, 48], "reference_packed_u32": "0xffff2f30", "channel_delta": "G 48->47", "geom_id": 3, "geom_type": 5, "mat_id": 0, "depth_ulp": 0, "seg_equal": true},
+    {"world": 1, "cam": 1, "pixel": 39492, "x": 132, "y": 123, "product_bytes": [120, 42, 87], "product_packed_u32": "0xff782a57", "reference_bytes": [120, 41, 87], "reference_packed_u32": "0xff782957", "channel_delta": "G 42->41", "geom_id": 3, "geom_type": 5, "mat_id": 0, "depth_ulp": 0, "seg_equal": true}
+  ],
+  "material": {
+    "geom_id": 3,
+    "geom_type": 5,
+    "geom_type_name": "cylinder",
+    "mat_id": 0,
+    "mat_texid_row": [-1.0, 0.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+    "mat_texid_note": "0=grid, 1=ramp, -1=none",
+    "mat_shininess": 0.6,
+    "mat_specular": 0.4,
+    "mat_emission": 0.05
+  },
+  "near_miss": {
+    "frame_saturation": [
+      {"world": 0, "cam": 0, "equal_byte_pixels": 76800, "saturated_any_ratio": 0.689, "zero_by_channel": [16995, 16995, 16995], "full_by_channel": [28171, 15013, 35920]},
+      {"world": 0, "cam": 1, "equal_byte_pixels": 76798, "saturated_any_ratio": 0.536, "zero_by_channel": [21778, 21778, 21778], "full_by_channel": [17196, 3926, 6666]},
+      {"world": 1, "cam": 0, "equal_byte_pixels": 76800, "saturated_any_ratio": 0.689, "zero_by_channel": [16995, 16995, 16995], "full_by_channel": [31754, 17990, 35920]},
+      {"world": 1, "cam": 1, "equal_byte_pixels": 76797, "saturated_any_ratio": 0.586, "zero_by_channel": [22192, 22192, 22192], "full_by_channel": [20166, 5793, 9300]},
+      {"world": 2, "cam": 0, "equal_byte_pixels": 76800, "saturated_any_ratio": 0.689, "zero_by_channel": [16995, 16995, 16995], "full_by_channel": [35920, 23415, 35920]},
+      {"world": 2, "cam": 1, "equal_byte_pixels": 76800, "saturated_any_ratio": 0.658, "zero_by_channel": [23274, 23274, 23274], "full_by_channel": [17889, 4871, 15288]}
+    ],
+    "nearest_to_mismatch": "5 nearest non-mismatched pixels per affected frame, all at distance 1 px and all geom 3 / type 5; exact pixels and geom histogram are in the dump (not committed)"
+  },
+  "relation_to_g_l2": {
+    "g_l2_verdict": "unchanged: execution complete, criterion A FAIL (world0 cam1 rgb mismatch 2, max_byte_diff 1)",
+    "visible_vs_actual": "the G-L2 criterion A assertion aborts at the first failing (world, cam) order point, so it reported only the world0 cam1 2 px; this dump, taken before the assertions, shows the full set is 5 px (world0 cam1: 2; world1 cam1: 3; world2 cam1 and all cam-persp: 0)",
+    "meaning": "the 2-vs-5 difference is only the assertion-abort visibility window; it does not change the G-L2 verdict"
+  },
+  "boundaries": {
+    "gpu_round": "independent diagnostic round only; not counted as a G-L2 round and not merged into the G-L2 evidence chain",
+    "frozen_artifacts_untouched": ["scripts/validate/render-bvh/guards-perworld-l2-light.json", "frozen stash", "12 frozen exe evidence", "G-L2 evidence directory"],
+    "no_code_change_in_this_round": true,
+    "dump_not_committed": true,
+    "diagnostic_exe_not_in_guards": true,
+    "gpu_after_attempt2": "1-2 %, 3,919 MiB used, 12,143 MiB free, 26-27 C"
+  },
+  "non_claims": [
+    "does not change the G-L2 verdict (criterion A FAIL stands)",
+    "no root-cause claim and no equivalence/acceptance claim",
+    "no criterion/threshold/reference/camera/recipe change and no rerun/result selection",
+    "the diagnostic dump is not committed and the diagnostic executable is not a frozen artifact"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 12,
+    "result": "PASS; rehash of every listed file matches"
+  }
+}
