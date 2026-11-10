@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix-check",
+  "title": {
+    "zh": "QA 复验扩展 dump 修复卡 `8b37670f`（B1 schema 1→2 + G1–G4 + 低优先）：**B1 已修**（`SCHEMA=2`，`document_from_parts` 顶层 `schema==2` 由纯 CPU 单测断言，我重跑 lib 2 passed + 集成 2 passed）、G4 解码往返单测 2 passed、G1–G4 文本/计数/下标更正落地（行数 478/499/500/496/494、主卡代码+测试 +360/−12 实测一致）、低优先项落地（ABI 文字 7→8、测试改名、PTX 尾 NUL 口径、nlight backlog）、**无任何 `.cu` 改动**且我独立复算 stitched source `624ab298…`/109,384 与离线 NVRTC PTX `1fd53131…`/347,070 与修复前逐字一致、门禁 unit **1,391/0/402**、manifest 10/10 → **PASS（0 阻断，2 条低残留）→ 可发诊断轮 #7 token**；残留：README §2/receipt 仍写「未启用 env 时不存在该字段」与新契约「键始终存在/null」矛盾；配套卡 numstat 提交信息写 +86 实为 +84",
+    "en": "QA re-verification of dump-ext fix 8b37670f: B1 fixed (SCHEMA=2, top-level schema asserted by pure-CPU tests, rerun 2+2 passed), G1-G4 and low items landed, no .cu change and kernel identity reproduced byte-identically, gates 1391/0/402, manifest 10/10 - PASS with 2 low residual doc items"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对扩展像素 dump 修复卡（提交 **`8b37670f`**，卡 `2026-11-11-render-perworld-l-v2-diag-dump-ext-fix` verified；触发物为我上一张复核卡 `00bfaef8` 的 B1 + G1–G4 + 低优先）做独立只读复验（零 GPU；纯 CPU 单测可跑）：①B1 实际 schema==2；②G1–G4 文本/计数/引用无残留；③无 `.cu` 改动且内核身份与修复前逐字一致；④四门禁与 manifest 自核；⑤口径（不宣称修复/不改判据）。**只写本卡与本卡证据。**",
+    "en": "Independent re-verification of the dump-ext fix commit: B1 schema==2, G1-G4 text/counts/references, no .cu change with identical kernel identity, gates and manifest, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**B1 已修（实测）✅**：`tests/support/render_bvh/light/diag.rs` `SCHEMA: u32 = 2`；顶层组装拆为 `document_from_parts()`、`diagnostics` 由 `attach_diagnostics()` 统一挂载（键始终存在）。我独立重跑定向纯 CPU 测试（零 GPU）：lib `render::kernel::diag::tests` **2 passed**（往返 + 长度拒绝）；集成 `light_diag::tests` **2 passed**（`schema_constant_and_document_top_level_agree` 断言 `SCHEMA==2` 且顶层 `schema==2`；`rgb_mismatch_entries_always_carry_diagnostics_key`）⇒ 实际输出 schema==2 由被测函数断言，而非只改常量 ✅",
+    "**G4 解码自证 ✅**：`src/render/kernel/diag.rs` 新增纯 CPU 往返单测（64×f32 编码→解码→再编码逐位一致；`face=-3`/`mesh_id=42` i32 位型；`view_dir=-ray_dir` 精确负号含 `-0.0→+0.0`；第 1/第 4 灯槽；保留槽 57–63 恒 0；长度 63/65 拒绝）；我重跑 **2 passed** ✅",
+    "**无 `.cu` 改动 + 内核身份不变（我独立复算）✅**：`git diff 8b37670f^..8b37670f -- src/render/kernel/cuda/` 为空；我按 `mod.rs` `include_str!` 顺序把当前 7 个 `.cu` 逐字节拼接 = **109,384 B / `624ab298…`**（与修复前逐位一致）；用仓库 pinned CUDA 12.8.1 NVRTC + product 选项重新编译该拼接源 = PTX **347,070 B / `1fd53131…`**（与修复前逐字节一致）；aa_resolve/depth_seg 源未动 ✅",
+    "**G1 ✅**：README §1/§4、`src/render/kernel/diag.rs` 与 `tests/support/render_bvh/light/diag_ext.rs` 模块文档均更正为「DIAG 布局/helper 在 `render_megakernel.cu` 顶部；`MEGAKERNEL_SOURCE` 仍 7 文件拼接；无单独 `render_diag.cu`」；README 中该文件名仅以「不存在/未创建」语义出现，并注明原卡 `schedule.files` 曾规划但最终未创建 ✅",
+    "**G2 ✅**：README §2 + receipt `dump_schema.record_index` 改为 `rayid * STRIDE`（单次发射内射线号，无 `worldid` 项），并写清 per-world 单发射下 `(world, cam*PIXELS+pixel)` 等价、multi-world 单发射各 world 写同一 rayid 区间静默覆盖（诊断失效、不影响渲染数值）的约束/风险 ✅",
+    "**G3 ✅（附 1 条低残留）**：§6 行数改实测 **478/499/500/496/494**（我实测一致：render_shade 478、render_megakernel 499、megakernel.rs 500、测试 diag.rs 466、diag_ext 186、entry 494）；§1 计数改「本卡 10（8 src + 2 tests）+ 配套卡 5 = 15」；主卡代码+测试 numstat 实际 **+360/−12** 与声明一致 ✅；配套卡实际 **+84/−8**，而 `8b37670f` 提交信息写 **+86/−8**（仅历史提交信息，README/receipt 未复述）→ 低残留 R2",
+    "**低优先项 ✅**：ABI 断言文字改「82 = 上游 81 + 1 尾随诊断槽（1 bounds + 73 数组 + 8 标量）」；测试改名 `megakernel_slots_keep_frozen_81_and_append_diagnostic_slot`；README §4 补 PTX 尾 NUL 口径（离线文件 344,182/347,071 vs identity 文本 344,181/347,070）；`nlight>=4` 灯槽冲突登记 backlog ✅",
+    "**边界 ✅**：`fixtures/`、`scripts/` 零 diff；guards/冻结件未动；判据代码（`tests/support/render_bvh/light.rs` 及 `light/` 下除 diag 模块外）零 diff；不改算术/内核签名/判据/参考/容差；零 GPU、不采集、不跑诊断 ✅",
+    "**门禁/证据 ✅**：本卡 `normify gate` 复跑 fmt/clippy/clippy-cuda/unit 全过，unit **1,391 passed / 0 failed / 402 ignored**（= 原 1,387 + 4 个新纯 CPU 测试）；dump-ext 证据 manifest **10/10** 独立重算（bad=[]/extra=[]）✅",
+    "**低残留 R1（记录面）**：README §2「JSON 位置」行与 receipt `dump_schema.json_location` 仍写「未启用 env 时不存在该字段（absent when env unset）」，而 B1 修复后的契约是「键始终存在、未采集为 null」（新单测名即 `rgb_mismatch_entries_always_carry_diagnostics_key`）——两处文字自相矛盾；不影响实现与 #7 数据，建议下一张 errata 一并收。",
+    "**低残留 R2（记录面）**：`8b37670f` 提交信息称配套卡 +86/−8，实测 +84/−8（`diag_ext.rs` +76、4 个 ABI 测试 +8/−8）；仅历史提交信息、不改写，建议 errata 记一句。",
+    "**口径 ✅**：README §7 errata 与 receipt `errata_fix` 明写「原提交 `bb29e351` 声称 schema 2、实际 1，本次修复；历史说明不改写」；不宣称修复生效、不改判据/参考/容差、G-L2 判定维持未通过（判据 A FAIL）✅",
+    "**结论：PASS（0 阻断，2 条低残留）→ 可发诊断轮 #7 token。** 本复验只核实现/测试/身份/边界/记录面，不判定 G-L2 修复效果；两条低残留均为文档一致性，不影响 dump 数据契约实现（键存在性已由测试固定）与 #7 数据可用性。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix",
+      "2026-11-11-render-perworld-l-v2-diag-dump-ext-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext-fix-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 07:03 派工：优先复验 dump-ext 修复卡 8b37670f（#7 在等）。结论 PASS（0 阻断，2 低残留）→ 可发诊断轮 #7 token。核心：B1 SCHEMA 1→2 + document_from_parts 顶层 schema==2 由纯 CPU 单测断言（我重跑 lib 2 passed + 集成 2 passed）；G4 往返单测 2 passed；G1/G2/G3 文本计数下标更正落地（行数 478/499/500/496/494；主卡 +360/−12 实测一致）；低优先（ABI 7→8、测试改名、PTX 尾 NUL 口径、nlight backlog）落地；无任何 .cu 改动，我独立复算 7 文件拼接 source 624ab298/109384 并用 pinned NVRTC 重编译得 PTX 1fd53131/347070，与修复前逐字一致；门禁 unit 1391/0/402、manifest 10/10、fixtures/scripts/guards/判据代码零 diff。低残留：README §2/receipt 仍写「未启用 env 时不存在该字段」与新契约「键始终存在/null」矛盾；提交信息配套卡 +86 实为 +84。均不影响 #7 数据。",
+  "revision": {
+    "before": "e829c0527e22f5211171a8cea116abda271c03a6",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:08:28.000Z",
+  "updated_at": "2026-11-10T23:08:28.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda/",
+        "fixtures/",
+        "scripts/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-diag-dump-ext-fix-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext-fix-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-post-errata-check",
+  "title": {
+    "zh": "QA 复核 G-L2 后置 errata 批（`dde275c1` + 口径更正 `26d3cada`）：①边界零越界（仅 docs/.normify；`src/tests/fixtures/scripts`、guards、冻结件、`window/**`、已签 S-1 spec 与 S-2/S-3 材料零 diff）✅；②四项 errata 落地——body env 契约（新增 6,009 B 文档 + README 仅追加 §11）、guards `body_env` 缺字段（只记文档/backlog，guards `fad2ed37…`/43,729 B 未动）✅、dump 字段 `geom_type`→`objtype` 更正（`seg[1]=mjOBJ_GEOM(5)`；模型 `geom_type[3]=7` MESH、`mat 0`）✅、P2 撤销交叉引用 ✅；③契约语义/两次 INVALID_ROUND/canary/12 exe env 需求与源码与窗口证据逐项一致 ✅；④四 manifest 独立重算 66/12/12/7 全对 ✅；⑤`26d3cada` 仅改口径（16→15 = 7 改 + 8 新）且证据零字节变化 ✅；**但项 4 的「`logs/src.diff` 已 LF / CRLF 0」不实——实为 UTF-16LE + BOM（解码 60×CRLF，UTF-8=False）→ 1 严重**，另 3 低 + 2 观察 → **不通过（1 严重须更正记录面）**",
+    "en": "QA review of the G-L2 post-errata batch: boundary clean, errata items 1-3 correct, cross references correct, body-env contract matches source and window evidence, manifests recomputed 66/12/12/7, correction commit only changes wording with zero evidence bytes; however item 4's claim that logs/src.diff is already LF/CRLF-0 is false (it is UTF-16LE with BOM) - one severe finding, 3 low items, 2 observations - FAIL pending record correction"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-L2 后置 errata 批（主提交 **`dde275c1`**，20 文件；口径更正 **`26d3cada`**，1 文件；卡 `2026-11-11-render-perworld-l-v2-gl2-post-errata` verified）做独立只读复核（零 GPU）：①四项 errata 是否落地且只动文档/证据（源码/测试/fixtures/scripts/guards/冻结件/已签材料正文零 diff）；②交叉引用是否正确（卡-1 → 卡-2）；③body env 契约（env 成对语义、两次 INVALID_ROUND 归因）与实际源码/证据是否一致；④manifest 行级重算；⑤`26d3cada` 是否只改口径、证据零字节变化；⑥记录锁纪律过程观察。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the G-L2 post-errata batch: scope, cross references, body-env contract semantics against source/window evidence, manifest line-level recompute, correction-commit scope, plus a process observation on the disclosed unlocked writes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**① 边界零越界 ✅**：`dde275c1` 20 文件 = 7 改（`perworld-l-v2-validate-window-g-l2` 的 README/manifest/新增 body-env-contract-errata.md、`perworld-l-v2-ptx-order-pins` 的 README/manifest、`perworld-l-v2-entity-diagnostic-dump` 的 README/manifest）+ 8 新（本批证据目录）+ 4 gate run + 1 卡记录，无 `docs/`、`.normify/` 之外的路径；`26d3cada` 仅 1 个卡 JSON。`git diff bb29e351..26d3cada -- src/ tests/ fixtures/ scripts/` **全空**；guards JSON 零 diff（仍 `fad2ed37…`/43,729 B）、12 个冻结 exe stash 未动、G-L2 `window/**` 运行记录字节不动、S-1 spec 仍 39,379 B/`bb064fe0…`、S-2/S-3 签名材料目录零 diff ✅",
+    "**② 项 1（body env 契约）✅**：新增 `perworld-l-v2-validate-window-g-l2/body-env-contract-errata.md` 6,009 B/`cf0e7b90…`；该目录 README **仅追加 §11 指针（+5 行）**，判定句「未通过（判据 A FAIL）」与运行记录未动；契约两条（pinned CUDA bin PATH `run-window.ps1:307-308`、criterion v2.2 outline env 成对 `:291-292`）与源码/窗口证据逐项一致（见 §③）✅",
+    "**② 项 2（guards `body_env` 缺字段）✅**：独立核 guards JSON 顶层 19 键无 `body_env`（与审计 artifact 逐字一致）；只写文档 + backlog，未改冻结器/guards/冻结件（sha/bytes 未动）✅",
+    "**② 项 3（dump 字段表述）✅**：`seg[1]` = MuJoCo object type `mjOBJ_GEOM`(5)，不是模型 geom 类型；fixtures 实测 `geom_type=[0,6,2,7,3,5,4]` ⇒ 命中 `geom_id=3` 是 `geom_type=7`（MESH/tri-mesh），`geom_matid[3]=0`（mat-red，`mat_texid` 行 slot1=0）；README 只改表述 + 追加 §5，5 px 表数字与结论未动；代码/receipt 字段改名只记 backlog、已生成字节未动 ✅",
+    "**② 项 4（修复卡-1 证据 errata）⚠️ 部分：交叉引用/口径 ✅，LF 结论 ❌（严重 S1）**：P2 已被卡-2 `7aa99c9b` 的 R1 撤销（half 归一化回 `normalize3_rays`，新增 P5/P6），交叉引用目录 [`perworld-l-v2-ptx-order-pins-2/`](../perworld-l-v2-ptx-order-pins-2/) 存在且与卡-2 记录一致；`+17/−3` 口径正确（common +11、megakernel +2/−1、shade +4/−2）；**但 `logs/src.diff` 实为 UTF-16LE+BOM（见 S1）**",
+    "**严重 S1 — `logs/src.diff`「已 LF / CRLF 0」不实**：文件 6,772 B/sha `12be6af5…` 且与 HEAD 逐字节一致（这三项 errata 说对了），但首 4 字节 `FF FE 64 00` = UTF-16LE+BOM、`valid UTF-8=False`、按 UTF-16 解码为 60 个 CRLF（0 裸 LF/CR、0 TAB）⇒ errata 在 README §3 L41、receipt `fix_card_1_errata.src_diff_lf_verification`、`artifacts/ptx-order-pins-src-diff-eol.txt`（`worktree_crlf=0`）与 `dde275c1` 提交信息共四处声称的「CRLF 0 / 已是 LF（隐含 UTF-8）/ 无需归一化」三项全错；「LF 62」是原始 0x0A 字节数（UTF-16 下含 CJK 代码单元低字节）。本批 15 文件编码自检（7 改 + 8 新）不含该文件、故自检本身没错，但项 4 的独立审计结论错。建议更正四处记录并明确该文件为「UTF-16LE+BOM 历史证据」；字节如何处置（转 UTF-8/LF 会改历史证据与 manifest 行，或登记为 `-text` 二进制证据）属 Chief 裁决，我不擅改。**不影响 G-L2 判定与任何数值证据。**",
+    "**③ body env 契约 vs 源码/证据逐项一致 ✅**：`enabled()`（outline.rs:51）两者全缺→false/raw、只设一个→panic、两者都在且 REQUIRE=1→true；`diff_depth_with_outline()`（:363）未启用→raw、启用后 outside 位级/in-list |ULP|≤bound(128)、`violations!=0`→fail-closed panic；outline 元数据 recipe `cfd1038a…`/10,099/183/28969/73、aa2 `14893fc6…`/9,509/172/29448/91、`outline-lists.json` `c2dd876d…`/2,808/bound 128/`render-sdf-criterion-v2.2` 与 guards 一致；`window-incidents.txt` 实测 INVALID_ROUND #1（04:16:39 无 pinned CUDA bin→`NvrtcUnavailable` exit 101 @0.209 s、0 轮消耗）与 #2（04:20:16/51 漏 outline env→`render_e2e` cam1 183/73/28,969 假红、0 轮消耗）与 errata 表逐项一致；canary `violations=0`、`ENV_SELFCHECK_PASS failures=0`、6 个 scene-a 回归需 PATH+outline/其余 6 个仅 PATH、`window/body-env.txt` 实记 env 均核实 ✅",
+    "**④ manifest 行级重算 ✅**：四目录独立重算 entries/bad/missing/extra = G-L2 **66**/0/[]/[]、pins-1 **12**/0/[]/[]、entity **12**/0/[]/[]、本批 **7**/0/[]/[]，均 ASCII 有序；7 个改动文件 old/new sha+bytes 与 `bb29e351`/`dde275c1` blob 逐项一致 ✅",
+    "**⑤ `26d3cada` 只改口径、证据零字节变化 ✅**：仅 1 文件（卡 JSON），`docs/` 在 `dde275c1..26d3cada` 零 diff；新增 addenda「编码自检涉及文件 16→15（7 改 + 8 新增），证据内容零改动」；我核数 7+8=**15** ✅（16 确为笔误）",
+    "**低 L1**：三个旧 manifest 被重排为 ASCII 有序（G-L2 的 `window/baseline.txt`/`monitor.csv`/`run1-rootcause…`、pins-1 的 `README.md`、诊断轮的 `preflight-attempt1.txt`/`test-attempt1.*` 换行位），行内容未变；提交信息「其余行逐字节不变 / 行级差异仅 README 一行 + 新增一行」**内容层成立、行序层不成立**（新顺序是规范 ASCII 排序，属改进）——建议措辞改为「内容不变、按 ASCII 重排」。",
+    "**低 L2**：行号引用不精确——`enabled()` 实际 :51（写 50-68）、`diff_depth_with_outline()` 实际 :363（写 359-391）、pre/post 校验实际 :283/:358（写「280-298」，只覆盖 pre）；含 doc 注释且沿用窗口 README §6.2 旧措辞，读数不受影响。",
+    "**低 L3**：项 4 的「诊断轮 #4 实测（A 仍 FAIL、`13268` 回退、world1 三 px 不变）」未给可核证据路径；事实与 Chief 2026-11-11 05:49 通告一致（我记录在 pins-2 复核卡 note 与 `perworld-l-v2-ptx-order-pins-2-check/README.md`），建议注明来源。",
+    "**观察 O1**：`docs/development-evidence/` 下共 **169 个 UTF-16 BOM 文件**（历史遗留，多为 PS 5.1 重定向日志），本批仅涉及 1 个；建议单独立项做证据编码普查，不在本批解决。",
+    "**观察 O2（过程）**：Backend 披露 `dde275c1`/`26d3cada` 时段无锁写仓；仓内无锁审计日志，无法自证/证伪，按披露记过程观察；Chief 说补救要求已在下一张治理卡 addenda 安排——当前库内未找到该 addenda（11-11 各卡未提锁纪律），待该卡落地后核。另我此前 pins-1 复核把该文件记作「64 个 CR（CRLF）」，本次更正为 UTF-16LE+BOM（64 个 0x0D 字节含 CJK 低字节），特此更正记录。",
+    "**结论：不通过（1 严重 S1 + 3 低 + 2 观察）。** 四项 errata 内容主体成立、边界零越界、manifest 全对、`26d3cada` 干净；但项 4 的 `src.diff` LF 结论与三处记录不实，须一张小修卡更正记录面并裁该历史证据处置。本复核**不改变 G-L2 判定（仍为未通过 / 判据 A FAIL）**、不宣称修复生效、不改判据/参考/容差、零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-gl2-post-errata"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核 G-L2 后置 errata 批（dde275c1 主 + 26d3cada 口径更正；零 GPU）。结论：不通过（1 严重 + 3 低 + 2 观察）。严重 S1：errata 项 4 声称 perworld-l-v2-ptx-order-pins/logs/src.diff 已 LF/CRLF 0，实测为 UTF-16LE+BOM（FF FE）、UTF-8=False、解码 60×CRLF；四处记录（README §3 L41、receipt 字段、artifact worktree_crlf=0、提交信息）不实；bytes/sha/与 HEAD 逐字节一致三项说对了。已独立核：边界零越界（dde275c1 仅 docs/.normify 20 文件；src/tests/fixtures/scripts/guards/window/S-1 spec/S-2/S-3 材料全零 diff）；项 1-3 落地正确（body env 契约文档 6,009 B、guards 19 键无 body_env、dump 字段 geom_type→objtype 且模型 geom_type[3]=7 MESH/mat 0 实测一致）；P2 被卡-2 R1 撤销的交叉引用目录存在且与卡-2 记录一致；body env 语义/两次 INVALID_ROUND（04:16:39 NvrtcUnavailable；04:20:16/51 outline env 假红 183/73/28969）/canary violations=0/12 exe env 需求与源码窗口证据逐项一致；四 manifest 独立重算 66/12/12/7 全对且 ASCII 有序；26d3cada 仅卡 JSON、docs 零字节变化、addenda 16→15（7 改+8 新）核数正确。低项：manifest 行序重排未如实记录、行号引用不精确、轮 #4 事实缺路径。观察：169 个 UTF-16 BOM 证据文件（系统性）、Backend 披露无锁写（仓内无可核日志，补救 addenda 待下一张治理卡）。不改 G-L2 判定。",
+  "revision": {
+    "before": "67684a3b2b74c8ad3d058f7b29db7829459c07df",
+    "after": null
+  },
+  "created_at": "2026-11-10T23:08:28.000Z",
+  "updated_at": "2026-11-10T23:08:28.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/window/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/materials/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-s2/materials/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-gl2-post-errata-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "FAIL"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
