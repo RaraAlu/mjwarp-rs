@@ -54,15 +54,15 @@ $env:MJWARP_DIAG_PIXEL_DUMP = "D:\Rust\mjwarp-rs\target\render-bvh\perworld-l-v2
 
 ### 3.4 全部失配像素（5 个；dump 比 G-L2 断言可见的 2 个多 3 个）
 
-| # | world/cam | pixel (x,y) | 产品 bytes (packed u32) | 参考 bytes (packed u32) | 差异通道 | geom/geom_type/mat |
+| # | world/cam | pixel (x,y) | 产品 bytes (packed u32) | 参考 bytes (packed u32) | 差异通道 | geom / objtype(seg[1]) / mat |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 0/1 | 13268 (148,41) | `[255,28,29]` `0xffff1c1d` | `[255,28,28]` `0xffff1c1c` | B 29→28 | 3 / 5 (cylinder) / 0 |
+| 1 | 0/1 | 13268 (148,41) | `[255,28,29]` `0xffff1c1d` | `[255,28,28]` `0xffff1c1c` | B 29→28 | 3 / 5 (`mjOBJ_GEOM`) / 0 |
 | 2 | 0/1 | 31154 (114,97) | `[255,18,19]` `0xffff1213` | `[255,18,18]` `0xffff1212` | B 19→18 | 3 / 5 / 0 |
 | 3 | 1/1 | 27360 (160,85) | `[126,46,92]` `0xff7e2e5c` | `[126,46,93]` `0xff7e2e5d` | B 92→93 | 3 / 5 / 0 |
 | 4 | 1/1 | 28614 (134,89) | `[255,48,48]` `0xffff3030` | `[255,47,48]` `0xffff2f30` | G 48→47 | 3 / 5 / 0 |
 | 5 | 1/1 | 39492 (132,123) | `[120,42,87]` `0xff782a57` | `[120,41,87]` `0xff782957` | G 42→41 | 3 / 5 / 0 |
 
-共同事实：全部为 **cam-hinge（cam1）**、`geom_id=3`、`geom_type=5`（cylinder）、`mat_id=0`（`mat_texid` 行 `[-1,0,-1,…]` → slot1=0 = grid 纹理）；材质标量 `mat_shininess=0.6`、`mat_specular=0.4`、`mat_emission=0.05`（`mat_rgba` 见 dump）；**depth 两侧位型全等（ULP=0）、seg 两侧相同**；ray offset `[0,0,0]`、dir 位型与灯/相机位型均在 dump 中；差异均为**单通道 ±1 字节**，其中 3 个像素含 R=255 饱和通道（饱和标记见 dump）。
+共同事实：全部为 **cam-hinge（cam1）**、`geom_id=3`、`seg[1]=5`（MuJoCo **object type = `mjOBJ_GEOM`(5)**，不是 geom 类型；真实命中 `geom_id=3` 是模型 `geom_type=7`（MESH，tri-mesh））、`mat_id=0`（`mat_texid` 行 `[-1,0,-1,…]` → slot1=0 = grid 纹理）；材质标量 `mat_shininess=0.6`、`mat_specular=0.4`、`mat_emission=0.05`（`mat_rgba` 见 dump）；**depth 两侧位型全等（ULP=0）、seg 两侧相同**；ray offset `[0,0,0]`、dir 位型与灯/相机位型均在 dump 中；差异均为**单通道 ±1 字节**，其中 3 个像素含 R=255 饱和通道（饱和标记见 dump）。
 
 ### 3.5 near-miss 摘要（dump `near_miss.by_frame`）
 
@@ -75,8 +75,8 @@ $env:MJWARP_DIAG_PIXEL_DUMP = "D:\Rust\mjwarp-rs\target\render-bvh\perworld-l-v2
 | 2/0 | 76,800 | 0.689 | zero `[16995,16995,16995]`；full `[35920,23415,35920]` |
 | 2/1 | 76,800 | 0.658 | zero `[23274,23274,23274]`；full `[17889,4871,15288]` |
 
-- 最接近失配的 5 个非失配像素（每帧）：距离均为 **1 px**，**全部 geom 3 / type 5**；`nearest_geom_histogram` 与逐像素坐标/最近失配引用见 dump。
-- 判读：失配不孤立在纹理边界处（neighbor 同 geom），且 cam-persp 全 0，说明现象集中在 cam-hinge 视角下 cylinder+grid 材质的着色字节量化边界。
+- 最接近失配的 5 个非失配像素（每帧）：距离均为 **1 px**，**全部 geom 3 / objtype 5（`mjOBJ_GEOM`）**；`nearest_geom_histogram` 与逐像素坐标/最近失配引用见 dump。
+- 判读：失配不孤立在纹理边界处（neighbor 同 geom），且 cam-persp 全 0，说明现象集中在 cam-hinge 视角下 tri-mesh+grid 材质的着色字节量化边界。
 
 ### 3.6 与 G-L2 断言只看到 2 px 的关系
 
@@ -87,3 +87,8 @@ G-L2 canonical run 的判据 A 断言在最外层 `(world, cam)` 循环中**首�
 - 边界：零 GPU 编辑；诊断轮为独立 round，不计 G-L2 轮次；不改 tests/src/scripts/fixtures；guards JSON、冻结 stash、12 个冻结 exe 证据与 G-L2 证据零改动；dump 不入库（`target/` 留 Arch 只读），证据只录 sha/bytes 与表格；诊断 exe 不进 guards。
 - GPU：attempt 2 前后 4%→1–2%、3,919 MiB used、12,143 MiB free、26–27℃；无其它团队 CUDA 任务。
 - 非声明：本卡不改变 G-L2 判定（判据 A FAIL 维持）；不宣称根因已定位、不宣称灯字段/渲染数值等价；不改任何判据/阈值/参考/相机/recipe；未重跑、未挑选结果。
+
+## 5. 后置 errata：dump 字段命名（2026-11-11）
+
+- dump JSON 的 `attribution.geom_type` 实际取值是 `seg[1]` = MuJoCo **object type**（本场景 `mjOBJ_GEOM`=5），**不是**模型 geom 类型；表述统一改为 `objtype`（本 README 已更正）。真实命中 `geom_id=3` 是模型 `geom_type=7`（MESH，tri-mesh）、`mat_id=0` = mat-red / grid 纹理。
+- dump 代码字段改名（`tests/support/render_bvh/light/diag.rs` 的 `segment_attribution()`）与 `receipt.json` 内 `geom_type` / `geom_type_name` 字样：登记 **backlog**，本批不改代码、不改已生成的 dump/receipt 字节（`receipt.json` 保持原样）。

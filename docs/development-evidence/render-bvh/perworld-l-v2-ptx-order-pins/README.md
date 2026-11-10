@@ -87,3 +87,8 @@ __device__ __forceinline__ V3 normalize3_midpref(V3 a) {
 
 - 边界：`unchanged fixtures/`、`unchanged tests/`、`unchanged scripts/`；其它证据目录只读（G-L2 窗口证据、诊断轮证据、Arch RCA 证据、mesh-normal 修复证据、criterion-spec 目录）；本卡只改 3 个 `.cu` 与新增证据目录；零 GPU、不采集、不跑诊断、未改 guards/冻结 stash、未重编译冻结 exe 证据。
 - 非声明：不宣称修复生效（需 Chief 唯一一轮诊断轮 token：重建实体 exe 跑 A/B/C + dump，验 4 px 是否归零；若仍有残余用 dump 离线收敛）；不改 G-L2 判定（判据 A FAIL 维持）；不改判据/阈值/参考/容差；诊断轮/重冻/G-L2 attempt 3 由 Chief 另发 token。
+
+## 5. 后置 errata（2026-11-11）
+
+1. **P2 已被撤销**：修复卡-2 `2026-11-11-render-perworld-l-v2-ptx-order-pins-2`（提交 `7aa99c9b`）的 **R1** 把 `render_shade.cu` half-vector 归一化改回 `normalize3_rays`（Arch 附录 D：参考 half 归一化是首项单独舍入），并新增 P5 `dot3_first` / P6 `length3_midpref`；P3/P4 保留。诊断轮 #4 实测（卡-2 后）：A 仍 FAIL、world0 cam1 `13268` 回退重现、world1 cam1 三像素字节不变 ⇒ 本卡 §1.2 的 P2 改动与 §2 的内核身份已被取代，以卡-2 证据 [`perworld-l-v2-ptx-order-pins-2/`](../perworld-l-v2-ptx-order-pins-2/) 为准；本卡保留为历史记录（不改写）。
+2. **统计口径**（QA O1/O2）：本卡 README/receipt 使用实际 `git diff --stat` 的 **+17/−3**（`render_common.cu` +11、`render_megakernel.cu` +2/−1、`render_shade.cu` +4/−2，含注释）；提交 `358b84fc` 的 message 曾误写 **+37/−3**，已在 `0ad4795a` 证据 errata 与卡 addenda 更正。代码零改动；历史提交说明不改写。

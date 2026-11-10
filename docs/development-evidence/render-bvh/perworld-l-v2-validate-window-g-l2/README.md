@@ -170,3 +170,8 @@ exit code 捕获可靠性：dotnet `ProcessStartInfo` + 异步读 stdout/stderr 
 - 不宣称 G-L2 验证通过；本卡判定 = 未通过（实体判据 A 失败）。
 - 不宣称产品与冻结上游实现等价；不宣称灯字段端到端验收通过；不宣称渲染数值等价；不宣称判别力恢复。
 - 不据此改变任何判据、阈值、参考、相机或 recipe；不重跑、不挑选结果；实体 A 失败转 RCA（Chief 另派）。
+
+## 11. 后置 errata（2026-11-11，G-L2 收口后）
+
+- body 环境契约（pinned CUDA bin PATH + criterion v2.2 outline 成对 env + pre/post 列表校验）、两次 INVALID_ROUND 归因、guards `body_env` 缺字段 backlog、S-3 材料改签 backlog：见 [`body-env-contract-errata.md`](body-env-contract-errata.md)。
+- 性质：文档补记，不改本窗任何运行记录/结果/判定；本窗判定仍为 **未通过（判据 A FAIL）**；不重跑、不重冻、不改判据/参考/容差。

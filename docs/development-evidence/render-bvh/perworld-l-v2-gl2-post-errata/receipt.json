@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-post-errata",
+  "status": "documentation_errata_applied_zero_gpu",
+  "slice": "perworld-l-v2-gl2-post-errata",
+  "owner": "Backend",
+  "kind": "g-l2-post-errata-documentation-batch",
+  "authorization": {
+    "chief_assignment": "2026-11-11 05:53 (G-L2 post-closeout errata batch; documentation/evidence only; zero GPU; zero code changes)",
+    "scope": [
+      "body env contract (pinned CUDA bin PATH + criterion v2.2 outline env pair + pre/post list verification) recorded in G-L2 evidence",
+      "guards body_env missing field recorded as backlog (no freeze-tool/guards change)",
+      "dump field naming geom_type -> objtype in evidence/parse docs (code rename backlog only)",
+      "fix card-1 evidence errata (src.diff LF verification; README two errata lines)"
+    ],
+    "signed_material_boundary": "S-1 spec (docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/spec.md, sha256 bb064fe0a85ab38abba8043768666a0d9f73fc53d9f2f3dd72eace060c8a924d/39,379 B) and S-2/S-3 signature materials untouched; re-signing items only recorded as backlog"
+  },
+  "body_env_contract": {
+    "record_file": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/body-env-contract-errata.md",
+    "path_contract": "PATH = <repo>/target/toolchains/cuda-12.8.1/bin;<inherited> (run-window.ps1:307-308)",
+    "outline_env_pair": "MJWARP_RENDER_OUTLINE_LIST_DIR + MJWARP_REQUIRE_OUTLINE_CRITERION=1 must be exported together (run-window.ps1:291-292)",
+    "semantics": "neither => raw bitwise comparison fallback (silent); one only => panic; both => frozen outline lists enforced, outside-list bitwise, in-list |ULP| <= bound_ulp (128), violations panic fail-closed",
+    "evidence_code": "tests/support/render_bvh/outline.rs module doc lines 1-16, enabled() lines 50-68, diff_depth_with_outline() lines 359-391",
+    "pre_post_verification": "run-window.ps1:280-298 semantics; recipe sha cfd1038a.../10,099 B/183 rows/first_pixel 28969/max_ulp 73; aa2 sha 14893fc6.../9,509 B/172/29448/91; outline-lists.json sha c2dd876d...; bound 128",
+    "invalid_rounds": [
+      "INVALID_ROUND #1 (run-0): standalone frozen-exe launch without pinned CUDA bin PATH -> NvrtcUnavailable, exit 101 @0.209 s before any test body; 0 validation rounds consumed (window/window-incidents.txt)",
+      "INVALID_ROUND #2 (run-1): missing criterion-v2.2 outline env pair -> render_e2e false red with exactly the 183/73/28969 frozen list signature; not a product regression; 0 validation rounds consumed (window/invalid-rounds/run1-rootcause-false-red-outline-env.txt)"
+    ],
+    "guards_body_env_backlog": "guards-perworld-l2-light.json has no body_env top-level field (audit: artifacts/guards-json-body-env-audit.txt); freeze tool does not record body env; backlog to add body_env (PATH prefix, outline env pair, pre-body outline verification, per-exe env needs); no change in this batch"
+  },
+  "dump_field_naming": {
+    "record_file": "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/README.md",
+    "correction": "dump attribution.geom_type actually holds seg[1] = MuJoCo object type (mjOBJ_GEOM=5), not the model geom type; wording changed to objtype; real hit is geom_id 3 = model geom_type 7 (MESH, tri-mesh), mat_id 0 = mat-red/grid",
+    "code_rename_backlog": "tests/support/render_bvh/light/diag.rs segment_attribution() field rename and receipt.json legacy geom_type/geom_type_name wording: backlog only; receipt bytes untouched"
+  },
+  "fix_card_1_errata": {
+    "record_file": "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/README.md",
+    "p2_reverted_by": "2026-11-11-render-perworld-l-v2-ptx-order-pins-2 (commit 7aa99c9b): R1 reverts P2 half-vector normalization to normalize3_rays; adds P5 dot3_first and P6 length3_midpref; keeps P3/P4",
+    "diagnostic_round_4_result": "A still FAIL; world0 cam1 pixel 13268 regressed back; world1 cam1 three pixels byte-identical to dump2; fix card-1 P2 change and kernel identity superseded",
+    "stat_scope": "evidence uses actual git diff --stat +17/-3 (render_common +11, render_megakernel +2/-1, render_shade +4/-2); commit 358b84fc message wrongly said +37/-3, corrected in 0ad4795a evidence errata and card addenda; code unchanged; history not rewritten",
+    "src_diff_lf_verification": "perworld-l-v2-ptx-order-pins/logs/src.diff 6,772 B, CRLF 0, LF 62, sha256 12be6af5275d8208130dc393988e541752013ef9f8aabd17735e3a7cee94af0f; byte-identical to HEAD blob => already LF, no byte change; manifest recompute caused by README append only"
+  },
+  "changed_files": [
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/body-env-contract-errata.md",
+      "old_sha256": null,
+      "old_bytes": null,
+      "new_sha256": "cf0e7b904330d9128c7a198d83f213561c5c0027e91628ced134003bf45c7c06",
+      "new_bytes": 6009
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/README.md",
+      "old_sha256": "194829f930392b87f51744ce92033e3a4e46c5747b53bc02d553e6ecdfcd7e6d",
+      "old_bytes": 17134,
+      "new_sha256": "df7386a69502be4a4a58fb4b1a23221c2b5872091671c5a3c2c128b7e2a8317c",
+      "new_bytes": 17642
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/manifest.txt",
+      "old_sha256": "66cee2999c09155038bc629c01cefd1d5b92e6406c29a215012672d9a78c01d4",
+      "old_bytes": 7499,
+      "new_sha256": "71d870545b89b144afa6f97715f0ad476d8bba19904db6e2e1f0a1a5a54c63e9",
+      "new_bytes": 7599
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/README.md",
+      "old_sha256": "bb6f0b15a6727758117a11e39d682b3a6f98b26fe32c408bc5dcf1952e8e12b4",
+      "old_bytes": 6084,
+      "new_sha256": "9b20398a8d9e29786a29a9f4983b7f792a24ac87511e2fed7c966e4895b9df49",
+      "new_bytes": 7142
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins/manifest.txt",
+      "old_sha256": "c77a36a52767c95385ede9ec0f8b2ca40f1a0263df5323f61644b474d5e60160",
+      "old_bytes": 1378,
+      "new_sha256": "845b110bbc2fe6fd6f2fbcc7ef6e5c44973e049b4017ccf80222aa92ad0aadcd",
+      "new_bytes": 1378
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/README.md",
+      "old_sha256": "0981a7570420307f355f02a173fd34271521cf211c9c87d53224f10a9a37c31d",
+      "old_bytes": 8178,
+      "new_sha256": "b87eb96483b21a148ef967197d4a968055b1c5b596520a4fea1eb12f157272d7",
+      "new_bytes": 8992
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump/manifest.txt",
+      "old_sha256": "39456e7642a2d30430f6af10c2a91a8ebabe44d738753bf5ada3b38ce2bbfc6b",
+      "old_bytes": 1413,
+      "new_sha256": "f62671abe247f4cfb8f0cae0d680685fc861f5dda4f08a44d8e88d1975886e1e",
+      "new_bytes": 1413
+    }
+  ],
+  "new_files": [
+    "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/body-env-contract-errata.md",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/README.md",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/receipt.json",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/manifest.txt",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/artifacts/outline-env-contract.txt",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/artifacts/guards-json-body-env-audit.txt",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/artifacts/ptx-order-pins-src-diff-eol.txt",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/artifacts/changed-files-sha256.txt",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-post-errata/artifacts/manifests-selfcheck.txt"
+  ],
+  "manifest_selfcheck": {
+    "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2": {
+      "entries": 66,
+      "bad": 0,
+      "missing": [],
+      "extra": []
+    },
+    "docs/development-evidence/render-bvh/perworld-l-v2-ptx-order-pins": {
+      "entries": 12,
+      "bad": 0,
+      "missing": [],
+      "extra": []
+    },
+    "docs/development-evidence/render-bvh/perworld-l-v2-entity-diagnostic-dump": {
+      "entries": 12,
+      "bad": 0,
+      "missing": [],
+      "extra": []
+    }
+  },
+  "boundaries": {
+    "unchanged_src": true,
+    "unchanged_tests": true,
+    "unchanged_fixtures": true,
+    "unchanged_scripts": true,
+    "unchanged_guards_and_frozen_artifacts": true,
+    "unchanged_signed_materials": true,
+    "window_run_records_byte_unchanged": true,
+    "gpu_used": false,
+    "rerun": false,
+    "refreeze": false
+  },
+  "non_claims": [
+    "does not change the G-L2 verdict (still not passed; criterion A FAIL stands)",
+    "does not claim any fix works",
+    "no criterion/threshold/reference/tolerance/camera/recipe change",
+    "dump code field rename and guards body_env schema extension are backlog only, not done here"
+  ]
+}

@@ -1,0 +1,66 @@
+# body env contract — read-only extraction (line numbers are file line numbers)
+
+## tests/support/render_bvh/outline.rs (module doc, lines 1-16)
+    1: //! Env-gated scene-a sphere-outline exemption support (criterion render-sdf-criterion-v2.2).
+    2: //!
+    3: //! Semantics:
+    4: //!   - disabled (neither env var set): callers keep the raw product comparison, so plain
+    5: //!     `cargo test` / CI behaviour is unchanged;
+    6: //!   - enabled (`MJWARP_RENDER_OUTLINE_LIST_DIR` + `MJWARP_REQUIRE_OUTLINE_CRITERION=1`):
+    7: //!     - camera 0 stays bitwise (it has 0 sphere pixels in scene-a);
+    8: //!     - camera 1: pixels outside the frozen list must be bitwise equal; inside the list
+    9: //!       `|ULP| <= 128`; the list file must exist, its `# rows` header must equal the
+   10: //!       data-row count, `# bound_ulp` must be 128 and `# exact_max_ulp` must be <= 128;
+   11: //!     - any violation panics (fail-closed) instead of silently relaxing;
+   12: //!   - setting only one of the two env vars panics (misconfiguration).
+   13: //!
+   14: //! The frozen lists are produced by `scripts/authoring/author-scene-a-sphere-outline.ps1`
+   15: //! (`scene-a-sphere-outline-recipe.txt` / `...-aa2.txt`); the window runner exports the env
+   16: //! vars and the expected list sha256 (verified by the runner itself).
+
+## tests/support/render_bvh/outline.rs enabled() (lines 50-68)
+   50: /// True when the env-gated criterion is required; false when the window is not running.
+   51: pub fn enabled() -> bool {
+   52:     let dir = std::env::var(ENV_LIST_DIR)
+   53:         .ok()
+   54:         .filter(|value| !value.is_empty());
+   55:     let require = std::env::var(ENV_REQUIRE)
+   56:         .ok()
+   57:         .filter(|value| !value.is_empty());
+   58:     match (dir, require) {
+   59:         (Some(_), Some(value)) if value == "1" => true,
+   60:         (None, None) => false,
+   61:         (Some(_), Some(value)) => panic!(
+   62:             "{ENV_REQUIRE} must be 1 when {ENV_LIST_DIR} is set (got {value:?}); refusing to relax"
+   63:         ),
+   64:         _ => panic!(
+   65:             "outline criterion misconfiguration: set both {ENV_LIST_DIR} and {ENV_REQUIRE}=1, or neither"
+   66:         ),
+   67:     }
+   68: }
+
+## scripts/validate/render-bvh/run-window.ps1 (outline env + PATH + list verification, lines 279-298)
+  279: }
+  280: # criterion v2.1: export the frozen outline lists to the entity body (env-gated test support).
+  281: if ($outlineCount -gt 0) {
+  282:     $outlineDirFull = Join-Path $RepoRoot (Split-Path -Parent ([string](@($guard.outline_lists)[0].path)))
+  283:     $preBody = Verify-OutlineLists 'pre-body'
+  284:     if ($preBody.bad -ne 0) {
+  285:         Fact 'outline_list_drift=pre-body'
+  286:         Fact ('window_end=' + (Iso))
+  287:         Guard 'OUTLINE_LIST_DRIFT exit9'
+  288:         Release-WindowLock
+  289:         exit 9
+  290:     }
+  291:     $env:MJWARP_RENDER_OUTLINE_LIST_DIR = $outlineDirFull
+  292:     $env:MJWARP_REQUIRE_OUTLINE_CRITERION = '1'
+  293:     Fact "outline_list_dir=$outlineDirFull"
+  294:     Fact 'outline_require=1'
+  295:     foreach ($list in @($guard.outline_lists)) {
+  296:         Fact ("outline_list_pre arm={0} sha256={1}" -f $list.arm, $list.sha256)
+  297:     }
+  298: }
+
+## scripts/validate/render-bvh/run-window.ps1 (PATH prepend, lines 307-308)
+  307: $oldPath = $env:PATH
+  308: $env:PATH = "$CudaBin;" + $env:PATH
