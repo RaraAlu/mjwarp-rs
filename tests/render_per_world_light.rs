@@ -15,6 +15,8 @@
 
 #[path = "support/render_bvh/light.rs"]
 mod light;
+#[path = "support/render_bvh/light/diag.rs"]
+mod light_diag;
 
 use mjwarp_rs::render::kernel::{MegakernelRenderer, render_per_world_with_lights};
 use mjwarp_rs::render::{WorldScenePoses, resolve_context};
@@ -357,7 +359,18 @@ fn gpu_per_world_light_matches_reference() {
     let first_sha = light::sha256_frames(&product);
 
     // ---- 判据 A：两台相机各自逐 world 严格位级 ----
-    for (world, row) in light::criterion_a(&reference, &product).iter().enumerate() {
+    let criterion_a_stats = light::criterion_a(&reference, &product);
+    // opt-in 像素级诊断 dump（MJWARP_DIAG_PIXEL_DUMP=<路径>；未设置时无打印/无文件/无额外工作，不改断言）
+    light_diag::dump_if_enabled(&light_diag::DumpInput {
+        reference: &reference,
+        product: &product,
+        stats: &criterion_a_stats,
+        rays: &rays,
+        camera_poses: &camera_poses,
+        lights: &lights,
+        resolved: &resolved,
+    });
+    for (world, row) in criterion_a_stats.iter().enumerate() {
         for (cam, stats) in row.iter().enumerate() {
             println!("A world{world} cam{cam}: {stats:?}");
             assert_eq!(
