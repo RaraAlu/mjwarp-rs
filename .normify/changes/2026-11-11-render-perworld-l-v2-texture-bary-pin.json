@@ -5,7 +5,7 @@
     "zh": "perworld L v2 残余像素 P7：mesh 重心 texcoord 插值单独舍入项 pin（mul(uv1*w1)→fma(uv0*w0)→fma(uv2*w2)；零 GPU；新内核身份基线）",
     "en": "Per-world L v2 residual pixels P7: mesh barycentric texcoord interpolation rounding-order pin (mul(uv1*w1) -> fma(uv0*w0) -> fma(uv2*w2); zero GPU; new kernel identity baseline)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "按 Arch 零 GPU 站点级定位（`target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` §A，参考真值 PTX 指令 7900-7936）修复残余 4 px 的纹理链站点：`src/render/kernel/cuda/render_shade.cu::texture_mesh` 的 has_uv 分支把重心 texcoord 插值的**单独舍入项写反**——产品现为 `fmaf(uv0,w0, fmaf(uv1,w1, uv2*w2))`（第三项 uv2*w2 单独舍入），参考是 `mul(uv1*w1) → fma(uv0*w0) → fma(uv2*w2)`（中间项 uv1*w1 单独舍入）。P7 只改 u/v 两行（显式 intrinsics），`w0=bary_u`、`w1=bary_v`、`w2=1.0f-bary_u-bary_v` 与其它 UV/纹理采样/法线/灯链一律不动。记录 old→new `MEGAKERNEL_SOURCE` sha 与 megakernel/aa_resolve/depth_seg 三份 PTX sha+bytes；并做离线 NVRTC PTX 证明该站点为 `mul→fma→fma` 且单独舍入项是 `uv1*w1`（零 GPU，不建 GPU 会话）。不改判据/参考/容差；零 GPU、不采集、不跑诊断；门禁与证据按既有口径。修完由 Chief 发诊断轮 #5 token 验证残余像素是否归零。",
     "en": "Apply Arch's zero-GPU site-level localization (`target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` section A; reference ground-truth PTX instructions 7900-7936) to the residual 4 px texture-chain site: the has_uv branch of `src/render/kernel/cuda/render_shade.cu::texture_mesh` has the separately-rounded term of the barycentric texcoord interpolation reversed -- the product currently does `fmaf(uv0,w0, fmaf(uv1,w1, uv2*w2))` (third term uv2*w2 rounded alone), while the reference does `mul(uv1*w1) -> fma(uv0*w0) -> fma(uv2*w2)` (middle term uv1*w1 rounded alone). P7 changes only the two u/v lines (explicit intrinsics); `w0=bary_u`, `w1=bary_v`, `w2=1.0f-bary_u-bary_v` and all other UV/texture-sampling/normal/light code stay untouched. Record old->new `MEGAKERNEL_SOURCE` sha and the megakernel/aa_resolve/depth_seg PTX sha+bytes, plus an offline NVRTC PTX proof that the site compiles to `mul -> fma -> fma` with `uv1*w1` as the separately-rounded term (zero GPU, no GPU session). No criterion/reference/tolerance changes; zero GPU, no capture, no diagnostic run; standard gates and evidence. A diagnostic-round #5 token follows from the Chief to verify the residual pixels go to zero."
@@ -33,11 +33,11 @@
   },
   "note": "Chief 2026-11-11 06:0x 插队派工（errata 批暂停）：Arch 零 GPU 找到高置信站点 `render_shade.cu::texture_mesh` 重心 texcoord 插值单独舍入项写反（产品单独舍入第三项 uv2*w2，参考单独舍入中间项 uv1*w1），正好命中 4 px 的 textured mesh 路径（geom3 tri-mesh / mat 0 grid 纹理）。P7 只改 u/v 两行（显式 `__fmul_rn`/`__fmaf_rn`），w0/w1/w2 与其它链不动；依据 `target/render-bvh/gl2-ptx-diff/texture-chain-and-dump-spec.md` §A（PTX 7900-7936、寄存器映射、P7 pin 原文）。产出新内核身份 + 离线 NVRTC PTX 同形证明 + 四门禁 + 证据目录；零 GPU、不跑诊断、不宣称生效。",
   "revision": {
-    "before": "ac10b043f89a30a4b8d065ba14a396175344dc56",
+    "before": "81e00cca336e0a3cc0083178c3bbd0fb8387d4d1",
     "after": null
   },
   "created_at": "2026-11-10T21:59:06.000Z",
-  "updated_at": "2026-11-10T21:59:06.000Z",
+  "updated_at": "2026-11-10T21:59:11.173Z",
   "checks": [
     {
       "kind": "gate",
