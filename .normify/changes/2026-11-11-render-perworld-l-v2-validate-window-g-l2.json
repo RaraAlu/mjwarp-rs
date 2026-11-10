@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-validate-window-g-l2",
+  "title": {
+    "zh": "perworld L v2 G-L2 验证窗执行（guards 107 冻结 + authoring 例外门禁复核 + 12 个冻结 exe 单次运行；实体 render_per_world_light 判据 A/B/C + §2.4 对账）",
+    "en": "Per-world L v2 G-L2 validation window (freeze guards 107, monitor gate, single run of the 12 frozen executables; entity render_per_world_light criteria A/B/C + section 2.4 cross-check)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "执行 S-3 双签授权的 G-L2 验证窗（唯一执行者 Backend，锁 owner=Backend 全程持有）：登记窗卡 → T0 冻结 → 仅冻结阶段编译（cargo test --locked --no-run）→ 冻结 guards（12 exe + 93 输入 + 2 清单 = 107，-AllowOldStashDrift 理由记录）→ 冻结后零编译 monitor 60/60 util<40 → 三点基线与 floor_effective=max(signed 9,956, onspot) → 报 Chief 获 GO → 按 guards 清单单次运行 12 个冻结 exe（--ignored --test-threads=1），实体 render_per_world_light 必须判据 A/B/C PASS、C1/C2 两对 ≥576、§2.4 对账 check_capture_c1=Compared、两跑 sha、world 隔离；11 个回归 exe 全绿；运行后再核 live==guard==stash。本卡只出验证事实，不改判据/阈值/参考。",
+    "en": "Execute the S-3 dual-signed G-L2 validation window as the sole writer (repo-write-lock owner=Backend for the whole window): window card, T0 freeze, compile only in the freeze stage (cargo test --locked --no-run), freeze the guards (12 exes + 93 inputs + 2 outline lists = 107; record the -AllowOldStashDrift reason), zero-compile monitor 60/60 util<40 after the freeze, three-point baseline with floor_effective=max(signed 9,956, onspot), Chief GO, one run of the 12 frozen executables (--ignored --test-threads=1), the entity render_per_world_light must pass criteria A/B/C with C1/C2 pairs >=576 and section 2.4 cross-check = Compared, two-run sha and world isolation, 11 regression executables green, and live==guard==stash re-checked. Facts only: no criterion/threshold/reference changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**窗卡与纪律**：登记本卡后 acquire 写锁（owner=Backend）并全程持有；窗口内不写仓（仅冻结产物 guards JSON 与 target/ 产物）、不编译（冻结阶段除外）、不响应群消息；运行前向开发团队群发不带 @ 的留痕。",
+    "**T0 冻结**：记录 HEAD（token 现场 `dd9b9bc6` + 本卡登记提交）、树 clean、锁 owner=Backend、0 构建进程；指纹：实体最终 `bab01507`、参考 5 文件（rgb `602574c2…`/5,531,026、depth `82eec6da…`/1,844,650、seg `c3f09b16…`/3,687,826、state `a1c5a321…`/2,486、capture.json `8b53e122…`/12,251）、旧 guards `ca3ecd5c…`/38,659 B、冻结器 `14d82190…`/20,802 B、spec `bb064fe0…`/39,379 B、S-3 签名对象 README `437dc793…`（签名后 `ddb15baa…` 属预期）。",
+    "**冻结阶段（唯一允许编译）**：`cargo test --locked --no-run` 记 cargo-artifacts.jsonl 并确认 12 exe；`freeze-guards-perworld-l2-light.ps1 -Execute -AllowOldStashDrift -WorkDir target\\render-bvh\\perworld-l2-window`，捕获 `GUARDS_FROZEN …` stdout 行（guards JSON 自身 sha/bytes 只在该行）；验证 12/12 `live==guard==stash`、`aggregate_sha256`、计数 **107 = 12 exe + 93 输入 + 2 清单**、旧 suite/旧 stash 只读未变、drift（recorded/actual/last_write）入证据；此后不再编译。",
+    "**monitor（冻结后零编译）**：`-Required 60 -MaxMinutes 30 -MaxUtil 40` 整轮全干净（compute_filtered=0、build=0、无其它 CUDA）；authoring 例外不适用于验证窗；不成立=窗口不存在→停手报 Chief、不重试。",
+    "**三点基线与 floor**：monitor PASS 后 5 分钟内三点采样；`baseline_free=min`、`onspot=baseline_free−3,072`、`floor_effective=max(signed 9,956, onspot)`；报 Chief 获 GO；超 5 分钟先重取。",
+    "**单次运行 12 个冻结 exe**：按 guards 清单各一次（`--ignored --test-threads=1`），逐 exe 落 log；实体 `render_per_world_light` 判据 A/B/C PASS、C1/C2 两对 ≥576、两跑 sha 相等、world 隔离成立、`check_capture_c1=Compared`（Skipped 即停手）；11 个回归 exe 全绿；运行后 `live==guard==stash` 不变。",
+    "**边界与门禁**：`unchanged src/`、`unchanged tests/`、采集/读脚本与参考文件不变；spec 目录、S-3 材料目录、G-L1 证据目录只读；仅新增 guards JSON 一个仓内冻结产物；四门禁在归档阶段执行；证据 README/receipt/manifest + window/ 记录（T0、build、freeze、monitor、baseline、12 exe log、guards 完整性、tree clean）、UTF-8/LF/无 BOM、manifest 自核。",
+    "**非声明**：本卡只出 G-L2 验证事实（冻结/门禁/12 exe 结果）；不宣称产品渲染等价、不宣称判别力恢复、不放宽任何判据或阈值；失败即停手报 Chief。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-validate-window-s3-material",
+      "2026-11-09-render-perworld-l-v2-validate-window-s3-fill",
+      "2026-11-11-render-perworld-l-v2-validate-window-s3-signature",
+      "2026-11-11-render-perworld-l-v2-validate-window-s3-signature-check",
+      "2026-11-09-render-perworld-l-v2-capture-window-g-l1",
+      "2026-11-08-render-perworld-l-v2-criteria-entity"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/",
+      "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "Chief 2026-11-11 03:25 G-L2 token（S-3 双签 ea91108e + QA dd9b9bc6 PASS；现场 HEAD dd9b9bc6、树 clean、锁 FREE、0 构建、GPU util 38%/free 12,060 MiB）。执行者 Backend 唯一写者、锁 owner=Backend 全程持有；冻结阶段唯一允许编译（cargo test --locked --no-run），冻结后零编译；monitor 常规 util<40、验证窗不适用 authoring 例外；floor signed 9,956；GO 后 12 个冻结 exe 各跑一次，实体 §2.4 对账必须 Compared。停手点：monitor 不成立、free<floor_effective、冻结校验失败、第 5 步后编译、exe 失败或 Skipped、树脏 → 停手报 Chief。",
+  "revision": {
+    "before": "822cfd0b8f4d96889eb45954bbcbed7ac4e301c3",
+    "after": null
+  },
+  "created_at": "2026-11-11T03:25:00.000Z",
+  "updated_at": "2026-11-11T03:25:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "scripts/capture_render_perworld.py",
+        "scripts/perworld_capture_meta.py",
+        "scripts/perworld_light_prep.py",
+        "fixtures/render-bvh/scene-a-light/perworld/nw3-light-hinge02040/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-light-criterion/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-capture-window-g-l1/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-validate-window-g-l2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "判别力已恢复"
+      ]
+    }
+  ]
+}
