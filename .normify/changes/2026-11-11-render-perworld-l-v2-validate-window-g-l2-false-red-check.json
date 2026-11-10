@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-false-red-check",
+  "title": {
+    "zh": "QA 独立核实 G-L2 run-1「render_e2e 失败」为假红（criterion v2.2 outline env 成对缺失 → raw 对比）：`enabled()` 两 env 语义、规范 runner 仅 3 项 body env（PATH+两 outline env）、豁免集 guards/磁盘/outline-lists.json 三方一致（recipe cfd1038a…/183/28969/73、aa2 14893fc6…/172/29448/91、bound 128）、run-1 183/73/28969 与 run-3 in_list 183/outside 0/5 passed 实测闭环、aggregate c213c3cf 独立复算、R1/R3/R4/R5 状态与 R2 漂移记录核实（含根因更正：CRLF/LF 而非内容改动）→ 假红成立",
+    "en": "QA independent verification that the G-L2 run-1 render_e2e failure was a false red caused by the missing criterion v2.2 outline env pair: env-gate semantics, canonical runner env set, outline exemption triple consistency, run-1 vs run-3 cross-check, aggregate recompute, R1-R5 status, and the R2 drift record (root cause corrected to CRLF/LF rendering, not a content change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-L2 attempt-2 run-1 的 `render_e2e` 失败做**独立只读核实**（零 GPU、不改判据、不写被复核内容）：① 代码级确认 `tests/support/render_bvh/outline.rs` 的 `enabled()` 与 `diff_depth_with_outline()` 语义，并更正「缺一即假红」→ 缺一是 panic、两个都不设才是 raw 假红；② 枚举 `scripts/validate/render-bvh/run-window.ps1` **全部** `$env:` 赋值，确认 body 生效集合只有 PATH + 两个 outline env、无第三个隐藏 env，并核 12 个冻结 exe 的 env 需求；③ 核对 guards `outline_lists` 与磁盘两份 list、两份 bounds sidecar、`outline-lists.json`、两份 reference 夹具三方一致，并独立复算 aggregate `c213c3cf…`；④ 交叉 run-1 失败数字（cam1 mismatch 183 / max_ulp 73 / first pixel 28969 / cam0 0）与豁免集，并用 canonical run-3 实测（`outline[recipe] cam1: list_rows=183 outside_mismatch=0 in_list_differing=183 in_list_max_ulp=73 violations=0` → `cam1 depth mismatch=0` → 5/5 passed）闭环；⑤ 核 Chief 裁定 R1–R5 的落地物，特别是 R2 的 `window/guards-input-drift.txt`、`window/actual-input-hashes.txt`（93 条 92 match/1 drift/0 missing）与 README 三句（不作输入绑定声明/不重冻/旧 suite 只读不动）。**只写本卡与本卡证据。**",
+    "en": "Independent read-only verification of the run-1 render_e2e false red: env-gate semantics with the precise correction (one env alone panics, only both-unset gives raw), full enumeration of the canonical runner env assignments, outline exemption triple consistency and aggregate recompute, run-1 vs canonical run-3 empirical closure, and verification of the R1-R5 landing artifacts including the R2 drift record."
+  },
+  "modules": {},
+  "acceptance": [
+    "**假红机理（代码级，含措辞更正）**：`outline.rs` 的 `enabled()` —— 两 env 都设且 `MJWARP_REQUIRE_OUTLINE_CRITERION=1` → true；**两者都未设 → false**；只设一个或值≠1 → **panic（fail-closed，不会被当通过）**；`diff_depth_with_outline()` 未启用时 `return raw`（逐像素仅容 ≤4 ULP）。⇒ 本轮是「**两个都不设 ⇒ raw 假红**」；Chief 口径中的「缺一即假红」应更正为「缺一是 panic」。run-2 自写 launcher 全文 `$env:` 只有 `$env:PATH`，`window/body-env.txt` 亦只记 PATH，故两 env 确实缺失 ✅。",
+    "**规范执行器 env（穷举）**：`run-window.ps1` 全文 `$env:` 共 7 行——291/292（outline 成对导出）、307/308（PATH 前置 CudaBin）、346/367/368（body 后还原/清空）⇒ **body 生效导出恰为 {PATH, `MJWARP_RENDER_OUTLINE_LIST_DIR`, `MJWARP_REQUIRE_OUTLINE_CRITERION=1`}，无第三 env**；12 个 exe 中仅 6 个 scene-a 回归需 outline 环境（e2e/kernel_rgb/depth_seg/flags/r10/skybox），其余只需 PATH；`MJWARP_CAPTURE_AT` 仅注释、无其它 `MJWARP_*` 读取 ✅。",
+    "**豁免集三方一致 + aggregate 复算**：recipe `cfd1038a…`/10,099 B/rows 183/first_pixel 28,969/[169,120]/`exact_max_ulp` 73；aa2 `14893fc6…`/9,509 B/172/29,448/91；`bound_ulp=128`、camera=1、raster 240×180（=43,200 px）；磁盘两份 list、两份 bounds sidecar（`8a80fb0a…`/5,027、`f23ca697…`/4,734）、`outline-lists.json`、两份 reference 夹具（`d6ab6dde…`、`79a275ef…`）与 guards 条目逐项一致；guards aggregate **独立复算 = `c213c3cf…`**（107 = 12 + 93 + 2，路径排序拼接算法）✅。",
+    "**交叉与实测闭环**：run-1 记录 cam0 mismatch 0/max_ulp 0、cam1 compared 43,200/mismatch **183**/max_ulp **73**/first pixel **28,969 (169,120)**/seg 0，与豁免集行数/首像素/最大 ULP 三项全等；canonical run-3（同 12 冻结 exe、guards 仍 `fad2ed37…`、`pre_integrity=12/12`、`pre_outline=recipe:OK,aa2:OK`、baseline_age 5.3 s）实测 `outline[recipe] cam1: list_rows=183 outside_mismatch=0 in_list_differing=183 in_list_max_ulp=73 violations=0 exact_max_ulp=73` → `cam1 depth: mismatch=0 max_ulp=0` → `ok. 5 passed`；**outside_mismatch=0 证明豁免集之外无新漂移** ⇒ 假红成立、非产品回归 ✅。",
+    "**R2 落地物核实（含根因更正）**：`window/guards-input-drift.txt` 与 `window/actual-input-hashes.txt` 均在，`actual-input-hashes` 93 条经我独立重算（逐条重算磁盘 sha/bytes + 与 guards 条目比对 + 重判 MATCH/DRIFT）= **92 match / 1 drift / 0 missing，0 行问题**；README/receipt 明写「该条不作输入绑定声明、不重冻、旧 suite/冻结器只读不动」。**但漂移根因需更正**：guards 记录 `470adbef…`/6,434 B 恰等于**当前 6,020 B 内容的 CRLF 形式**（414 个 LF → CRLF 后正好 6,434 B、sha 逐位相同），而 `18ae7157` 提交的该文件已是 6,020 B，git 历史中从未出现 6,434 B 字节 —— 故根因是 **EOL（CRLF vs LF）测量差**，不是 `guards-input-drift.txt` 所述「随后被 18ae7157 内容修改/回退」；内容与 HEAD blob 一致，「无 e2e 夹具内容变更」的说法在内容层面成立（观察项，不阻断裁定）✅。",
+    "**R1/R3/R4/R5 状态**：R1 已修——canonical runner 用 .NET `Process` + `WaitForExit` + `ExitCode`，`window/launcher-exitcode-selftest.txt` 对 `cmd /c exit 0/7/101` 两机制均正确捕获，run-3 实测 11×0 + 1×101 与 test result 行逐条一致；R3 已修——continuation summary 的 `index` 按 entity_order 修正为 2（render_e2e）并留 `index_fix` 注记（该 summary 的 `exit` 仍为空，属已作废轮次的历史记录）；R4 已更正——`fail-stop-render_e2e.txt` 追加「假红/非产品回归/INVALID_ROUND #2/结果作废」，**但同一段被追加两次（重复 R4 节）**；R5 已记——`window/material-errata.txt` 列 S-3 `command.txt` §5 缺 body env，G-L2 后 errata、签名材料未改 ✅。",
+    "**边界/纪律**：本卡只读复核，未改被复核内容；零 GPU、不采集、不开窗；不改判据/阈值/参考/相机/recipe；不宣称 G-L2 通过或产品等价。**本卡只核「run-1 失败是否假红」这一事实，不改变窗卡判定（未通过）**。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-false-red-check/"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "Chief 2026-11-11 派工（R1–R5 采信后的落库项）。结论：假红成立（代码级 + run-1/run-3 实测闭环）；规范 runner body env 只有 PATH+两 outline env，无其它缺口；豁免集三方一致、aggregate c213c3cf 独立复算通过。R1/R3/R4/R5 已落地（R4 文本重复追加一次、R3 历史轮 summary 仍留空 exit，均为观察）。R2 漂移记录齐备且 93 条 92/1/0 独立复现，但根因应更正为 CRLF/LF 渲染差（470adbef = 当前 6020 B 内容的 CRLF 版 6434 B），而非 18ae7157 内容改动——建议在证据里追加一行根因更正，不重冻。零 GPU、未改进度群。",
+  "revision": {
+    "before": "343853bbddbb12f036c53d9a81ae02f64b8bb2a4",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:42:00.000Z",
+  "updated_at": "2026-11-11T04:42:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-false-red-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-false-red-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-false-red-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G-L2 通过",
+        "上游等价",
+        "判别力已恢复"
+      ]
+    }
+  ]
+}

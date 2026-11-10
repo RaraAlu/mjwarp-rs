@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-evidence-check",
+  "title": {
+    "zh": "QA 复核 G-L2 归档证据（`acf3edaa`，72 文件）：判定如实=执行完成/未通过（判据 A world0 cam1 rgb 2 像素 1 字节；C PASS、§2.4 Compared；B/两跑 sha/隔离未评估）、无任何通过/等价/验收表述、12 exe 11×0+1×101 与实体 C/A 数字逐项一致、4 类无效轮如实、前后 12/12 live==guard==stash、零编译、pre/post outline OK、R2 漂移与 93 输入 92/1/0、manifest 65/65、边界零越界 → PASS（只核记录如实性，不改变判定=未通过）",
+    "en": "QA review of the G-L2 archive evidence acf3edaa: verdict recorded truthfully as executed-not-passed, no pass/equivalence/acceptance claims, 12 exe exits and entity criterion C/A numbers consistent, four invalid-round records honest, 12/12 live==guard==stash before and after, zero compile, pre/post outline OK, R2 drift and 93-input 92/1/0, manifest 65/65, boundary clean - PASS (record honesty only; the verdict stays not passed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-L2 验证窗归档提交 **`acf3edaa`**（72 文件；窗卡 `2026-11-11-render-perworld-l-v2-validate-window-g-l2` verified）做**独立只读复核**：① 判定如实性——README 与卡 note 是否明写「执行完成、判定**未通过**（判据 A FAIL：world0 cam1 2 像素 1 字节；C PASS、§2.4 Compared；B/两跑 sha/world 隔离未评估）」，卡 `verified` 语义是否被限定为「执行完成」，全文不得有「通过/等价/验收」正面表述；② 数字一致性——12 exe 表（11×exit 0 + 实体 exit 101）、实体 C（C1 38,285/40,644；C2 depth 35,828/33,883、seg 16,041/16,754）、A 明细（world0 cam0 全 0；cam1 rgb 2 px/1 byte、depth/seg 0）、e2e canary、monitor/冻结/基线、4 类无效轮，逐项与证据文件对账；③ 完整性——运行前后 12/12 `live==guard==stash`、guards sha/aggregate 未变、零编译、pre/post outline OK、R2 漂移记录、93 输入实测 92/1/0、manifest 65/65 重算、编码卫生、diff 面（证据 + guards JSON + 窗卡 + runs；`src/`/`tests/`/`fixtures/` 零改动）。**只写本卡与本卡证据；零 GPU；不改判据。**",
+    "en": "Independent read-only review of the G-L2 archive commit: verdict honesty (executed, not passed; no pass/equivalence/acceptance claims; card verified limited to execution complete), number consistency against the evidence files, and completeness (integrity, zero compile, outline checks, R2 drift, 93-input measurement, manifest, encoding, boundary)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**判定如实（核心）**：README 标题与摘要明写「**判定：未通过**」「执行完成、判定未通过（判据 A 失败）」；卡 note 明写「**本卡 verified 仅表示执行完成；G-L2 判定 = 未通过，转 RCA**」；receipt `status=executed_not_passed`、`verdict.overall=not_passed / criterion_a=fail / criterion_b=not_evaluated / criterion_c=pass / two_run_sha=not_evaluated / world_isolation=not_evaluated / section_2_4_crosscheck=Compared / regression_exes=11/11 exit 0 / entity_exit=101`。全文「通过/等价/验收」共 8 处命中，逐处判读均为**否定句**（未通过/不宣称/不宣称等价/不宣称验收）或**门禁通过**（fmt/clippy 通过），**无任何 G-L2 通过、产品等价、灯字段验收、渲染数值等价的正面表述** ✅。",
+    "**数字一致（逐文件对账）**：12 exe 表 11×exit 0 + `render_per_world_light` exit 101（`run-summary-canonical.json` `ran=12 all_ran=true fail_stop=render_per_world_light exit=101`，wall 55.429 s）；实体 stdout 实测 C1 `[38285, 40644]`、C2 depth `[35828, 33883]`、seg `[16041, 16754]`、`verdict=PassMargin`、诊断 campersp `[0,0]/[0,0]`、camhinge rgb `[50363, 52329]`、`capture.json C1 交叉核对 = Compared`；A：world0 cam0 全 0、world0 cam1 `rgb_mismatched_pixels=2 / rgb_max_byte_diff=1`、depth 0/0 ULP、seg 0，panic `tests/render_per_world_light.rs:363 left: 2 right: 0`；`16 filtered` 与 binary 18 tests（`render_per_world_light.rs` 4 + `light/tests.rs` 14）减 2 运行自洽 → 非过滤误读；monitor 297 samples/longest_clean 60/compute_filtered 0/build 0/ready true、冻结 107=12+93+2 与 aggregate `c213c3cf…`、run3 基线 12,138/12,143/12,143 → `floor_effective=max(9,956,9,066)=9,956`、e2e canary `list_rows=183 outside_mismatch=0 … violations=0`、4 类无效轮（attempt-1 monitor 不成立未跑 exe、run-0 NVRTC、preflight abort、run-1 outline env 假红=INVALID_ROUND #2）均与对应记录逐项一致 ✅。",
+    "**完整性**：运行前后 12/12 `live==guard==stash`（我在归档后重新实测 live 12/12、stash 12/12 均等于 guards sha）；guards JSON `fad2ed37…`/43,729 B 与 aggregate `c213c3cf…` 未变；旧 suite `ca3ecd5c…`/38,659 B 只读未变；冻结后零编译（`build-result.txt`/`cargo-artifacts.jsonl`/`cargo-build-stderr.log` + 运行后 `build_processes=0`、无 residual）；pre/post outline 校验 recipe/aa2 均 OK；R2 漂移记录 `guards-input-drift.txt` + `actual-input-hashes.txt`（93 条，经我独立逐条重算 = **92 match / 1 drift / 0 missing，0 行问题**）且明写「不作输入绑定声明/不重冻/旧 suite 只读不动」；`window/launcher-exitcode-selftest.txt`（R1）与 `window/material-errata.txt`（R5）在位；manifest **65/65 独立重算全对**；66 个证据文件 **BOM=0、CR=0**（UTF-8/LF）；边界：`src/`/`tests/`/`fixtures/` 零 diff，`scripts/` 仅新增 guards JSON，S-3 材料/spec/G-L1 证据目录零 diff ✅。",
+    "**结论与观察项**：**PASS（0 阻断）**。**本复核只核记录如实性，不改变判定=未通过，也不构成对判据/阈值/参考的任何改动或放宽建议。** 观察项（均信息级、不阻断）：O1 无效轮 `fail-stop-render_e2e.txt` 的 R4 更正段被**重复追加两次**（61 行内 2 个同头），建议去重；O2 R2 `guards-input-drift.txt` 的根因表述应更正为 **EOL（CRLF vs LF）测量差**——guards 记录 `470adbef…`/6,434 B 恰为当前 6,020 B 内容的 CRLF 形式（414 LF → CRLF 后 6,434 B、sha 相同），`18ae7157` 提交内容已是 6,020 B、git 历史中从未有 6,434 B 版本，故不是「随后被内容修改」；O3 `run-summary-continuation.json` 中作废轮次仍保留空 `exit`（R1 仅对 canonical 轮生效），建议在 `index_fix` 旁注一句；O4 receipt `non_claims` 首条本身是否定句（the G-L2 validation did not pass: …），格式上易被误读为声明项，建议措辞区分（信息级）。",
+    "**非声明**：本复核不宣称 G-L2 通过、不宣称产品与冻结上游实现等价、不宣称灯字段验收或渲染数值等价、不宣称判别力恢复；不改变任何判据/阈值/参考/相机/recipe；未重跑、未挑选结果。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2",
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2-false-red-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-evidence-check/"
+    ],
+    "resources": [],
+    "priority": 92
+  },
+  "note": "Chief 2026-11-11 派工：G-L2 归档证据复核（对象 acf3edaa，72 文件；窗卡 verified）。结论 PASS（只核记录如实性，不改变判定=未通过）：判定如实且无通过/等价/验收正面表述、12 exe 11×0+1×101 与实体 C/A 数字逐项一致、4 类无效轮如实、前后 live==guard==stash 12/12、零编译、pre/post outline OK、manifest 65/65、编码与边界干净。4 条信息级观察（R4 段重复、R2 根因应为 CRLF/LF、作废轮 exit 空、non_claims 首条措辞）。零 GPU、不改判据。",
+  "revision": {
+    "before": "343853bbddbb12f036c53d9a81ae02f64b8bb2a4",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:42:00.000Z",
+  "updated_at": "2026-11-11T04:42:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-evidence-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-evidence-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-evidence-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/receipt.json",
+      "pointer": "/verdict/overall",
+      "equals": "not_passed"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G-L2 通过",
+        "上游等价",
+        "判别力已恢复"
+      ]
+    }
+  ]
+}
