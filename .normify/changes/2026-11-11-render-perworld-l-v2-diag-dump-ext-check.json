@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-diag-dump-ext-check",
+  "title": {
+    "zh": "QA 复核产品侧扩展像素 dump 两卡（主卡 `bb29e351` + 配套卡 `e7fc06f7`）：**算术未变门独立复现**（pinned NVRTC 12.8.1 + product 选项编译 old/new 拼接源，old PTX `7fd86b85…`/344,181、new `1fd53131…`/347,070，f32 算术 opcode 序列完全一致）、env 未设零副作用、82 槽 ABI 一致（kernel 形参 82 == `MEGAKERNEL_SLOTS` 82）、schema 偏移/编码四方一致、门禁 1387/0/402、manifest 10/10、边界零越界；但 **`SCHEMA` 仍为 1，与 README/receipt/两卡验收/提交信息声称的 schema 2 不符（阻断 1 项）**，另有 4 一般 + 5 低 → **阻断 1 项（须先修 schema 标记或更正记录面）**",
+    "en": "QA review of the product-side extended pixel-dump pair (main bb29e351 + companion e7fc06f7): arithmetic-unchanged gate independently reproduced (pinned NVRTC 12.8.1, identical f32 arithmetic opcode sequence), zero side effect when env unset, 82-slot ABI consistency, schema offsets/encoding cross-checked, gates 1387/0/402, manifest 10/10, boundary clean; however SCHEMA is still 1 while every record claims schema 2 - BLOCKED by one item"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对「产品侧扩展像素 dump」两卡（主卡 **`bb29e351`**：产品实现 + 证据；配套卡 **`e7fc06f7`**：82 槽 ABI 棘轮测试 + 测试侧 `diag_ext`）做独立只读复核（零 GPU）：① 算术未变门（关键）——自己用仓库 pinned CUDA 12.8.1 NVRTC + product 选项分别编译 old（`755b3d07` blobs）/new（工作树）拼接源，抽取全部 f32 算术 opcode 序列比对；② env 未设零副作用（分配/回读/输出/内核 store）；③ 82 槽 ABI 与 kernel 形参、`MEGAKERNEL_SLOTS`、`RenderSignature`、launch 校验一致，上游 81 槽顺序未动；④ dump schema 偏移/编码（README 表 / kernel `DIAG_*` / `diag.rs` 解码 / `diag_ext` JSON）四方一致；⑤ 门禁/manifest/边界/卫生；⑥ 口径（不宣称修复、G-L2 维持未通过）。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the product-side extended pixel dump pair: arithmetic-unchanged gate reproduced with the pinned toolchain, zero side effect when the env is unset, 82-slot ABI consistency, dump schema cross-check, gates/manifest/boundary, non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**阻断 B1（须先修）— dump `SCHEMA` 仍为 1，与声明 schema 2 不符**：`tests/support/render_bvh/light/diag.rs:24` 仍为 `pub const SCHEMA: u32 = 1;`，dump JSON 顶层实际输出 `\"schema\": 1`（`:110` `\"schema\": SCHEMA`）；而 README §2 标题与 L61 写「schema 2 / 顶层 `schema` 由 1 → 2」、receipt `dump_schema.json_location` 写「schema 2」、两卡验收（含配套卡标题）写「schema 2」、两个提交信息也写 schema 2。⇒ 声明的数据契约与产物不一致：按「schema 2 = 带 diagnostics」消费该 dump 的对照/重放工具会误判。修法一行（`SCHEMA: u32 = 2`）或全量更正记录面（提交信息不可改，故建议改代码 + errata 记一笔）。**修好前不宜作为诊断轮 #7 的产品侧数据源放行。**",
+    "**算术未变门（关键）独立复现 ✅**：用仓库 pinned `target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll`（nvrtc 12.8）+ product 选项（`--fmad=true --std=c++17 --gpu-architecture=compute_70 --device-as-default-execution-space --include-path=include/warp-headers`）分别编译 old（`755b3d07` 七个 blob，LF 逐字节拼接）/new（工作树）：old source `02160146…`/104,676 B、new `624ab298…`/109,384 B（与我按 `mod.rs` `include_str!` 顺序独立复算一致）；PTX old **`7fd86b85…`/344,181 B**、new **`1fd53131…`/347,070 B**（与 identity 用例打印逐位一致）；f32 算术 opcode 序列 **sequence identical = True、multiset identical = True**（我的两种抽取口径分别 3,124==3,124 与 3,151==3,151；卡自报口径 3,148==3,148，同结论）✅",
+    "**env 未设零副作用 ✅（读码 + 单测门禁）**：`diag.rs::DiagBuffer::new` 在 `enabled()==false` 时直接 `Ok(None)`（零分配、零上传）；`arg_addr(None)→0`；`megakernel.rs` 的 `finish_diag(None)` 为空操作；kernel `diag_rec = nullptr`，`diag_store_tex/light/light_spec/hit` 全部首行 `if (d == nullptr) return;`；测试侧 dump 本身由同一 `MJWARP_DIAG_PIXEL_DUMP` 门控（`dump_if_enabled` 未设返回 `None`，无打印/无文件）。默认路径仅多一个整数参数与空指针判断，无 f32 表达式参与（算术门已证）✅",
+    "**82 槽 ABI 一致 ✅**：脚本解析 `render_megakernel.cu` 的 `extern \"C\"` 形参 = **82 个**，末参 `wp::uint64 diag_ptr`；`MEGAKERNEL_SLOTS` = `[RenderArgKind; 82]`（末槽 `S(SU)`=Scalar(U64)），构成 **1 bounds + 73 数组 + 8 标量**；`RenderSignature::MEGAKERNEL.len()==82`；launcher 在 `args.len() != slots.len()` / `!= signature.len()` 处报错兜底。上游 81 槽语义与顺序未动（唯一差异是尾随追加），4 个冻结棘轮测试同步为 82 ✅",
+    "**dump schema 偏移/编码四方一致 ✅**：README §2 偏移表、kernel `DIAG_*` 常量、`src/render/kernel/diag.rs` 解码常量、`tests/.../diag_ext.rs` JSON 键逐项一致（0–2 color、3–5 base_color、6–7 tex_uv、8–10 tex_color、11/12 bary、13 t、14 face、15 mesh_id、16–18 hit_point、19–21 normal、22–24 ray_dir、25–56 lights 4×8 = weight/visible/ndotl/ndoth/half.xyz/spec_pow、57–63 保留=0，stride 64）；`face`/`mesh_id` 以 `__int_as_float` 存、host `to_bits as i32` 解回；`view_dir = -ray_dir_world` 是精确符号位翻转（Rust 一元负对 f32 逐位翻转，含 ±0）✅",
+    "**门禁/边界/证据 ✅**：我独立重跑四门禁 **fmt exit 0 / clippy exit 0 / clippy-cuda exit 0 / `cargo test --locked` 1,387 passed 0 failed 402 ignored exit 0**；两提交只含 `src/`（8 文件，含新 `diag.rs`）、`tests/`（主卡 2 + 配套卡 5）、证据与卡记录，`fixtures/`、`scripts/` **零 diff**；guards JSON `fad2ed37…`/43,729 B 与 12 个冻结 exe stash 零改动；**无新增 `.cu`**（42 文件 CUDA 源面快照测试通过，`MEGAKERNEL_SOURCE` 仍 7 项）；文件行数 `render_shade.cu` 478 / `render_megakernel.cu` 499 / `megakernel.rs` 500（棘轮内）；证据 manifest **10/10 独立重算全对**（README `c5e21972…`/9,646 B、receipt `fc0494f2…`/7,381 B、manifest `78c4db9f…`/1,173 B），10 个文件全 UTF-8、无 BOM、裸 CR 0、TAB 0 ✅",
+    "**测试改动只服务诊断、未放宽判据 ✅**：主卡 `tests/` diff 仅 3 行（`DumpInput.renderer` 字段 + `diagnostics` 键 + 模块挂载），配套卡仅 4 处槽数断言 81→82 与新增 `diag_ext` 编码模块；无任何阈值/参考/相机归属/判据 A 比较逻辑改动，`diag.rs`（测试侧）原 `SCHEMA` 之外字段未动 ✅",
+    "**口径（非声明）✅**：README §6 与 receipt `non_claims` 明写「不宣称修复、不宣称渲染数值等价、不改判据/阈值/参考/容差、G-L2 判定维持未通过（判据 A FAIL）、诊断轮 #7 另发 token」；无「已修复/已通过/等价」正面表述 ✅",
+    "**一般 G1 — 记录面仍指向不存在的 `render_diag.cu`**：README §1 表格写「`MEGAKERNEL_SOURCE` 在 `render_common.cu` 后插入 `render_diag.cu`」、主卡验收同句、`src/render/kernel/diag.rs:10` 与 `tests/.../diag_ext.rs:4` 注释亦引用 `cuda/render_diag.cu`；实际**未新增 `.cu`**、`MEGAKERNEL_SOURCE` 7 项未变（与 README §4 stitched source 7 files 自相矛盾），helper 定义在 `render_megakernel.cu` 顶部。建议 errata 更正记录面与两处代码注释。",
+    "**一般 G2 — 记录索引公式与实现不符 + 多 world 单次发射静默无诊断**：README §2/receipt `record_index` 写「记录下标 = `worldid * total_rays + rayid`」，实现为 `diag + (long)rayid * DIAG_STRIDE`（无 world 基址）。在唯一使用路径（per-world 单 world 发射：`launch_worlds=1`、kernel `worldid` 恒 0、buffer = `total_rays` 条）等价且正确；但 `render_impl(world=None)` 多 world 单次发射时所有 world 写同一段前 `total_rays` 条，而 `DiagCapture.world=None` 与 `diag_record(world)` 的 `Some(world)` 键不匹配 → 诊断字段全为 null（不产生错数据，但静默缺失）。建议在 README/receipt 明写「仅支持 per-world 单 world 发射」，或按 world 加基址。",
+    "**一般 G3 — README 行数/文件数写错**：README §6 写「`render_shade.cu` 473 行、`render_megakernel.cu` 414 行」，实测 **478 / 499**（receipt `line_budget` 的 478/499/500/496/494 是对的）；§1 标题写「11 个源文件」，主卡实际 8 个 src + 2 个 test（配套卡另 5 个 test）。记录面更正即可。",
+    "**一般 G4 — 新解码路径无任何自证测试**：新增 `DiagRecord::from_slice`（24 行解码）与 `diag_ext` 编码模块没有单元测试，偏移/位型/`view_dir` 派生只能靠诊断轮实测；作为「逐站比对数据源」，建议补一个纯 CPU 合成 64×f32 记录的往返测试（无需 GPU，成本极低），否则偏移错误无回归防护。",
+    "**低 L1**：`tests/render_launch_abi.rs` 断言 82 但消息仍写「1 bounds + 73 数组 + 7 标量」（实际 8 标量）；`tests/render_lighting_kernel.rs` 测试名 `megakernel_slots_signature_is_unchanged` 与注释「81 槽 S7a 冻结签名：R09-S2 不增槽」已误导（现为 82）。",
+    "**低 L2**：README §4 的离线 PTX 数字（344,182 / 347,071 B、sha `5abc0b4e…`/`c2d8a885…`）与 §3 身份用例（344,181 / 347,070 B、`7fd86b85…`/`1fd53131…`）不同；我独立编译复现出的是后者，差异 1 字节来自离线脚本把 NVRTC 输出尾部 NUL 计入（sha 因此不同），PTX 内容相同。建议在证据中注明口径，避免被读成两套编译结果。",
+    "**低 L3**：算术未变门只有输出日志（`logs/ptx-arith-compare.txt` 等），未归档抽取脚本/命令，该门目前不可逐字复算（我已用自写脚本独立复现结论）。建议 errata 附脚本或完整命令。",
+    "**低 L4**：灯槽映射在 `nlight >= 4` 时冲突——kernel `diag_slot = light < DIAG_LIGHT_SLOTS-1 ? light : DIAG_LIGHT_SLOTS-1`，第 3 盏及之后全部落 slot 3 与 headlight 同槽；README 只写「headlight 用第 4 slot」。本 G-L2 场景（2 盏 + headlight）不受影响，记录限制即可。",
+    "**低 L5（观察）**：Backend 披露其收口期间 CPU `cargo build`/测试与 Arch 分钟级 GPU 窗口时间上重叠——CPU-only 负载、GPU 计算未重叠，不违反 GPU 窗口规则；按团队「同一时间单构建者」纪律记录一笔。本次我复核的门禁为串行执行，未并行。",
+    "**结论：阻断 1 项（B1，须先修 `SCHEMA` 或更正记录面）+ 一般 4 项 + 低 5 项。** 修正 B1 后，本复核未发现其他阻断；产品侧 dump 的算术、门控、ABI、偏移编码与边界均可作为诊断轮 #7 的数据源前提。本复核**不判定修复效果、不改变 G-L2 未通过判定、未改任何源码/判据/参考/容差**。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-diag-dump-ext",
+      "2026-11-11-render-megakernel-slot-82-ratchet-support"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：优先复核产品侧扩展像素 dump 两卡（主卡 bb29e351 + 配套卡 e7fc06f7；零 GPU）。结论：阻断 1 项（dump 顶层 SCHEMA 仍为 1，与 README/receipt/两卡验收/提交信息声称的 schema 2 不符，需一行修复或记录面更正）+ 4 一般 + 5 低。已独立复现关键门：pinned NVRTC 12.8.1 product 选项编译 old(755b3d07)/new(工作树) 拼接源，source 02160146/104676→624ab298/109384、PTX 7fd86b85/344181→1fd53131/347070，f32 算术 opcode 序列完全一致（我的口径 3124==3124 与 3151==3151）；env 未设零副作用（零分配/零回读/内核 nullptr 首行返回）；kernel 形参 82==SLOTS 82（1+73+8）、末槽 Scalar(U64)；schema 偏移/编码四方一致；四门禁 1387/0/402；manifest 10/10；fixtures/scripts/guards/stash 零改动、无新增 .cu（42 文件源面快照过）。一般项：记录面仍引用不存在的 render_diag.cu、记录索引公式与实现不符且多 world 单次发射静默无诊断、README 行数(473/414 vs 478/499)与文件数写错、新解码路径无自证测试。低项：ABI 测试消息/名称陈旧、§4 PTX 字节含尾部 NUL 口径、抽取脚本未归档、nlight>=4 灯槽冲突、CPU build 与 GPU 窗口时间重叠观察。",
+  "revision": {
+    "before": "1507d181aa180628d0904821f2af69ca63ad2f89",
+    "after": null
+  },
+  "created_at": "2026-11-10T22:52:00.000Z",
+  "updated_at": "2026-11-10T22:52:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-diag-dump-ext-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-diag-dump-ext-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "BLOCKED"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
