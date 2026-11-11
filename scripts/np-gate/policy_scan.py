@@ -31,10 +31,15 @@ and the block itself contains an AFFIRMATIVE withdrawal declaration. Rules:
   split-writing to evade is policy circumvention, not exemption;
 - the exemption is per block: text after the end marker is scanned normally;
 - a marked block without an affirmative withdrawal/supersede declaration is scanned normally;
+- declaration support is bilingual: Chinese tokens 撤回/作废 and English token supersede; negators
+  are recognised in both languages (Chinese 未/不/... and English not/no/never/without/...).
 - every exempted block must leave a human-review trace: put `reviewed_by: <name>-<YYYY-MM-DD>`
   inside the block (preferred), or list the block in the evidence receipt's
   `quote_block_inventory` with its reviewer. `--list-quote-blocks FILE...` prints the inventory
-  (file, line range, closed, affirmative declaration, reviewed_by marker) for QA verification.
+  (file, line range, closed, affirmative declaration, reviewed flag) for QA verification.
+  NOTE: the inventory field `reviewed` only means "a reviewed_by marker exists INSIDE the block";
+  false does NOT mean unreviewed - the trace may live in the evidence receipt's
+  quote_block_inventory (e.g. historical A-2 addenda-v2, whose bytes must not change).
 
 This exemption lets evidence keep the original wording for audit while the surrounding
 narrative states the withdrawal. It is still a guard rail: QA must manually review every
@@ -74,12 +79,32 @@ QUOTE_START = "<!-- policy-scan:quote:start -->"
 QUOTE_END = "<!-- policy-scan:quote:end -->"
 QUOTE_DECLARATIONS = ("\u64a4\u56de", "supersede", "\u4f5c\u5e9f")  # 撤回 / supersede / 作废
 # A declaration token immediately preceded by one of these is a negated declaration and grants
-# no exemption ("未撤回", "不作废", "没有撤回", "尚未撤回", "无法撤回", ...).
+# no exemption ("未撤回", "不作废", "没有撤回", "尚未撤回", "无法撤回", "never supersede",
+# "must not supersede", ...). Chinese negators match as suffix substrings; English negators
+# additionally require a word boundary so "piano supersede" is not treated as negated.
 DECLARATION_NEGATORS = (
-    "\u672a", "\u4e0d", "\u6ca1", "\u65e0", "\u975e", "\u5426",  # 未 不 没 无 非 否
-    "\u6ca1\u6709", "\u65e0\u6cd5", "\u4e0d\u80fd", "\u4e0d\u4f1a",  # 没有 无法 不能 不会
-    "\u5c1a\u672a", "\u5e76\u672a", "\u4e0d\u4e88", "\u672a\u4e88",  # 尚未 并未 不予 未予
+    "未", "不", "没", "无", "非", "否",  # 未 不 没 无 非 否
+    "没有", "无法", "不能", "不会",  # 没有 无法 不能 不会
+    "尚未", "并未", "不予", "未予",  # 尚未 并未 不予 未予
+    # English negators (word-boundary checked; compounds listed explicitly)
+    "not", "no", "never", "without", "none", "cannot", "mustnot", "donot", "doesnot",
+    "didnot", "isnot", "arenot", "wasnot", "werenot", "hasnot", "havenot", "hadnot",
+    "dont", "doesnt", "didnt", "isnt", "arent", "wasnt", "werent", "hasnt", "havent",
+    "hadnt", "wont", "wouldnt", "shouldnt", "couldnt", "mustnt",
 )
+
+
+def _is_negated(prefix):
+    """True when the stripped prefix ends with a negator (English negators need a boundary)."""
+    for neg in DECLARATION_NEGATORS:
+        if not prefix.endswith(neg):
+            continue
+        if neg.isascii():
+            start = len(prefix) - len(neg)
+            if start > 0 and prefix[start - 1].isalnum():
+                continue
+        return True
+    return False
 DECLARATION_PREFIX_STRIP = " \t\r\n\u00b7-/._\u3002\uff0c\uff1a:\uff08\uff09()[]\u3010\u3011\"'"
 REVIEW_MARKER = "reviewed_by"
 
@@ -104,7 +129,7 @@ def has_affirmative_declaration(inner):
             if hit < 0:
                 break
             prefix = lowered[max(0, hit - 10):hit].rstrip(DECLARATION_PREFIX_STRIP)
-            if not any(prefix.endswith(neg) for neg in DECLARATION_NEGATORS):
+            if not _is_negated(prefix):
                 return True
             pos = hit + 1
     return False
@@ -234,6 +259,12 @@ SELF_TESTS = [
     (f"{_S}\n没有撤回：" + "x" * 24 + f"结果位级等价\n{_E}", 1),
     # fixed affirmative declaration form counts
     (f"{_S}\n撤回(5)：结果位级等价\n{_E}", 0),
+    # english negated declarations must NOT exempt (C-1 review L1)
+    (f"{_S}\nnever supersede：" + "x" * 24 + f"bit-level equivalent\n{_E}", 1),
+    (f"{_S}\nno withdrawal：" + "x" * 24 + f"bit-level equivalent\n{_E}", 1),
+    (f"{_S}\nmust not supersede：" + "x" * 24 + f"bit-level equivalent\n{_E}", 1),
+    # english affirmative declaration form counts
+    (f"{_S}\nsupersedes: bit-level equivalent\n{_E}", 0),
 ]
 
 
