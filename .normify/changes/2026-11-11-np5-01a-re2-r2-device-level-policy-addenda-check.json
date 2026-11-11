@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-re2-r2-device-level-policy-addenda-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a RE-2(r2)（`949bf18b`）：**PASS（0 阻断，2 一般 + 1 低 + 2 观察）**——policy_scan 分隔符归一化我实测 8/8 变体命中、否定豁免保留、自测 12/12、重扫 A-2 evidence 5/addenda 0；A-2 landing 字节未改、manifest 5/5；设备级 3 行分类与理由码正确、产品 PTX sha/bytes 复算一致、冻结件无 lineinfo；**一般=①A-2 addenda r2 非 append（旧 2,030 B 非新 4,179 B 前缀）②用「引文拆写」规避刚修好的扫描器**",
+    "en": "QA review of RE-2(r2): PASS (0 blockers, 2 major + 1 low + 2 observations); scanner normalization/negation/self-test verified, rescan 5/0, device rows correct; major = addenda r2 is a rewrite (not append) and the addenda deliberately splits quotes to evade the fixed scanner"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 RE-2(r2)（`949bf18b`）做独立只读复核（零 GPU）：①policy_scan 修复的构造用例实测与重扫计数；②A-2 addenda r2 归因更正与 append-only；③A-2 设备级 3 行分类/理由码/PTX 不入仓/冻结件无 lineinfo/engine-semantic 是否避免数值等价；④manifest/门禁/边界/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of RE-2(r2): scanner fix verification, A-2 addenda r2 correction and append-only, device-level rows, evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**policy 修复 ✅**：我构造 `位级·等价`/`位级 等价`/`位级-等价`/`位级_等价`/`位级/等价`/`位级.等价`/`位级等价`/`bit-level equivalent` → **8/8 命中**；否定豁免 `不得写位级等价`/`不提供位级保证`/`不同` → 0 命中；`--self-test` 12/12；重扫 A-2 evidence **5**、addenda **0**，与声明一致",
+    "**A-2 landing 字节/manifest ✅**：evidence/README/receipt/selfcheck 在 `df5fc8aa`→`949bf18b` 逐 blob 未变；A-2 manifest 我独立重算 5/5（含 addenda、不自列）`be9ffd46…`/717",
+    "**设备级 3 行 ✅**：产品 PTX 身份 kinematics `262e8330…`/46,921、mass_matrix `5e4fcd82…`/17,007 磁盘复算一致；冻结 `smooth.ptx` `4179acd0…`/993,601、48 entries、0 `.loc`；kinematics `not-decidable`(frozen-artifact-only,no-lineinfo)、crb `engine-semantic`（why + `bit_level_guarantee:false`、明写不作数值等价）、mass_multiply `not-decidable`(no-reference-entry)；证据目录 0 个 `.ptx`、`ptx_landed=false`",
+    "**证据/门禁/边界 ✅**：RE-2 manifest 4/4；门禁 1406/0/402；边界仅 docs evidence+`.normify`；UTF-8/LF 无 BOM/CR/NUL",
+    "**结论：复核通过（0 阻断，2 一般 + 1 低 + 2 观察）。** G1=A-2 addenda r2 是改写成 4,179 B（旧 2,030 B 不是前缀，首行/表头/末段均被改），违反前缀不变式，建议走 `addenda-v2` + supersedes；G2=新 addenda 自述「引文拆写…不写出可被归一化匹配的连写形式」＝刻意规避刚修好的扫描器，建议加显式引用豁免或人工复核；L1=`policy_tool.landed:true` 在 949bf18b 时点不成立（工具由 POL-SCAN 落）；O1=mass_multiply 18 属 A-3 范围；O2=device 行级分类与 source 逐站点分类粒度混用"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-re2-a2-device-level-policy-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-re2-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 RE-2 复核；结论 PASS（0 阻断，2 一般 + 1 低 + 2 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T12:30:00.000Z",
+  "updated_at": "2026-11-11T12:30:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-re2-r2-device-level-policy-addenda-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "b72366069d46f94e54aeb6049403085bfb1f7ee9",
+    "after": null
+  }
+}
