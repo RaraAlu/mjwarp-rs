@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-a2-kinematics-crb-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a A-2（kinematics 33 + crb 30，`2cede9b6`）：**PASS（0 阻断，1 一般 + 1 低 + 2 观察）**——63/63 id 与 sites.json 逐 id 相等、累计 139 无重叠、直方图自算 `{n/a32, identical27, engine-semantic4}` 一致、4 条 engine-semantic 均带 why+`bit_level_guarantee:false`、锚点抽样与上游行域全对（`_kinematics_branch` 48–146 等）、输入哈希/manifest 4/4/门禁 1,406/0/402；**一般项=证据内 2 处正面「位级等价」表述须改**（与 `bit_level_guarantee:false`、README「不作数值等价结论」矛盾）",
+    "en": "QA review of A-2: PASS (0 blockers, 1 major + 1 low + 2 observations); ids/cumulative/anchor/hashes/gates all verified; major = two positive \"bit-level equivalence\" assertions in evidence that must be reworded"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 A-2（`2cede9b6`，63 站点）做独立只读复核（零 GPU）：①63/63 id 与 sites.json 一致、必填字段、直方图独立自算；②锚点抽样（`_kinematics_branch` 48–146、`_compute_body_matrices` 169–176、`_crb_accumulate` 1000–1015、`inert_vec` 121–130 等）；③4 条 engine-semantic 是否带 why/`bit_level_guarantee:false` 且不作数值等价结论；④累计 139 与 A-1a/A-1b 并集一致；⑤manifest/门禁/边界/编码/无覆盖率。只写本卡与本卡证据。",
+    "en": "Independent read-only review of A-2: ids/fields/histogram, anchor sampling, engine-semantic justification, cumulative 139, evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**结构 ✅**：63/63 id 与 `sites.json` 的 kinematics+crb 逐 id 相等、无重复；`site_count=63`/`pending_manual=0`；必填字段 63/63；`type_mapping` 63/63 且 `double_in_product=false`；直方图我自算 `{n/a32, identical27, engine-semantic4}` 与 evidence/receipt/README 一致",
+    "**累计 139 ✅**：A-1a(40) ∪ A-1b(36) ∪ A-2(63) = 139 且交集为空，与 `np5_01a_total_sites=139` 一致",
+    "**engine-semantic ✅**：4 条均带 `why_engine_semantic`（66–119 字）与 `bit_level_guarantee:false`；逐条核为确定性累加 vs `wp.atomic_add` 树序、惯量旋转实现路线、armature 加法位置、常驻原子汇聚，未作数值等价结论",
+    "**锚点抽样 ✅**：`mod.rs:398/399/210/223/384/405` 行内容与 expression 相符；上游 `_kinematics_branch` 48–146、`_compute_body_matrices` 169–176、`_site_local_to_global` 210–227、`_crb_accumulate` 1000–1015、`_M` 1019–1046、`crb` 1050–1068、`math.py inert_vec` 121–130 行域与函数逐段核对正确",
+    "**输入/manifest/门禁/边界 ✅**：场表哈希 kinematics `dccba32d…`/11,278、crb `184ae567…`/9,752 复算全对；manifest 4/4；门禁 1,406/0/402；边界仅 docs evidence+`.normify`；UTF-8/LF 无 BOM/CR/NUL",
+    "**结论：复核通过（0 阻断，1 一般 + 1 低 + 2 观察）。** 一般 G1=`evidence.json` 两处正面「位级等价」表述（`crb:rigid_mass_matrix:accumulation:2` 的 why_engine_semantic、`crb:rounding-note:1` 的 label）须改为「未做位级测试/不提供位级保证」；低 L1=selfcheck 禁词表未含「位级等价」致 `forbidden_phrases_hit=[]` 漏报；观察 2 条见 README"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-a2-kinematics-crb-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-a2-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 A-2 复核；结论 PASS（0 阻断，1 一般 + 1 低 + 2 观察）。G1 须改判词、L1 修 selfcheck 禁词表；不宣称位级等价/NP01 通过。",
+  "created_at": "2026-11-11T12:10:00.000Z",
+  "updated_at": "2026-11-11T12:10:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-a2-kinematics-crb-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "361d2170a9a4f94f93dfd4d9534692163b3bf1bf",
+    "after": null
+  }
+}
