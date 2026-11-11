@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-c1-flex-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a C-1（`2d3a17a4`）：**PASS（0 阻断，0 一般 + 1 低 + 2 观察）**——§1 B-1 两低闭环：扫描器肯定式声明（`1d3a88b9…`/11,712，自测 24/24；我构造「未撤回/不作废/没有撤回/无撤回/非作废」均命中、肯定式均豁免）、词表 §6 文档化 `no-reference-expression` vs `no-reference-entry`（`453c5c91…`/6,771）、引用块复核痕迹与 `--list-quote-blocks`/receipt 清单一致、B-1 append-only addenda `933cec55…`/2,676 且 landing 字节未改；§2 C-1 flex 52 站点 52/52 id 与 sites.json 一致、直方图 `identical32/n/a18/engine-semantic2`、2 条 engine-semantic 带 why+`bit_level_guarantee:false`、累计 **269**、锚点 0 错误、policy 0 命中、门禁 1,406/0/402；低=声明否定词仅中文（英文否定声明仍豁免）",
+    "en": "QA review of C-1: PASS (0 blockers, 0 major + 1 low + 2 observations); B-1 lows closed (affirmative declaration 24/24 self-tests + crafted cases, status vocab documented, review trace consistent, B-1 append-only); C-1 flex 52 sites verified, cumulative 269, gates 1406/0/402; low = declaration negators are Chinese-only"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 C-1（`2d3a17a4`）做独立只读复核（零 GPU）：①B-1 两低+观察闭环（肯定式声明与构造用例、状态词表文档、引用块复核痕迹、B-1 append-only/manifest）；②C-1 52 站点 id/直方图/锚点/2 条 engine-semantic/累计 269/policy 0 命中/无覆盖率；③边界/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of C-1: B-1 low-item closures, C-1 52 sites and hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 肯定式声明 ✅**：工具 11,712 B/`1d3a88b9…`、自测 24/24；我构造「未撤回/不作废/没有撤回/无撤回/非作废」（带远距 filler）→ 命中不豁免，「撤回声明/撤回(5)/supersedes:/作废声明」→ 豁免；`--list-quote-blocks` 与 C-1 receipt `quote_block_inventory` 一致（A-2 addenda-v2 行 29–38 closed+affirmative+reviewed_by backend-2026-11-11；行 49–50 文档说明块）",
+    "**§1 词表/痕迹 ✅**：词表 addendum §6 = 6,771 B/`453c5c91…` 定义两状态与判定顺序，C-1 README §2 同步，B-1 的 21 条 `no-reference-expression` 用法一致；B-1 addenda 记录复核约定；B-1 新增 addenda 2,676 B/`933cec55…`，landing 四文件字节未改、manifest 5/5（724 B）",
+    "**§2 C-1 ✅**：52/52 与 sites.json 5 行并集逐 id 相等（15/11/9/9/8）；直方图 `{identical32, n/a18, engine-semantic2}`；2 条 engine-semantic 均带 why（99/68 字）+`bit_level_guarantee:false`、不声明等价；累计 269 无重叠；锚点全量 0 错误（46 file:line + 6 `no-reference-expression` 均 n/a）、抽样行内容正确（flex_hessian.rs 122/123/148/155 ↔ passive.py 1071/1093/1769/1808）；policy_scan 0 命中；manifest 4/4；selfcheck 17 PASS；门禁 1,406/0/402；哈希与派工值一致（5530f7d6/79,631、b2ee44e9/7,208、afb016fe/5,494、f7d2467b/539、00a016b3/1,120）；编码干净、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 2 观察）。** 低 L1=`DECLARATION_NEGATORS` 仅中文，英文否定声明（never supersede/no withdrawal）仍被豁免（实测 0 命中），建议补 not/no/never 或文档说明仅支持中文；观察 O1=`--list-quote-blocks` 的 `reviewed` 字段语义是「块内标记存在与否」，痕迹在 receipt 中，建议写明；观察 O2=`flex_hessian_validate` field-table 描述滞后（ok/status vs i32 flags），建议 errata 补注"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-c1-flex-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-c1-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 C-1 复核（含 B-1 两低闭环）；结论 PASS（0 阻断，1 低 + 2 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T13:05:00.000Z",
+  "updated_at": "2026-11-11T13:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-c1-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-c1-flex-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-c1-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "715d91ce3722d0093955536bff9861d3cc434e9d",
+    "after": null
+  }
+}
