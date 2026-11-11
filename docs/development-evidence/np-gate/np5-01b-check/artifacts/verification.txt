@@ -1,0 +1,42 @@
+# QA independent checks for NP5-01b anchors (commit 316b28dd, zero GPU)
+#
+## 1) implemented-subsystems.json (c4a50ccf.../40864)
+# 3 subsystems each with the five anchor groups; QA independently checked 53 anchor/evidence paths: missing = 0
+# NP02 rows: 12 verified (render-bvh 6, terrain-sdf 2, gjk-epa 4); missing rows = render_megakernel, render_depth_seg
+#   (matches ledger missing_kernel_rows=2 -> NP5-03)
+# verified cards referenced: 2026-11-04-g10-p5-family-closeout, 2026-11-04-render-r06-flex-closeout,
+#   2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4 -> all status=verified in the board
+# render/bvh identity baseline cf356b72/b63a51dd/348459 == current identity from the z2vec review
+# subsystem_count=3 ; boundary states: anchors only, no blocker cards, no gate-pass claim
+#
+## 2) unregistered-units.json (35683aaa.../28364)
+# unit_count=23, source_ledger_sha256=6d6ff7d9...; id set == ledger np01.unregistered_product_units (id-by-id equal)
+# kind histogram 8+3+1+6+1+2+2 = 23 == ledger histogram
+# 23/23 unit product_files exist on disk (QA check: missing=0)
+#
+## 3) no blocker cards / no pass claims
+# commit touches only card J in .normify/changes (no new cards); 4 truly-unimplemented subsystems remain the card-H backlog cards
+# README pass-word occurrences are all negated ("不宣称门禁通过/NP01 通过/上游等价/双平台"); 已通过 = 0
+#
+## 4) W4 plan section 9 correction
+# W4-dependency-governance.md 13457 -> 13791 B, common prefix 13457 = old length => PURE APPEND
+# section 9: "24 slices = B0 4 + entity 20" was an arithmetic typo; entity = 7 cards x 3 = 21; total 25 = B0 4 + entity 21;
+#   GPU windows unchanged (3-4). Matches the low finding from the card-G review.
+# new sha ef78ba8255cdbc69d847565ceea7fced2b0efcfc723530a7e79ebbabbb603989 (matches Chief's value)
+#
+## 5) hashes / manifest / encoding / gates
+# implemented-subsystems c4a50ccf/40864, unregistered-units 35683aaa/28364, README af416071/6108
+# manifest 5/5 recomputed (bad=0), not self-listed
+# all files UTF-8/LF, no BOM/CR/NUL
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+#
+## 6) boundary
+# commit = docs/np-gate/np5-01b (6 files) + docs/plan/W4-dependency-governance.md + .normify (card J + 4 gate records)
+# no src/tests/fixtures/scripts changes; guards/freeze script untouched; no criteria change; zero GPU / zero windows
+#
+## 7) low finding / observations
+# L1 receipt has no tree.head field although card J acceptance requires it (no 'tree'/'head' key at all);
+#    landing-time HEAD is only inferable from gate-record times and the existence-check run timestamp.
+# O1 terrain/SDF releases (e.g. sdf-release-v2.2) are existing-evidence references; suggest marking "reference, not a new verdict".
+# O2 identity baselines are referenced values; no .cu changed by this card, so PTX was not re-derived (no information gain);
+#    file existence and card/row statuses were checked instead.

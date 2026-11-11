@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01b-implemented-subsystem-anchors-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "316b28dd33f756abdf281f671e4788ae6aaa136a",
+    "card": "2026-11-11-np5-01b-implemented-subsystem-anchors",
+    "card_alias": "card J of the 2026-11-11 12:00 window"
+  },
+  "summary": "PASS: 0 blocker, 1 low, 2 observations. The three implemented subsystems have complete five-group anchors whose 53 paths QA independently verified exist; the 12 NP02 rows are all verified and the 2 missing rows match the ledger; the 23 unregistered units match the ledger id-by-id and kind-by-kind with all 23 product files present; no blocker cards were created and no unnegated gate-pass claim exists; the W4 plan section 9 correction is a pure append and correctly changes 24 to 25 slices (B0 4 + entity 21) with GPU windows unchanged; hashes match the dispatch values, manifest 5/5, encoding clean, gates 1406/0/402.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "receipt 缺 tree.head 字段（acceptance 要求）",
+      "detail": "Card J acceptance requires receipt to record tree.head, but the actual receipt keys are schema/task_id/verdict/kind/status/inputs/counts/consistency/files/plan_doc_correction/gates/boundaries/non_claims/manifest - no 'tree' or 'head' key at all. Landing-time HEAD is only inferable from gate-record times and the existence-check run timestamp. Suggest adding tree.head in a follow-up/errata without rewriting the committed receipt."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "地形/SDF 的发布证据是既有结论引用",
+      "detail": "e.g. sdf-release-v2.2 (2026-11-02 release conclusion) appears as 'verified release evidence'; README section 5 non-claims cover this, but suggest marking such references as 'existing evidence reference, not a new verdict' to avoid misreading."
+    },
+    {
+      "id": "O2",
+      "title": "身份基线为引用值，未重算 PTX",
+      "detail": "Collision product.cu cad08d3e/54ab59e3 etc. are referenced baselines; this card changes no .cu, so re-deriving PTX would add no information. QA checked file existence and card/row statuses instead."
+    }
+  ],
+  "verified": {
+    "subsystems": "3/3 (render-bvh, terrain-sdf, gjk-epa) each with implementation surface, kernel entries, NP02 evidence rows, NP02 missing rows, verified cards/release evidence, identity baseline, remaining gaps; QA checked 53 anchor/evidence paths, missing=0",
+    "np02_rows": "12 verified rows = render-bvh 6 + terrain-sdf 2 + gjk-epa 4; missing rows render_megakernel and render_depth_seg match ledger missing_kernel_rows=2 (routed to NP5-03)",
+    "verified_cards": "2026-11-04-g10-p5-family-closeout, 2026-11-04-render-r06-flex-closeout, 2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4 all status=verified",
+    "identity": "render/bvh baseline cf356b72/b63a51dd/348459 equals the current identity from the z2vec review; collision baselines are referenced values (no .cu change in this card)",
+    "unregistered_units": "23 units, id set == ledger np01.unregistered_product_units (id-by-id), kind histogram 8+3+1+6+1+2+2 == ledger, 23/23 product files exist, each unit has id/kind/product_files/present/np01_status/owner/next_action/registration",
+    "no_blocker_cards": "commit changes only card J; the 4 truly-unimplemented subsystems remain card H's backlog cards",
+    "no_pass_claims": "README pass-word occurrences are all negated; 已通过 = 0; existence check item 13 asserts no unnegated gate-pass claim",
+    "plan_correction": "W4-dependency-governance.md 13457 -> 13791 B prefix=13457 pure append; section 9 corrects 24 to 25 = B0 4 + entity 21 (7x3), GPU windows unchanged; new sha ef78ba82.../13791 matches Chief",
+    "hashes": "implemented-subsystems c4a50ccf/40864, unregistered-units 35683aaa/28364, README af416071/6108 - all match dispatch",
+    "manifest": "5/5 recomputed (bad=0), not self-listed",
+    "encoding": "all files UTF-8/LF, no BOM/CR/NUL",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored",
+    "boundaries": "commit = docs/np-gate/np5-01b (6 files) + docs/plan/W4-dependency-governance.md + .normify; no src/tests/fixtures/scripts; guards/freeze script untouched; no criteria change; zero GPU/windows"
+  },
+  "non_claims": [
+    "does not claim gate pass / NP01 / NP02 pass / upstream equivalence / dual platform / release",
+    "does not create blocker cards; does not re-capture evidence or run windows",
+    "zero GPU; review limited to anchor existence, list consistency and boundaries"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}
