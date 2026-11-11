@@ -76,6 +76,9 @@ path = "src/runtime/collision_gpu/validate_tests.rs"
 [[source]]
 path = "src/runtime/collision_upload.rs"
 
+[[source]]
+path = "src/runtime/collision_gpu/inputs_from_snapshot_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::runtime::collision_gpu::run_product_collision"

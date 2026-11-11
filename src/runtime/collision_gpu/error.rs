@@ -24,7 +24,7 @@ pub enum CollisionGpuError {
     InvalidArgument(&'static str),
     /// 方案 C（mesh 多接触容量）：产品 plan 入口对超界 mesh 输入的显式拒绝。
     ///
-    /// 宿主用已有 mesh 数组算出模型级 `npolygonmax`/`nmeshdegmax`，超过设备固定容量
+    /// 宿主用已有 mesh 数组算出模型级 `npolygonmax`/`nmeshdegmax`，超过设备固定容量（A2 起 32/32）
     /// （`multicontact_geom.cu` 的 `G5_MC_MESH_FACE_MAX`/`G5_MC_MESH_DEG_MAX`）时返回本错误，
     /// 不再让产品继续静默回退到单接触。`violations` 至少一条，按 face → degree 顺序。
     MeshMulticontactCapacity {

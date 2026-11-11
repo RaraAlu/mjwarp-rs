@@ -326,4 +326,83 @@ mod tests {
         );
         assert!(result.ncontact >= 1, "20 顶点 face2 应能裁剪出接触");
     }
+
+    /// A2（2026-11-12）：容量 20 -> 32；face1=32 会写 `pn/pd[31]`，与设备 `pnormal/pdist[32]` 对齐。
+    #[test]
+    fn polygon_clip_accepts_thirty_two_vertex_face1() {
+        let face1 = regular_polygon(32, 2.0);
+        let face2 = square(0.25);
+        let result = polygon_clip(
+            &face1,
+            face1.len(),
+            &face2,
+            face2.len(),
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        );
+        assert!(
+            result.ncontact <= 4,
+            "ncontact 上限 4，实际 {}",
+            result.ncontact
+        );
+        assert!(result.ncontact >= 1, "32 边形应能裁剪出接触（A2 容量 32）");
+    }
+
+    /// A2：face2=32 需要 64 格中间缓冲（2×32）——A1 的 40 格在此不够用。
+    #[test]
+    fn polygon_clip_accepts_thirty_two_vertex_face2() {
+        let face1 = square(1.0);
+        let face2 = regular_polygon(32, 0.75);
+        let result = polygon_clip(
+            &face1,
+            face1.len(),
+            &face2,
+            face2.len(),
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        );
+        assert!(
+            result.ncontact <= 4,
+            "ncontact 上限 4，实际 {}",
+            result.ncontact
+        );
+        assert!(
+            result.ncontact >= 1,
+            "32 顶点 face2 应能裁剪出接触（A2 64 格中间缓冲）"
+        );
+    }
+
+    /// A2：33 顶点超过容量 → 容量前置检查返回确定性空结果（不 panic）。
+    #[test]
+    fn polygon_clip_rejects_thirty_three_vertex_face() {
+        let face1 = regular_polygon(33, 2.0);
+        let face2 = square(0.25);
+        let result = polygon_clip(
+            &face1,
+            face1.len(),
+            &face2,
+            face2.len(),
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        );
+        assert_eq!(
+            result.ncontact, 0,
+            "33 顶点 face1 必须返回空结果（不 panic）"
+        );
+
+        let face1 = square(1.0);
+        let face2 = regular_polygon(33, 0.75);
+        let result = polygon_clip(
+            &face1,
+            face1.len(),
+            &face2,
+            face2.len(),
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        );
+        assert_eq!(
+            result.ncontact, 0,
+            "33 顶点 face2 必须返回空结果（不 panic）"
+        );
+    }
 }

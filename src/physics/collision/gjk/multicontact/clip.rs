@@ -33,9 +33,15 @@ pub(crate) fn polygon_clip(
         return result;
     }
 
-    // 每个顶点的平面法线与平面常数（A1 2026-10-31：容量 16 -> 20，与设备 `pnormal/pdist[20]` 对齐）。
-    let mut pn = [[0.0_f32; 3]; 20];
-    let mut pd = [0.0_f32; 20];
+    // A2（2026-11-12）：容量前置检查——33+ 顶点返回确定性空结果（与设备 guard 语义对齐，
+    // 不越界 panic）。上限与设备 `G5_MC_MESH_FACE_MAX`(32) / `pnormal/pdist[32]` 一致。
+    if nface1 > 32 || nface2 > 32 {
+        return result;
+    }
+
+    // 每个顶点的平面法线与平面常数（A2 2026-11-12：容量 20 -> 32，与设备 `pnormal/pdist[32]` 对齐）。
+    let mut pn = [[0.0_f32; 3]; 32];
+    let mut pd = [0.0_f32; 32];
     for i in 0..nface1 - 1 {
         let (plane_d, plane_n) = plane_normal(face1[i], face1[i + 1], n);
         pd[i] = plane_d;
@@ -45,9 +51,9 @@ pub(crate) fn polygon_clip(
     pd[nface1 - 1] = plane_d;
     pn[nface1 - 1] = plane_n;
 
-    // 裁剪后的多边形最多 2 倍边数（A1 2026-10-31：32 -> 40，与设备 `polygon/clipped[40]` 对齐）。
-    let mut polygon = vec![[0.0_f32; 3]; 40];
-    let mut clipped = vec![[0.0_f32; 3]; 40];
+    // 裁剪后的多边形最多 2 倍边数（A2 2026-11-12：40 -> 64，与设备 `polygon/clipped[64]` 对齐）。
+    let mut polygon = vec![[0.0_f32; 3]; 64];
+    let mut clipped = vec![[0.0_f32; 3]; 64];
     let mut npolygon = nface2;
     let mut nclipped = 0_usize;
 

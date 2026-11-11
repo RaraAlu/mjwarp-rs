@@ -378,11 +378,12 @@ struct g5_mc_mesh_view {
     bool has_poly;
 };
 
-// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[10]`、`face1/face2[20]` 一致）：
-// 超出时对应 mesh 助手返回 0，由 `g5_multicontact` 回退单接触（未覆盖边界，见证据）。
-// A1（2026-10-31）：npolygonmax 16 -> 20（对应上游 npolygonmax=20）；degree 仍 10（U7 未覆盖，A2）。
-#define G5_MC_MESH_DEG_MAX 10
-#define G5_MC_MESH_FACE_MAX 20
+// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[32]`、`face1/face2[32]` 一致）：
+// 超出时对应 mesh 助手返回 0，由 `g5_multicontact` 回退单接触（over-32 仍是限制，见证据）。
+// A1（2026-10-31）：npolygonmax 16 -> 20；degree 仍 10。
+// A2（2026-11-12）：容量 20/10 -> 32/32（U7/U8 已提升为 pass/fail；over-32 为限制）。
+#define G5_MC_MESH_DEG_MAX 32
+#define G5_MC_MESH_FACE_MAX 32
 
 __device__ __forceinline__ g5_mc_mesh_view g5_mc_mesh_view_of(const d_geom& mesh_geom) {
     g5_mc_mesh_view view;

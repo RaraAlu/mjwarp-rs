@@ -6,9 +6,9 @@
 // `_set_edge`（L2199）属几何恢复助手，放在 `multicontact_geom.cu`；本文件只做裁剪。
 // 数值纪律同 geom 片：全 f32、上游操作数顺序、不做代数化简。
 //
-// 容量契约（调用方 `multicontact.cu` 的本地 scratch；A1，2026-10-31）：`plane_normal` 20 个 v3、
-// `plane_dist` 20 个 float（npolygonmax=20 时的最大 nface1）、`polygon_out`/`clipped_out` 各 40 个 v3
-// （上游 npolygonmax=20 的两倍上界，见 L2094 注释）。
+// 容量契约（调用方 `multicontact.cu` 的本地 scratch；A2，2026-11-12）：`plane_normal` 32 个 v3、
+// `plane_dist` 32 个 float（npolygonmax=32 时的最大 nface1）、`polygon_out`/`clipped_out` 各 64 个 v3
+// （上游 npolygonmax=32 的两倍上界，见 L2094 注释）。
 #pragma once
 #include "multicontact_geom.cu"
 

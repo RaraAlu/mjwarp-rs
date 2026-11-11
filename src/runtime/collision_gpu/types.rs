@@ -137,10 +137,10 @@ impl MeshCapacityDimension {
 }
 
 /// 设备侧 mesh 多接触固定容量上限（`multicontact_geom.cu` 宏的宿主镜像；
-/// 模块内 `include_str!` 断言守护两者一致，A 方案改宏后必须同步）。
-pub const MESH_MULTICONTACT_FACE_MAX: i32 = 20;
-/// 单顶点相邻 polygon 数上限（同上，镜像 `G5_MC_MESH_DEG_MAX`）。
-pub const MESH_MULTICONTACT_DEGREE_MAX: i32 = 10;
+/// 模块内 `include_str!` 断言守护两者一致，改宏后必须同步）。A2（2026-11-12）：20 -> 32。
+pub const MESH_MULTICONTACT_FACE_MAX: i32 = 32;
+/// 单顶点相邻 polygon 数上限（同上，镜像 `G5_MC_MESH_DEG_MAX`）。A2：10 -> 32。
+pub const MESH_MULTICONTACT_DEGREE_MAX: i32 = 32;
 /// 方案 C 的拒绝路径标识（写进诊断载荷，便于产品日志定位）。
 pub const MESH_MULTICONTACT_REJECT_PATH: &str =
     "runtime::collision_gpu::inputs_from_snapshot (product collision plan)";
