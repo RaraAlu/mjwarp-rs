@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-c4-pose-batch-sleep-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a C-4（`f503c9df`）：**PASS（0 阻断，0 一般 + 0 低 + 1 观察）**——§1 C-3 低项闭环：veto 块禁用否定窗口（工具 `21a895b6…`/16,532、自测 34/34；我构造 veto+紧邻断言（换行/同行）均命中、veto+被否定的断言亦命中（保守方向）、肯定块内普通否定句不误伤、未标记照常命中）、docstring 写明交互、`.gitignore` 已含 `__pycache__/`、`*.pyc`；§2 C-4 63 站点 63/63 id 与 sites.json 4 行并集相等、直方图 `identical21/n/a42`、唯一 f64 接触点 `field_batch` wrap-pulley 记录 `double_in_product:true`+`double_precision_parity`（上游 `io.py:1038` 与产品 `pack_batches.rs:162`，路径对称非升精度）、累计 **443**（C 批 226 全收口）、锚点 0 错误、policy 0 命中、门禁 1,406/0/402",
+    "en": "QA review of C-4: PASS (0 blockers, 0 major + 0 low + 1 observation); C-3 low closed (veto blocks disable the negation window, 34/34 self-tests, .gitignore cache entries); C-4 63 sites verified incl f64 parity entry, cumulative 443, C batch complete"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 C-4（`f503c9df`）做独立只读复核（零 GPU）：①veto 与否定窗口交互构造实测、docstring、`.gitignore` 两条；②C-4 63 站点 id/直方图/锚点/f64 parity 表述/累计 443/policy 0 命中/无覆盖率；③边界/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of C-4: veto/window behavior, gitignore, C-4 63 sites and f64 parity wording, hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 veto 窗口交互 ✅**：工具 16,532 B/`21a895b6…`、自测 34/34；我构造实测：veto 块 + 紧邻断言（换行 / 同一行）→ **命中**；veto 块 + 远距断言 → 命中；**veto 块 + 被否定断言（`不提供位级等价`）→ 命中**（保守方向）；肯定声明块内普通否定句 → **0（不误伤）**；未标记断言 → 命中；`supersedes:` 块 → 豁免；docstring 已写明 veto/否定窗口交互",
+    "**§1 gitignore ✅**：根 `.gitignore` 含 `__pycache__/`（第 24 行）与 `*.pyc`（第 25 行），并带注释说明来源；仓内其它文件零改动（本提交另含 `.normify` 模块索引刷新，属工具簿记）",
+    "**§2 C-4 ✅**：63/63 与 sites.json 4 行并集逐 id 相等（camlight 17 / field_batch 17 / sleep_wake 15 / attached 14）；直方图 `{identical 21, n/a 42}`；累计 380+63=**443** 无重叠（C 批 52+68+43+63=226 全收口）；**f64 接触点表述合规**：`field_batch…:intermediate:1`（wrap_type==2 scale）带 `double_in_product:true` + `double_precision_parity`（上游 `io.py:1038` `1.0/wrap_prm` numpy float64→f32、产品 `pack_batches.rs:162` f64 除→f32 槽，路径对称）与 notes「降精度路径对称；未做位级测试」，**非产品单方面升精度**；锚点全量 0 错误（38 file:line + 25 `no-reference-expression`），f64 两锚点我逐行核内容；policy_scan 0 命中；manifest 4/4；selfcheck 16 PASS；门禁 1,406/0/402；哈希与派工值一致（dac78b2d/89,151、b50571ab/6,754、20acea7a/4,547、35feb2c2/539、c886e579/1,278）；编码干净、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 0 低 + 1 观察）。** 观察 O1=本提交另含 `.normify/modules/mjwarp/index.md` 刷新（工具簿记）与 `.gitignore`（已批写域）；f64 parity 表述合规（路径对称、非升精度），C 批 226 站点收口"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-c4-pose-batch-sleep-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-c4-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 C-4 复核（含 C-3 低项闭环）；结论 PASS（0 阻断，1 观察）。C 批 226 站点全部收口。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T13:50:00.000Z",
+  "updated_at": "2026-11-11T13:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-c4-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-c4-pose-batch-sleep-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-c4-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "e6df2ac673c161a76a768b4ad39bb0755c1e847d",
+    "after": null
+  }
+}
