@@ -9,10 +9,23 @@
       "case": "mesh-limits-cone-box",
       "mesh": "fixtures/g10-p5-mesh-multicontact/fan-cone-24.obj",
       "model": "fixtures/g10-p5-mesh-multicontact/mesh-limits-cone-box.xml",
-      "topology": {"verts": 25, "polys": 25, "max_degree": 24, "max_polygon_vertices": 24},
-      "fixture_sha256": {"obj": "4bc34a51a60d76469a68c64e6132cfd1f5713072488ea8deefd44a4ca517f73b", "xml": "6ce3552f2cab48fdbbb66a6d397790d18748dcb0a5a87b91186b5742e297f731"},
+      "topology": {
+        "verts": 25,
+        "polys": 25,
+        "max_degree": 24,
+        "max_polygon_vertices": 24
+      },
+      "fixture_sha256": {
+        "obj": "4bc34a51a60d76469a68c64e6132cfd1f5713072488ea8deefd44a4ca517f73b",
+        "xml": "6ce3552f2cab48fdbbb66a6d397790d18748dcb0a5a87b91186b5742e297f731"
+      },
       "in_range_after_a2": true,
-      "upstream_expected": {"count": 1, "dist": [-1.0000001639127731e-2]},
+      "upstream_expected": {
+        "count": 1,
+        "dist": [
+          -0.010000001639127731
+        ]
+      },
       "coincidence_guard": "count=1 与设备单接触回退 count=1 可能巧合；pass 必须同时满足 dist/pos 判据（QA O9）",
       "denominator": true
     },
@@ -21,11 +34,49 @@
       "case": "mesh-limits-prism-box",
       "mesh": "fixtures/g10-p5-mesh-multicontact/prism-20.obj",
       "model": "fixtures/g10-p5-mesh-multicontact/mesh-limits-prism-box.xml",
-      "topology": {"verts": 40, "polys": 22, "max_degree": 3, "max_polygon_vertices": 20},
-      "fixture_sha256": {"obj": "a4477d3b080479e7356ac14bcd67c33272b2771eadd40b14fe3f40360e92cee4", "xml": "1bee35cfa3378d96d18317ff75bbf4af0561f7bd71915574e2ea596bc8d4f3b5"},
+      "topology": {
+        "verts": 40,
+        "polys": 22,
+        "max_degree": 3,
+        "max_polygon_vertices": 20
+      },
+      "fixture_sha256": {
+        "obj": "a4477d3b080479e7356ac14bcd67c33272b2771eadd40b14fe3f40360e92cee4",
+        "xml": "1bee35cfa3378d96d18317ff75bbf4af0561f7bd71915574e2ea596bc8d4f3b5"
+      },
       "in_range_after_a2": true,
-      "upstream_expected": {"count": 4, "dist": [-9.999997913837433e-3], "pos": [[0.05, 0.05, 0.045], [-0.05, 0.05, 0.045], [0.05, -0.05, 0.045], [-0.05, -0.05, 0.045]]},
-      "device_baseline_before_a2": {"count": 1, "source": "S4 validation attempt1 record-only (U8 device 1 vs ref 4)"},
+      "upstream_expected": {
+        "count": 4,
+        "dist": [
+          -0.009999997913837433
+        ],
+        "pos": [
+          [
+            0.05,
+            0.05,
+            0.045
+          ],
+          [
+            -0.05,
+            0.05,
+            0.045
+          ],
+          [
+            0.05,
+            -0.05,
+            0.045
+          ],
+          [
+            -0.05,
+            -0.05,
+            0.045
+          ]
+        ]
+      },
+      "device_baseline_before_a2": {
+        "count": 1,
+        "source": "S4 validation attempt1 record-only (U8 device 1 vs ref 4)"
+      },
       "denominator": true
     }
   ],
@@ -49,14 +100,45 @@
       "contact.geom 顺序按 pinned 类型序（box 6 < mesh 7 -> [1,0]）"
     ],
     "u7_extra": "U7 不得只比 count：dist/pos 必须在容差内",
-    "fail_on": ["count 不等", "结构键无法配对", "任一字段超容差", "overflow!=0", "efc_address!=-1"]
+    "fail_on": [
+      "count 不等",
+      "结构键无法配对",
+      "任一字段超容差",
+      "overflow!=0",
+      "efc_address!=-1"
+    ]
   },
   "boundary": {
     "in_range": "degree<=32 且 polygon<=32 -> 按 pass_rule 判 pass/fail；必须走 multicontact clip 路径，不得以「限制存在/回退一致」替代",
     "over_range": "degree>32 或 polygon>32 -> host 容量门必须返回确定容量错误（机器可判，inputs_from_snapshot capacity tests）；device 直调回退行为 record-only、不进分母、不写等价",
     "guards_kept": "multicontact_mesh.cu L120/L148（degree）、L180（face）guard 保留为 defense-in-depth；A2 后 in-range case 不应触发（以字段全等间接证明）",
-    "not_claimed": ["与上游一致（over-range）", "mesh 容量缺口已清", "U8 已通过（A2 窗之前）", "位级等价声明"]
+    "not_claimed": [
+      "与上游一致（over-range）",
+      "mesh 容量缺口已清",
+      "U8 已通过（A2 窗之前）",
+      "不宣称位级等价（bit-level equivalence not claimed）；不提供位级等价保证"
+    ]
   },
-  "a2_target": {"degree_max": 32, "face_max": 32, "scratch": {"polygon": 64, "clipped": 64, "pnormal": 32, "pdist": 32, "idx1": 32, "idx2": 32, "n1": 32, "n2": 32, "endvert": 32, "face1": 32, "face2": 32}},
-  "non_claims": ["本 JSON 是判据口径，不是验收结论", "不改判据/容差/参考", "不宣称 G10@P5 整族通过"]
+  "a2_target": {
+    "degree_max": 32,
+    "face_max": 32,
+    "scratch": {
+      "polygon": 64,
+      "clipped": 64,
+      "pnormal": 32,
+      "pdist": 32,
+      "idx1": 32,
+      "idx2": 32,
+      "n1": 32,
+      "n2": 32,
+      "endvert": 32,
+      "face1": 32,
+      "face2": 32
+    }
+  },
+  "non_claims": [
+    "本 JSON 是判据口径，不是验收结论",
+    "不改判据/容差/参考",
+    "不宣称 G10@P5 整族通过"
+  ]
 }
