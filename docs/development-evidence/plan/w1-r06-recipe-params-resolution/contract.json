@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-w1-r06-recipe-params-resolution",
+  "kind": "w1-cleanup-item-scope-review",
+  "reviewed_card": "2026-11-05-render-r06-flex-multiframe-recipe-params-backlog",
+  "reviewed_card_status": "backlog",
+  "reviewed_card_acceptance": [
+    "不排期：本卡只作为已知项记录，不启动、不产生验收结论",
+    "若补齐：把实体 A 的 recipe 比对补齐到与单帧验收同口径的 28 项（差异逐项列出），零 GPU 的 CPU 自证即可覆盖；不得改写已签 spec/判据/参考，不得改变 G-2 夹具"
+  ],
+  "scope_finding": {
+    "already_implemented": true,
+    "implemented_by": [
+      {
+        "commit": "20015625",
+        "card": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill",
+        "summary": "28 项口径 assert_params_match_capture（26 recorded + nworld；cam_res 隐式）+ RECIPE_PARAM_KEYS + 防漏守卫 + 4 个 CPU 用例；测试侧"
+      },
+      {
+        "commit": "8618e447",
+        "card": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key",
+        "summary": "新增键负例 use_textures（证明 21 项新增断言非空转）；测试侧"
+      },
+      {
+        "commit": "a20efe2a",
+        "summary": "卡 L 注释措辞修正（cam_res 口径），注释 only、断言零改动"
+      }
+    ],
+    "implementation_facts": {
+      "file": "tests/support/render_bvh/multiframe_recipe.rs",
+      "lines": 188,
+      "scope_28": "28 项 = 26 个 capture recorded 键（RECIPE_PARAM_KEYS）+ nworld + cam_res（名义第 28 项；多帧 capture 无 context.resolved 段，无字面断言）",
+      "actual_per_item_assertions": 27,
+      "guard": "已比对键集合 == RECIPE_PARAM_KEYS 且 capture.parameters 键集合 == RECIPE_PARAM_KEYS（防漏/防漂移）",
+      "cpu_tests": [
+        "recipe_params_match_capture_28_item_cpu_self_check",
+        "recipe_param_mismatch_is_detected（既有键 samples_per_pixel + 新增键 use_textures 两个反例）",
+        "capture_parameter_keys_match_28_item_scope",
+        "context_params_match_capture_recipe"
+      ]
+    },
+    "commit_path_scope": {
+      "top_level_dirs": [
+        ".normify",
+        "docs/development-evidence",
+        "tests"
+      ],
+      "src_touched": false,
+      "fixtures_touched": false,
+      "scripts_touched": false,
+      "product_recipe_constants_touched": false,
+      "criteria_or_tolerance_touched": false,
+      "gitattributes_eol_touched": false
+    },
+    "verification": {
+      "command": "cargo test --locked --features cuda-probe --test render_flex_multiframe recipe -- --test-threads=1",
+      "result": "5 passed / 0 failed / 0 ignored / 37 filtered out（含 4 个 multiframe_recipe CPU 用例 + 1 个 filter 命中的 s7b1 用例）",
+      "gpu": "none (these are CPU self-checks; no device context)"
+    },
+    "conclusion": "W1 p20 清理项（R06 多帧 recipe 比对 7→28）**已由既有测试侧实现完成**：28 项口径 + 防漏守卫 + CPU 自证在 `tests/support/render_bvh/multiframe_recipe.rs`；实现提交仅动 `.normify/`、`docs/development-evidence/`、`tests/`，未触碰产品 recipe 常量/判据/容差、未改夹具、未涉及 eol。backlog 卡的建议后续动作=由治理片按既有实现关闭（本片只登记证据与建议，不关卡、不改卡）。"
+  },
+  "boundaries": {
+    "zero_code": true,
+    "zero_gpu": true,
+    "zero_window": true,
+    "writes": "本目录 + .normify/",
+    "cards_modified": false,
+    "product_recipe_changed": false,
+    "criteria_changed": false,
+    "gitattributes_touched": false
+  },
+  "non_claims": [
+    "does not change any code, card acceptance, criteria, reference, or tolerance",
+    "does not close the reviewed backlog card (governance action only recommended)",
+    "does not touch eol/.gitattributes batch changes (awaiting user scope confirmation)",
+    "read-only scope review; zero GPU / zero window"
+  ]
+}
