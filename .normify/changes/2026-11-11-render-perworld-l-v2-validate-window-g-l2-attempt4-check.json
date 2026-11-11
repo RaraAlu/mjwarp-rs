@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4-check",
+  "title": {
+    "zh": "QA 复核 G-L2 attempt 4 归档证据（canonical）：冻结面 **guards `94478b3d…`/43,729 B、107=12+93+2、aggregate `08180107…` 我用冻结器算法独立复算一致（旧 suite `8a4ddc50…` 同法复算一致）**；**12/12 live==guard==stash** 逐条 bytes+sha 独立比对全等；93 输入 92/1/0（唯一 drift 为继承 camlight-model，只报不修）；旧 suite `ca3ecd5c…` 只读未变、旧 stash drift 1 条如实记录；monitor 78 samples、**最终 60/60 clean（build=0、cf=0、util≤6、300.6 s）**、baseline free 12,143×3、floor=max(9,956,9,071)=9,956（现场≥两者）；body env 成对+ENV_SELFCHECK_PASS、outline pre/post 与 canary `violations=0`；12 exe **12/12 exit 0** 且逐日志一致（body 零编译）；实体 A 六帧全 0、B (0,0)、隔离 [[F,F],[T,T],[F,F]]、C `[38285,40644]/[35828,33883]/[16041,16754]` PassMargin、Compared、两跑 sha 断言通过；manifest **51/51**、diff 面 src/tests/fixtures 零改动、仅 guards JSON、参考/判据/容差零改动、无 INVALID_ROUND → **复核通过（0 阻断，1 一般 + 3 低 + 2 观察）**；一般项=2 份辅助 stdout 日志二进制损坏（NUL/非 UTF-8，结论由可读摘要与独立复算承载，不阻断窗口有效性，建议补可读副本/errata）；低项=monitor「build=0」措辞、baseline 同时间戳/body 启动未记录、floor「signed_stricter」标注；观察=guards CRLF/无 body_env、两跑 sha 未打印值（backlog）",
+    "en": "QA review of the G-L2 attempt 4 archive: freeze/aggregate independently recomputed (guards 94478b3d, 107 entries, aggregate 08180107; old suite 8a4ddc50), 12/12 live==guard==stash, 92/1/0 inputs, monitor final 60/60 clean, baseline/floor, env pair + outline pre/post + canary, 12/12 exit 0 with zero compile, entity A/B/C/isolation/Compared and two-run sha assertion, manifest 51/51, clean diff face, no invalid rounds - PASS with 1 general (corrupted auxiliary logs) + 3 low + 2 observations"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G-L2 验证窗 attempt 4（canonical）归档提交 **`5f1d436d`** + 卡 `2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4` 做独立只读复核（零 GPU）：冻结面/aggregate 独立复算、12/12 live==guard==stash、107 条、旧 suite 只读、monitor/基线/floor 取严、12 exe 退出码与日志、实体 A/B/C/两跑 sha/world 隔离、body env 成对与 outline pre/post、canary、manifest 行级重算、编码卫生、diff 面、INVALID_ROUND 无、漂移记录如实。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of the G-L2 attempt 4 archive: freeze/aggregate recompute, 12/12 live-guard-stash, inputs, old suite read-only, monitor/baseline/floor, 12 exes, entity A/B/C/sha/isolation, env/outline/canary, manifest, encoding, diff face, invalid rounds, drift records."
+  },
+  "modules": {},
+  "acceptance": [
+    "**冻结面 ✅**：guards JSON **43,729 B / `94478b3d…`**（repo==证据副本）、attempt=4、criterion v2.2、bound 128、counts **107=12 exe+93 inputs+2 lists**；freeze exit 0、SELFCHECK 18/18（可读的 freeze-exit-code.txt）。**aggregate 独立复算**：按冻结器自身算法（`Sort-Object {path}`→sha hex 串无分隔拼接→SHA256(ASCII)）得 `08180107…` 与记录一致；同法复算旧 suite 96 条得 `8a4ddc50…` 与其记录一致（注意 PowerShell 文化排序不可用 Python 序数排序复现，属复现要点）✅",
+    "**12/12 live==guard==stash ✅**：逐条对 live exe、stash exe 与 guards 记录做 bytes+sha256 三方比对全等（含 `render_per_world_light` 92,590,602 B/`73245bbf…`，与 diag8 一致）✅",
+    "**93 输入/旧 suite/漂移 ✅**：93 guard inputs 复算 **92 match/1 drift/0 missing**；唯一 drift 为继承 `fixtures/render-bvh/scene-e2e/camlight-model.json`（6,434 B/`470adbef…` vs 实际 6,020 B/`e44786d6…`），按 `-AllowOldStashDrift` 只报告不修复；旧 suite 仍 38,659 B/`ca3ecd5c…`、aggregate 字段 `8a4ddc50…`；旧 stash drift 1 条（`render_shadow_reference`）在 guards `old_stash_drift` 与 freeze log 如实记录 ✅",
+    "**monitor/基线/floor ✅（3 低项）**：monitor samples=78、最长时间 07:45:21.970→07:51:54.302、util 2–6%、free_min 12,136、compute_filtered=0；**最终 60/60 段**（07:46:53.752→07:51:54.302，300.6 s）逐样本 clean/build=0/cf=0/util≤6、streak=60；baseline free 12,143×3、onspot=9,071、`floor_effective=max(9,956,9,071)=9,956`，现场 12,143≥9,956 ✅。低项：L1 README「build=0」不精确（monitor 会话有 3 样本 build=2、在最终 clean 段之前，最终段确为 0）；L2 baseline 三行同一时间戳且 body 启动时刻未记录（5 分钟规则只能由 ~55 s wall 与归档时刻推定）；L3 floor 把 9,956 标为「signed_stricter」（S-3 签名值；严格 max(S-2,S-3)=10,230，现场 ≥ 两者）",
+    "**body env/outline/canary ✅**：PATH（pinned CUDA bin）+ outline env **成对导出**、`ENV_SELFCHECK_PASS failures=0`；outline pre/post 均 OK（recipe `cfd1038a…`/10,099/183/28,969/73；aa2 `14893fc6…`/9,509/172/29,448/91；sidecar `8a80fb0a…`/5,027 与 `f23ca697…`/4,734 实测一致；bound 128）；canary `list_rows=183 outside_mismatch=0 in_list_differing=183 in_list_max_ulp=73 violations=0` ✅",
+    "**12 exe/实体 ✅**：entity-results.csv **12/12 exit=0**，逐 exe stdout 含 `test result: ok.` 且与 csv 一致、stderr 全空；body 零编译（直接冻结 stash exe，`build_processes=0`，日志无 cargo/rustc）；实体 `--nocapture`：A 六帧 `rgb=0/max_byte_diff=0/depth 0 ULP/seg 0`、B `(0,0)`、隔离 `[[false,false],[true,true],[false,false]]`、C `[38285,40644]/[35828,33883]/[16041,16754]` PassMargin、`capture.json C1=Compared`、两跑 sha `assert_eq` 通过（值未打印=O2 已知 backlog）、pilot 通过且旧 capture 显式 Skipped（预期）；exit-code 自检 0/7/101 捕获正常 ✅",
+    "**证据完整性/diff 面 ✅（1 一般 + 2 观察）**：manifest **51/51** 独立重算（bad=[]/extra=[]）；README `7ec3761f…`/9,393、receipt `23c424b6…`/9,577、manifest `d3b7a882…`/5,772 与声明一致；归档 58 files = 52 证据 + guards JSON + 5 `.normify`；`git diff b84d5996..5f1d436d`：`src/`/`tests/`/`fixtures/` 零 diff，`scripts/` 唯一变更为 guards 冻结产物（预期）；参考目录、判据/spec 零改动；历史 attempt1–3 未改写；body 在 `b84d5996`、窗口后两个治理/证据提交如实记录；**无 INVALID_ROUND** ✅。**G1（一般，证据卫生）**：`window/freeze-stdout.log`（NUL=1,867）与 `window/monitor-stdout.txt`（NUL=167）损坏（U+FFFD + UTF-16LE 残留字节，非有效 UTF-8、不可读）——全部结论由可读摘要（freeze/monitor-exit-code、README）与我的独立复算承载，**不阻断窗口有效性**，建议补可读副本或 errata（不需重跑）。观察：guards JSON 为 CRLF（PS ConvertTo-Json，JSON 合法、哈希与副本一致）且仍无 `body_env` 键（已知 backlog）；两跑 sha 仅断言未打印值（已知 backlog）",
+    "**结论：复核通过（0 阻断，1 一般 + 3 低 + 2 观察）。** 本复核只核归档证据的事实/完整性/纪律与判定依据；**不宣称对外「上游等价/灯字段端到端验收/渲染数值等价」**（需 S-1 判据与签名流程另行裁定），不改判据/阈值/参考/容差/相机/recipe，零 GPU、未重跑、未重冻；窗口结论与 W0 收口由 Chief 宣布。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4",
+      "2026-11-11-render-perworld-l-v2-gl2-diag8-check",
+      "2026-11-11-render-perworld-l-v2-mesh-normal-chain-pin-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-attempt4-check/"
+    ],
+    "resources": [],
+    "priority": 99
+  },
+  "note": "Chief 2026-11-11 派工：复核 G-L2 attempt 4 canonical 窗口归档（W0 收口最后一关）。结论：复核通过（0 阻断，1 一般 + 3 低 + 2 观察）。已独立核：guards 94478b3d/43729、attempt=4、107=12+93+2；aggregate 用冻结器算法复算 08180107 一致、旧 suite 8a4ddc50 同法一致（PS Sort-Object 文化排序，Python 序数排序不可复现）；12/12 live==guard==stash 逐条 bytes+sha 全等；93 输入 92/1/0（继承 camlight-model drift 只报不修）；旧 suite ca3ecd5c 未变、旧 stash drift 1 条如实；monitor 78 samples、最终 60/60 clean（build0/cf0/util≤6、300.6s）、baseline 12,143×3、floor=max(9956,9071)=9956；body env 成对+ENV_SELFCHECK_PASS、outline pre/post+sidecar+canary violations=0；12 exe 12/12 exit0、日志一致、body 零编译；实体 nocapture A 六帧全 0、B (0,0)、隔离 [[F,F],[T,T],[F,F]]、C 数值+PassMargin+Compared、两跑 sha 断言过；manifest 51/51、diff 面 src/tests/fixtures 零改动仅 guards JSON、参考/判据零改动、无 INVALID_ROUND；body 于 b84d5996、窗口后两个治理提交如实记录。一般项 G1：freeze-stdout.log 与 monitor-stdout.txt 二进制损坏（NUL/非 UTF-8），结论由可读摘要与独立复算承载，不阻断窗口有效性，建议补可读副本/errata。低：monitor build=0 措辞、baseline 同时间戳/body 启动未记录、floor signed_stricter 标注。观察：guards CRLF 且无 body_env、两跑 sha 未打印值（backlog）。不宣称对外等价、不改判据、零 GPU。",
+  "revision": {
+    "before": "a24c71530a954e53a0a8d273ba10e16f1dc351f8",
+    "after": null
+  },
+  "created_at": "2026-11-11T00:03:13.000Z",
+  "updated_at": "2026-11-11T00:03:13.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-attempt4-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2-attempt4-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
