@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-re0-evidence",
+  "title": {
+    "zh": "卡 RE-0：NP5-01a RE-0 证据入库（三级判级 G1-partial PASS + 两门计数 + 5 类残余差异 + fast_math=False 前提修正 + G3 确定性 + provenance；docs-only 零 GPU）",
+    "en": "Card RE-0: land NP5-01a RE-0 evidence (three-level grading G1-partial PASS + both-gate counts + 5 residual-diff classes + fast_math=False premise correction + G3 determinism + provenance; docs only, zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 18:00 指令：把 Arch 的 target/render-bvh/gl2-ptx-diff/refgen/re0-final/ 落成 docs/development-evidence/np-gate/re0/。入仓 README.md、re0-provenance.json、g1-compare.json、g2-compare.json、生成/判级脚本（refgen/re0_compile.py、re0_compare.py、re0_g2_codegen.py、a1_unique_codegen.py、a1_tile_codegen.py）+ manifest（逐文件 sha256+bytes 自核）。两份生成的 PTX（g1_render.ptx 618,096 / g2_smooth.ptx 965,105）不入仓：只记 sha + 重生成命令 + 「target 工作材料、可由入库脚本+pinned 环境重生成」说明。README 必须写：三级判级（G1-partial PASS，只写「归一化指令流等价」、不写字节/位级等价）、G1/G2 两种计数口径、5 类残余差异、fast_math=False 前提修正与证据（参考 0 条 ex2/lg2）、interim 计数更正（15,001/23,888 → 正式 13,036/18,883 两种定义）、G3 确定性、provenance（warp 1.15.0/mujoco_warp 71da24d9/NVRTC 12.9 build/arch sm_89/fast_math=False）。边界：只写 docs/development-evidence/** + .normify/**；四门禁；中文提交。",
+    "en": "Per Chief's instruction: land Arch's refgen/re0-final materials as docs/development-evidence/np-gate/re0/ (README, re0-provenance.json, g1-compare.json, g2-compare.json, the generation/grading scripts and a manifest). The two generated PTX files are NOT landed: record sha256 + regeneration command + work-material note. README must record the three-level grading (G1-partial PASS, wording 'normalized instruction stream equal' only), both count definitions, the 5 residual-difference classes, the fast_math=False premise correction (reference has 0 ex2/lg2), the interim count correction (15,001/23,888 -> authoritative 13,036/18,883 under two definitions), G3 determinism and provenance. Docs only; four gates; Chinese commit."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/np-gate/re0/`：README.md + re0-provenance.json + g1-compare.json + g2-compare.json + 5 个脚本（re0_compile.py / re0_compare.py / re0_g2_codegen.py / a1_unique_codegen.py / a1_tile_codegen.py）+ manifest.txt（逐文件 sha256+bytes 自核、不自列）；全部 UTF-8/LF/无 BOM。",
+    "两份生成 PTX **不入仓**：README/receipt 记 `g1_render.ptx` sha256 `0e8cc11c…`/618,096 B、`g2_smooth.ptx` sha256 `dbef2d41…`/965,105 B + 重生成命令 + 「target 工作材料，可由入库脚本 + pinned 环境确定性重生成」说明。",
+    "README 必含：三级判级（G1-partial PASS / NORMALIZED_EQUAL，只写「归一化指令流等价」、不写字节/位级等价）；G1/G2 两种计数口径（arith 13,036/18,883；wide 15,915/24,735）；5 类残余差异（发射顺序 / mangled 符号含源文件名哈希 / __local_depotN 编号 / 行尾 CRLF vs LF + 尾 NUL / 无算术差异）；fast_math=False 前提修正（fast_math=True 时 powf→ex2/lg2 7+7，参考 0 条 ex2/lg2 且含 rcp/rsqrt → 参考为 fast_math=False；去掉 --use_fast_math 后 G1 即 NORMALIZED_EQUAL）；interim 计数更正（15,001/23,888 → 13,036/18,883 两口径）；G3 两次独立运行 sha 一致；provenance（warp 1.15.0 / mujoco_warp 3.15.0 / upstream pin 71da24d9… / NVRTC 12.9 V12.9.86 / sm_89 / fast_math=False / lineinfo=False / gpu_used=false）。",
+    "`g1-compare.json`/`g2-compare.json` 与 `re0-provenance.json` 与 target 原件**逐字节相同**（复制，不重排）；脚本原件逐字节复制。",
+    "`receipt.json`：verdict=PASS、grade=G1-partial PASS、gates G1/G2 grade=NORMALIZED_EQUAL、counts（含两口径与更正说明）、tree.head、gates 记录、boundaries（仅 docs evidence + .normify，无 src/tests/fixtures/scripts、零 GPU）。",
+    "边界：写域仅 `docs/development-evidence/np-gate/re0/**` + `.normify/**`；不改 src/tests/fixtures/scripts/判据/参考/容差；零 GPU、零窗。",
+    "四门禁 fmt/clippy/clippy-cuda/unit + `normify check`；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np-gate/re0/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "Chief 2026-11-11 18:00 追加片（A-1a 之后、RE-1 引用之前）；材料来自 Arch refgen/re0-final（target/ 工作材料）；docs-only 零 GPU；QA 复核可只读核 sha 与计数。",
+  "revision": {
+    "before": "276a230b933c10f15b66fd106ec1c82f1e36bd28",
+    "after": null
+  },
+  "created_at": "2026-11-11T10:35:00.000Z",
+  "updated_at": "2026-11-11T10:04:21.424Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0/receipt.json",
+      "pointer": "/grade",
+      "equals": "G1-partial PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0/receipt.json",
+      "pointer": "/gates/G1/grade",
+      "equals": "NORMALIZED_EQUAL"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0/receipt.json",
+      "pointer": "/gates/G2/grade",
+      "equals": "NORMALIZED_EQUAL"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0/receipt.json",
+      "pointer": "/gates/G1/arith_instr/gen",
+      "equals": 13036
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0/receipt.json",
+      "pointer": "/gates/G2/arith_instr/gen",
+      "equals": 18883
+    }
+  ]
+}
