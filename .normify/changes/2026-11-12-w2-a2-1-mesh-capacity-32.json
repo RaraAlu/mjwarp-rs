@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-a2-1-mesh-capacity-32",
+  "title": {
+    "zh": "W2/A2-1：mesh multicontact 容量 32/32（设备宏+scratch、宿主镜像/常量/注释、边界单测；零 ABI 改动）",
+    "en": "W2/A2-1: mesh multicontact capacity 32/32 (device macros + scratch, host mirror/constants, boundary unit tests; zero ABI change)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按用户 2026-11-12 已签 U7/U8 裁决（提升 pass/fail，A2 容量 20/10 -> 32/32）与 Arch `docs/development-evidence/plan/u7-u8-promotion/a2-slices.json` A2-1 范围：设备宏 `G5_MC_MESH_DEG_MAX/FACE_MAX` 10/20 -> 32/32，`contact.cu` scratch 40/20/10 -> 64/32/32（degree 维度全 32），宿主镜像 `clip.rs` pn/pd 32 + vec 64 + 33 顶点容量前置检查（返回空结果不 panic），`types.rs` 常量 32/32、`error.rs`/注释口径同步；新增 A2 边界 CPU 单测（A1 两条 20 顶点测试保留不回退）。0 窗、CPU-only、零 GPU、零 ABI。",
+    "en": "Implement A2 capacity 32/32 per signed user decision and Arch a2-slices.json A2-1 scope: device macros + scratch, host mirror/constants/comments, 33-vertex non-panicking capacity precheck, boundary CPU tests; zero ABI change, zero GPU."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.collision",
+      "mjwarp.runtime.collision-gpu"
+    ]
+  },
+  "acceptance": [
+    "容量 32/32 按 a2-slices.json A2-1 逐行落地：`multicontact_geom.cu:384-385`、`contact.cu:216-228`（polygon/clipped=64、pnormal/pdist/face1/face2=32、idx1/idx2/n1/n2/endvert=32）、`multicontact.cu:13-15`/`multicontact_clip.cu:10-11`/`multicontact_mesh.cu:12-13` 注释、`clip.rs` pn/pd=32+vec=64+33 前置检查、`types.rs:141/143` 常量、`error.rs`/`inputs_from_snapshot.rs` 注释口径",
+    "边界 CPU 单测：32 顶点 face1/face2 接受、33 顶点不 panic 且确定性空结果（容量前置检查）、产品入口 32/32 边界接受、face=33/degree=33 各自容量错误（limit=32 机器可判）、`host_limits_match_device_macros` 自动核对；A1 两条 20 顶点测试保留且 PASS",
+    "ABI 零改动：81 槽 / `CollisionArgs` 504 B / launch 签名 / 产品 JSON 字段不变；不新增 `.cu`（`DEVICE_SOURCES=28`）；仅新增 1 个测试源文件并登记 `mjwarp.runtime.collision-gpu` 模块源",
+    "四门禁 fmt/clippy/clippy-cuda/unit + normify check/done；证据独立目录 `docs/development-evidence/g10-p5-mesh-cap32/`（README/receipt/logs/materials/manifest）；UTF-8/LF 无 BOM；零 GPU、零窗",
+    "不写「mesh 容量缺口已清 / P5 通过 / U8 已通过（A2 窗之前）/ 与上游一致（over-range）」；不改判据/容差/参考/夹具"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "W2-A2",
+    "owner": "Backend",
+    "files": [
+      "src/physics/collision/cuda/",
+      "src/physics/collision/gjk/multicontact/",
+      "src/runtime/collision_gpu/",
+      "docs/development-evidence/g10-p5-mesh-cap32/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-12 派工 A2-1（Arch a2-slices.json + u7-u8-criteria.json）。只做 A2-1；不动 A2-2/A2-3、不开窗；提交只 add 本片文件，不卷外部 untracked。",
+  "revision": {
+    "before": "eb6ec24c8a73061c3327b81c8f4f807ecdf5c210",
+    "after": null
+  },
+  "created_at": "2026-11-12T01:36:00.000Z",
+  "updated_at": "2026-11-11T17:31:23.390Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-a2-1-mesh-capacity-32"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32/receipt.json",
+      "pointer": "/capacity_face_max",
+      "equals": 32
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32/receipt.json",
+      "pointer": "/capacity_degree_max",
+      "equals": 32
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32/receipt.json",
+      "pointer": "/abi_unchanged",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32/receipt.json",
+      "pointer": "/device_sources_count",
+      "equals": 28
+    }
+  ]
+}
