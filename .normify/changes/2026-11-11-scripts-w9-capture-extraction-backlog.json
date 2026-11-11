@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-scripts-w9-capture-extraction-backlog",
+  "title": {
+    "zh": "W9 采集脚本抽模块（capture_render_perworld.py 490→<500 纯移动）——阻塞于用户裁决（guards 93 输入/107 口径）",
+    "en": "W9 capture-script extraction (capture_render_perworld.py 490-><500 pure move) - blocked on user decision (guards 93 inputs / 107 arithmetic)"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "W9 治理清尾项：`scripts/capture_render_perworld.py` 现 490 行（单文件 500 行棘轮），需按纯移动抽出子模块（建议把连续 56–196 行共 141 行：18 个常量 + digest/run/fail/sha_manifest/legacy_manifest/check_environment → 新 `scripts/capture_perworld_env.py`；主脚本 ≈355–360 行）。**阻塞于用户裁决**：新模块是否纳入 guards 93 输入——纳入则 93→94 破坏已签 S-3 spec 的 107 口径（需用户重签）；不纳入则新模块不被 guards sha 保护（缺口需接受）。另需同步 `freeze-guards-perworld-l2-light.ps1` 第 167 行 pinned sha，并在下次渲染窗重冻 guards。验收（启动时细化）：行级搬迁证明（HEAD 版 56–196 逐字节等于新模块对应段）、AST 等价（pinned venv python 3.12.13）、py_compile + `--help` 冒烟、脚本身份三值记录、guards 影响清单。零 GPU、零窗；不重写历史证据。",
+    "en": "W9 cleanup item: scripts/capture_render_perworld.py is 490 lines (500-line ratchet); a pure move should extract a submodule (proposal: contiguous lines 56-196 = 141 lines: 18 constants + digest/run/fail/sha_manifest/legacy_manifest/check_environment -> new scripts/capture_perworld_env.py; main script ~355-360 lines). Blocked on user decision: whether the new module enters the 93 guards inputs - if yes 93->94 breaks the signed S-3 107 arithmetic (needs user re-sign); if no the new module is not guards-sha protected (gap must be accepted). Also needs the freeze script pinned sha (line 167) sync and a re-freeze at the next render window. Verify at start: line-level move proof, AST equivalence, py_compile/--help smoke, script identity triple, guards impact list. Zero GPU/windows; no historical evidence rewrite."
+  },
+  "modules": {},
+  "acceptance": [
+    "**阻塞于用户裁决**：新 helper 模块是否纳入 guards 93 输入 / 是否接受 107 口径重签——未裁决前不 start、不写仓。",
+    "若裁决后执行：纯移动（56–196 行逐字节搬入新模块、主脚本仅保留声明式 import）+ 行级搬迁证明 + AST 等价 + py_compile/--help 冒烟；同步 freeze script pinned sha；guards 影响与下一次重冻要求写入证据。",
+    "边界：不改既有采集脚本语义/参数/输出，不改判据/参考/容差，不重写历史证据；零 GPU、零窗口。"
+  ],
+  "schedule": { "depends_on": [], "phase": "P8-渲染与BVH", "owner": "Backend", "files": ["scripts/", "docs/development-evidence/render-bvh/"], "resources": [], "priority": 12 },
+  "note": "登记自 W9 只读方案（2026-11-11 Backend 报告）+ Chief 指令：避免该项丢失。**阻塞于用户裁决**（新模块是否纳入 guards 93 输入/107 口径）；checks=[]（不 start）；零 GPU、零窗口。",
+  "revision": { "before": null, "after": null },
+  "created_at": "2026-11-11T04:55:00.000Z",
+  "updated_at": "2026-11-11T04:55:00.000Z",
+  "closed_at": null,
+  "checks": []
+}
