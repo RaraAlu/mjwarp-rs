@@ -1,0 +1,67 @@
+# QA independent check log - 2026-11-11-w9-00-readonly-diagnostics (bd7c9e3a)
+=== W9-00 ===
+inventory mjwarp_collision_hfield: source.sha256=cad08d3e9fab1874 bytes=None status=None
+inventory mjwarp_collision_sdf: source.sha256=cad08d3e9fab1874 bytes=None status=None
+inventory render_megakernel: source.sha256=cf356b728c563f7d bytes=None status=None
+inventory render_depth_seg: source.sha256=1e3f273c88a77235 bytes=None status=None
+inventory scene_bvh_ray: source.sha256=8dad4d61235a8686 bytes=None status=None
+refit count src/physics/collision/cuda/product.cu: 0
+refit count src/render/bvh/cuda/scene.cu: 0
+refit count src/render/kernel/cuda/render_shadow.cu: 0
+refit count src/render/kernel/cuda/render_shade.cu: 0
+scene.cu sha=caac8c86a4e4f1e7
+replication-plan total lines=1150
+P0-01 record has refit=False
+P0-01 record has timing=False
+whole doc refit mentions=0
+backlog card status=verified checks=3 acceptance=2
+multiframe_recipe.rs lines=188
+RECIPE_PARAM_KEYS declared len=26
+render_flex_validate.rs has 28=True
+W9 commit files=10 src/tests/fixtures/scripts hits=[]
+
+=== W1 audit ===
+20015625: files=16 top=['.normify', 'docs', 'tests'] product/fixture/eol hits=[]
+8618e447: files=15 top=['.normify', 'docs', 'tests'] product/fixture/eol hits=[]
+a20efe2a: files=13 top=['.normify', 'docs', 'tests'] product/fixture/eol hits=[]
+multiframe_recipe.rs 188 lines=True
+has assert_params_match_capture=True
+7-item entity assert count? occurrences of RECIPE_PARAM_KEYS=9
+guard key-set comparison present=True
+backlog acceptance items=["**不排期**：本卡只作为已知项记录，不启动、不产生验收结论；触发条件=验证窗或后续审计暴露 recipe 参数漂移风险，由 Chief/用户决定是否补齐。", "**若补齐**：把实体 A 的 recipe 比对补齐到与单帧验收同口径的 28 项（差异逐项列出），零 GPU 的 CPU 自证即可覆盖；不得改写已签 spec/判据/参考，不得改变 G-2 夹具。"]
+
+=== evidence manifests ===
+w9-00-readonly-diagnostics: manifest_rows=4 ok=True selfcheck_pass=True
+w1-r06-recipe-params-resolution: manifest_rows=4 ok=True selfcheck_pass=True
+
+# W1 CPU self-proof re-run by QA (cargo test --locked --features cuda-probe --test render_flex_multiframe recipe -- --test-threads=1)
+(not applicable for W9-00; W9 CPU-only diagnostics)
+
+# landed selfcheck
+2026-11-11-w9-00-readonly-diagnostics selfcheck
+task=2026-11-11-w9-00-readonly-diagnostics
+PASS 3 diagnosis items
+PASS 4 captured units all match sourceSha
+PASS known drift reference scene_bvh_ray recorded
+PASS same-type risk stated honestly
+PASS refit tokens zero in captured sources
+PASS P0-01 doc gap recorded
+PASS R06 recipe params not-fix reason recorded
+PASS R06 7 vs 28 recorded
+PASS conclusion readonly/no-code/no-gpu/no-window
+PASS boundaries zero_code true
+PASS receipt task_id/verdict
+PASS receipt readonly/no-code
+PASS receipt items==3
+PASS card status in_progress (got in_progress)
+PASS card json guards
+PASS policy_scan 0 hits
+PASS policy_scan --self-test 34/34
+PASS encoding ok (bad=[])
+PASS boundaries: only slice dir + .normify (foreign=[])
+PASS src/tests/fixtures/scripts unchanged
+manifest: 4 files (does not list itself)
+RESULT: PASS
+
+# policy scan (backend evidence)
+policy_scan: files=3 hits=0 RESULT: PASS
