@@ -1,0 +1,18 @@
+# entity test exe identity measurements (card D, 2026-11-11)
+# target: tests/render_per_world_light.rs ; build: cargo test --locked --features cuda-probe --test render_per_world_light --no-run
+attempt-4 frozen entity exe (window baseline, already drifted before this card):
+  92590602 B / 73245bbf175bf10c3332b6f3180ae6bc600a6db5fadb55e873ebfdd69a0d2542
+pre-card HEAD-source rebuild (card D change stashed, warm cache, built 12:18:35):
+  92630818 B / 6908c5a2bce75ec44d9f92bab64895020efe57679b85e82f3970a8d74bf5147d
+post-card final on-disk exe (built 12:19:2x):
+  92631489 B / 55d0c32ceaa8d87ec8183637281f79ac7eaff42166831a55ca587ad60f1ee354  mtime 2026-11-11 12:18:47
+delta: +671 B (print-only source change: +3 lines = 1 comment + 2 println!)
+observed same-source rebuild variants: 4ad790c0... and 198aa439... (both 92631489 B)
+  note: builds of the SAME source are not byte-reproducible across rebuilds in this environment (3 builds of identical
+  source produced 3 different sha256 with identical byte size). Therefore exe identity must be taken from the FROZEN
+  artifact at window freeze time, not reproduced by rebuilding. This does not affect frozen-window validity (freeze
+  hashes the built artifact itself), but it is recorded here as a measurement caveat.
+pre-existing stale product in target/ before any rebuild: ee1fd0ae... / 92630818 B mtime 2026-11-11 08:16:01
+  (built before z2vec slice 1 changed render_flex.cu => stale w.r.t. HEAD; not used as the "before" baseline)
+guards implication: render_per_world_light exe is one of the 12 frozen guards inputs; its identity changed
+  => any later render GPU window MUST re-freeze guards. This card does NOT re-freeze and takes no GPU window.

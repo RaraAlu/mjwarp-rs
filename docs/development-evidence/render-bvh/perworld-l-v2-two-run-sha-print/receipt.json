@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-two-run-sha-print",
+  "verdict": "PASS",
+  "kind": "g-l2-entity-print-fill",
+  "status": "prints_added_assertions_untouched_zero_gpu",
+  "sources": {
+    "backlog_item": "attempt-4 archive backlog R1: two-run sha values only asserted, not printed",
+    "authority_sample": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/window/run/exe-logs/render_per_world_light.stdout.log (9f1325594fab6b0ef5d30934c1b0db57f1c88081e59ff3a411eb787a7991c5fd / 1837 B)"
+  },
+  "change": {
+    "file": "tests/render_per_world_light.rs",
+    "added_lines": 3,
+    "deleted_or_modified_assertions": 0,
+    "lines_before": 494,
+    "lines_after": 497,
+    "new_prints": [
+      "two_run_sha first={first_sha:?} second={second_sha:?} (3 hex strings each: rgb/depth/seg from sha256_frames)",
+      "two_run_sha equal={first_sha == second_sha}"
+    ],
+    "assertions_untouched": "the existing assert_eq!(first_sha, second_sha, ...) and every criterion/B/C/isolation assertion are unchanged"
+  },
+  "print_coverage_audit": {
+    "already_printed_confirmed": {
+      "C_numbers_and_verdict": "c1_rgb_changed/c2_depth_changed/c2_seg_changed/verdict (attempt4 stdout line 2)",
+      "C_diag_and_capture_crosscheck": "diag campersp/camhinge + capture.json C1 cross-check (attempt4 stdout lines 3-4)",
+      "A_per_frame": "6 x FrameStats (attempt4 stdout lines 5-10)",
+      "B_light_stats": "B: LightStats { worlds, lights, xpos_mismatched, xdir_mismatched } (derive(Debug) at tests/support/render_bvh/light.rs:278)",
+      "world_isolation": "isolation changed=[[false,false],[true,true],[false,false]] (attempt4 stdout)",
+      "pilot_c_numbers": "pilot C1/C2 prints unchanged in the #[ignore] pilot test"
+    },
+    "added_here": ["two-run sha hex values and the equal flag"]
+  },
+  "execution": {
+    "build": "cargo test --locked --features cuda-probe --test render_per_world_light --no-run -> exit 0",
+    "entity_test_run": false,
+    "why_not_run": "the entity test is #[ignore] and needs an NVIDIA driver plus the G-L1 capture reference (render GPU window); this card is print-only and must not open a window",
+    "expected_runtime_lines": "two_run_sha first=[...] second=[...] / two_run_sha equal=true (to be observed at the next render window)"
+  },
+  "test_binary_identity": {
+    "target": "tests/render_per_world_light.rs",
+    "attempt4_frozen_baseline": {
+      "sha256": "73245bbf175bf10c3332b6f3180ae6bc600a6db5fadb55e873ebfdd69a0d2542",
+      "bytes": 92590602,
+      "note": "window baseline; already drifted before this card because P10/z2vec changed sources"
+    },
+    "pre_card_head_source_rebuild": {
+      "sha256": "6908c5a2bce75ec44d9f92bab64895020efe57679b85e82f3970a8d74bf5147d",
+      "bytes": 92630818,
+      "method": "git stash the card-D change, warm-cache rebuild, then restore"
+    },
+    "post_card_final_on_disk": {
+      "sha256": "55d0c32ceaa8d87ec8183637281f79ac7eaff42166831a55ca587ad60f1ee354",
+      "bytes": 92631489
+    },
+    "delta_bytes": 671,
+    "measurement_caveat": "same-source rebuilds are not byte-reproducible in this environment (3 rebuilds of identical source produced 4ad790c0/198aa439/55d0c32c with identical byte size); exe identity must be taken from the frozen artifact at window freeze time",
+    "guards_implication": "render_per_world_light is one of the 12 guards inputs; its identity changed, so any later render GPU window must re-freeze guards/exes. This card does not re-freeze and takes no GPU window."
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": {
+      "passed": 1406,
+      "failed": 0,
+      "ignored": 402
+    },
+    "recorded_in": ".normify/runs/2026-11-11-render-perworld-l-v2-two-run-sha-print/"
+  },
+  "boundaries": {
+    "src_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "cu_unchanged": true,
+    "kernel_identity_unchanged": true,
+    "guards_unchanged": true,
+    "criteria_changed": false,
+    "gpu_used": false,
+    "window_rerun": false,
+    "re_frozen": false
+  },
+  "manifest": "manifest.txt (sha256 + bytes, does not list itself)",
+  "non_claims": [
+    "does not claim any device-side behavior or numeric change; this is a print-only change",
+    "the real sha values and equal=true are to be observed at the next render GPU window (not executed here)",
+    "does not change any criterion/threshold/reference/camera/recipe, and does not touch assertions",
+    "does not re-freeze guards and takes no GPU window"
+  ]
+}

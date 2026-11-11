@@ -1,0 +1,21 @@
+# print-coverage audit (why only the two-run sha needed adding)
+# authoritative runtime sample: attempt-4 canonical window stdout (archived, not re-run here)
+attempt4 stdout log: docs\development-evidence\render-bvh\perworld-l-v2-validate-window-g-l2\attempts\attempt4\window\run\exe-logs\render_per_world_light.stdout.log
+  sha256 = 9f1325594fab6b0ef5d30934c1b0db57f1c88081e59ff3a411eb787a7991c5fd ; bytes = 1837
+  -> C numbers:            "c1_rgb_changed=[38285, 40644] c2_depth_changed=[35828, 33883] c2_seg_changed=[16041, 16754] verdict=PassMargin"
+  -> C diag + capture:     "diag campersp depth=[0, 0] seg=[0, 0]; camhinge rgb=[50363, 52329]" / "capture.json C1 交叉核对 = Compared"
+  -> A per-frame:          6 x "A world<W> cam<C>: FrameStats { ... }"
+  -> B full fields:        "B: LightStats { worlds: 3, lights: 3, xpos_mismatched: 0, xdir_mismatched: 0 }"
+  -> world isolation:      "isolation changed=[[false, false], [true, true], [false, false]]"
+  -> two-run sha:          NOT printed (only assert_eq!(first_sha, second_sha))  <-- the backlog R1 gap
+
+current source after card D (tests/render_per_world_light.rs):
+  327/331/341  C numbers + diag + capture.json cross-check   (unchanged)
+  378          A per-frame FrameStats                          (unchanged)
+  404          B: {bstats:?} with LightStats derive(Debug)     (unchanged; light.rs:278-284 derive => all 4 fields)
+  425          two_run_sha first={first_sha:?} second={second_sha:?}   (NEW)
+  426          two_run_sha equal={first_sha == second_sha}             (NEW)
+  449          isolation changed={changed:?}                    (unchanged)
+  475/481      pilot C1 numbers + old-capture skip reason       (unchanged; #[ignore] pilot test)
+sha source: tests/support/render_bvh/light.rs:371 sha256_frames -> [String; 3] formatted "{:x}" (rgb/depth/seg hex);
+  {:?} therefore prints the three hex strings.

@@ -421,6 +421,9 @@ fn gpu_per_world_light_matches_reference() {
     )
     .expect("per-world 灯发射（第二跑）");
     let second_sha = light::sha256_frames(&light::rendered_frames(&context, &resolved));
+    // backlog R1：attempt-4 日志只有断言、无具体 sha 值；这里把两跑十六进制值直接落日志（`--nocapture` 可读）。
+    println!("two_run_sha first={first_sha:?} second={second_sha:?}");
+    println!("two_run_sha equal={}", first_sha == second_sha);
     assert_eq!(
         first_sha, second_sha,
         "两跑 rgb/depth/seg 整块 sha 必须相等"

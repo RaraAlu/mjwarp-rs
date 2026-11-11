@@ -1,0 +1,25 @@
+# diff surface for card D (print-only change)
+git status --porcelain:
+ M tests/render_per_world_light.rs
+
+git diff --stat:
+ tests/render_per_world_light.rs | 3 +++
+ 1 file changed, 3 insertions(+)
+
+git diff (tests/render_per_world_light.rs):
+diff --git a/tests/render_per_world_light.rs b/tests/render_per_world_light.rs
+index d4aa9d34..ea676b6c 100644
+--- a/tests/render_per_world_light.rs
++++ b/tests/render_per_world_light.rs
+@@ -421,6 +421,9 @@ fn gpu_per_world_light_matches_reference() {
+     )
+     .expect("per-world 灯发射（第二跑）");
+     let second_sha = light::sha256_frames(&light::rendered_frames(&context, &resolved));
++    // backlog R1：attempt-4 日志只有断言、无具体 sha 值；这里把两跑十六进制值直接落日志（`--nocapture` 可读）。
++    println!("two_run_sha first={first_sha:?} second={second_sha:?}");
++    println!("two_run_sha equal={}", first_sha == second_sha);
+     assert_eq!(
+         first_sha, second_sha,
+         "两跑 rgb/depth/seg 整块 sha 必须相等"
+
+only 3 added lines: 1 comment + 2 println!. No assertion/logic line touched.
