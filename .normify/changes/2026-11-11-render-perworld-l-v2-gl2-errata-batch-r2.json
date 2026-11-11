@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2",
+  "title": {
+    "zh": "G-L2 errata 批 r2（A H2 addenda + B dump 字段 errata + C QA#7 记录面 + E attempt4 errata；零 GPU）",
+    "en": "G-L2 errata batch r2 (A H2 addenda + B dump field errata + C QA#7 residuals + E attempt4 errata; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "承接被 abandon 的同内容卡；范围与验收见 acceptance。纯文档/证据 + 诊断测试支持代码；零 GPU；无 .cu ⇒ 内核身份不变。",
+    "en": "Successor card with the same content; documentation/evidence + test-side diagnostics only; zero GPU; no .cu so kernel identity unchanged."
+  },
+  "modules": {},
+  "acceptance": [
+    "A1-A6 append-only addenda (single-normalize README 6 + receipt addenda[] + call-chain-audit append; criterion-a-rca 9; chain-pin 8; two QA check card pointers); history bytes unchanged",
+    "B: seg.attribution.geom_type = model mjm.geom_type[geom_id] (geom 3 => 7; null if no model/out of range); new seg_objtype = seg[1]; other fields and schema==2 unchanged; B1 audit in artifacts/b1-source-audit.txt; 3 static tests in diag_ext.rs (diag.rs 466 lines / diag_ext.rs 231 lines <= 500)",
+    "C: diag7 window/gpu-snapshot.txt + template; body-env rewritten via file-write; GPU numbers = nvidia-smi actual, dispatch numbers marked reference",
+    "E: attempt4 README section 11 spec-E verbatim addendum (evidence hygiene / build=0 segment / baseline timing / floor strict wording 10230 vs effective 9956 / guards CRLF + missing body_env backlog) + readable copies freeze-stdout.readable.txt, monitor-stdout.readable.txt (original bytes unchanged)",
+    "evidence: perworld-l-v2-gl2-errata-batch/ README/receipt/manifest + artifacts/logs self-checked; 8 affected dir manifests recalculated; four gates + normify check/done; Chinese commit",
+    "boundaries: src/, fixtures/, scripts/, guards/frozen artifacts, signed materials untouched; no criterion/reference/tolerance change; history bytes and commit messages not rewritten; no new G-L2 claim"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize-check/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin-check/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag7-check/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-errata-batch/",
+      "tests/support/render_bvh/light/diag.rs",
+      "tests/support/render_bvh/light/diag_ext.rs"
+    ],
+    "resources": [],
+    "priority": 98
+  },
+  "note": "承接被 abandon 的 2026-11-11-render-perworld-l-v2-gl2-errata-batch（同内容，因关闭态冻结字段约束无法扩展 scope/checks 而重构生命周期）。过程事件：①2026-11-11 08:03 本批前身卡的两条治理提交（d82d5905/f9bc436e）在 QA 持锁期间完成（acquire 返回 HELD 后未停），发现后立即停手、等锁 FREE(08:04:07) 后重新 acquire 继续，仅 .normify 卡 JSON 变更、无冲突/数据丢失；②attempt4/window/monitor-stdout.txt 被同名派生副本覆盖后从 5f1d436d blob 逐字节恢复（340B/c22ea746...），派生副本改名 monitor-stdout.readable.txt，净证据损失 0。锁纪律新口径：任何仓写前显式校验 acquire 返回 REPO_WRITE_LOCK_ACQUIRED 且 owner==自己。",
+  "revision": {
+    "before": "da90f27a769b2b893adb2f9048ee47fc4522bc22",
+    "after": null
+  },
+  "created_at": "2026-11-11T00:10:42.667Z",
+  "updated_at": "2026-11-11T00:10:50.084Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "src/"
+      ]
+    }
+  ]
+}
