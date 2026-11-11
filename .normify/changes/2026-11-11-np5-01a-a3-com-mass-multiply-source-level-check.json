@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-a3-com-mass-multiply-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a A-3（`12156259`）：**PASS（0 阻断，0 一般 + 1 低 + 2 观察）**——§1 RE-3 L1/O1 闭环：`rows-fields-v1.json` 24 行全补（15 engine-semantic 带 why+`bit_level_guarantee:false`、7 not-decidable 带 reasons/why/missing、2 n/a 带 why，字段与 evidence basis 一致、0 问题）、原 evidence 字节未改（`f5988b7c`/94,815）、manifest 重算 6/6、缺因口径更正为 **47/26（总 73）**；§2 A-3 40 站点 40/40 id 与 sites.json 3 行并集相等、直方图 `identical18/engine-semantic3/n/a19`（3 条 com_position 带 why+bit_level false）、mass_multiply 18 条按 RE-2 device 口径记录、锚点 40 file:line 0 错误、累计 **483**（A 批 179 收口）、policy 0 命中、门禁 1,406/0/402；低=A-3 条目缺 kind/label 字段；观察=`rigid_com_position` 在 kinematics(A-2)/com_position(A-3) 两行各计一次（10 个相同 tail），608 为按行计数、唯一表达式 598",
+    "en": "QA review of A-3: PASS (0 blockers, 0 major + 1 low + 2 observations); RE-3 L1/O1 closed (rows-fields 24 rows, original bytes unchanged, manifest 6/6, split corrected to 47/26); A-3 40 sites verified, cumulative 483, A batch complete; low = A-3 entries omit kind/label; observation = rigid_com_position counted in both kinematics(A-2) and com_position(A-3) rows (10 shared tails), so 608 is row-times-site and 598 unique"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 A-3（`12156259`）做独立只读复核（零 GPU）：①RE-3 rows-fields 24 行字段、与 basis 一致性、原字节、manifest、47/26 口径；②A-3 40 站点 id/直方图/3 条 engine-semantic/双侧锚点/mass_multiply 口径/累计 483/policy 0 命中/无覆盖率；③边界/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of A-3: RE-3 rows-fields addendum, A-3 40 sites and hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 RE-3 L1 闭环 ✅**：`rows-fields-v1.json`（11,733 B）`row_count=24`：engine-semantic **15 行**带 `why_engine_semantic`（=evidence basis）+`bit_level_guarantee:false`；not-decidable **7 行**带 `not_decidable_reasons`+`why_not_decidable`+`missing_evidence`；n/a **2 行**带 `why_not_applicable`——我逐行比对 evidence 分类/站点，**0 字段问题**；`source_evidence` sha `f5988b7c…`/94,815 对应原文件，**原 evidence/README/receipt/selfcheck 字节未改**；addenda `661ad9bf…`/2,003 说明补齐方式；RE-3 manifest 重算 **6/6**（744 B）全对",
+    "**§1 O1 口径更正 ✅**：addenda §2 + `rows-fields-v1.not_decidable_reasons_split_measured` 明确 `no-reference-entry` **4 行 47 站点** + `no-lineinfo`+`frozen-artifact-only` **3 行 26 站点** = **7 行 73 站点**，与 evidence 实测一致，并明示派工摘要 40/33 有误",
+    "**§2 A-3 ✅**：40/40 与 sites.json 3 行并集逐 id 相等（com_position 14 + com_velocity 8 + mass_multiply 18）；直方图 `{identical 18, engine-semantic 3, n/a 19}`；3 条 engine-semantic（`com_position:rigid_com_position:intermediate:4`/`accumulation:0`/`accumulation:2`）均带 why + `bit_level_guarantee:false`、不作数值等价结论；`mass_multiply` 18 条：validate/borrowed_validate/视图/rounding-note 为 n/a（带 why）、accumulation/output identical，README 记录 RE-2 device 级 `no-reference-entry`；累计 **443+40=483**，A 批 179（76+63+40）收口；锚点 **40 file:line、0 错误**；必填核心字段齐全（见 L1 的 kind/label 例外）；policy_scan **0 命中**；manifest 4/4；selfcheck 30 PASS；门禁 1,406/0/402；哈希与派工值一致（13085701/5,883、c9a9676f/53,532、c42dbbbd/4,224、337b3367/539、2392debb/1,843）；编码干净、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 2 观察）。** 低 L1=A-3 条目缺 `kind`/`label`（此前各片都有，本片只能从 id 推 kind）；观察 O1=`rigid_com_position` 内核在 `kinematics` 行（A-2，11 站点）与 `com_position` 行（A-3，14 站点）各计一次，**10 个相同 (kernel,kind,index) tail 被两片重复计数** ⇒ 483/608 是「场表行×站点」口径、唯一表达式应为 **598**，建议收尾 addenda 同时给两个口径；观察 O2=engine-semantic 措辞沿用 A-2 先例、可接受"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-a3-com-mass-multiply-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-a3-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 A-3 复核（含 RE-3 L1/O1 闭环）；结论 PASS（0 阻断，1 低 + 2 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T14:15:00.000Z",
+  "updated_at": "2026-11-11T14:15:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a3-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-a3-com-mass-multiply-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a3-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "ebee695410841a52b0911a1cb0df61602cc4a464",
+    "after": null
+  }
+}
