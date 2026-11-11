@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-00-gate-ledger-freeze-r2-check",
+  "title": {
+    "zh": "QA 复核 NP5-00 清单与判据映射冻结（`875ae41d`，卡 F/r2）：账本与 target 定稿**逐字节相同**（`6d6ff7d9…`/116,688 B）、**190 条**=30/3/23/100/2/32 且 totals 一致、每条有 owner、30+3 表与 4 组输入 sha 全对（`5259e4b4…`/`c7d84fb2…`/`b49cdac2…`/`8cb8361b…`）、`scene_bvh_ray` 漂移我独立复算 current **`caac8c86…`** 与账本一致；**checker 我独立重跑 19 PASS/RESULT PASS**（日志 `beae8f16…`/862 B 与声明一致）；两工具与 target 源**仅差各 1 行 guards 头注**、无逻辑改动、其它 scripts 零触碰、guards `94478b3d…`/43,729 未变；写域仅 `docs/development-evidence/np-gate/**`+`scripts/np-gate/**`+`.normify`（无 src/tests/fixtures）、**无未加否定的门禁通过表述**、manifest **8/8**、docs UTf-8/LF、门禁 unit **1,406/0/402** → **复核通过（0 阻断，3 低 + 1 观察）**；低=①23 条 unregistered 的 `np01_status` 带注解与词表裸值不能精确匹配（checker 未覆盖）②README 把 `tree.head=f4628bd7`（被 abandon 首版卡登记提交）写成「本卡登记提交」（r2 为 `dec4e7d9`）③账本 `task` 仍是「草稿/待落」；观察=`scope` 首句「100%/0」易误读为验收结论",
+    "en": "QA review of the NP5-00 ledger freeze (875ae41d, card F/r2): ledger byte-identical to target (6d6ff7d9/116688 B), 190 entries 30/3/23/100/2/32 with consistent totals and owners, input material hashes match, scene_bvh_ray drift recomputed as caac8c86, checker rerun 19 PASS, tools differ by one guard note, scope/claims/boundaries/manifest/encoding/gates verified - PASS with 3 low + 1 observation"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对卡 F（NP5-00 r2，提交 **`875ae41d`** + 卡 `2026-11-11-np5-00-gate-ledger-freeze-r2`）做独立只读复核（零 GPU）：①条目数=产品路径数、每条状态/owner、时点无混用；②机读账本与 Arch 规格/校验器一致（我独立跑 checker、核输入 sha）；③边界（只写 docs evidence + scripts/np-gate + .normify，不写 src/tests/fixtures，不改既有敏感脚本/判据）；④不得有未加否定的门禁通过表述；⑤manifest/编码/门禁。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of card F: entry counts/statuses/owners and snapshot timing, ledger vs spec/checker consistency (independent checker run and input hashes), write boundaries, absence of unnegated pass claims, manifests/encoding/gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**账本内容/计数 ✅**：落仓 `np-gate-ledger.json` **116,688 B / `6d6ff7d98f82e6429038d6f4c731afcc49cf693951a17e520a5a6fde6568c8ad`**，与 target 定稿（我实测同 sha）**逐字节相同**；**190 条** = `np01.paths` 30 + `host_sites` 3 + `unregistered_product_units` 23 + `np02.kernels` 100 + `missing_kernel_rows` 2 + `gaps` 32，与 `totals.ledger_entries_total=190` 一致；每条均有 owner（我逐条扫缺失 0）；gap `ledger_action` 直方图 archive 9/covered-by-base 2/reclassify 7/partial 3/n-a 3/undetermined 2/partial-missing 2/deferred-linux 4（=32）与 README 一致",
+    "**机读校验/输入 ✅**：`python -B scripts/np-gate/check_np5_ledger.py` 我独立重跑 ⇒ **19 PASS / RESULT: PASS**；日志 **862 B / `beae8f16…`** 与声明一致；账本 4 组输入实测 sha 全对（np01 inventory `5259e4b4…`、np02 inventory `c7d84fb2…`、np02 gap `b49cdac2…`、cuda-surface `8cb8361b…`），30 个 field-table + 3 个 host-table 实存；`scene_bvh_ray` 漂移我按 HEAD blob 独立复算 `scene.cu` = **`caac8c86a4e4f1e7942cf5c920e2406755dc2e2cade73505f45e28cfff46ab93`**（17,834 B）与账本 current 逐位一致",
+    "**时点/状态 ✅（3 低）**：`generated_at=2026-11-11T12:27:08+0800`、`inputs.tree.head=f4628bd7…` 附 subject、6 组输入各自 sha/时间（np02 两输入 2026-11-04 生成已注明）⇒ 无静默混时点。低①23 条 `unregistered` 的 `np01_status` = 「absent（注解）」与 `status_vocabulary` 裸值不能精确匹配、checker 未覆盖该字段；低②README 把 `tree.head=f4628bd7`（被 abandon 首版卡登记提交）写成「本卡登记提交」（r2 登记为 `dec4e7d9`）；低③账本 `task` 仍为「草稿/待 Backend 落…」",
+    "**工具/边界 ✅**：`scripts/np-gate/check_np5_ledger.py` **4,902 B/`e7174bce…`**、`gen_np5_ledger.py` **17,892 B/`bc9e9e0e…`**，与 target 源（4,817/`a7dbde52…`、17,807/`7fe344d1…`）**逐行 diff 仅各 +1 行 guards 头注**、无逻辑改动；`git diff dec4e7d9..875ae41d` 仅 docs/np-gate（7 文件）+ scripts/np-gate（2 新）+ `.normify`，**无** src/tests/fixtures，`scripts/` 其它文件零改动；guards `94478b3d…`/43,729 未变；不改判据/参考/容差",
+    "**非声明/manifest/编码/门禁 ✅**：README 中「NP01/NP02 通过」「全产品精度门禁通过」仅以**否定句**出现（我逐行核 + checker 第 8 项断言通过），账本 `boundaries` 明写非通过结论、`scope` 末尾「不宣称任何门禁通过」；manifest **8/8** 独立重算（含 2 条 repo-relative 脚本行、不自列）；docs 全 UTF-8/LF 无 BOM/CR/NUL、脚本 `i/lf w/lf`；门禁 fmt/clippy/clippy-cuda exit 0、unit **1,406/0/402**；旧卡 abandoned（`769e6933`）、r2 verified、receipt 记 `supersedes_abandoned_card`",
+    "**结论：复核通过（0 阻断，3 低 + 1 观察）。** 观察：账本 `scope` 首句「100%/0」为清单完备性描述（同句含「不宣称任何门禁通过」），易被误读为验收结论，建议下一版改措辞。不宣称 NP01/NP02 通过或全产品精度门禁通过；不改判据/参考/容差；不重采证据/不重跑窗口；零 GPU"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-00-gate-ledger-freeze-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-00-freeze-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 12:xx 派工的卡 F（NP5-00 r2）复核。结论：复核通过（0 阻断，3 低 + 1 观察）。已独立核：账本 6d6ff7d9/116688 与 target 逐字节相同、190 条=30/3/23/100/2/32 与 totals 一致、每条有 owner、gap 直方图 9/2/7/3/3/2/2/4、4 组输入 sha 全对、30+3 表实存、scene_bvh_ray current caac8c86 我按 HEAD blob 复算一致；checker 我独立重跑 19 PASS/RESULT PASS（日志 862B/beae8f16）；两工具与 target 仅差各 1 行 guards 头注、其它 scripts 零触碰、guards 94478b3d/43729 未变；写域仅 docs/np-gate+scripts/np-gate+.normify、无 src/tests/fixtures；无未加否定的门禁通过表述；manifest 8/8、docs UTF-8/LF、门禁 unit 1406/0/402；旧卡 abandoned/r2 verified。低：①unregistered 23 条 np01_status 带注解与词表裸值不精确匹配（checker 未覆盖）②README tree.head 归属措辞（f4628bd7 是首版卡登记、r2 为 dec4e7d9）③账本 task 仍写草稿/待落。观察：scope 100%/0 措辞易误读。不宣称门禁通过、不改判据、零 GPU。",
+  "revision": {
+    "before": "d0d5376f85262542cc606fe1b147be50647403e2",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:45:00.000Z",
+  "updated_at": "2026-11-11T04:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-00-freeze-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-00-gate-ledger-freeze-r2-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-00-freeze-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
