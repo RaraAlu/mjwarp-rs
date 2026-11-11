@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-u7u8-full-condition-assert",
+  "title": {
+    "zh": "W2/U7U8：全条件断言片（limits 升级为 pass/fail；只重建 branch exe；最小窗由 Chief 开）",
+    "en": "W2/U7U8: full-condition assertion slice (limits group promoted to pass/fail; rebuild branch exe only; minimal window opened by Chief)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-12 批准（方案 A + 最小窗 A）：把 S4 冻结的 limits record-only 用例升级为 pass/fail 全条件断言——复用 `tests/support/mesh_multicontact_compare_support.rs::compare_case_with_geom_order`（M1/M2/M3 同口径，geom 序 `[1,0]`；comparator 495/500 行禁止编辑、本片只调用），覆盖 u7-u8-criteria.json pass_rule 七条件（nacon 零容差、结构键 (worldid, geomcollisionid) 排序配对、位级优先/4 ULP 回退、11 个零容差字段、overflow 全 0、efc_address 全 -1、contact.geom 序）；保留 count/dist/pos 数值打印供证据表引用。产品 src/ 零改动、内核身份不变（source `fb03c5b1…`/PTX `78da9dea…`/NVRTC 12.8.93，机检）；只重建 branch exe 并落 `target/a2-freeze-r2/`（旧 `target/a2-freeze/` 与 A2-3 窗证据字节不动），9 个未重建 exe sha 复核与旧冻结一致；新 refreeze 清单落独立新证据目录。窗口前 U7/U8 全条件结果未知、不宣称通过；窗口由 Chief 按四前提开（最小窗：1 exe + 15 fixture + 2 参考 = 18 守卫），窗内 comparator failures≠0 即 fail-stop。",
+    "en": "Promote the frozen S4 limits record-only case to full pass/fail by calling the existing M1/M2/M3 comparator (do not edit it); product src unchanged and kernel identity machine-checked; rebuild only the branch exe into target/a2-freeze-r2, re-verify the other 9 exe shas, and write a new refreeze manifest in a new evidence dir. The GPU window itself is opened only by Chief under the four preconditions; failures!=0 is fail-stop; no pass claim before the window."
+  },
+  "modules": {},
+  "acceptance": [
+    "第一节（A2-3 复核 3 低 + 5 观察 append-only 收口；历史窗口/回执字节不改）：L1 生成 `logs/window-runner-console.utf8.log`（UTF-16LE 原 console → UTF-8/LF/无 BOM 规范化副本）与 `logs/console-vs-facts.diff.log`，原损坏文件字节不动，addenda 说明；L2 A2-3 readiness §8「窗内 0.25s 采样」未实现——本片下一最小窗实装 0.25s 采样（`logs/window-samples.csv` 入 r2 窗证据）并在 addenda 披露 A2-3 未落地事实；L3 identity addenda「不改 A2-2 任何历史字节」精确化为「log 为 append、receipt/manifest 为簿记更新、其余历史字节未改」（identity addenda 末尾 append 补正 + identity manifest 条目 sha 重算，12 条不变）；O1 floor 写清硬门 10,240 与公式 9,909 取更严者（max）；O2 补 `logs/three-point-baseline-recalled.txt`（注明按 README §2 回填、非原始机器日志）；O3 manifest 条数口径更正为「记录条数 = 文件数 − 1」；O4 卡 addenda/gate run 时序说明；O5 monitor 路径笔误 render-hvh→render-bvh 更正。A2-3 窗口证据新 manifest 由 20 条更新为 24 条（4 新文件；旧 20 条 sha 逐条复核不变）",
+    "`tests/g10_p5_branch_closure_cuda.rs`：limits 用例升级为 pass/fail——新增 `#[path = \"support/mesh_multicontact_compare_support.rs\"] mod`（只调用，comparator 495/500 行禁止编辑），每 case 调 `compare_case_with_geom_order(..., \"[1,0]\")` + `report.print()` + 聚合 `assert!(failures.is_empty())`；保留原 `RECORD-ONLY limits case=...` count/dist/pos 打印与 `two_captures_bitwise_identical` 断言",
+    "`tests/support/branch_closure_case.rs`：仅注释口径更新（limits 记录组 → 判据组/U7/U8 pass/fail）；数组/length=2/守卫值/期望值零改动",
+    "判据/容差/参考/期望值零改动；`fixtures/`、`scripts/`、A2-1 证据目录（`g10-p5-mesh-cap32/`）字节不动（unchanged 机检）",
+    "产品 `src/` 零改动（unchanged 机检）；内核身份机检：source `fb03c5b1…`/254,434 B、PTX `78da9dea…`/3,883,643 B/6 入口、NVRTC 12.8.93 不变（`nvrtc_smoke --ignored --nocapture`，零 GPU 上下文）",
+    "只重建 branch exe（`cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-run --test g10_p5_branch_closure_cuda`，取 Executable 行；env `MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/package`）→ 落 `target/a2-freeze-r2/`；其余 9 个 exe 从旧 `target/a2-freeze/` 复制并复核 sha 与旧冻结一致（9/9）",
+    "新证据目录 `docs/development-evidence/g10-p5-mesh-cap32-window-r2/`：`window-readiness.md`、`refreeze-10-exe-r2.json`/`.tsv`、`guards-r2.tsv`、窗后 `README.md`/`receipt.json`/`results.json`/`facts.txt`/`sha-guards.txt`/`u7-u8-full.json`/`logs/`/`manifest.txt`；README 写明「窗口前 U7/U8 全条件结果未知，不宣称通过」",
+    "r2 最小窗 runner 实装窗内 0.25 s GPU 采样（A2-3 L2 收口）：窗内采样 CSV `logs/window-samples.csv` 入证据，记录样本数/实测间隔/util_max/free_min；采样为只读 nvidia-smi 查询，不改窗纪律",
+    "门禁：fmt/clippy/clippy-cuda/unit；CPU 测试 `cargo test --locked --features cuda-probe --test g10_p5_branch_closure_cuda` 3 passed / 2 ignored；unit 1409 过 / 0 败 / 402 ignored；`policy_scan` 对 A2-3 窗证据 24 文件与 identity 目录 13 文件 0 命中 + `--self-test 34/34`；UTF-8/LF 无 BOM",
+    "窗口（由 Chief 开，本卡不自行开窗）：最小窗 1 exe（branch：r2 新 sha）+ 15 fixture + 2 参考 = 18 守卫；fail-stop 8 条沿用就绪包 §5，第 6 条具体化为 U7/U8 comparator failures≠0 即停、不重试不放宽；窗内零 Rust 编译、不写仓、不发群消息",
+    "窗后证据收口：receipt `/task_id /verdict /u7_failures /u8_failures /u7_pass /u8_pass /sha_guards_ok /zero_rust_compile /src_digest`、README、u7-u8-full.json、window-samples、manifest 自核；卡收口 verified；不宣称 U7/U8 全条件通过之外的结论（mesh 容量缺口已清、与上游等价（over-32）、G10@P5 整族通过、NP01/NP02 门禁通过、性能结论）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-a2-3-m2-m3-s4-replay-window",
+      "2026-11-12-w2-a2-3-o3-fixture-comment-fix"
+    ],
+    "phase": "W2-A2",
+    "owner": "Backend",
+    "files": [
+      "tests/g10_p5_branch_closure_cuda.rs",
+      "tests/support/branch_closure_case.rs",
+      "docs/development-evidence/g10-p5-mesh-cap32-window/",
+      "docs/development-evidence/g10-p5-mesh-cap32-identity/",
+      "docs/development-evidence/g10-p5-mesh-cap32-window-r2/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-12：①方案 A（改 S4 主 target 调 comparator，comparator 禁止编辑）；②窗口选 A 最小窗（18 守卫，窗内 45–60 s，墙钟 ~70–90 s，上限 300/900）；③片名 `2026-11-12-w2-u7u8-full-condition-assert`；QA A2-3 窗证据/O3 复核均 PASS（3 低 + 5 观察并入本片第一节 append-only 收口；QA 复核证据 `docs/development-evidence/np-gate/w2-a2-3-window-check/` 与 `docs/development-evidence/np-gate/w2-a2-3-o3-fixture-comment-fix-check/`）。出片顺序：取锁→代码+tests+重建+证据+门禁→报窗口就绪→Chief 四前提/monitor/基线/群留痕→GO→最小窗→收口→QA 复核。方案：target/render-bvh/gl2-ptx-diff/w2-a2-precheck/u7-u8-full-conditions-plan.md。窗口前 U7/U8 全条件结果未知、不宣称通过；失败即停、不重试不放宽。时序可读性说明（QA O4）：A2-3 卡的 4 个 gate run at=02:20:29–47 晚于其 closed_at=02:18:59，来自「补 tests 范围并重跑门禁」的尝试（后改独立片）；两次均 PASS、树差异仅文档，不影响判定。",
+  "revision": {
+    "before": "760f960aecb9c7d8f080cd83737e5aea32bb8ac4",
+    "after": null
+  },
+  "created_at": "2026-11-12T02:45:00.000Z",
+  "updated_at": "2026-11-11T18:32:52.470Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/",
+        "docs/development-evidence/g10-p5-mesh-cap32/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": ".normify/changes/2026-11-12-w2-a2-2-identity-refreeze.json",
+      "pointer": "/status",
+      "equals": "verified"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/refreeze-10-exe-r2.json",
+      "pointer": "/source_tree_digest/combined",
+      "equals": "266bbf94fd92cce3202159df196d84824dacbaa6d22f4b848eddd83ac57fcb44"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/refreeze-10-exe-r2.json",
+      "pointer": "/freeze_dir",
+      "equals": "target/a2-freeze-r2"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/refreeze-10-exe-r2.json",
+      "pointer": "/counts/old_freeze_match",
+      "equals": 9
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-u7u8-full-condition-assert"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/u7_failures",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/u8_failures",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/u7_pass",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/u8_pass",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/sha_guards_ok",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/zero_rust_compile",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window-r2/receipt.json",
+      "pointer": "/src_digest",
+      "equals": "266bbf94fd92cce3202159df196d84824dacbaa6d22f4b848eddd83ac57fcb44"
+    }
+  ]
+}
