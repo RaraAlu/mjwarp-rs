@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill",
+  "title": {
+    "zh": "R06 多帧实体 A recipe 参数比对补强（7 → 28 项口径；CPU 自证 + 防漏守卫；零 GPU）",
+    "en": "R06 multiframe entity A recipe-parameter comparison fill (7 -> 28 item scope; CPU self-checks + anti-omission guard; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 backlog 卡 `2026-11-05-render-r06-flex-multiframe-recipe-params-backlog` 与 Arch 规格 `target/render-bvh/gl2-ptx-diff/r06-recipe-params-spec.md`（target/ 工作材料、非证据）：把多帧实体 A 的 recipe 比对从 7 项口径补到与单帧验收同口径的 28 项（26 recorded + nworld + cam_res 隐式）。仅测试支持代码与测试断言；不改渲染/数值路径、不改 capture JSON、不改判据/参考/spec/相机/recipe。含防漏守卫（RECIPE_PARAM_KEYS 26 键 + 已比对键集合 == 该表 + capture 键集守卫测试）与 3 个 CPU 自证用例（正例、反例 catch_unwind 必须 panic、键集守卫）。零 GPU、零窗口；记录 render_flex_multiframe 测试 exe 身份前后基线并写明「仅测试断言变化、R06 后续窗需重冻、本卡不重冻不占窗」。",
+    "en": "Per the backlog card and Arch's spec: fill multiframe entity A's recipe comparison from 7 to the single-frame 28-item scope (26 recorded + nworld + implicit cam_res). Test-support code and assertions only; no rendering/numeric path change, no capture JSON change, no criteria/reference/spec/camera/recipe change. Includes an anti-omission guard (RECIPE_PARAM_KEYS 26 keys, compared-key set == that table, capture key-set guard test) and 3 CPU self-check tests (positive, counterexample that must panic via catch_unwind, key-set guard). Zero GPU/windows; records the multiframe test-exe identity before/after and states that only test assertions changed, so later R06 windows must re-freeze (this card does not)."
+  },
+  "modules": {},
+  "acceptance": [
+    "`assert_params_match_capture` 覆盖 28 项口径：26 个 capture recorded 键（3 render flag + 12 布尔 + enabled_geom_groups + cam_active + background_color + shadow_light_fraction + samples_per_pixel + 6 splat null） + nworld（capture 未记录，固定 1）；cam_res 保持隐式（不新增字面断言，注释/README 写明 28 = 26 + nworld + cam_res）。",
+    "防漏守卫：`RECIPE_PARAM_KEYS: [&str; 26]`（字典序全部 recorded 键）；断言函数内「已比对键集合 == RECIPE_PARAM_KEYS」（漏比/多比即失败）；`capture_parameter_keys_match_28_item_scope` 断言 capture.parameters 键集 == 该表。",
+    "CPU 自证 3 用例：正例（context_params vs capture parameters 全过）、反例（翻转 use_shadows 与 samples_per_pixel 各一次，`catch_unwind` 必须捕获 panic，证明非空转）、键集守卫；`cargo test --locked --features cuda-probe --test render_flex_multiframe`（CPU 用例）全过。",
+    "行数棘轮：`tests/support/render_bvh/multiframe.rs` 与 `tests/render_flex_multiframe.rs` 均 ≤500 行（按功能抽出 `multiframe_recipe.rs` 子模块承载 28 项断言与 recipe CPU 用例；测试仍由同一 test target 执行）。",
+    "证据：`docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill/` README（7→28 差异表、3 用例与日志、反例证明、exe 身份旧 live/旧 frozen/新 live、门禁计数、diff 面）+ receipt + manifest 自核；guards `94478b3d…`/43,729 B 只读核对未变。",
+    "四门禁 fmt/clippy/clippy-cuda/unit + `normify check`；`unchanged src/`、`fixtures/`、`scripts/`；零 GPU、不重冻、不占窗；不改判据/参考/容差/相机/recipe；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/support/render_bvh/multiframe.rs",
+      "tests/support/render_bvh/multiframe_recipe.rs",
+      "tests/render_flex_multiframe.rs",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill/"
+    ],
+    "resources": [],
+    "priority": 20
+  },
+  "note": "Chief 2026-11-11 12:00 派工卡 C（1 片、0 窗、零 GPU）；Arch 规格 `r06-recipe-params-spec.md` 已定稿（target/ 工作材料，非证据；sha 由 Arch 后补）。来源 backlog 卡 `2026-11-05-render-r06-flex-multiframe-recipe-params-backlog`（p20）。基线：live exe 3d482e56…/118,291,924 B、frozen stash 0f76f9e1…/118,098,954 B（先于本卡已 drift）、guards 94478b3d…/43,729 B。",
+  "revision": {
+    "before": "ddd6bd38f665033c9bee91e79f844d71dbb04917",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:45:00.000Z",
+  "updated_at": "2026-11-11T04:11:36.658Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
