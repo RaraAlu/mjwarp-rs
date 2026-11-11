@@ -1,0 +1,38 @@
+# QA independent checks for the two-run sha print card (commit acaa57ca, zero GPU)
+#
+## 1) change surface
+# git show acaa57ca -- tests/render_per_world_light.rs => +3 / -0 lines:
+#   + // backlog R1 comment
+#   + println!("two_run_sha first={first_sha:?} second={second_sha:?}");
+#   + println!("two_run_sha equal={}", first_sha == second_sha);
+# placed immediately before assert_eq!(first_sha, second_sha, ...) ; the assertion itself is untouched
+# physical lines 494 -> 497 (< 500 ratchet)
+# full commit: 14 files = 1 test file + 8 evidence files + 5 .normify ; no src/ fixtures/ scripts/ *.cu
+#
+## 2) print correctness
+# tests/support/render_bvh/light.rs:371  pub fn sha256_frames(frames: &[Vec<Frame>]) -> [String; 3]
+#   -> three hex strings (rgb/depth/seg) ; {:?} prints ["<hex>", "<hex>", "<hex>"]
+# prints happen before the assert, so on mismatch the concrete values are visible before the panic
+#
+## 3) print coverage audit vs archived attempt-4 stdout (re-read by QA)
+# docs/.../attempt4/window/run/exe-logs/render_per_world_light.stdout.log
+#   1837 B / 9f1325594fab6b0ef5d30934c1b0db57f1c88081e59ff3a411eb787a7991c5fd  (matches the card)
+# contains: C numbers + verdict, C diag, capture cross-check, 6x "A world..cam..: FrameStats", B: LightStats{4 fields},
+#           isolation changed=[[false,false],[true,true],[false,false]], pilot C numbers, old capture Skipped(...)
+# does NOT contain two-run sha values => the gap this card fills
+# LightStats definition (tests/support/render_bvh/light.rs): worlds, lights, xpos_mismatched, xdir_mismatched
+#
+## 4) exe identity measurements (QA reproduced the "not byte-reproducible" caveat)
+# on-disk after card D: 92631489 B / 55d0c32c...  == card's post-card value
+# QA forced 3 relinks of identical source: 92631489 B each time, sha256 =
+#   c5f3c990..., 0c8d3c6b..., 2ca7f097...   (3 different hashes, same size)
+# => same-source rebuilds are not byte-reproducible here; identity must be taken from the frozen artifact
+# size delta +671 B (92631489 - 92630818) is consistent with two println! format/string additions
+# pre-card live 6908c5a2... is a one-shot rebuild measurement (not re-checkable); attempt-4 frozen 73245bbf.../92590602 already drifted
+#
+## 5) boundaries / evidence / gates
+# guards-perworld-l2-light.json 94478b3d.../43729 untouched (no refreeze; card states later render windows must refreeze)
+# evidence manifest 7/7 recomputed (bad=0 missing=0 extra=0, not self-listed)
+# commit blob of tests/render_per_world_light.rs: UTF-8, LF, 25384 B, CR=0 (worktree shows CRLF only because core.autocrlf=true)
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+# entity test not executed (needs GPU); real sha values + equal=true are for the next render window

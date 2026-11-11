@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-two-run-sha-print-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "acaa57ca4f20fde2068d90333f39381457de7385",
+    "card": "2026-11-11-render-perworld-l-v2-two-run-sha-print",
+    "card_alias": "card D of the 2026-11-11 12:00 window",
+    "head_at_review_start": "acaa57ca (Backend later started card E)"
+  },
+  "summary": "PASS: 0 blocker, 0 low, 3 observations. The change is print-only (+3 lines, 0 deletions/modifications; assertion untouched), prints both runs' [rgb,depth,seg] hex values and equal= before the assert, and the B/isolation/C/A/pilot print coverage is confirmed against the archived attempt-4 stdout. Boundaries, evidence manifest 7/7, blob encoding LF, and gates (unit 1406/0/402) verified. QA independently reproduced the card's caveat that same-source rebuilds are not byte-reproducible (3 relinks -> 3 different sha256, same 92631489 B size).",
+  "low_findings": [],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "同源重建不可逐字节复现（我已独立验证，支持「以冻结产物为准」）",
+      "detail": "Three forced relinks of identical source produced three different sha256 with the same 92,631,489 B size. So old->new sha values are measurement-time records, not reproducible fingerprints; freeze/review windows must hash the frozen artifact itself. The card already states this."
+    },
+    {
+      "id": "O2",
+      "title": "target 目录瞬态",
+      "detail": "QA's relinks changed the on-disk target exe to c5f3c990... etc. (same size); this is transient and does not affect the commit or evidence. The evidence's 55d0c32c... is the measurement taken during card D."
+    },
+    {
+      "id": "O3",
+      "title": "autocrlf 方法学提醒",
+      "detail": "Repo has core.autocrlf=true, so tracked worktree files may show CRLF while blobs are LF. For hygiene checks, inspect the committed blob (or git ls-files --eol), not worktree bytes. This commit's blob is UTF-8/LF (25,384 B, CR=0)."
+    }
+  ],
+  "verified": {
+    "surface": "tests/render_per_world_light.rs +3 -0 (1 comment + 2 println!) immediately before assert_eq!(first_sha, second_sha); assertion and logic untouched; lines 494 -> 497 (<500); commit touches only this test file + evidence + .normify; no src/fixtures/scripts/*.cu",
+    "print_correctness": "sha256_frames returns [String; 3] hex strings (rgb/depth/seg); {:?} prints the three hex values; equal= uses the unchanged comparison; prints precede the assert so mismatch values are visible before the panic",
+    "coverage_audit": "archived attempt-4 stdout re-read by QA: 1837 B / 9f132559... matches claim and contains C numbers+verdict, C diag, capture cross-check, 6 x A FrameStats, B LightStats (4 fields defined in light.rs), isolation matrix, pilot numbers, old-capture Skipped; two-run sha values absent (the gap this card fills)",
+    "identity": "on-disk exe after card D = 92631489 B / 55d0c32c... (matches claim); QA forced 3 relinks: same 92631489 B size, sha256 c5f3c990.../0c8d3c6b.../2ca7f097... => non-reproducible confirmed; size delta +671 B consistent with two println additions; pre-card 6908c5a2 is a one-shot rebuild, attempt-4 73245bbf/92590602 already drifted",
+    "boundaries": "guards-perworld-l2-light.json 94478b3d/43729 untouched (no refreeze; later render windows must refreeze 12 exes); entity test not executed (GPU needed)",
+    "manifest": "7/7 recomputed (bad=0 missing=0 extra=0, not self-listed)",
+    "encoding": "commit blob UTF-8/LF 25384 B CR=0 no BOM (worktree CRLF due to core.autocrlf=true, git ls-files --eol = i/lf w/crlf)",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored"
+  },
+  "non_claims": [
+    "does not claim any device-side behavior or numeric change (print-only; entity test not executed)",
+    "does not change assertions/criteria/reference/tolerance/camera/recipe",
+    "does not re-freeze guards and takes no GPU window"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}
