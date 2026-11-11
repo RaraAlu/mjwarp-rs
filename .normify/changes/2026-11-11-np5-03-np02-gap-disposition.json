@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-03-np02-gap-disposition",
+  "title": {
+    "zh": "片 NP5-03：NP02 缺口处置账本（32/32 有去向）+ 补 2 个真实渲染 __global__ 行 render_megakernel/render_depth_seg（CPU-only 回执，棘轮 100→102）",
+    "en": "Slice NP5-03: NP02 gap disposition ledger (32/32 with a destination) + 2 missing real render __global__ rows render_megakernel/render_depth_seg (CPU-only receipts, ratchet 100->102)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 W5 计划 §3 处置 NP02 的 32 条缺口并补 2 个漏登真实内核行（零 GPU、零窗）：①32 缺口逐条给去向与理由（9 已知漂移 archive 按裁决 B、2 派生 archive-derived、3 条后续片已实现的「未实现」缺口 closed-implemented（渲染 2 行本片补入 + hfield/SDF/GJK 回执 verified）、4 条真未实现 blocked-with-card（卡 H 已登记、不计覆盖）、3 部分覆盖 + 3 不适用 n/a-with-reason、2 未判定 recorded-undetermined、2 部分缺失 recorded-not-restored、4 Linux deferred-w7）；20 个 NP01 内部字段由 NP5-01 关闭。②补采 2 个真实渲染内核 render_megakernel（7 文件 concat!）/render_depth_seg（3 文件 concat!）的 CPU-only NVRTC 12.8 回执（f32-render gate），回执/PTX 实体入仓 new-kernels-2026-11b/，补采索引 +2；inventory 100→102 行并更新计数快照（kernel_rows 96→98、verified 89→91、receipts 713→715、entities 709→711、identity 89→89.2）；tests/precision_evidence_gate.rs 快照与 f32-render 白名单同步，测试 4/4 PASS。不得把未实现子系统写成通过；输出 np-gate/np5-03/ 证据。",
+    "en": "W5 plan §3: dispose all 32 NP02 gaps and add the 2 missing real kernel rows (zero GPU/window): per-item destination/reason (9 known drift archive per ruling B, 2 derived archive-derived, 3 later-implemented closed-implemented with verified receipts (2 render rows added here + hfield/SDF/GJK), 4 truly unimplemented blocked-with-card (card H, not counted as coverage), 3 partial + 3 N/A n/a-with-reason, 2 undetermined recorded, 2 partially-missing recorded-not-restored, 4 Linux deferred-w7); 20 NP01 internal fields closed by NP5-01. Add CPU-only NVRTC 12.8 receipts for render_megakernel (7-file concat) and render_depth_seg (3-file concat) under f32-render gate, entities landed under new-kernels-2026-11b, index +2; inventory 100->102 rows with updated count snapshot (kernel_rows 96->98, verified 89->91, receipts 713->715, entities 709->711, identity 89->89.2); tests/precision_evidence_gate.rs snapshot and f32-render whitelist synced, 4/4 tests pass. Must not turn unimplemented subsystems into pass. Output np-gate/np5-03/ evidence."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/np-gate/np5-03/`：README（补 2 行回执表与计数 before/after、32 缺口分类表、非声明）、evidence.json（gap 32 项逐条 disposition/reason/closed/counts_as_coverage/blocking_card；capture 2 项 source/ptx sha 与回执路径；ratchet before/after；20 内部字段；conclusion not_verified）、receipt.json、logs/selfcheck.txt、manifest 自核；UTF-8/LF 无 BOM。",
+    "`np02-evidence/inventory.json`：rows 100→102、counts 更新（102/98/102/91/715/715/711/89.2/32 不变）、`np5_03_update` 记录 before/after；`np02-evidence/addenda-np5-03.md` append-only 说明；`new-kernels-2026-11b/` 回执+cu+ptx 实体入仓；`receipt.json` 补采索引 25→27 条。",
+    "`tests/precision_evidence_gate.rs`：计数快照同步（102/98/102/91/715/715/711/89.2）、rows 102、`np02_new_kernel_rows_stay_verified` 12→14、渲染 4 内核 f32-render 白名单；`cargo test --locked --test precision_evidence_gate` 4/4 PASS；fmt 通过。",
+    "补采工具：`scripts/np02-evidence/np02-capture-new-kernels.py` 新增 2 个多文件拼接单元（list relpath 拼接语义）与 render recipe（f32-render gate）复用；CPU-only、零 GPU。",
+    "32 缺口处置：unclassified=0、9/2/3/4/6/2/2/4 分类计数、4 条未实现 blocked-with-card 且 counts_as_coverage=false（不写成通过）；conclusion 明写 NP02 未验收。",
+    "自检：gap 32/32、inventory 102/98、2 新行 verified + 回执/PTX 哈希、索引 27 条哈希、棘轮测试快照匹配、receipt 一致、policy_scan 0 命中、编码/边界/manifest 全 PASS。",
+    "四门禁 + normify check；中文提交；零 GPU、零窗。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np-gate/np5-03/",
+      "docs/development-evidence/np02-evidence/",
+      "tests/precision_evidence_gate.rs",
+      "scripts/np02-evidence/np02-capture-new-kernels.py"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "W5 计划第 4 片；写域含 inventory/棘轮/补采工具（按 Chief 指示「补 2 行 + 棘轮 +2」）；不得把未实现子系统写成通过。零 GPU、零窗。",
+  "revision": {
+    "before": "36a3b869a003ec16fd8c306f100cbe550d27df82",
+    "after": null
+  },
+  "created_at": "2026-11-11T15:15:00.000Z",
+  "updated_at": "2026-11-11T14:16:14.644Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03/receipt.json",
+      "pointer": "/gap_items",
+      "equals": 32
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03/receipt.json",
+      "pointer": "/gap_disposition_complete",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03/receipt.json",
+      "pointer": "/unclassified",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03/receipt.json",
+      "pointer": "/unimplemented_remaining",
+      "equals": 4
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03/receipt.json",
+      "pointer": "/inventory_counts/kernel_rows",
+      "equals": 98
+    }
+  ]
+}
