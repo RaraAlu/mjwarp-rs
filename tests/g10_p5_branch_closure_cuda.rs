@@ -41,7 +41,9 @@ use std::path::PathBuf;
 use mjwarp_rs::runtime::collision_gpu::{CollisionGpuOutput, CollisionGpuProgram, CollisionKernel};
 use sha2::{Digest, Sha256};
 
-use branch_closure_case::{BRANCH_CASES, Case, CaseInputs, FIXTURE_SHA256, Kernel, LIMIT_CASES};
+use branch_closure_case::{
+    BRANCH_CASES, Case, CaseInputs, FIXTURE_SHA256, Kernel, LIMIT_CASES, pair_meta,
+};
 use mesh_multicontact_compare_support::compare_case_with_geom_order;
 use primitive_compare::compare;
 
@@ -260,6 +262,53 @@ fn reference_support_parses_without_gpu() {
             reference["output"]["count"].as_u64(),
             Some(expected),
             "{}: 参考 count",
+            case.name
+        );
+    }
+}
+
+/// 归一化断言（CPU-only，零 GPU）：`build_meta` 的 pair 必须与上游 `_add_geom_pair` 规则一致，
+/// 且与 S3 参考的 `contact.geom` 逐行相等。U7/U8 明细必须为 `g1=1(box), g2=0(mesh), type1=6, type2=7`。
+#[test]
+fn pair_normalization_matches_upstream_reference() {
+    let branch = read_reference(BRANCH_REFERENCE, BRANCH_REFERENCE_SHA256);
+    let limits = read_reference(LIMITS_REFERENCE, LIMITS_REFERENCE_SHA256);
+    for case in BRANCH_CASES.iter().chain(LIMIT_CASES.iter()) {
+        let (g1, g2, type1, type2) = pair_meta(case);
+        assert!(
+            type1 <= type2,
+            "{}: 归一化后必须为类型序（type1 <= type2）",
+            case.name
+        );
+        let source = if case.name.starts_with("mesh-limits") {
+            &limits
+        } else {
+            &branch
+        };
+        let rows = source["cases"][case.name]["output"]["fields"]["geom"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{}: 参考缺少 fields.geom", case.name));
+        assert!(!rows.is_empty(), "{}: 参考 geom 行不应为空", case.name);
+        for row in rows {
+            let ids: Vec<i64> = row
+                .as_array()
+                .expect("geom row")
+                .iter()
+                .map(|cell| cell.as_i64().expect("geom id"))
+                .collect();
+            assert_eq!(
+                ids,
+                vec![i64::from(g1), i64::from(g2)],
+                "{}: 归一化 pair 与上游 contact.geom 不一致",
+                case.name
+            );
+        }
+    }
+    for case in &LIMIT_CASES {
+        assert_eq!(
+            pair_meta(case),
+            (1, 0, 6, 7),
+            "{}: U7/U8 归一化明细应为 g1=1(box), g2=0(mesh), type1=6, type2=7",
             case.name
         );
     }

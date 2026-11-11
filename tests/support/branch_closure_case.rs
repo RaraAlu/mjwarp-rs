@@ -22,7 +22,8 @@ pub(crate) enum Kernel {
 pub(crate) struct Case {
     pub(crate) name: &'static str,
     pub(crate) kernel: Kernel,
-    /// 调用方类型序（与 S3 捕获 `geom=[0,1]` 一致；`type1`/`type2` 逐 case 写死）。
+    /// 世界 geom 顺序下的类型（`[geom0, geom1]`；与 S3 fixture XML 的 geom 声明顺序一致）。
+    /// 传给 narrowphase 的 pair 由 [`pair_meta`] 按上游 `_add_geom_pair` 归一化为类型序后给出。
     pub(crate) geom_type: [i32; 2],
     /// 两个 geom 的 `geom_size`（来自 S3 fixture 的 `mjModel.geom_size`，f32 逐值）。
     pub(crate) geom_size: [[f32; 3]; 2],
@@ -207,14 +208,32 @@ fn flatten_geom(value: &serde_json::Value) -> Vec<f32> {
     out
 }
 
+/// 上游 `_add_geom_pair`（pinned `collision_driver.py` L351-380）同构的 pair 归一化：
+/// `type1 > type2` 时交换 pair，相等类型保持调用方顺序。返回 `(g1, g2, type1, type2)`；
+/// narrowphase 输入与 `contact.geom` 恒使用归一化后的类型序（下游 kernel 不重复归一化）。
+pub(crate) fn pair_meta(case: &Case) -> (i32, i32, i32, i32) {
+    let (g1, g2) = if case.geom_type[0] > case.geom_type[1] {
+        (1, 0)
+    } else {
+        (0, 1)
+    };
+    (
+        g1,
+        g2,
+        case.geom_type[g1 as usize],
+        case.geom_type[g2 as usize],
+    )
+}
+
 fn build_meta(case: &Case) -> CollisionGpuMeta {
+    let (g1, g2, type1, type2) = pair_meta(case);
     CollisionGpuMeta {
         nworld: 1,
         ngeom: 2,
-        g1: 0,
-        g2: 1,
-        type1: case.geom_type[0],
-        type2: case.geom_type[1],
+        g1,
+        g2,
+        type1,
+        type2,
         geomgeomid: 0,
         naccdmax: 8192,
         hfield_id: -1,
