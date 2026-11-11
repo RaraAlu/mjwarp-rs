@@ -87,3 +87,8 @@
   **`0966bf4cccc7312c26c1204a2148473c597a833b4c04bc8e7a216ca8eccdaef4` / 118,588,904 B**。同源重建 exe sha 不保证
   逐字节可复现（见 `perworld-l-v2-two-run-sha-print/logs/identity-measurements.txt`），exe 身份以冻结产物为准；
   后续 R06 窗口仍需重冻。
+## 8. Addendum（卡 K，2026-11-11；append-only，原文不改）
+
+- **L1（cam_res 口径措辞更正）**：§1/§3 原写「`cam_res`（隐式，由 model/camera 推导；本卡不新增字面断言）」不准确。据 QA 复核（`r06-flex-multiframe-recipe-params-fill-check`）：**单帧验收 `tests/render_flex_validate.rs:421-422` 是显式对照** `capture.context.resolved.cam_res`（并非隐式）；多帧侧不新增断言的真正理由是**多帧 `capture.json` 顶层无 `context`/`resolved` 段**，该 fixture 无 cam_res 对照源。因此多帧侧**实际逐项断言为 27 项**（26 recorded + `nworld`），`cam_res` 只计入口径、是 28 口径中的名义第 28 项（28 = 26 + nworld + cam_res）。测试源注释若仍含旧措辞，属 `tests/` 写域、本卡不改，留后续测试面小卡（backlog）；`cam_res` 真补断言只能是 model 侧自证（注意 model 数组名为 `cam_resolution`），非参考对照。
+- **L2（21 项新增断言非空转）已于卡 E 闭环**：`r06-flex-multiframe-recipe-params-negative-new-key/`（主提交 `8618e447`，QA 复核 `d091b1e7`）新增「新增键」负例 `use_textures` + 保留既有键负例 `samples_per_pixel`，21 项覆盖对应关系见其 `logs/coverage-21-mapping.txt`；本卡结论不变，本节只作引用。
+- 观察 O1/O2（`cam_resolution` 命名；GPU ignored 用例零 GPU 未执行、后续 R06 窗口需重冻 exe）无动作。

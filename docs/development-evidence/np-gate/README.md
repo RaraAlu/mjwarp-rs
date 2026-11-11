@@ -99,3 +99,12 @@ boundaries`。**190 条** = `np01.paths` 30 + `np01.host_sites` 3 + `np01.unregi
   或双平台；账本 `scope`/`boundaries` 与 checker 第 8 项已断言无未加否定的通过声明。
 - 不改判据/参考/容差；不重采证据、不重跑窗口、不改 2026-11-04 的 gap 快照语义（用账本 addendum 覆盖，历史文件不改）。
 - 零 GPU；不写 `src/`、`tests/`、`fixtures/`；`scripts/np-gate/**` 仅新增两工具并已注明不在 guards 93 输入内。
+## 六、复核低项 addendum（卡 K，2026-11-11；append-only，原文不改）
+
+来源：QA 复核卡 `docs/development-evidence/np-gate/np5-00-freeze-check/`（复核对象 `875ae41d`，卡 F r2）。本节只更正记录面；账本仍保持与 target 定稿逐字节相同（`6d6ff7d9…`/116,688 B），不就地改。
+
+- **L1（unregistered 状态注解与词表匹配）**：`np01.unregistered_product_units` 23 条的 `np01_status` 值为 `absent（未入 30 条清单；2026-10-23 后新增/实现）`，是「裸值 + 括号理由」拼接。与 `status_vocabulary.np01 = [verified, partial, missing, absent]` 的匹配口径应为：**括号前裸值 `absent` 入词表，括号内是理由注记**；按裸值全等机读会报 23 个 unknown（QA 复核实测），属匹配口径问题、不是状态错误。因「逐字节相同」要求本卡不改账本；下一版账本应拆 `np01_status` / `reason` 两字段（或把带注记形态写进词表），并给 checker 增该字段断言 —— **留 backlog（本批未做）**。
+- **L2（tree.head 归属更正）**：§2 原写 `inputs.tree.head = f4628bd7…（生成时 HEAD，即本卡登记提交）`，对 r2 卡不准确。更正：`f4628bd7` 是**被 abandon 的第一版卡 F（`2026-11-11-np5-00-gate-ledger-freeze`）登记提交**（生成时 HEAD）；r2 卡（`…-r2`）登记提交是 `dec4e7d9`。账本 `inputs.tree.head` 字段本身不改（逐字节要求）。
+- **L3（task 草稿字样）**：账本 `task` 字段仍为 `np5-00（草稿；由 target/ 生成，待 Backend 落 docs/development-evidence/np-gate/）`，属生成时草稿态残留；落仓后该字段已过时，但按逐字节复制未改。以本目录 README/receipt 的材料版本记录为准。
+- **观察 O1**（`scope` 首句「100%/0」清单完备性措辞易误读为验收结论）：本批不改措辞，留下一步修订 backlog；同句已有「不宣称任何门禁通过」。
+- 本节追加后 manifest 已重算（README 之外其余 7 条 sha 不变；含两条 `scripts/np-gate/*.py` repo-relative 条目）。

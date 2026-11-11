@@ -53,3 +53,7 @@
 - 只登记锚点/清单：**不建阻塞卡**（4 个真未实现已由卡 H 登记）、**不宣称门禁通过/NP01 通过/上游等价/双平台**。
 - 仍缺项如实写：NP01 逐字段表（23 未登记单元）、NP02 2 缺行并入 NP5-03、E 指标未定稿（用户 2026-10-27）等。
 - 零 GPU、零窗；不改 `src/`/`tests/`/`fixtures/`/`scripts/`、不动 guards/freeze script、不改判据/参考/容差；历史快照不改写。
+## 七、复核低项 addendum（卡 K，2026-11-11；append-only，原文不改）
+
+- **L1（receipt 缺 tree.head）**：QA 复核指出 receipt 无 `tree.head`（卡 J acceptance 明确要求）。本批新增 **`receipt-v2.json`**（旧 `receipt.json` 字节不改，作为历史版本保留）：补 `tree.head` = **`cead8bac154a7dc4fa033a6738d96579202a4922`**（主提交 `316b28dd` 的父提交；四门禁与 `logs/existence-check.txt`（run at 2026-11-11T12:46:54）均在该 HEAD 上运行），并记 `main_commit`、`head_source`、`supersedes`（旧 receipt sha `c4856857…`/6,317 B）。**receipt-v2 取代 receipt 作为本卡收口口径**；manifest 已重算（6/6，含新文件，不自列）。
+- 观察 O1/O2（引用既有发布结论、身份基线未重算 PTX）不属低项、本批不改；引用口径已由原 §5 非声明覆盖。
