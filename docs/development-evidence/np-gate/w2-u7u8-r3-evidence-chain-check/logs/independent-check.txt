@@ -1,0 +1,45 @@
+QA U7U8 配套片链复核（只读；0 窗）
+复核对象：
+  A) 2026-11-12-w2-u7u8-r3-evidence（303c5146 登记 -> ee02b40d abandoned）
+  B) 证据提交 63b95170（r2-fail 13 文件 + r3 就绪/重冻 5 文件）
+  C) 2026-11-12-w2-u7u8-r3-evidence-check（adf52890 登记 -> 2ccc182b verified -> 1bd85287 fix 追加 r3 窗证据）
+基线 HEAD 4e3abe9c；仓库 D:\Rust\mjwarp-rs
+
+[1] abandoned 卡
+  状态                      -> abandoned，closed_at 2026-11-11T19:11:11.439Z
+  note 放弃理由              -> unchanged tests 检查与主卡 tests 修正冲突（运行中不可改 checks/waive）；
+                                证据已由 63b95170 落地，改由新验证卡复核
+  提交 ee02b40d             -> 仅改卡 JSON，与理由一致
+  6 条 json 检查             -> 逐条解析：r2-fail /verdict=FAILED /attempt=1 /failures_total=21；
+                                r3 refreeze /freeze_dir /counts/old_freeze_match=9 /source_tree_digest/combined -> 6/6 满足
+  无假 PASS                 -> acceptance 明写不宣称窗口结论；检查只断言 FAILED 收据与重冻事实
+
+[2] 证据提交 63b95170
+  r2-fail 目录               -> 13 文件，manifest 12/12 重算 0 错
+  receipt                   -> verdict=FAILED、attempt=1、failures_total=21（U7 4 + U8 17）、exit_code_capture_bug、summary_count_bug
+  r3 就绪                   -> refreeze-10-exe-r3.json/.tsv、guards-r3.tsv（18）、window-readiness.md、runner-selftest.log
+  r3 branch                  -> ac823b58.../41,782,272（旧 6d2b39fc.../41,771,008）；9 个未重建 sha 与 r2 清单 9/9 全等
+  src digest                 -> 266bbf94...（不变）
+  append-only                -> r2-fail 13 文件与 63b95170 blob 逐个相同（0 改写）；
+                                r3 该提交已有的 5 文件在 HEAD 逐字节未变（仅后续新增）
+
+[3] 验证卡 + normify fix
+  登记 adf52890              -> 仅卡 JSON（in_progress）
+  verified 2ccc182b          -> 卡 verified + 4 gate run；7 条 json 检查逐条解析 7/7 满足
+                                （FAILED 收据 3 + refreeze 4，含 supersession/new_branch_sha256=ac823b58...）
+  fix 1bd85287               -> 改卡（addenda at 19:20:26 reason「追加 r3 窗 PASS 证据（attempt 2）」hash sha256:440572af...）
+                                + 4 run + 新增 r3 窗证据 13 文件；卡维持 verified
+  无历史改写                 -> r2-fail 与已提交文件字节未变；本次只新增文件/manifest 重算
+  无假 PASS                  -> 该卡 checks 只断言 FAILED 收据与重冻字段；acceptance 明写不宣称窗口结论；
+                                r3 窗 PASS 由主卡（经 r2 镜像）与 r3 权威 receipt 联合支撑
+
+[4] 观察
+  O1 PASS 证据托管卡错位：r3 窗 PASS 证据提交在 check 卡名下，主卡范围不含 r3 目录、检查改指 r2 镜像；
+     链条可追溯（镜像 full_evidence_dir -> r3、本卡 addenda、r3 receipt），审计两跳。
+     建议镜像加 mirrors_sha256 + verdict_scope；未来窗口证据目录用轮次无关命名。
+  O2 attempt 1 放行 monitor 60/60 CSV 未入证据：r2-fail 只保留开窗前失败 monitor（142 行 util_max 94 streak_last 37）；
+     第二次 60/60 未见落库（群留痕）。attempt 1 已 FAILED 且未重试，影响为零。
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 / 0 低 + 2 观察）。
+非声明：不宣称 U7/U8 全条件通过（由主卡窗口径证据支撑）、U8 已验收、缺口已清、与上游等价（over-32）、
+整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。零 GPU、零窗。
