@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-w9-00-readonly-diagnostics-check",
+  "title": {
+    "zh": "QA 复核 W9-00 只读诊断（hfield/sdf/shadow refit 风险 + P0-01 计时文档 + R06 recipe params）（`bd7c9e3a`）：**PASS（0 阻断，0 一般 + 0 低 + 2 观察）**——4 个采集单元 sourceSha 与回执一致（12d50d68×2/cf356b72/1e3f273c）、refit 词频 4 文件实测 0、scene_bvh_ray 唯一实际漂移（第 10 条待裁）、P0-01 L405–419 无 refit 计时说明、R06 7 vs 28 维持 backlog；提交只读（无 src/tests 改动）",
+    "en": "QA review of 2026-11-11-w9-00-readonly-diagnostics: PASS (0 blockers, 0 major + 0 low + 2 observations); facts independently verified (see README)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 2026-11-11-w9-00-readonly-diagnostics（`bd7c9e3a`）做独立只读复核（零 GPU）：事实/范围/测试重跑/边界与证据卫生；只写本卡证据。",
+    "en": "Read-only review of 2026-11-11-w9-00-readonly-diagnostics: facts, scope, test re-run, boundaries and evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**W9-1 采集源身份 ✅**：`mjwarp_collision_hfield`/`sdf` 回执 `sourceSha256=12d50d68…`（我核 receipt 原件一致）、`render_megakernel` `cf356b72…`、`render_depth_seg` `1e3f273c…`——4 个单元记录 sha 与当前装配一致；`scene_bvh_ray` 记录 `8dad4d61…` vs 当前 `scene.cu` 实测 `caac8c86…`（`d35cab68` 所致，已知第 10 条待裁）。",
+    "**refit 词频 ✅**：我独立 grep `product.cu`/`scene.cu`/`render_shadow.cu`/`render_shade.cu` 的 `refit` 命中 **均为 0**；与「refit 是 host 侧 API、不在被采内核源码」的解释一致。",
+    "**W9-2 P0-01 文档缺口 ✅**：`docs/replication-plan.md` L405–419 的 2026-10-22 P0-01 复核记录含验证命令/平台/通过/失败/未测/误差与容量/剩余缺口，**无 refit 计时边界说明**（全文 `refit` 出现 0 次）——记为文档缺口、不改历史报告，建议合理。",
+    "**W9-3 R06 7 vs 28 ✅**：`multiframe_recipe.rs` 188 行、`RECIPE_PARAM_KEYS` 数组 26 项 + nworld + cam_res = 28 项口径；`tests/render_flex_validate.rs` 单帧侧覆盖 28 项；复核时点 backlog 卡为 `backlog/0`（我在 `bd7c9e3a`/`76bd3ccc` 两个 blob 上核实），维持不修理由与补齐触发条件在案。",
+    "**边界/证据 ✅**：提交 `bd7c9e3a` 仅本目录 + `.normify`（**无 src/tests/fixtures/scripts 改动**）；manifest 4/4、selfcheck RESULT: PASS、policy_scan 0 命中、四门禁记录齐、UTF-8/LF 无 BOM/裸 CR/NUL。",
+    "**结论：复核通过（0 阻断，0 一般 + 0 低 + 2 观察）。**"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-w9-00-readonly-diagnostics"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w9-00-readonly-diagnostics-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 W9-00 只读诊断（hfield/sdf/shadow refit 风险 + P0-01 计时文档 + R06 recipe params） 复核；结论 PASS（0 阻断，2 观察）。",
+  "created_at": "2026-11-11T15:50:00.000Z",
+  "updated_at": "2026-11-11T15:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w9-00-readonly-diagnostics-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-w9-00-readonly-diagnostics-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w9-00-readonly-diagnostics-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "1630b7d42b069395b05f185d207a54a26a451520",
+    "after": null
+  }
+}
