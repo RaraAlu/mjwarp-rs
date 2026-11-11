@@ -1,0 +1,113 @@
+{
+  "task": "RE-0 formal: offline regeneration of reference-side PTX (G1/G2/G3)",
+  "date": "2026-11-11",
+  "grade": "G1-partial PASS (NORMALIZED_EQUAL for both gates)",
+  "grade_ruler": "Chief 2026-11-11: BYTES / NORMALIZED_EQUAL(G1-partial,只写归一化指令流等价) / FAIL",
+  "env": {
+    "nvrtc": "12.9 (build CL-36037853; V12.9.86)",
+    "nvrtc_dll": "target/toolchains/cuda-12.9.1-nvrtc/bin/nvrtc64_120_0.dll",
+    "nvrtc_dll_sha256": "0cc63349fedffeec1660b30955e8028b6e4e4c26cf1e41c56dc4569fd5eca82c",
+    "warp": "1.15.0",
+    "mujoco_warp": "3.15.0",
+    "upstream_pin": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "arch": "sm_89",
+    "config": {
+      "mode": "release",
+      "lineinfo": false,
+      "enable_backward": false,
+      "fast_math": false,
+      "optimization_level": "None -> --Ofast-compile=0"
+    },
+    "compile_flags": [
+      "--gpu-architecture=sm_89",
+      "--std=c++17",
+      "--Ofast-compile=0",
+      "--define-macro=NDEBUG",
+      "--fmad=true",
+      "--device-as-default-execution-space",
+      "--extra-device-vectorization",
+      "--restrict",
+      "--diag-suppress=177,550",
+      "--include-path=include/warp-headers"
+    ],
+    "gpu_used": false
+  },
+  "gates": {
+    "G1": {
+      "what": "reference_module.cu (capture-time warp codegen source) -> NVRTC 12.9 PTX vs reference_module.sm89.ptx",
+      "gen_ptx": "target/render-bvh/gl2-ptx-diff/refgen/re0-final/g1_render.ptx",
+      "gen_sha256": "0e8cc11cba79facbf3ecb770028d5ff398f99a60f4131b22c89e3becebdedb5d",
+      "gen_bytes": 618096,
+      "ref_ptx": "target/render-bvh/gl2-ptx-diff/reference_cache/reference_module.sm89.ptx",
+      "ref_sha256": "ad21b93f94bbc6f42544e436104384d299d2130a78fc59b3dd24608876ca0988",
+      "ref_bytes": 637336,
+      "entries_gen": 1,
+      "entries_ref": 1,
+      "arith_instr_gen": 13036,
+      "arith_instr_ref": 13036,
+      "streams_equal": true,
+      "counts_equal": true,
+      "multisets_equal": true,
+      "grade": "NORMALIZED_EQUAL",
+      "diff_types": [
+        "kernel emission order (n/a for single-entry G1)",
+        "mangled internal symbol names include source file name/hash",
+        "__local_depotN numbering",
+        "line endings (ref CRLF vs gen LF) + trailing NUL",
+        "no arithmetic difference"
+      ],
+      "instr_lines_wide_gen": 15915,
+      "instr_lines_wide_ref": 15915
+    },
+    "G2": {
+      "what": "offline codegen mujoco_warp._src.smooth (enable_backward=False, block_dim=256) -> NVRTC 12.9 vs frozen smooth.ptx",
+      "gen_cu": "target/render-bvh/gl2-ptx-diff/refgen/smooth_eb0_bd256.cu",
+      "gen_cu_sha256": "66fe2c8d52066f3e5005464a69dfc4c396afc6a6ae96db428f5ead49021c4c86",
+      "gen_ptx": "target/render-bvh/gl2-ptx-diff/refgen/re0-final/g2_smooth.ptx",
+      "gen_sha256": "dbef2d411eb82edce1a078c2847b4426eb530e9d078477598ddf2d0db789465f",
+      "gen_bytes": 965105,
+      "ref_ptx": "fixtures/gravity-upstream-abi/independent-inputs/smooth.ptx",
+      "ref_sha256": "4179acd01fe8e7064fa97566cfe4158dd9ad4b89761dcab0da88001d9b521f57",
+      "ref_bytes": 993601,
+      "entries_gen": 48,
+      "entries_ref": 48,
+      "entries_common": 48,
+      "arith_instr_gen": 18883,
+      "arith_instr_ref": 18883,
+      "streams_equal": true,
+      "counts_equal": true,
+      "multisets_equal": true,
+      "grade": "NORMALIZED_EQUAL",
+      "diff_types": [
+        "kernel emission order differs (per-entry content equal)",
+        "mangled internal symbol names include source file name/hash",
+        "__local_depotN numbering",
+        "line endings (ref CRLF vs gen LF) + trailing NUL",
+        "no arithmetic difference"
+      ],
+      "instr_lines_wide_gen": 24735,
+      "instr_lines_wide_ref": 24735
+    },
+    "G3": {
+      "what": "two independent runs of G1 and G2 compiles",
+      "g1_run1": "0e8cc11cba79facbf3ecb770028d5ff398f99a60f4131b22c89e3becebdedb5d",
+      "g1_run2": "0e8cc11cba79facbf3ecb770028d5ff398f99a60f4131b22c89e3becebdedb5d",
+      "g1_deterministic": true,
+      "g2_run1": "dbef2d411eb82edce1a078c2847b4426eb530e9d078477598ddf2d0db789465f",
+      "g2_run2": "dbef2d411eb82edce1a078c2847b4426eb530e9d078477598ddf2d0db789465f",
+      "g2_deterministic": true
+    }
+  },
+  "premise_correction": {
+    "issue": "reference render module was compiled with fast_math=False",
+    "previous_assumption": "recipe params use_fast_math=True -> assumed fast math ON",
+    "evidence": "fast_math=True gives powf -> ex2/lg2 (7+7 instrs in generated PTX); reference PTX has 0 ex2/lg2 and contains rcp/rsqrt (non-fast libdevice inline form)",
+    "action": "dropped --use_fast_math; G1 immediately reached NORMALIZED_EQUAL"
+  },
+  "elapsed_s": null,
+  "counts_definition": {
+    "arith_instr": "filtered by 30-op arithmetic/integer vocabulary (mov/cvt/setp included)",
+    "instr_lines_wide": "all instruction-looking lines after stripping comments/predicates"
+  },
+  "counts_correction_note": "Earlier interim report quoted G1 15,001 / G2 23,888 from a looser filter; authoritative: arith G1 13,036=13,036, G2 18,883=18,883; wide instr lines G1 15,915=15,915, G2 24,735=24,735."
+}
