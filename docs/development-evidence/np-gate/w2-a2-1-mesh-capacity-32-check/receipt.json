@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-12-w2-a2-1-mesh-capacity-32-check",
+  "kind": "2026-11-12-w2-a2-1-mesh-capacity-32-check",
+  "reviewed": [
+    "2ee0540d",
+    "5689e0ef",
+    "c4c9c41e"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "capacity": "device macros DEG/FACE 32/32; contact.cu scratch polygon/clipped 64, pnormal/pdist 32, idx1/idx2/n1/n2/endvert 32, face1/face2 32 (11 items match Arch a2-slices target); clip.rs pn/pd [32] + vec 64 + new precheck nface>32 -> deterministic empty result; types.rs FACE_MAX=32 DEGREE_MAX=32; error.rs A2 32/32 wording; comments in multicontact.cu/multicontact_clip.cu/multicontact_mesh.cu synced",
+    "over32": "clip.rs returns zero-contact ClipResult for nface1>32||nface2>32 (no panic); host product rejects with MeshCapacityDimension Face/Degree actual=33 and Display contains limit=32; over-32 not claimed equivalent (README/receipt non-claims)",
+    "guards_abi": "multicontact_mesh.cu L120/L148 degree guard and L180 face guard retained (defense-in-depth); abi_tests asserts size_of::<CollisionArgs>()==504; commit 5689e0ef has 12 files, no abi.rs/product.cu/Cargo/fixtures/scripts; source.rs DEVICE_SOURCES len 28; no new .cu (5 .cu modified only)",
+    "boundary_tests": "clip: 32 face1 ncontact in [1,4], 32 face2 same with 64 scratch, 33 -> ncontact==0; A1 20-vertex face1/face2 retained; host: accepts 32/32 boundary is_ok, rejects face33/degree33 exact violations + limit=32, host_limits_match_device_macros parses .cu macros; QA re-ran -> 5 passed and 6 passed",
+    "gates": "unit.json 1409 passed / 0 failed / 402 ignored matches gate.txt (baseline 1406 + 3 new clip tests)",
+    "ratchet": "actual LF lines: inputs_from_snapshot.rs 233, new tests file 258, mod.rs 408, multicontact_geom.cu 412 (all <500), matches logs/line-counts.txt",
+    "manifest": "dd863899/1130 with 10/10 rows verified (README, receipt, 4 logs, 4 materials)",
+    "claims": "U7/U8 device verdict explicitly deferred to A2-3 window; no positive mesh-capacity-cleared / P5-pass / equivalence claims (only in non-claim lists)",
+    "process_event": "README section 8 records 01:33 QA concurrent-commit event; source commit 5689e0ef contains no QA/Codex paths",
+    "policy_scan": "QA re-run: files=2 hits=1 (README section 6 non-claim list has an un-negated bit-level and equivalence wording) -> L1"
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "summary": "policy_scan hits=1: README section 6 non-claim list contains un-negated bit-level and equivalence wording; semantics is not-claimed but team hygiene requires 0 hits - reword with adjacent negation"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "'8 boundary tests' wording vs evidence actual 7 groups / 9 tests (clip 3 + host 4 + A1 retained 2, plus 2 pre-existing cases kept); suggest stating '7 groups / 9 tests (incl. A1 2 retained)'"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "old product_entry_rejects_fan_cone_24_on_both_dimensions was renamed to accepts_fan_cone_24_within_capacity_32 (24>old limits 20/10, <= new 32; correct), but README does not call out the rename - note it to avoid misreading as removed assertion"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim U7/U8 numeric pass (belongs to A2-3 window)",
+    "mesh capacity gap is not claimed cleared; no P5 family pass claim",
+    "no admission/release claim; no upstream equivalence claim; no bit-level equivalence claim"
+  ]
+}

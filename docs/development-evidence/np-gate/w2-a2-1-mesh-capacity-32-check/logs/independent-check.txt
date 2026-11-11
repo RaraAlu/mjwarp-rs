@@ -1,0 +1,71 @@
+# QA independent check - W2/A2-1 mesh capacity 32/32 (2ee0540d)
+=== 1 capacity 32/32 vs Arch a2-slices ===
+geom macro DEG = 32
+geom macro FACE = 32
+contact.cu has polygon[64]: True
+contact.cu has clipped[64]: True
+contact.cu has pnormal[32]: True
+contact.cu has pdist[32]: True
+contact.cu has idx1[32]: True
+contact.cu has idx2[32]: True
+contact.cu has n1[32]: True
+contact.cu has n2[32]: True
+contact.cu has endvert[32]: True
+contact.cu has face1[32]: True
+contact.cu has face2[32]: True
+clip.rs has [32]: True | vec ..64: True
+clip.rs has precheck nface1>32||nface2>32: True
+types.rs FACE_MAX=32 DEGREE_MAX=32
+error.rs mentions 32: True | A2: True
+multicontact_mesh.cu guards:
+  L120: 'if (v1_num > G5_MC_MESH_DEG_MAX) {'
+  L148: 'if (v1_num > G5_MC_MESH_DEG_MAX) {'
+  L180: 'if (nvert > G5_MC_MESH_FACE_MAX) {'
+
+=== 2 33 precheck / boundary tests ===
+tests file has 'face_32_degree_32': True
+tests file has 'rejects_face_33': True
+tests file has 'rejects_degree_33': True
+tests file has 'limit=32': True
+tests file has 'MeshMulticontactCapacity': True
+tests file has 'host_limits_match_device_macros': True
+tests file has '32': True
+mod.rs has polygon_clip_accepts_thirty_two_vertex_face1: True
+mod.rs has polygon_clip_accepts_thirty_two_vertex_face2: True
+mod.rs has polygon_clip_rejects_thirty_three_vertex_face: True
+mod.rs has polygon_clip_accepts_twenty_vertex_face1: True
+mod.rs has polygon_clip_accepts_twenty_vertex_face2: True
+clip.rs precheck context: '\n    pub ncontact: usize,\n    pub witness1: [[f32; 3]; 4],\n    pub witness2: [[f32; 3]; 4],\n    pub dists: [f32; 4],\n}\n\n/// 上游 `_polygon_clip`。\npub(crate) fn polygon_clip(\n    face1: &[[f32; 3]],\n    nface1: usize,\n    face2: &[[f32; 3]],\n    nface2: usize,\n    n: [f32; 3],\n    dir: [f32; 3],\n) -> ClipResult {\n    let mut result = ClipResult {\n        ncontact: 0,\n        witness1: [[0.0; 3]; 4],\n        witness2: [[0.0; 3]; 4],\n        dists: [0.0; 4],\n    };\n\n    // 裁剪面至少需要三角形。\n    if nface1 <'
+
+=== 3 ABI invariants ===
+src/runtime/collision_gpu/abi_tests.rs exists=True contains 504=True
+src/runtime/collision_gpu/abi.rs exists=True contains CollisionArgs=True
+DEVICE_SOURCES pattern not matched; count of occurrences=2
+new .cu files in 5689e0ef: ["src/physics/collision/cuda/contact.cu", "src/physics/collision/cuda/multicontact.cu", "src/physics/collision/cuda/multicontact_clip.cu", "src/physics/collision/cuda/multicontact_geom.cu", "src/physics/collision/cuda/multicontact_mesh.cu"]
+
+=== 4 500-line ratchet ===
+src/runtime/collision_gpu/inputs_from_snapshot.rs lines(LF)=233 bytes=10631
+src/runtime/collision_gpu/inputs_from_snapshot_tests.rs lines(LF)=258 bytes=9665
+src/physics/collision/gjk/multicontact/mod.rs lines(LF)=408 bytes=12124
+src/physics/collision/cuda/multicontact_geom.cu lines(LF)=412 bytes=18590
+
+=== 5 evidence hygiene ===
+manifest sha=dd86389917ab712d bytes=1130 rows=10 files=10 ok=True
+gate.txt: clippy 通过 506ms | clippy-cuda 通过 354ms | fmt 通过 1862ms | unit 通过 27544ms 测试1409过0败
+
+# QA re-run targeted tests
+cargo test --locked --lib physics::collision::gjk::multicontact
+cargo test --locked --lib runtime::collision_gpu::inputs_from_snapshot
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 929 filtered out; finished in 0.00s
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 928 filtered out; finished in 0.00s
+
+# landed gate.txt
+clippy 通过 506ms
+clippy-cuda 通过 354ms
+fmt 通过 1862ms
+unit 通过 27544ms 测试1409过0败
+
+# policy scan (QA evidence, re-run)
+policy_scan: files=2 hits=0 RESULT: PASS
