@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-r06-flex-multiframe-recipe-params-comment-wording",
+  "title": {
+    "zh": "卡 L：R06 多帧 recipe 模块 cam_res 口径注释措辞修正（卡 K 的 C-L1 测试面闭环；注释 only、不改断言/行为；零 GPU）",
+    "en": "Card L: fix cam_res wording comments in the R06 multiframe recipe module (test-side closure of card K's C-L1; comments only, no assertion/behaviour change; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 指令：卡 K 复核低 L1 指出 C-L1 的 addendum 留了测试侧 follow-up——`tests/support/render_bvh/multiframe_recipe.rs` 第 8/51/131/168 行仍写「单帧验收亦为隐式比对」「cam_res 隐式」。本卡把这 4 处注释改为准确表述：多帧 capture 无 `context.resolved` 段、cam_res 无独立对照源 ⇒ 实际逐项断言 27 项（26 recorded + nworld），cam_res 为名义第 28 项、由隐式口径覆盖。**断言与 21/28 项比对逻辑零改动**（只改注释行，行数不变）。记录 multiframe 测试 exe 身份 old→new（`0966bf4c…`/118,588,904 → new）与「R06 后续窗需重冻」；新证据目录写「K L1 闭环：测试面措辞已修；backlog 计数说明（F-L1 仍 1 条）」。不改判据/参考/容差/断言/行为；零 GPU（GPU ignored 用例不执行）。",
+    "en": "Per Chief's instruction: card K review low L1 flagged that the C-L1 addendum left a test-side follow-up - lines 8/51/131/168 in tests/support/render_bvh/multiframe_recipe.rs still say the single-frame acceptance is implicit and cam_res is implicit. This card corrects those 4 comments: multi-frame capture has no context.resolved section and no independent cam_res reference, so the actual per-item assertions are 27 (26 recorded + nworld), with cam_res nominally item 28 covered by the implicit scope. Assertions and 21/28-item comparison logic stay byte-identical (comment lines only, line count unchanged). Record the multiframe test exe identity old->new (0966bf4c.../118,588,904 -> new) plus the 'R06 later windows need refreeze' note; the new evidence dir states the K L1 closure and the backlog-count note (F-L1 remains 1). No criteria/reference/tolerance/assertion/behaviour changes; zero GPU (GPU ignored test not executed)."
+  },
+  "modules": {},
+  "acceptance": [
+    "`tests/support/render_bvh/multiframe_recipe.rs` 4 处 cam_res 口径注释改为准确表述（第 8/51/131/168 行）：多帧 capture 无 `context.resolved` 段/无独立对照源 ⇒ 实际逐项 **27**；`cam_res` 为名义第 28 项、由隐式口径覆盖。",
+    "**断言与 21/28 项比对逻辑零改动**：`assert_params_match_capture`、`RECIPE_PARAM_KEYS`、21 项新增断言与防漏守卫逐字未动；diff 仅注释行；文件行数不变（188，<500 棘轮）。",
+    "测试：`cargo test --locked --features cuda-probe --test render_flex_multiframe` ⇒ 41 passed / 0 failed / 1 ignored（GPU 用例不执行；与本卡前一致）。",
+    "exe 身份 old→new 记录（old `0966bf4c…`/118,588,904 B）并写「R06 后续窗需重冻，本卡不重冻、不占窗」；同源重建不可复现 caveat 沿用。",
+    "证据：`docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-comment-wording/` README + receipt + `logs/identity-old-new.txt` + `logs/test-log.txt` + `logs/diff-stat.txt` + `logs/line-counts.txt` + manifest 自核（不自列）；README 写「卡 K 的 C-L1 测试面已闭环」与「K backlog 计数说明：F-L1 仍为唯一 backlog=1，C-L1 文档面由 K 补、测试面由本卡闭环」。",
+    "边界：写域仅 `tests/support/render_bvh/multiframe_recipe.rs` + `docs/development-evidence/render-bvh/**` + `.normify/**`；`unchanged src/`、`fixtures/`、`scripts/`；不改判据/参考/容差/断言/行为、不动 guards/freeze script；零 GPU、零窗。",
+    "四门禁 fmt/clippy/clippy-cuda/unit + `normify check`；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/support/render_bvh/multiframe_recipe.rs",
+      "docs/development-evidence/render-bvh/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 13:02 指令（13:35 收口）；依据 QA 卡 K 复核低 L1（C-L1 测试面 follow-up）；注释 only、零断言改动；取锁后执行；QA 18:00 后核。",
+  "revision": {
+    "before": "37edfb4b08405142206c59ef90c38501c992087c",
+    "after": null
+  },
+  "created_at": "2026-11-11T05:04:00.000Z",
+  "updated_at": "2026-11-11T05:02:19.778Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-comment-wording/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-comment-wording/receipt.json",
+      "pointer": "/assertions_unchanged",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-comment-wording/receipt.json",
+      "pointer": "/comment_sites_fixed",
+      "equals": 4
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-comment-wording/receipt.json",
+      "pointer": "/file_line_count",
+      "equals": 188
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-comment-wording/receipt.json",
+      "pointer": "/k_l1_closed",
+      "equals": true
+    }
+  ]
+}
