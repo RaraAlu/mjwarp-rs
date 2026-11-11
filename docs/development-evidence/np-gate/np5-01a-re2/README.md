@@ -37,3 +37,21 @@
 ## 3. 非声明
 
 不宣称 NP01 通过/精度完成/上游等价/双平台/位级保证；不改判据/参考/容差；零 GPU、零窗；PTX 实体不入仓。
+
+## 4. 2026-11-11 B-1 更正（版本化 addenda + 工具引用块豁免）
+
+- **G1（addenda 版本化）**：本节此前把 A-2 `addenda.md` 原地改写（非 append）。已按裁定版本化：A-2
+  `addenda.md` 恢复 v1 字节（`0ba40a0b…`/2,030），修正版为 A-2 `addenda-v2.md`（`supersedes:
+  addenda.md@0ba40a0b…`）。本目录 `evidence.json` 的 A-2 addenda 指针随之更新；A-2 目录重扫：
+  evidence **5**（历史已撤回）、addenda-v2 **0**、addenda v1 历史字节 **7**（不改历史）、README **1**
+  （否定式非声明句被 18 字符窗口漏豁免，人工复核确认非正面结论）、receipt **0**。
+- **G2（引用块豁免）**：`policy_scan` 新增显式引用块豁免（标记块 + 撤回/supersede/作废声明才豁免；
+  未标记/无声明/未闭合/块外照常命中；引用须逐字原文，禁止拆写规避），自测 **20/20 PASS**；工具
+  `e28ddb89…`/8,013 B。本文 §1 的历史「addenda 0 命中」仅指当时的改写版，以本 §4 与 A-2
+  `addenda-v2.md` §3 为准。
+- **L1（时点）**：`policy_tool.landed:true` 在 `949bf18b` 时点不成立，工具实际由 `e5315d95` 落仓；
+  `evidence.json`/`receipt.json` 已加 `landed_at` 与更正说明。
+- **观察项**：`mass_multiply` 18 站点属 A-3；设备行级与 source 逐站点粒度不同（见 A-2
+  `addenda-v2.md` §5）。
+- A-2 landing 字节（`evidence.json`/`README.md`/`receipt.json`）仍不改；A-2 manifest 已重算
+  `e5d4e35b60dab133cb03105968d610555fc3aaa3d3f5400bd538c2ae4c4fe849`。
