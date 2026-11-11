@@ -5,7 +5,7 @@
     "zh": "潜伏缺陷：`render_flex.cu::flex_quat_z2vec` 近平行负方向分支未清 `quat[3]`（产品 (1,0,0,1) vs 上游 (1,0,0,0)）",
     "en": "Latent defect: flex_quat_z2vec near-parallel negative branch leaves quat[3] set (product (1,0,0,1) vs upstream (1,0,0,0))"
   },
-  "status": "backlog",
+  "status": "proposed",
   "intent": {
     "zh": "`src/render/kernel/cuda/render_flex.cu:47-53` 的近平行分支（`a < FLEX_MINVAL`）在 `unit.z < 0` 时只置 `quat[0]=1.0f`，而 `quat[3]` 仍是初始化的 1.0f → 位置化四元数 **(1,0,0,1)**（非单位/退化矩阵）；上游 `target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py::quat_z2vec`（第 100-105 行）在该分支**整体替换**为 `wp.quat(1.0, 0.0, 0.0, 0.0)`。上游 CPU warp（pinned 1.15.0）实测（7 向量，`target/s3b-d8/probe_quat.log`）：`vec=(0,0,-1)` 字段序 `(1,0,0,0)`、矩阵为单位阵。**修法**：`quat[0]=1.0f; quat[3]=0.0f;`（或整体赋值）。**当前 `scene-flex` 无 z 向 flex 边，该分支未触发**，与 cam2 depth 缺口（D8）无关、不是 attempt4 CUDA 700 的成因——属**潜伏缺陷**，登记为 backlog。",
     "en": "Latent defect in the near-parallel negative branch: quat[3] is not cleared, giving (1,0,0,1) instead of upstream (1,0,0,0). Not triggered by the current scene; unrelated to the cam2 depth gap or the attempt-4 CUDA 700."
@@ -30,15 +30,35 @@
     "resources": [],
     "priority": 40
   },
-  "note": "Arch 2026-11-04 登记（Chief 同意；Backend 用 pinned 上游 CPU warp 实测 7 向量后更正卡面：只此一支有 bug、常规分支无问题、断言用矩阵）。**优先级低**：当前场景无 z 向边未触发，与 cam2 depth 缺口、attempt4 CUDA 700 均无关。**不得**作为 attempt5 前置。",
-  "revision": { "before": "b6657b360e6e6217a25d02c5dc7624680cb11361", "after": null },
+  "note": "Arch 2026-11-04 登记（Chief 同意；Backend 用 pinned 上游 CPU warp 实测 7 向量后更正卡面：只此一支有 bug、常规分支无问题、断言用矩阵）。**优先级低**：当前场景无 z 向边未触发，与 cam2 depth 缺口、attempt4 CUDA 700 均无关。**不得**作为 attempt5 前置。\n\n2026-11-11 治理关闭（Chief 核定）：修复已由 `19a68b49`（11-11 08:18）落地——`render_flex.cu` 近平行反向分支显式写全四位 `(1,0,0,0)`（现源码 `:47-56`，四行赋值 `:52-55`）、`tests/render_flex_z2vec.rs` 9 tests（含三条矩阵断言与 `.cu` 文本锚点）、修复证据 `docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin/`（manifest 11/11）与修复前诊断 `docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/` 均在仓；当前 megakernel 身份即修复后 `cf356b72…`。本卡不再需要代码片，按治理片 `2026-11-11-w1-r06-z2vec-card-closure` 逐条核对后 done 关闭；acceptance 原文保持不变。",
+  "revision": {
+    "before": "b6657b360e6e6217a25d02c5dc7624680cb11361",
+    "after": null
+  },
   "created_at": "2026-11-04T18:00:00.000Z",
-  "updated_at": "2026-11-04T18:00:00.000Z",
+  "updated_at": "2026-11-11T15:30:41.172Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
-    { "kind": "unchanged", "paths": ["fixtures/"] }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    }
   ]
 }
