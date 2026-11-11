@@ -1,0 +1,36 @@
+# Fact checks for the W0-W9 plan snapshot (QA, read-only)
+#
+## 1) "W0-W9 never landed before" claim
+# git grep "W0–W9\|W0-W9" fe72dcd1^ -- docs/  => no hits
+# git log -- docs/development-evidence/plan/  => only this landing (plus unrelated commits touching plan/ dir? none)
+# => claim holds
+#
+## 2) references in section 5 (all verified to exist)
+# W0 closeout   : 5f1d436d (attempt-4 archive), card 2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4, QA 5b586e77
+# guards        : 94478b3de924ee2940315de1f04617d4c81e48e0b4b9adb77f8a8301ae48734f / 43729 B  (matches my attempt-4 review)
+# aggregate     : 081801076e26128d6bd16c8e8c12f14dc0157fadeccec20b42eb0553c4579ef8 ; 107 = 12 exe + 93 inputs + 2 lists ; 12/12 live==guard==stash
+# P10           : fix b0e372be ; QA b84d5996 ; evidence dir docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin/
+# diag8         : QA 11530f82 ; card 2026-11-11-render-perworld-l-v2-gl2-diag8-check
+# errata r2     : 84ed67d2
+# z2vec slice 1 : 19a68b49
+# diagnosis card: c6ea92b8 (2026-11-11 00:07:39, R06 z2vec diagnosis)
+#
+## 3) wave table vs source draft (w0-w9-plan-final.md section 1)
+# W0-W9 rows: items / dependencies / slices / GPU windows / signature-or-decision / exit criterion are line-for-line identical,
+# except W0 signing wording: source "S-3 已签" -> landed "S-3（用户签名，2026-11-11）" (card-B forbid_claim compliance rewrite)
+# W5 "用户 deferred" -> "用户暂缓" (same meaning)
+#
+## 4) LOW L1 - the "U8/U7 not present in repo" statement is inaccurate
+# plan section 2.1 says: "U8/U7 的精确条目 ID/定义以 Chief 校准为准（仓内 docs 暂无该编号）"
+# but docs already reference U8/U7:
+#   docs/development-evidence/g10-p5-mesh-cap20/README.md        "U8/U7 维持 record-only ..."
+#   docs/development-evidence/g10-p5-mesh-cap20-check/README.md  (U8/U7)
+#   docs/development-evidence/mesh-polygon-gt16-gap/README.md    title "mesh polygon 容量差距评估（U8/U7）..."
+# What is missing is an independent task/item ID (no .normify card id contains U8/U7), not the designation itself.
+# Suggested wording: "有 U8/U7 指代但无独立任务/条目 ID；精确编号待 Chief 校准".
+#
+## 5) observations
+# O1: W0 signing wording rewrite (已签 -> 用户签名) is required by card B's forbid_claim list but not declared as a deviation
+#     from "land the final draft as-is"; fact-equivalent.
+# O2: section 7 z2vec checklist is plan-state ([ ]) and its render_flex.cu:47-53 anchor drifted after the P10 restore
+#     (near-parallel block is now :47-56); the file itself declares plan-state/staleness, so non-blocking.

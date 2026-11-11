@@ -1,0 +1,36 @@
+# QA independent checks for W0-W9 plan documentation (commit fe72dcd1, zero GPU, read-only)
+#
+## 1) file + encoding
+# docs/development-evidence/plan/W0-W9.md          14120 B  UTF-8 no BOM CR=0 NUL=0
+# docs/development-evidence/plan/W0-W9.receipt.json  2314 B  UTF-8 no BOM CR=0 NUL=0
+# docs/development-evidence/plan/W0-W9.manifest.txt   453 B  UTF-8 no BOM CR=0 NUL=0
+# first line: "# W0–W9 执行落地计划（文档化快照，2026-11-11）"
+# blockquote line 3: "**文档化快照；裁决项未定，不构成结论。**"
+#
+## 2) conclusion-term grep (whole file, exact strings)
+# 已裁决 0 | 已签 0 | 已批 0 | 等价通过 0 | 发布通过 0 | 已通过 0 | 已发布 0 | 签名完成 0
+# "通过" occurrences (6) are all allowed fact statements:
+#   lines 6/13/25/73  G-L2 A/B/C passed in attempt-4 canonical window (with 5f1d436d / 5b586e77 / card id)
+#   line 75           negated: "本计划不预设其通过"
+#   line 133          plan-state acceptance item "unit 新增用例通过"
+#
+## 3) pending-decision markers
+# 待用户裁决 x3 | 待用户签 x1 | 待用户确认 x1 | 待校准 x1 | 不预设 x2 (section 2.1-2.4 all four present)
+#
+## 4) write scope
+# git diff --name-only 2b6d9b56 fe72dcd1:
+#   docs/development-evidence/plan/{W0-W9.md, W0-W9.receipt.json, W0-W9.manifest.txt}
+#   .normify/changes/...json + .normify/runs/.../{fmt,clippy,clippy-cuda,unit}.json
+#   => no src/ tests/ fixtures/ scripts/ guards path
+#
+## 5) manifest recompute
+# W0-W9.md            sha256 63caa15c...  bytes 14120  OK
+# W0-W9.receipt.json  sha256 6ba13880...  bytes  2314  OK
+# manifest does not list itself; 2/2 rows recomputed, bad=0
+#
+## 6) content source
+# target/render-bvh/gl2-ptx-diff/w0-w9-plan-final.md  11380 B  sha256 7649c8b1171684f71bb2860129722c95396c6c8f6f7ce323ec4a3fbba31c777c
+# == receipt content_source.sha256/bytes (work material, not committed)
+#
+## 7) gates (.normify/runs/2026-11-11-render-plan-w0-w9-documentation)
+# fmt exit0 | clippy exit0 | clippy-cuda exit0 | unit exit0 passed=1403 failed=0 ignored=402
