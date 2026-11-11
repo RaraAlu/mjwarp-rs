@@ -53,3 +53,41 @@
 
 append-only；不改判据/参考/容差/相机/recipe、不改历史字节；零 GPU、零窗；
 不宣称 NP01 通过、不宣称 E 完成、不提供位级保证。
+
+## 6. QA 复核低项处置（NP5-REVIEW-LOW 卡，2026-11-11；append-only，前文不改）
+
+来源：QA 复核卡 `np5-02-np01-precision-deviation-audit-check`（复核对象 `ac840ff7`，PASS，2 低 + 1 观察）。
+本节只更正表述，不改 `evidence.json`/`README.md`/`receipt.json` 历史字节，不改任何分类或数字；
+任务 `2026-11-11-np5-review-low-items-addenda`。
+
+### L1（§3 站点枚举与「3 站点」不符）——已更正
+
+- 原文（README §3，历史字节不改）：「NP5-01a 最终口径 recipe-difference **3 站点**（A-1a `acc:3`、
+  A-1b `acc:5`、RE-1 的 `acc:5` …）」。
+- 问题：`A-1b acc:5` 与 `RE-1 acc:5` 是**同一站点** `mass_solve:rigid_mass_solve:accumulation:5`
+  的两层分类（A-1b source 级 landing `not-decidable` → RE-1 device 级定 `recipe-difference`）；
+  且 A-1a 的 3 个 recipe-difference 站点未列 id。
+- 更正后口径（分层写）：
+  - **A-1a source 级 recipe-difference 3 站点**（id 全列）：
+    1. `mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:2`（landing）
+    2. `mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:1`（landing）
+    3. `mass_solve:rigid_mass_solve:accumulation:3`（landing `pin-needed` → A-1a R2 改判 `recipe-difference`）
+  - **A-1b `mass_solve:rigid_mass_solve:accumulation:5`**：source 级 landing `not-decidable`，
+    由 RE-1 在 device 级定 `recipe-difference`——**同站点两层分类，不重复计入 source 级 3 站点**。
+- 结论不变：recipe 差 5 case×3 字段 + 3 站点（A-1a source 级）单列；不宣称 NP01 通过。
+
+### L2（§1 节号交叉引用错）——已更正
+
+- 原文（README §1，历史字节不改）：「站点分类（landing 直方图合计）… （最终口径另见 §4）」。
+- 更正：最终口径变化（`recipe-difference`/`pin-needed`）在 **§3**（recipe 差）说明；§4 是引擎语义差与
+  实现残差。正确引用为「（最终口径另见 §3）」。
+
+### 观察 O1（`type_class` 分组表述）——记录不修
+
+- README §1 把 `n/a-view 7 / f32 编码 2 / int→f32 编码 1 / f64-to-f32 1`（=11）并入「其它 f32 派生」；
+  其中 `n/a-view`、`f64-to-f32` 并非 f32 派生。总数 608 正确、无统计错误；README 历史字节不改。
+  后续逐类对账以 evidence 的 11 个 `type_class` 机器可读值为准（不合并口径）。
+
+### 编号口径
+
+- 以上编号与 `np5-review-low-items-addenda/items.json` 的 `NP5-02-L1`/`NP5-02-L2`/`NP5-02-O1` 一一对应。
