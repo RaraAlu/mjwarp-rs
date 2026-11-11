@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-c3-rne-gravity-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a C-3（`37a21e59`）：**PASS（0 阻断，0 一般 + 1 低 + 1 观察）**——§1 C-2 观察闭环：声明词对称（`8753685b…`/14,885、自测 31/31；withdrawn/withdrawal/retracted/withdraw 与 撤回 均豁免、not withdrawn/未撤回 命中）、docstring 4,017 字列全中英词表、块级否定 veto 生效；`errata-0001` 已转发 `errata_pending`（status forwarded）；**低=veto 块内 18 字符否定窗口仍可豁免邻近断言**（实测同块同句 0 命中）；§2 C-3 43 站点 43/43 id 与 sites.json 3 行并集相等、直方图 `identical29/n/a13/engine-semantic1`（rne_bias acc:1 带 why+`bit_level_guarantee:false`）、累计 **380**、锚点 0 错误、policy 0 命中、门禁 1,406/0/402",
+    "en": "QA review of C-3: PASS (0 blockers, 0 major + 1 low + 1 observation); C-2 observations closed (symmetric declarations 31/31 self-tests, docstring vocabulary, block-level veto, errata forwarded); low = vetoed block claims near the negated declaration can still be exempted by the 18-char negation window; C-3 43 sites verified, cumulative 380"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 C-3（`37a21e59`）做独立只读复核（零 GPU）：①对称声明词与 veto 构造实测、docstring 词表、errata 转发；②C-3 43 站点 id/直方图/锚点/engine-semantic/累计 380/policy 0 命中/无覆盖率；③边界/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of C-3: symmetric declarations and veto, docstring vocabulary, errata forwarding, C-3 43 sites and hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 对称声明/veto ✅**：工具 14,885 B/`8753685b…`、自测 31/31；我构造 `withdrawn:`/`withdrawal:`/`retracted:`/`withdraw this:`/`撤回：` → **豁免（0 命中）**，`not withdrawn:`/`未撤回：` → **命中（1）**；块级 veto 生效（`withdrawn: never supersede` 块 `affirmative_declaration=False`）",
+    "**§1 docstring/errata ✅**：docstring 4,017 字符列出中英声明词（撤回/作废/撤销/收回 + supersede/withdraw/withdrawn/withdrawal/retract/retracted）与否定词表；`errata-0001` 已转发到 C-3 `errata_pending`（status=forwarded to closing addenda errata list），field-table 历史未改",
+    "**§2 C-3 ✅**：43/43 与 sites.json 3 行并集逐 id 相等（18/13/12）；直方图 `{identical 29, n/a 13, engine-semantic 1}`；engine-semantic 1 条 `rne_bias:accumulation:1` 带 why（逆序确定性累加 vs `body_tree` 逆层 `wp.atomic_add`）+`bit_level_guarantee:false`、不声明等价；累计 380 无重叠；必填字段 43/43；锚点全量 0 错误（40 file:line + 3 `no-reference-expression`），抽样行内容正确（rne.cu 35/37/39 ↔ smooth.py 1331/1366/1372；rne_bias.rs 274 ↔ smooth.py 1444）；policy_scan 0 命中；manifest 4/4；selfcheck 16 PASS；门禁 1,406/0/402；哈希与派工值一致（3f9a7c86/63,172、57c39e88/5,661、529130c2/4,312、8a9f8791/539、4b724b4b/1,088）；编码干净、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 1 观察）。** 低 L1=veto 块内若断言紧邻否定声明（18 字符窗口内），否定窗口仍会把该断言豁免：实测 `{S}\\nwithdrawn: never supersede\\n结果位级等价\\n{E}` → 0 命中（加 24 字符 filler 后 → 1）；工具自测只用「英文断言 + result 」布局（否定词落在窗口外）覆盖不到该布局。建议 veto 块内禁用否定窗口豁免，并补一条相邻断言自测；O1=其余行为符合预期（criterion 按护栏+人工复核口径）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-c3-rne-gravity-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-c3-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 C-3 复核（含 C-2 观察闭环）；结论 PASS（0 阻断，1 低 + 1 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T13:35:00.000Z",
+  "updated_at": "2026-11-11T13:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-c3-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-c3-rne-gravity-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-c3-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "9fa42e47c1ea499d0f45c00136de895b7f4b0a4a",
+    "after": null
+  }
+}
