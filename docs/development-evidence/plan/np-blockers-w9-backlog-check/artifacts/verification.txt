@@ -1,0 +1,29 @@
+# QA independent checks for card H (NP blockers + W9 backlog registration), zero GPU
+#
+## 1) registration commit 0cf8307e (6 files)
+# 2026-11-11-np-blocker-flex-collision          status=backlog checks=0 deps=[] priority=20 acceptance=3
+# 2026-11-11-np-blocker-constraint-solver       status=backlog checks=0 deps=[] priority=18 acceptance=3
+# 2026-11-11-np-blocker-solver-pipeline         status=backlog checks=0 deps=[] priority=18 acceptance=3
+# 2026-11-11-np-blocker-island-sleep            status=backlog checks=0 deps=[] priority=15 acceptance=3
+# 2026-11-11-scripts-w9-capture-extraction-backlog status=backlog checks=0 deps=[] priority=12
+# 2026-11-11-np-blockers-and-w9-backlog-registration (card H) 10 checks
+# ids match NP5-00 ledger/README §4.3's four genuinely-unimplemented subsystems exactly
+# (render/BVH, terrain/SDF, GJK/EPA are implemented -> no blocker card, routed to NP5-01b)
+# each blocker: acceptance = implementation needed / criteria to be refined at start + machine checks / wave dependency;
+# note states "只登记、不排期", user decides W2/W3/R07 placement, checks=[] (no preset pass), no criteria change
+# W9 card: capture_render_perworld.py 490 lines -> pure move of 56-196 into capture_perworld_env.py;
+# blocked on user decision whether new module enters the 93 guards inputs (93->94 breaks the signed S-3 107 scope)
+#   -> not started/written before ruling; freeze script line 167 pinned sha + refreeze on next render window noted
+#
+## 2) card H itself
+# status=verified, closed_at set; 10 checks = 4 gates + unchanged(src/,tests/,fixtures/,scripts/) + 5 x json /status == backlog
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+#
+## 3) boundaries
+# both commits (0cf8307e, f5be136b): only .normify/changes/* (6 card JSONs) and .normify/runs/* (gate records)
+# no src/ tests/ fixtures/ scripts/ changes; guards untouched; no criteria/reference/tolerance change; zero GPU / zero windows
+#
+## 4) observations
+# O1 four blocker cards have empty depends_on and status=backlog by design (no scheduling until user decides);
+#    suggest adding depends_on/checks/phase after the user ruling
+# O2 positive: 5 json /status==backlog checks make "registered cards must not be started" machine-checkable (same pattern as card G)

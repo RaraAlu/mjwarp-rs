@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np-blockers-and-w9-backlog-registration-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commits": [
+      "0cf8307e (registration of 4 NP blocker cards + W9 backlog card + card H)",
+      "f5be136b (card H closure/gates)"
+    ],
+    "card": "2026-11-11-np-blockers-and-w9-backlog-registration",
+    "card_alias": "card H of the 2026-11-11 12:00 window"
+  },
+  "summary": "PASS: 0 blocker, 0 low, 2 observations. Four NP implementation-blocker cards and one W9 backlog card are registered correctly (status=backlog, checks=[], ids exactly the four genuinely-unimplemented subsystems from the NP5-00 ledger, acceptance 'refine at start', notes say not scheduled/user decides/no criteria change); the W9 card documents the guards 93->94/107 re-sign blocking decision and the pure-move plan. Card H itself is verified with 10 checks (4 gates + unchanged + 5 json status==backlog guards), gates unit 1406/0/402; both commits touch only .normify, no code/criteria change.",
+  "low_findings": [],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "4 张阻塞卡 depends_on 空/backlog 状态为刻意",
+      "detail": "Cards are backlog with priority 20/18/18/15 and empty depends_on, matching 'register only, do not schedule, user decides W2/W3/R07 placement'. Suggest adding depends_on/checks/phase after the user ruling so they do not look ready."
+    },
+    {
+      "id": "O2",
+      "title": "（正向）5 条 json /status==backlog 守卫",
+      "detail": "Card H reuses card G's pattern: one json check per registered card asserting it stays 'backlog', making 'registered cards must not be started' machine-checkable."
+    }
+  ],
+  "verified": {
+    "blocker_cards": "flex-collision (priority 20), constraint-solver (18), solver-pipeline (18), island-sleep (15): status=backlog, checks=0, deps=[], 3 acceptance items each, notes forbid scheduling/preset pass; ids match NP5-00 ledger/README section 4.3 exactly",
+    "w9_card": "2026-11-11-scripts-w9-capture-extraction-backlog: status=backlog, checks=0, priority 12; captures capture_render_perworld.py 490 lines, pure move of lines 56-196 (141 lines) into capture_perworld_env.py; blocked on user decision whether the new module enters the 93 guards inputs (93->94 breaks signed S-3 107 scope); freeze script line 167 pinned sha + refreeze noted; boundary no semantics/criteria change",
+    "card_h": "status=verified, closed_at set; 10 checks = 4 gates + unchanged(src/,tests/,fixtures/,scripts/) + 5 json /status == backlog; gates fmt/clippy/clippy-cuda exit 0, unit 1406/0/402",
+    "boundaries": "both commits only .normify/changes/* (6 card JSONs) and .normify/runs/* (gate records); no src/tests/fixtures/scripts changes; guards untouched; no criteria/reference/tolerance change; zero GPU/windows",
+    "provenance": "card H note cites NP5-00 ledger 190 entries (875ae41d) + np5-rulings-memo section 2.1, consistent with the ledger I reviewed under card F"
+  },
+  "non_claims": [
+    "does not claim NP pass or that implementation blockers are resolved",
+    "does not schedule the blocker cards or start the W9 extraction",
+    "zero GPU, zero windows; no criteria/reference/tolerance change"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}
