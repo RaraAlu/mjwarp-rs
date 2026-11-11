@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "8618e447fb81d41c02251ceb27c4ab9fdfacbbad",
+    "card": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key",
+    "card_alias": "card E of the 2026-11-11 12:00 window"
+  },
+  "summary": "PASS: 0 blocker, 0 low, 3 observations. Card C's L2 is closed for the bool form: card E adds a new-key negative (use_textures) while keeping the existing-key negative (samples_per_pixel), with 21-item comparison untouched; 41/0/1 tests rerun; the remaining 4 forms (nworld, render flags, shadow_light_fraction, splat null = 11 items) are explicitly declared as non-claims in README/receipt, matching Chief's minimal spec. Append-only section 7, spec sha, manifests 7/7 and 6/6, exe identity (+512 B), boundaries and gates all verified.",
+  "low_findings": [],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "剩余覆盖缺口（已如实非声明）",
+      "detail": "nworld (1), render flags (3), shadow_light_fraction (1) and splat null (6) still have no targeted negative; card C's L2 is therefore only partially closed (bool form proven). This is acceptable under Chief's minimal spec and is explicitly stated as a non-claim; further closure would change the test exe again and require re-freeze."
+    },
+    {
+      "id": "O2",
+      "title": "顺带修正卡 C 的错标",
+      "detail": "Card C's comment labelled use_shadows as 'this card's newly added boolean', but use_shadows was already part of the 7-item scope; card E relabels correctly (existing = samples_per_pixel, new = use_textures), which clears that record-face issue."
+    },
+    {
+      "id": "O3",
+      "title": "身份 caveat 延续",
+      "detail": "exe sha is a build-time measurement; same-source rebuilds are not byte-reproducible (proven in card D review), so later R06 windows must take identity from the frozen artifact. Card E records the +512 B delta and the refreeze requirement."
+    }
+  ],
+  "verified": {
+    "surface": "tests/support/render_bvh/multiframe_recipe.rs +11 -11 all inside recipe_param_mismatch_is_detected; assert_params_match_capture and the 21-item comparison untouched; file still 188 physical LF lines; commit touches only this test file + evidence dirs + .normify; no src/fixtures/scripts/*.cu",
+    "negatives": "existing-key negative samples_per_pixel kept; new-key negative flips use_textures; both require catch_unwind panic with messages labelled 既有键/新增键; positive control kept",
+    "tests_rerun": "cargo test --locked --features cuda-probe --test render_flex_multiframe -- --test-threads=1 => 41 passed / 0 failed / 1 ignored",
+    "coverage_mapping": "21 = nworld 1 + flags 3 + booleans 10 + shadow_light_fraction 1 + splat null 6; direct negative covers the bool form only; the other 4 forms/11 items are explicitly non-claims in README/receipt",
+    "append_only": "card-C fill README 6779 -> 7940 B, prefix = 6779 pure append (section 7); section 7 spec sha d7fcf156.../7608 B re-measured == claim",
+    "manifests": "card-C fill dir 7/7 recomputed OK; new dir 6/6 recomputed OK, not self-listed",
+    "identity": "old d226bb76.../118588392 B -> new 0966bf4c.../118588904 B (+512 B); QA on-disk check == claim; refreeze requirement stated",
+    "encoding": "git ls-files --eol = i/lf w/lf for the modified test file; docs files UTF-8/LF; no BOM/CR/NUL",
+    "boundaries": "src/fixtures/scripts zero diff; *.cu empty; capture.json read-only; no criteria/reference/tolerance/camera/recipe change; zero GPU; ignored GPU test not executed",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored"
+  },
+  "non_claims": [
+    "does not claim rendering numeric/equivalence/device-side behaviour change",
+    "does not claim negative coverage for non-bool assertion forms",
+    "does not re-freeze guards/executables and takes no GPU window"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}

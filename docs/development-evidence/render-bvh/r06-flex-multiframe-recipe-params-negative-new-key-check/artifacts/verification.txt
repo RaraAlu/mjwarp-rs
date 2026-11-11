@@ -1,0 +1,35 @@
+# QA independent checks for R06 recipe-params negative-new-key card (commit 8618e447, zero GPU)
+#
+## 1) change surface
+# tests/support/render_bvh/multiframe_recipe.rs : +11 -11, ALL inside recipe_param_mismatch_is_detected
+#   - negative 1 (existing key, kept): mutate samples_per_pixel -> catch_unwind must panic
+#   - negative 2 (new key, added):  flip use_textures (one of the 21 new assertions) -> catch_unwind must panic
+#   - positive control kept ; assertions messages labelled 既有键 / 新增键
+# assert_params_match_capture and the 21-item comparison unchanged ; file still 188 physical LF lines
+# commit surface: 1 test file + 2 evidence dirs (fill README append + new dir) + .normify ; no src/fixtures/scripts ; no .cu
+#
+## 2) tests rerun by QA
+# cargo test --locked --features cuda-probe --test render_flex_multiframe -- --test-threads=1
+#   => 41 passed / 0 failed / 1 ignored   (same count as card C; no test added/removed)
+#
+## 3) coverage honesty (re-read by QA)
+# logs/coverage-21-mapping.txt : 21 = nworld(1) + render flags(3) + booleans(10) + shadow_light_fraction(1) + splat null(6)
+# direct negative only for the bool form (use_textures exercises the same data-driven loop as the other 9 booleans)
+# nworld / render flags / shadow_light_fraction / splat null (11 items) have NO targeted negative and are explicitly
+# declared as a non-claim in README and receipt -> matches Chief's minimal spec (1 new-key + 1 existing negative)
+#
+## 4) append-only + manifests
+# card-C fill README: 6779 -> 7940 B, common prefix = 6779 = old length => PURE APPEND (section 7)
+#   section 7 adds spec sha d7fcf156.../7608 B (QA re-measured target spec file: 7608 B / d7fcf156d7ce7f1fec0f30d13d96a53d88b2045dcfc7eef23aafa1f0a9656638 == claim)
+# card-C fill dir manifest: 7/7 recomputed OK
+# new dir manifest: 6/6 recomputed OK, not self-listed
+#
+## 5) exe identity
+# old (card C point value) d226bb76.../118588392 B
+# new 0966bf4c.../118588904 B (+512 B) ; QA measured the on-disk exe: 118588904 B / 0966bf4c... == claim
+# same-source rebuild caveat referenced from card D evidence; later R06 windows must refreeze ; this card does not
+#
+## 6) encoding / boundaries / gates
+# diff surface: only tests/support/render_bvh/multiframe_recipe.rs (+ docs/.normify) ; *.cu empty ; src/fixtures/scripts 0
+# git ls-files --eol tests/support/render_bvh/multiframe_recipe.rs => i/lf w/lf
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
