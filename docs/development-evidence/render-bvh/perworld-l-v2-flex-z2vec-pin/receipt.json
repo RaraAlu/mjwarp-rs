@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-flex-z2vec-pin",
+  "status": "z2vec_slice1_implemented_zero_gpu",
+  "kind": "flex-z2vec-branch-fix",
+  "authorization": {
+    "chief_assignment": "2026-11-11 08:12 (z2vec slice 1; hard stop 08:42)",
+    "arch_spec": "target/render-bvh/gl2-ptx-diff/z2vec-probe-expectations.md b815d932.../8200 B (incl. mirror anti-drift clauses)"
+  },
+  "changes": {
+    "files": [
+      "src/render/kernel/cuda/render_flex.cu (near-parallel branch: explicit quat[0..3] = 1,0,0,0; not (0,1,0,0))",
+      "tests/render_flex_z2vec.rs (new, host mirror 9 tests)"
+    ],
+    "untouched": [
+      "src/render/kernel/cuda/render_flex.cu other functions",
+      "fixtures/",
+      "scripts/",
+      "all other .cu"
+    ],
+    "no_new_cu": true
+  },
+  "host_mirror": {
+    "file": "tests/render_flex_z2vec.rs",
+    "contract": "test-only mirror, NOT a runtime fallback; source anchors (quat[0..3] four lines present, old form absent, warp_length3/atan2f anchors) make the mirror drift-fail",
+    "tests": "9 passed / 0 failed",
+    "log": "logs/host-mirror-tests.log",
+    "assertion_policy": "#1 exact identity matrix (assert_eq!); #2-#7 tolerance 1e-6; threshold cases 1e-16/1e-20, (1e-30,0,-1), (1e-30,0,1), -0.0, +-z"
+  },
+  "kernel_identity": {
+    "megakernel": {
+      "source_sha256_old": "6b1ade37958facfd48f485a7433f93bcf7256a6b08a167c1ece078e0744de278",
+      "source_sha256_new": "cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48",
+      "ptx_sha256_old": "48f8e7f820f7a0a931a82e07efbebef07b831b3895bb7c6423dcd4975c31fa02",
+      "ptx_bytes_old": 348399,
+      "ptx_sha256_new": "b63a51ddcc41a5ec7520fdc38a5234a2d44a1874bc4b38b298f4338bfb11df14",
+      "ptx_bytes_new": 348459
+    },
+    "aa_resolve": "unchanged (0bf8af5a.../b28e155c.../27536)",
+    "depth_seg": "unchanged (1e3f273c.../31912377.../138857)"
+  },
+  "offline_ptx_proof": {
+    "record": "logs/offline-probe-branch.txt",
+    "method": "product-option NVRTC compile of byte-extracted functions with constant vec=(0,0,-1)",
+    "old_result": "quat=(1,0,0,1) -> quat_to_mat diag(0,0,2), max|diff| vs identity 2.0 (red probe)",
+    "new_result": "quat=(1,0,0,0) -> exact identity matrix (probe #1 green)"
+  },
+  "mandatory_annotation": "设备端行为仅由内核身份（megakernel source/PTX 前后基线）+ 离线 PTX 证明；CPU 镜像断言不等价于设备端验收。",
+  "boundaries": {
+    "changed_cu_files": 1,
+    "new_test_files": 1,
+    "fixtures_scripts_unchanged": true,
+    "gpu_used": false,
+    "criterion_change": false
+  },
+  "non_claims": [
+    "does not claim device-side rendering change or that the fix is verified on GPU",
+    "host mirror is not a runtime fallback",
+    "does not change criterion/reference/tolerance",
+    "history not rewritten"
+  ]
+}

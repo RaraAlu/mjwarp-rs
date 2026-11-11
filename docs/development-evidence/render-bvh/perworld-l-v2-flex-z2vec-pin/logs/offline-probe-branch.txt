@@ -1,0 +1,35 @@
+# offline NVRTC probe: near-parallel branch (vec = (0,0,-1) constant, product options, no GPU)
+# probe sources: logs/probe-z2vec-old.cu (functions from HEAD render_flex.cu), logs/probe-z2vec-new.cu (worktree).
+# generator: target/render-bvh/gl2-ptx-diff/nvrtc_ptx.py ; name=probe_z2vec.cu ; compute_70.
+
+## OLD (only quat[0] set; w register keeps the initial 1.0f -> final quat = (1,0,0,1))
+```text
+mov.f32 	%f135, 0f00000000;
+mov.f32 	%f134, 0f3F800000;
+mov.f32 	%f137, %f135;
+mov.f32 	%f135, 0f00000000;
+setp.geu.f32 	%p33, %f3, 0f00000000;
+mov.f32 	%f137, %f135;
+@%p33 bra 	$L__BB0_34;
+mov.f32 	%f134, 0f3F800000;
+mov.f32 	%f137, %f134;
+```
+
+## NEW (four components set; w register explicitly zeroed -> final quat = (1,0,0,0))
+```text
+mov.f32 	%f135, 0f00000000;
+mov.f32 	%f134, 0f3F800000;
+mov.f32 	%f137, %f135;
+mov.f32 	%f135, 0f00000000;
+setp.geu.f32 	%p33, %f3, 0f00000000;
+mov.f32 	%f137, %f135;
+@%p33 bra 	$L__BB0_34;
+mov.f32 	%f137, 0f3F800000;
+mov.f32 	%f134, 0f00000000;
+mov.f32 	%f135, %f134;
+```
+
+Interpretation: %f134 is the w component (initialized to 0f3F800000 = 1.0f at entry).
+OLD branch sets only the x component (%f137 stays 0f3F800000 -> (+1)) and leaves %f134 = 1.0f,
+yielding quaternion (1,0,0,1) -> quat_to_mat diag(0,0,2) (matrix max|diff| vs identity = 2.0, the red probe).
+NEW branch sets %f137 = 1.0f and %f134 = 0.0f, yielding (1,0,0,0) -> exact identity matrix.

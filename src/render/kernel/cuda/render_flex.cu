@@ -45,9 +45,14 @@ __device__ __forceinline__ void flex_quat_z2vec(V3 vec, float* quat) {
     V3 axis = v3(-unit.y, unit.x, 0.0f);
     float a = warp_length3(axis);
     if (a < FLEX_MINVAL) {
-        // 近平行：反向时绕 x 轴 180°；同向保持单位四元数。
+        // 近平行：上游 `math.py::quat_z2vec` 是**整体替换**为单位四元数；反向时 `quat = (1,0,0,0)`，
+        // 同向保持初始单位四元数 `(0,0,0,1)`。z2vec 修复（2026-11-11）：必须显式写全四位——
+        // 旧版只写 `quat[0] = 1.0f`，遗留初始化的 `quat[3] = 1.0f`，得到 `(1,0,0,1)`（矩阵差 2.0）。
         if (unit.z < 0.0f) {
             quat[0] = 1.0f;
+            quat[1] = 0.0f;
+            quat[2] = 0.0f;
+            quat[3] = 0.0f;
         }
         return;
     }
