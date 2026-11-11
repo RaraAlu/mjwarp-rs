@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-a2-policy-addenda-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a A2-POL（`df5fc8aa`）：**PASS（0 阻断，1 一般 + 1 低 + 2 观察）**——A-2 的 5 处正面位级表述我逐条按 evidence 原字节定位并核对撤回清单一一对应（3×「位级一致」+2×「位级等价」）、改写为「未做位级测试、不提供位级保证」；A-2 evidence/README/receipt/selfcheck 字节未改、addenda `0ba40a0b…`/2,030、manifest 重算 5/5 `9109897e…`/661、分类与 `bit_level_guarantee:false` 不变；policy_scan 否定豁免/「不同」「不仅」「不但」用例我实测正确，**但发现带分隔符变体漏检**（「位级·等价」不命中，addenda 的 0 命中实为分隔符绕过、非否定豁免）",
+    "en": "QA review of A2-POL: PASS (0 blockers, 1 major + 1 low + 2 observations); 5 withdrawals verified 5/5, append-only holds, classification and bit_level_guarantee unchanged, scanner negation cases correct, but scanner has a separator bypass (位级·等价 not matched)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 A2-POL（`df5fc8aa`）做独立只读复核（零 GPU）：①撤回是否覆盖全部 5 处、改写是否合规；②A-2 append-only/addenda/manifest/分类与 bit_level 声明；③policy_scan 禁词与否定豁免是否正确（含构造用例与分隔符变体）；④schema 接入、门禁、边界、编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of A2-POL: withdrawal coverage, append-only/manifest, scanner semantics incl. crafted and separator-variant cases, schema integration, gates, boundaries."
+  },
+  "modules": {},
+  "acceptance": [
+    "**撤回覆盖 ✅**：5 处逐条对应（`crb:rigid_mass_matrix:accumulation:2.why_engine_semantic`、`crb:rounding-note:1.label/.product_anchor.expression`、`kinematics:rounding-note:1.label/.product_anchor.expression`），改写为「同一 f32 加法、次序不同；未做位级测试、不提供位级保证」，与 A-2 QA G1 同一问题且覆盖更全（我抽到 2 处、Backend 扫出 5 处）",
+    "**append-only/manifest ✅**：A-2 evidence.json/README.md/receipt.json/logs 在 `2cede9b6`→`df5fc8aa` 逐 blob 字节未改；addenda 2,030 B/`0ba40a0b…`；manifest 我独立重算 5/5 全对（含 addenda、不自列）`9109897e…`/661；分类 32/27/4 不变、`bit_level_guarantee:false` 仍成立",
+    "**policy_scan 语义（实测）**：否定豁免 `不提供位级保证`/`不写位级等价` → 0 命中；`不同` 无误报；`不仅`/`不但` 正确命中；英文 `bit-level equivalent` 命中；`evidence_schema.py` 已引用 policy_scan；**但带分隔符变体漏检**（见 G1）",
+    "**边界/门禁 ✅**：提交仅 docs evidence+`.normify`；UTF-8/LF 无 BOM/CR/NUL；门禁 1,406/0/402；`tree.head=8abab74a…` 为父提交",
+    "**结论：复核通过（0 阻断，1 一般 + 1 低 + 2 观察）。** 一般 G1=policy_scan 对「位级·等价」等带分隔符变体漏检（实测 0 命中），A-2 addenda 的「0 命中（否定形式豁免）」归因错误（实为分隔符绕过），`receipt.forbidden_phrases` 带点与代码无点不一致 → 建议归一化分隔符 + 纠正归因 + 对齐清单；低 L1=addenda 标题「append-orderr」笔误；观察=工具未入仓、否定窗口 18 字符局限"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-a2-policy-addenda"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 A2-POL 复核；结论 PASS（0 阻断，1 一般 + 1 低 + 2 观察）。G1 须把政策扫描器归一化后才真正防绕过；不宣称任何位级保证。",
+  "created_at": "2026-11-11T12:20:00.000Z",
+  "updated_at": "2026-11-11T12:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-a2-policy-addenda-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "948b7e04d63d9c9f93e47396b2a1b18fd96779cc",
+    "after": null
+  }
+}
