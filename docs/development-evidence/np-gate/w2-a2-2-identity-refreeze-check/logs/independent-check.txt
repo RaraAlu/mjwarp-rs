@@ -1,0 +1,85 @@
+QA A2-2 独立复核记录（只读；零 GPU、零窗）
+复核对象：2026-11-12-w2-a2-2-identity-refreeze（670d322b -> b23d5dae -> 0e5343b8 -> f9d76798）
+环境：Windows / rustc 1.99.0 x86_64-msvc / 仓库 D:\Rust\mjwarp-rs / 基线 HEAD 83ccaa13
+
+[1] 仓库状态与锁
+  git rev-parse HEAD            -> f9d76798696bcd79537b063b553ee3adef287958
+  git status --porcelain        -> 仅外部 agent 两项 untracked（.normify/changes/2026-11-11-code-size-quick-screen.json、
+                                   docs/development-evidence/code-size-quick-screen/），未碰
+  repo-write-lock status        -> REPO_WRITE_LOCK_FREE
+
+[2] 提交链与改动边界
+  git show --name-status 670d322b -> 1 路径（卡 JSON）
+  git show --name-status b23d5dae -> 8 路径（cap20 addenda+manifest、cap32 README+addenda+manifest、
+                                     2 fixture、tests/support/branch_closure_case.rs）
+  git show --name-status 0e5343b8 -> 37 路径（identity 目录、NP02 新波次、inventory.json、receipt.json）
+  git show --name-status f9d76798 -> 卡 JSON + 4 个 gate run
+  git diff --name-status 670d322b^..f9d76798 -- src Cargo.toml Cargo.lock abi scripts build.rs
+                                -> 空（src/Cargo/ABI/scripts 零改动）
+  路径分组（48 总计）：.normify 5 / docs/development-evidence 40 / fixtures 2 / tests/support 1
+  外部 agent 路径：0
+
+[3] 第一节：A2-1 低 L1 修正
+  README sha256/bytes          -> 502c4f35ea6e781e... / 6928
+  addenda sha256/bytes          -> 1b92cac7fed3b550... / 3098
+  manifest sha256/bytes         -> 74f346eeb80e6fdd... / 1378；11 条逐条重算 -> errors=0
+  README 字节 diff（2ee0540d->b23d5dae）-> 仅 §6 一行：改为「不作位级等价声明、不提供位级等价保证」
+  历史文件 blob 对比（receipt/logs/materials 共 9 个）-> 全部 SAME
+  独立复扫：python scripts/np-gate/policy_scan.py <cap32 目录 24 文件> -> files=24 hits=0 RESULT: PASS
+  python scripts/np-gate/policy_scan.py --self-test -> self_test: 34/34 PASS
+
+[4] A1 supersession
+  cap20 README blob（A2-2 前后）-> 52542006b0dc56eba2b176ee3a6914910919c408 相同
+  cap20 manifest               -> 10 -> 11 条（仅追加 1 行）；sha 986d685c... / 1579；重算 errors=0
+  addenda-a2-identity.md        -> f5727d998c6fa76e... / 1775；链 A1(12d50d68/254263/3883769) -> A2(fb03c5b1/254434/3883643)
+
+[5] 身份（源/PTX）
+  新波次 receipts：6 个 .cu = fb03c5b1... / 254434；6 个 .ptx = 78da9dea... / 3883643
+  capture-report.json -> 6/6 gateOk=true、nvrtcVersion [12,8]、cpuOnly=true、gpu=false
+  独立探针（CPU-only NVRTC，无设备上下文）：
+    $env:PATH = target/toolchains/cuda-12.8.1/bin + PATH
+    cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --ignored --nocapture
+    -> nvrtc_smoke_ok ptx_bytes=3883643 entries=6 source_bytes=254434 source_sha256=fb03c5b1...
+    -> 1 passed / 0 failed（933 filtered）
+
+[6] 10 exe 重冻
+  target/a2-freeze/ 10 个 exe -> bytes+sha256 与 refreeze-10-exe.json rows 逐项相等；sha==stash_sha；copy_match 全 true
+  源码树 29 个 .cu -> 逐文件 sha256 全部等于 source_tree_digest.files（29/29）
+  target/s4-freeze、target/m3-freeze -> 磁盘不存在（与「作废」一致）
+  combined digest 266bbf94... -> 我尝试 8 种常见拼接口径均未复现（见观察 O1）；逐文件可复算
+
+[7] fixture 13→15
+  fan-cone-33.obj -> 58908058... / 1425 B；prism-33.obj -> bb1b05c2... / 3382 B
+  cargo test --locked --features cuda-probe --test g10_p5_branch_closure_cuda
+    -> 3 passed / 0 failed / 2 ignored（与 logs/fixture-guard-test.log 一致）
+  LIMIT_CASES 仍为 2；33-gon fixture 仅出现在 FIXTURE_SHA256 守卫表 -> over-32 不进 pass/fail
+
+[8] NP02 6 行
+  新波次 manifest -> 20 条逐条重算 errors=0
+  receipt.json receipts -> 27 -> 33（+6）；前缀 27 条字段不变；重复 (entry,ptxSha256)=0
+  脚本 scripts/np02-evidence/np02-capture-new-kernels.py cmd_index：以 (entry,ptxSha256) 去重 -> 幂等
+  inventory.json -> 102 行不变；仅 6 行改 artifact.ptx_sha256[0] 与 artifact.evidence_paths[0]；
+                    其余 96 行零改动；文件 264468 -> 264474（+6 B）；counts 715/711 等不变
+  new-kernels-2026-11/ 旧波次 -> 本提交内零改动
+  全量重算：未执行，README §4 / receipt / mapping 三处如实记录；未见「inventory 全量一致」声明
+
+[9] manifest / 门禁 / 卡
+  identity manifest 11/11、NP02 新波次 20/20、cap32 11/11、cap20 11/11 -> 重算 errors=0
+  .normify/runs/2026-11-12-w2-a2-2-identity-refreeze/unit.json -> 1409 passed / 0 failed / 402 ignored / exit 0
+  卡 status=verified、closed_at=2026-11-11T17:49:48.785Z；13 项检查 = 4 gate + unchanged src/ + 8 json 指针
+    8 条 json 指针逐条对照实际值（task_id/verdict/两个 sha/entries=6/exe_count=10/guard_count=15/policy_scan_hits=0）-> 全满足
+
+[10] A2-3 计划（只计划）
+  a2-3-window-plan.md 7642 B：矩阵覆盖 M2/M3/S4-9/U7/U8/A1/A2 边界/over-32/NP02/stage2；10 exe 清单；
+  单窗互斥、fresh freeze、零 Rust 编译、monitor 60/60、三点基线、floor 取严、fail-stop、sha 守卫 10+15+2、
+  参考只绑定不重采、attempt<=2、四前提清单、待裁决点；无通过声明
+
+[11] 发现（详见 README §10）
+  低 L1：logs/policy-scan-a2-1-evidence.log 为中间失败快照（files=12 hits=2 RESULT: FAIL）；
+         最终态我独立复扫 0 命中 + self-test 34/34；结论不受影响
+  低 L2：两处 README 写「25 -> 33」，实际 27 -> 33（mapping 自记 27/6/33；25+6=31 不自洽）
+  观察 O1：combined digest 口径未记载；O2：计划稿头部「不入仓」与实际入仓矛盾；O3：L128 注释仍写 13 个 fixture
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 + 2 低 + 3 观察）。
+非声明：不宣称 U7/U8 通过、mesh 容量缺口已清、G10@P5 整族通过、NP01/NP02 门禁通过、与上游等价（over-32）；
+不作位级等价声明、不提供位级等价保证。零 GPU、零窗；未改判据/参考/容差/夹具/源码。
