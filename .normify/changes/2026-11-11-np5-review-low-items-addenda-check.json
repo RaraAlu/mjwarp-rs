@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-review-low-items-addenda-check",
+  "title": {
+    "zh": "QA 复核 NP5-REVIEW-LOW（NP5 复核低项 append-only addenda，`f9eb64e1`）：**PASS（0 阻断，0 一般 + 0 低 + 2 观察）**——五处低项全部按 append-only 处置到位：收尾 L1 双口径限定（我从 11 片 608 条 entries 独立复算：算术站点 541 = 230+132+179、去重 531（移除 10 个 `rigid_com_position` tail：acc:0/1/2、int:0–3、out:0–2）、rounding-note 67 = 49 段 3 段 + 18 段 4 段按行独立、**531+67=598=608−10**；反例 15 共享 key（10 算术 + `rounding-note:0..4` 跨 15/14/12/6/2 行）、严格 554、单次计 593，全部与 addenda 吻合）、收尾 L2 片数「11 站点片 + 4 设备证据片 + 5 治理卡」、NP5-02 L1 分层全列 3 站点 id + L2 §3、NP5-03 L3 `unimplemented=7` 历史快照 vs `remaining=4` 加注；11/11 历史文件逐字节未改、manifest closing 3→4 / np5-03 4→5 / np5-02 5 全对、items 9 条（fixed 5/recorded 3/already_corrected 1）、W4 §3 笔误 §9 更正（`316b28dd`）核实、policy 0 命中 + self-test 34/34、门禁 1,406/0/402",
+    "en": "QA review of NP5-REVIEW-LOW: PASS (0 blockers, 0 major + 0 low + 2 observations); five low items append-only disposed, closing L1 numbers independently recomputed and matching (541/531/67/598/554/15/593), 11/11 historical files byte-identical, manifests recomputed, items 9, W4 typo verified, policy scan 0 + self-test 34/34, gates 1406/0/402"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 NP5-REVIEW-LOW（`f9eb64e1`）做独立只读复核（零 GPU）：①收尾 L1 双口径限定与 593 反例（从 608 条 entries 独立复算）；②收尾 L2 片数口径；③NP5-02 L1/L2、NP5-03 L3 处置；④11 个历史文件字节未改、三目录 manifest 重算；⑤items.json 9 条与 W4 §3 笔误更正；⑥policy_scan/self-test/门禁/编码/边界。只写本卡证据。",
+    "en": "Independent read-only review of the NP5 low-item addenda: dual-count qualification and counterexample recompute, slice-count wording, NP5-02/03 dispositions, append-only bytes, manifests, items, W4 typo, scans/gates/hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**收尾 L1 ✅**：我从 11 片 evidence 的 608 条 entries 独立复算——算术站点 541（intermediate 230/accumulation 132/output 179）、`(kernel,kind,index)` 去重 531（移除 10 个 `rigid_com_position` tail：`acc:0/1/2`、`int:0–3`、`out:0–2`）、`rounding-note` 67（49 条 3 段 + 18 条 4 段）按行独立、**531+67=598=608−10**；反例 15 共享 key（10+5，`rounding-note:0..4` 跨 15/14/12/6/2 行）、严格集合 554、单次计 593——与 addenda 三组数字逐一吻合，结论仍 608=598+10",
+    "**收尾 L2 / NP5-02 / NP5-03 ✅**：L2 写明「11 站点片 + 4 设备证据片 + 5 治理卡」并以 `slice_count=11` 为准；NP5-02 L1 全列 A-1a 3 站点 id（`sparse_mass_diag:accumulation:2`、`small_prefix…:accumulation:1`、`rigid_mass_solve:accumulation:3`）且把 `accumulation:5` 单列为同站点两层不重复计、L2 改为 §3；NP5-03 新增 addenda 注明 `unimplemented=7` 为历史快照、剩余 4 以 `unimplemented_remaining=4` 为准",
+    "**append-only/manifest ✅**：11/11 历史文件 `git cat-file blob` 与基线逐字节相同（closing vs `5a5f0d9c`、np5-02 vs `ac840ff7`、np5-03 vs `d46f435f`）；三目录 manifest closing 3→4 / np5-03 4→5 / np5-02 5，我按行重算 sha/bytes 与集合全对、表头注明 addenda 与 historical unchanged",
+    "**items/W4/扫描/门禁 ✅**：items.json 9 条（NP5-02-L1/L2/O1、NP5-03-L3、CLOSING-L1/L2、D-2-O1/O2、W4-GOV-§3-TYPO），fixed 5/recorded 3/already_corrected 1；W4 §3 笔误由 §9（`316b28dd`）更正为「实体 7 卡×3=21，总数 25」，我 `git log -S` 核实；policy_scan 6 文件 0 命中 + `--self-test` 34/34；门禁 1,406/0/402；提交无 src/tests/fixtures/scripts 改动；UTF-8/LF 无 BOM/裸 CR/NUL",
+    "**结论：复核通过（0 阻断，0 一般 + 0 低 + 2 观察）。** 观察 O1=ERRATA-E O1 注记实际由 W8-00（`96b8d201`）引入、不在本卡提交（内容正确，W8-00 复核时再核）；O2=W4 §3 更正随附在 `316b28dd`（NP5-01b 提交）里，可追溯但提交归属略分散"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-review-low-items-addenda"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-review-low-items-addenda-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 NP5 低项 addenda 复核；结论 PASS（0 阻断，2 观察）。收尾 L1 三组数字我独立复算吻合；不宣称 NP01/NP02 通过。",
+  "created_at": "2026-11-11T15:10:00.000Z",
+  "updated_at": "2026-11-11T15:10:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-review-low-items-addenda-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-review-low-items-addenda-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-review-low-items-addenda-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "e6cd57053cfdfbcc4047fb525c48768a9117ee9e",
+    "after": null
+  }
+}
