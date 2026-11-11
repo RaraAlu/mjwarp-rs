@@ -1,0 +1,41 @@
+# QA independent checks for the low-findings addenda batch (commit 4353796d, zero GPU)
+#
+## 1) append-only (QA verified prefix byte-for-byte; old_sha256 == sha256(new[:old_bytes]))
+# np-gate/README.md                                     9478 -> 11576  sha 3f820851... -> 4cc553946c1898ff4c51607fb6e9b855ec2d96f6a5114975a0cc982c30fb0117
+# np-gate/np5-01b/README.md                             6108 ->  6973  sha af416071... -> 94b39766072f7302fa4a08bd61b85711445a78bd904a62a7c9f17001e0688eba
+# plan/W0-W9.md                                        14120 -> 15202  sha 63caa15c... -> 749c1ceb959dc11c72da4e1b20b8379829616ca35c6e34c8c0712d5dbfe80dbe
+# render-bvh/r06-...-fill/README.md                     7940 ->  9392  sha 3f7da3a1... -> 143fa2174ec85ff8b0ce9b2b3e2c721b9649c097e714d8cdf969ccc3ce23d443
+# all four: common prefix == old length (pure append)
+#
+## 2) JSON structural change via new version file
+# np5-01b/receipt-v2.json NEW 4800 B sha da81edf4a7fa4e61208e78b208c05d84c3a57801ad66f70919d02b100b1a5d26
+#   tree.head = cead8bac154a7dc4fa033a6738d96579202a4922 (parent of main commit 316b28dd; gates + existence-check ran there)
+#   supersedes receipt.json sha c48568578b9e1244212b21d66e67095a49486b07c74b7f97973f7e5bf29ea63d / 6317 B
+#   QA measured old receipt.json: sha c4856857... / 6317 B => unchanged (byte-identical)
+# ledger / implemented-subsystems.json / unregistered-units.json / existence-check.txt: no diff (historical semantics untouched)
+#
+## 3) manifests recomputed by QA (independent)
+# np-gate                      8 rows bad=0  (README new sha + 7 unchanged incl. 2 repo-relative scripts rows)
+# np-gate/np5-01b              6 rows bad=0  (README new + receipt-v2 new + old receipt + 2 JSON + log)
+# plan/W0-W9.manifest.txt      2 rows bad=0
+# plan/review-low-findings-addenda 2 rows bad=0 (README + receipt, not self-listed)
+# render-bvh/...-fill          7 rows bad=0  (README new + 6 unchanged)
+#
+## 4) 8 lows classification (matches batch README/receipt)
+# closed_in_original 2: C-L2 (card E), G-L1 (card J section 9)
+# fixed_this_batch 5: F-L2 (tree.head attribution), F-L3 (task draft note), J-L1 (receipt-v2 tree.head), B-L1 (section 2.1 U8/U7), C-L1 (cam_res 27 items)
+# backlog 1: F-L1 (ledger field split + checker assertion)  => 2+5+1 = 8
+# batch receipt sha 8d15deea94515845554bac4be6342b7b3b7ff8b20eba71f1be6ca9c4558a37d7 / 5040 B; README 4255 B
+#
+## 5) boundaries / encoding / gates
+# commit files: 4 append docs + 4 manifests + receipt-v2 + 3 batch evidence files + card K + 4 gate records
+# no src/tests/fixtures/scripts changes; guards/freeze script untouched; no criteria/reference/tolerance change; zero GPU/windows
+# all changed docs UTF-8/LF, no BOM/CR/NUL
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+#
+## 6) low finding / observations
+# L1 backlog count: batch receipt says backlog=1 (F-L1) but the C-L1 addendum leaves another follow-up:
+#    tests/support/render_bvh/multiframe_recipe.rs still says "单帧验收亦为隐式比对" / "cam_res 隐式" (lines 8/51/131/168, QA measured);
+#    K says a later test-side tiny card handles it, but it is neither counted nor registered -> suggest backlog=2 or register the card.
+# O1 F-L1 only removes the misreading; the ledger field split + checker assertion still need the next ledger version.
+# O2 positive: old_sha256 == sha256(new[:old_bytes]) proof + version-file JSON + derived-manifest-only recompute is reusable.

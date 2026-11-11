@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-review-low-findings-addenda-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "4353796d4f6eb6508d7fc651a89ade2d1b4ffa17",
+    "card": "2026-11-11-review-low-findings-addenda",
+    "card_alias": "card K of the 2026-11-11 12:00 window"
+  },
+  "summary": "PASS: 0 blocker, 1 low, 2 observations. All four historical files are pure appends (old_sha256 == sha256(new[:old_bytes]) verified per file); the JSON change is a new version file receipt-v2.json (tree.head cead8bac, supersedes c4856857) with the old receipt byte-identical; five derived manifests recompute correctly with all other rows unchanged; the 8 lows split as closed 2 + fixed 5 + backlog 1 and match the batch README/receipt; write scope only docs/.normify, ledger and historical semantics untouched; encoding clean and gates 1406/0/402.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "backlog 计数未覆盖 C-L1 的测试源注释 follow-up",
+      "detail": "Batch receipt backlog=1 counts only F-L1, but the C-L1 addendum leaves another follow-up: tests/support/render_bvh/multiframe_recipe.rs still contains the old wording ('单帧验收亦为隐式比对'/'cam_res 隐式' at lines 8/51/131/168 as QA measured) and K says a later test-side tiny card will handle it - that item is neither counted nor registered. Suggest backlog=2 or register the follow-up."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "F-L1 只消除误读，账本字段拆分仍待下一版",
+      "detail": "The addendum explains bare-value-plus-reason matching; the actual field split (np01_status/reason) and the checker assertion for that field remain for the next ledger version, ideally together with the NP5-01a next round."
+    },
+    {
+      "id": "O2",
+      "title": "（正向）append-only 证明方法可复用",
+      "detail": "old_sha256 == sha256(new[:old_bytes]) proof, JSON structural changes via version files, and manifest recomputation limited to derived rows - a clean pattern for later addenda/errata batches."
+    }
+  ],
+  "verified": {
+    "append_only": "np-gate/README 9478->11576 (4cc55394), np5-01b/README 6108->6973 (94b39766), W0-W9.md 14120->15202 (749c1ceb), recipe-fill README 7940->9392 (143fa217); each common prefix == old length; QA measured old hashes == claimed",
+    "receipt_v2": "new receipt-v2.json 4800 B / da81edf4... with tree.head cead8bac (parent of 316b28dd; gates + existence-check ran there), main_commit, head_source, supersedes receipt.json c4856857/6317; old receipt byte-identical (QA measured)",
+    "unmodified_history": "ledger, implemented-subsystems.json, unregistered-units.json, existence-check.txt have no diff",
+    "manifests": "np-gate 8/8, np5-01b 6/6, plan/W0-W9 2/2, batch dir 2/2, recipe-fill 7/7 - all recomputed bad=0 and not self-listed",
+    "lows": "8 = closed_in_original 2 (C-L2 via card E, G-L1 via card J section 9) + fixed 5 (F-L2/F-L3/J-L1/B-L1/C-L1) + backlog 1 (F-L1); batch receipt 8d15deea/5040, README 4255",
+    "addenda_content": "F section 6 (L1/L2/L3 + O1), J section 7 (receipt-v2/supersedes), B section 9 (U8/U7 wording + compliance rewrite note), C section 8 (cam_res explicit-vs-implicit correction, 27 actual items; L2 references card E) - all match the reviewed findings",
+    "boundaries": "commit = 4 append docs + 4 manifests + receipt-v2 + 3 batch evidence files + card K + 4 gate records; no src/tests/fixtures/scripts changes; guards/freeze script untouched; no criteria/reference/tolerance change; zero GPU/windows",
+    "encoding": "all changed docs UTF-8/LF, no BOM/CR/NUL",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored",
+    "no_pass_claims": "batch README section 4 non-claims and every addendum state no gate/NP pass, no equivalence/dual-platform claim"
+  },
+  "non_claims": [
+    "does not claim gate pass / NP01 / NP02 pass / upstream equivalence / dual platform",
+    "does not change ledger bytes or historical evidence semantics; does not re-run windows",
+    "zero GPU; review limited to append-only integrity, closure classification and boundaries"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}
