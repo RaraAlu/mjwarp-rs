@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "task": "a2-capacity-32-32-slices",
+  "date": "2026-11-12",
+  "context": {
+    "user_decision": "U7/U8 提升为 pass/fail；A2 容量 20/10 -> 32/32（签名级）",
+    "a1_state": "A1 已实现 16->20（U8 路径），U7 未动；无 GPU 验证窗；collision 身份 A1 后 254,263 B/12d50d68、PTX 3,883,769 B",
+    "abi": "零 ABI/零槽位改动（81 槽、CollisionArgs、launch 签名、JSON 字段不动）",
+    "windows": "A2 全程 0 窗实现 + 1 个 GPU 验证窗（fresh freeze；需首席按四前提开）"
+  },
+  "slices": [
+    {
+      "id": "A2-1",
+      "name": "容量 32/32 代码面 + 边界单测",
+      "windows": 0,
+      "write_scope": ["src/physics/collision/cuda/", "src/physics/collision/gjk/multicontact/", "src/runtime/collision_gpu/", "tests/"],
+      "device_changes": [
+        {"file": "src/physics/collision/cuda/multicontact_geom.cu", "lines": "384-385", "now": ["G5_MC_MESH_DEG_MAX 10", "G5_MC_MESH_FACE_MAX 20"], "target": ["32", "32"], "comment": "A2（2026-11-12）：容量 32/32，U7/U8 已提升为 pass/fail；over-32 为限制"},
+        {"file": "src/physics/collision/cuda/contact.cu", "lines": "216-228", "now": {"polygon": 40, "clipped": 40, "pnormal": 20, "pdist": 20, "idx1": 10, "idx2": 10, "n1": 10, "n2": 10, "endvert": 10, "face1": 20, "face2": 20}, "target": {"polygon": 64, "clipped": 64, "pnormal": 32, "pdist": 32, "idx1": 32, "idx2": 32, "n1": 32, "n2": 32, "endvert": 32, "face1": 32, "face2": 32}},
+        {"file": "src/physics/collision/cuda/multicontact.cu", "lines": "13-15", "target": "容量注释 40->64 / 20->32；degree 32（U7 已提升）"},
+        {"file": "src/physics/collision/cuda/multicontact_clip.cu", "lines": "10-11", "target": "plane_dist 32、polygon_out/clipped_out 64 注释"},
+        {"file": "src/physics/collision/cuda/multicontact_mesh.cu", "lines": "12-13,120,148,180", "target": "容量注释 32/32；guard 保留（defense-in-depth）"}
+      ],
+      "host_changes": [
+        {"file": "src/physics/collision/gjk/multicontact/clip.rs", "now": "pn/pd [20]; polygon/clipped vec![..;40]", "target": "pn/pd [32]; polygon/clipped vec![..;64]；新增容量前置检查 nface1>32 || nface2>32 -> 返回空结果（不 panic）"},
+        {"file": "src/runtime/collision_gpu/types.rs", "lines": "141,143", "now": {"MESH_MULTICONTACT_FACE_MAX": 20, "MESH_MULTICONTACT_DEGREE_MAX": 10}, "target": {"MESH_MULTICONTACT_FACE_MAX": 32, "MESH_MULTICONTACT_DEGREE_MAX": 32}},
+        {"file": "src/runtime/collision_gpu/error.rs", "lines": "27-28", "target": "容量错误措辞 32/32"},
+        {"file": "src/runtime/collision_gpu/inputs_from_snapshot.rs", "target": "容量测试边界更新 + 注释 32/32"}
+      ],
+      "unit_test_list": [
+        "polygon_clip_accepts_thirty_two_vertex_face1 (face1=32; ncontact<=4)",
+        "polygon_clip_accepts_thirty_two_vertex_face2 (face2=32; 64-slot scratch; ncontact<=4)",
+        "polygon_clip_rejects_thirty_three_vertex_face (33 -> 不 panic、确定性空结果)",
+        "product_entry_accepts_face_32_degree_32_boundary (模型级 32/32 -> inputs_from_snapshot 接受)",
+        "product_entry_rejects_face_33 (Face 容量错误)",
+        "product_entry_rejects_degree_33 (Degree 容量错误)",
+        "host_limits_match_device_macros (沿用，自动核对常量与 .cu 宏)",
+        "keep A1: polygon_clip_accepts_twenty_vertex_face1/face2"
+      ],
+      "acceptance": ["CPU 单测全 PASS", "host 容量门机器可判（33 -> 确定错误）", "ABI 零改动", "无 src/fixtures 之外改动", "A1 2 条测试不回退"]
+    },
+    {
+      "id": "A2-2",
+      "name": "内核身份重采影响 / 重冻清单",
+      "windows": 0,
+      "identity": {
+        "probe": "cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --ignored --nocapture",
+        "before": {"assembled_source_sha256": "12d50d68…", "assembled_source_bytes": 254263, "ptx_bytes": 3883769, "ptx_sha256_prefix": "54ab59e3", "entries": 6},
+        "after": "A2 后必须重新记录 assembled source / PTX sha+bytes（必然变化）；旧 A1 身份作废，证据 addendum 声明",
+        "refreeze_required": true
+      },
+      "refreeze_list": {
+        "exes": ["g10_p5_branch_closure_cuda", "g10_p5_nvrtc_launcher", "g10_p5_multicontact_cuda", "g10_p5_primitive_cuda", "g10_p5_primitive_plane_cuda", "g10_p5_primitive_sphere_capsule_cuda", "g10_p5_primitive_branches_cuda", "g10_p5_mesh_multicontact_m2_cuda", "g10_p5_mesh_multicontact_m3_cuda", "stage2_equivalence_window"],
+        "fixtures": {"current": 13, "mesh_5_unchanged": true, "if_new_33_boundary_fixtures": "13 -> 15（fan-cone-33 / prism-33，新增 sha 守卫）"},
+        "references": {"current": 2, "upstream_mesh_limits_unchanged": "b6abb8fa…", "if_device_over32_reference": "仅当需要 over-32 设备对照才另采；仅 host 拒绝则可不采（见 criteria §1.3）"},
+        "not_affected": ["render guards（perworld-l2-light 94478b3d…/43,729 B 与 93 输入清单）", "其它子系统冻结"]
+      },
+      "np02_impact": {
+        "rows": ["mjwarp_collision_boxbox", "mjwarp_collision_contact", "mjwarp_collision_contact_multi", "mjwarp_collision_hfield", "mjwarp_collision_primitive", "mjwarp_collision_sdf"],
+        "old_ptx_sha_prefix": "54ab59e3",
+        "old_ptx_bytes": 3883769,
+        "action": "A2 后 CPU-only 重采 6 条回执（np02-capture-new-kernels.py 同法；NVRTC 12.8.93、不建上下文），更新 inventory/receipt 指针；归 NP5-03/NP02 证据面",
+        "counts_note": "计数结构不变（仍 100 路径/96 内核/回执 713），仅身份更新；若按新回执改计数须显式改棘轮测试"
+      },
+      "a1_supersession": {"file": "docs/development-evidence/g10-p5-mesh-cap20/README.md", "rule": "addendum 追加（不改原文），写「A1 254,263/12d50d68 -> A2 新身份」"},
+      "freeze_discipline": ["新目录 target/a2-freeze/", "fail-stop", "单写者", "开窗前基线+floor 贴群", "失败即停不重试"]
+    },
+    {
+      "id": "A2-3",
+      "name": "M2/M3/S4 重放矩阵与判据",
+      "windows": 1,
+      "replay_matrix": [
+        {"item": "M2 convex-vs-mesh (2 case: mesh-box/mesh-cylinder)", "command": "cargo test --locked --features cuda-probe --test g10_p5_mesh_multicontact_m2_cuda -- --ignored --test-threads=1", "criteria": "mesh 比较器：count 零容差、结构配对、位级优先/4·ULP@scale 回退、contact.geom=[1,0]", "expected": "保持 M2 已验收结果（4/4 位级、ULP 0）"},
+        {"item": "M3 mesh-mesh (count=4)", "command": "--test g10_p5_mesh_multicontact_m3_cuda；CPU: --test g10_p5_mesh_m3_case_assembly", "criteria": "同上；参考 96e7895d…", "expected": "bit_equal 4/4、ULP 0；CPU 18 条自检 PASS"},
+        {"item": "S4 branch 验收组 9 case (U1/U3x5/U4/U5/U6)", "command": "g10_p5_branch_closure_cuda（A2 后新冻）", "criteria": "原 S4 判据：nacon==ref_count、failures=0、位级/≤4 ULP", "expected": "9/9 failures=0 保持"},
+        {"item": "S4 limits U7/U8（提升）", "command": "同上 exe limits 组", "criteria": "u7-u8-criteria.json §pass_rule（U7 需 dist/pos 全等）", "expected": "U7 count=1 且字段全等；U8 count=4（提升前设备 1）"},
+        {"item": "A1 CPU 回归（20-vertex）", "command": "cargo test --locked --lib（multicontact 模块）", "criteria": "原断言", "expected": "保持 PASS"},
+        {"item": "A2 边界 CPU（7 条）", "command": "A2-1 清单", "criteria": "见 A2-1", "expected": "全 PASS；33 不 panic；host 拒绝可判"},
+        {"item": "NP02 回执（CPU-only）", "command": "np02-capture-new-kernels.py 同法 6 条", "criteria": "file/PTX hash 通过、6 入口", "expected": "新 PTX sha 入 NP02"}
+      ],
+      "window_plan": {
+        "windows": 1,
+        "kind": "validation（非 authoring）",
+        "preconditions": ["fresh freeze（A2 身份）", "monitor 60/60", "floor 取严", "单写者", "零 Rust 编译", "开窗前基线+计划贴群", "fail-stop 不重试不放宽"],
+        "outputs": ["U7/U8 设备 32 数组", "contact.geom 顺序断言", "overflow=0 / efc_address=-1 不变量", "guard 无 abort 记录"],
+        "non_claims": ["不宣称 G10@P5 整族通过", "不宣称 U8 已验收（只按判据判 U7/U8 两条）", "不宣称与上游一致（over-32）"]
+      }
+    }
+  ],
+  "prerequisites": ["用户签名（已生效）", "A2-1 实现 + CPU 测试", "A2-2 身份记录 + 新冻结", "A2-3 验证窗（Chief 按四前提开窗）"],
+  "non_claims": ["本 JSON 是范围建议，不是排期/验收", "不改判据/参考/容差", "0 窗部分可先行，GPU 验证窗单列"]
+}
