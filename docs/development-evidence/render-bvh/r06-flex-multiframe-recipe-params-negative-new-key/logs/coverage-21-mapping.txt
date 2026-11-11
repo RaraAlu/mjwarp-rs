@@ -1,0 +1,19 @@
+# 负例覆盖新增键 × 21 项新增断言的对应关系（卡 E）
+# 断言实现：tests/support/render_bvh/multiframe_recipe.rs::assert_params_match_capture
+# 直接负例：翻转 use_textures（10 个新增布尔之一）→ catch_unwind 必须 panic（已由 cargo test 实证）
+
+group (count)                    assertion form / code location                     direct negative?
+1  nworld (1)                    assert_eq!(params.nworld, 1)                     no (spec asks minimal = 1 new-key negative)
+2  render_rgb/depth/seg (3)      assert_eq!(*spec, Some(RenderFlagSpec::Bool(..))) no
+3  use_textures + 9 bools (10)   assert_eq!(value, boolean(name)) in data loop    YES: use_textures (same data-driven loop,
+                                                                                   so the same assertion path is proven non-vacuous)
+4  shadow_light_fraction (1)     assert_eq!(params.shadow_light_fraction, f64)    no
+5  splat_* null (6)              assert!(recipe[name].is_null()) + splat.any_present()==false  no
+   subtotal 21 new assertions
+
+notes:
+- The negative case mutates a cloned capture.parameters value; the 21-item comparison itself is unchanged.
+- Existing-key negative kept: samples_per_pixel (pre-existing comparison since the 7-item scope).
+- Honest scope: only the bool form is directly exercised by a negative here; nworld/render-flag/f64/splat-null forms are
+  compared by their own asserts (code lines above) but no targeted negative was requested/added by the zero-deviation
+  spec (minimal = 1 new-key negative). This is recorded as a non-claim, not as negative coverage for those forms.

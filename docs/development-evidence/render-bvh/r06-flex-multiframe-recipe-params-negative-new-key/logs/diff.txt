@@ -1,0 +1,48 @@
+# card E diff (tests/support/render_bvh/multiframe_recipe.rs)
+diff --git a/tests/support/render_bvh/multiframe_recipe.rs b/tests/support/render_bvh/multiframe_recipe.rs
+index ee4c1a02..9baa3baf 100644
+--- a/tests/support/render_bvh/multiframe_recipe.rs
++++ b/tests/support/render_bvh/multiframe_recipe.rs
+@@ -135,31 +135,31 @@ fn recipe_params_match_capture_28_item_cpu_self_check() {
+     assert_params_match_capture(&params, &crate::multiframe::capture()["parameters"]);
+ }
+ 
+-/// 反例（**非空转证明**）：翻转/改动参数后断言必须 panic；未改动时必须通过。
++/// 反例（**非空转证明**）：**既有键**与**新增键**各翻转一次，断言必须 panic；未改动时必须通过。
+ #[test]
+ fn recipe_param_mismatch_is_detected() {
+     use std::panic::{AssertUnwindSafe, catch_unwind};
+     let params = crate::multiframe::context_params();
+     let base = crate::multiframe::capture()["parameters"].clone();
+-    // 反例 1：翻转本次**新增**的布尔项 use_shadows。
+-    let mut flipped = base.clone();
+-    flipped["use_shadows"] = Value::Bool(!base["use_shadows"].as_bool().expect("bool"));
++    // 反例 1（**既有键**，7 项口径时代就已比对）：改动 samples_per_pixel。
++    let mut bumped = base.clone();
++    bumped["samples_per_pixel"] = Value::from(base["samples_per_pixel"].as_u64().expect("u32") + 1);
+     let caught = catch_unwind(AssertUnwindSafe(|| {
+-        assert_params_match_capture(&params, &flipped)
++        assert_params_match_capture(&params, &bumped)
+     }));
+     assert!(
+         caught.is_err(),
+-        "use_shadows 翻转后断言必须 panic（证明比对非空转）"
++        "既有键 samples_per_pixel 改变后断言必须 panic（证明既有比对非空转）"
+     );
+-    // 反例 2：改动**既有**项 samples_per_pixel。
+-    let mut bumped = base.clone();
+-    bumped["samples_per_pixel"] = Value::from(base["samples_per_pixel"].as_u64().expect("u32") + 1);
++    // 反例 2（**本片新增的 21 项断言之一**）：翻转 use_textures，证明新增断言非空转。
++    let mut flipped = base.clone();
++    flipped["use_textures"] = Value::Bool(!base["use_textures"].as_bool().expect("bool"));
+     let caught = catch_unwind(AssertUnwindSafe(|| {
+-        assert_params_match_capture(&params, &bumped)
++        assert_params_match_capture(&params, &flipped)
+     }));
+     assert!(
+         caught.is_err(),
+-        "samples_per_pixel 改变后断言必须 panic（证明比对非空转）"
++        "新增键 use_textures 翻转后断言必须 panic（证明新增 21 项断言非空转）"
+     );
+     // 正例对照：未改动时必须通过。
+     assert_params_match_capture(&params, &base);

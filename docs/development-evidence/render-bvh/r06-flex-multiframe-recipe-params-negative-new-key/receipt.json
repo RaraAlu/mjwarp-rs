@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key",
+  "verdict": "PASS",
+  "kind": "r06-recipe-params-negative-new-key",
+  "status": "test_side_only_zero_gpu",
+  "sources": {
+    "chief_instruction": "R06 recipe-params review PASS but both negative cases used pre-existing keys; zero-deviation minimal fix = 1 existing-key + 1 new-key negative",
+    "spec": "target/render-bvh/gl2-ptx-diff/r06-recipe-params-spec.md (d7fcf156d7ce7f1fec0f30d13d96a53d88b2045dcfc7eef23aafa1f0a9656638 / 7608 B, target/ work material, not evidence)",
+    "prior_card": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill (commit 20015625)"
+  },
+  "change": {
+    "file": "tests/support/render_bvh/multiframe_recipe.rs",
+    "function": "recipe_param_mismatch_is_detected",
+    "existing_key_negative_kept": "samples_per_pixel (compared since the 7-item scope)",
+    "new_key_negative_added": "use_textures (one of the 21 new assertions; catch_unwind must panic; message names the new key)",
+    "comparison_assertions_unchanged": true,
+    "diff": "11 insertions / 11 deletions, all inside the counterexample block",
+    "file_lines": 188
+  },
+  "coverage_mapping": {
+    "new_assertions_total": 21,
+    "direct_new_key_negative": ["use_textures (10-bool data-driven group, same assertion path)"],
+    "not_directly_negated_by_spec": [
+      "nworld (1)",
+      "render_rgb/render_depth/render_seg (3, Option<RenderFlagSpec> form)",
+      "shadow_light_fraction (1, f64 eq form)",
+      "splat_* null (6, assert! form)"
+    ],
+    "honesty_note": "only the bool form is directly exercised by a negative; the other forms are compared by their own asserts but no targeted negative was requested/added under the zero-deviation minimal spec",
+    "detail": "logs/coverage-21-mapping.txt"
+  },
+  "tests": {
+    "command": "cargo test --locked --features cuda-probe --test render_flex_multiframe -- --test-threads=1",
+    "result": "41 passed / 0 failed / 1 ignored (exit 0; test count unchanged vs card C)"
+  },
+  "test_binary_identity": {
+    "target": "tests/render_flex_multiframe.rs",
+    "old": {
+      "sha256": "d226bb76dfa22c42b45c4ab49637ec5a01ea336f9949994f293b26e826d21488",
+      "bytes": 118588392,
+      "note": "card C point value; exe not rebuilt since"
+    },
+    "new": {
+      "sha256": "0966bf4cccc7312c26c1204a2148473c597a833b4c04bc8e7a216ca8eccdaef4",
+      "bytes": 118588904
+    },
+    "delta_bytes": 512,
+    "measurement_caveat": "same-source rebuilds are not byte-reproducible in this environment (see perworld-l-v2-two-run-sha-print/logs/identity-measurements.txt); identity is taken from the built/frozen artifact",
+    "freeze_rule": "later R06 windows must re-freeze executables; this card does not re-freeze and takes no GPU window"
+  },
+  "addendum_written": {
+    "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill/README.md",
+    "section": "7. append-only addendum (2026-11-11 card E)",
+    "content": "spec sha d7fcf156.../7608 B recorded; new-key negative change; exe identity supersession d226bb76 -> 0966bf4c",
+    "original_bytes_unchanged": true,
+    "manifest_recomputed": true
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": {
+      "passed": 1406,
+      "failed": 0,
+      "ignored": 402
+    },
+    "recorded_in": ".normify/runs/2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key/"
+  },
+  "boundaries": {
+    "src_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "cu_unchanged": true,
+    "kernel_identity_unchanged": true,
+    "criteria_changed": false,
+    "capture_json_untouched": true,
+    "gpu_used": false,
+    "re_frozen": false
+  },
+  "manifest": "manifest.txt (sha256 + bytes, does not list itself)",
+  "non_claims": [
+    "does not claim any rendering numeric or device-side behavior change",
+    "does not claim negative coverage for the non-bool assertion forms (nworld/render flags/shadow_light_fraction/splat null)",
+    "does not change the 21-item comparison or any criterion/reference/tolerance/camera/recipe",
+    "does not re-freeze guards/executables and takes no GPU window"
+  ]
+}

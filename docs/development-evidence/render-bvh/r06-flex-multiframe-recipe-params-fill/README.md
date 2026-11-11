@@ -75,3 +75,15 @@
 - 边界：`unchanged src/`、`fixtures/`、`scripts/`；`guards-perworld-l2-light.json` `94478b3d…`/43,729 B 只读核对未变；
   `guards-r06-multiframe.json` `64bfecdf…`/11,899 B 只读未变（`logs/guards-untouched.txt`）。
 - 非声明：不宣称渲染数值/等价/发布结论；不改任何判据/参考/容差/相机/recipe；`capture.json` 只读；零 GPU。
+## 7. 追加（2026-11-11 卡 E；append-only，原文字节不改）
+
+- **规格 sha 补入**：Arch 定稿规格 `target/render-bvh/gl2-ptx-diff/r06-recipe-params-spec.md` =
+  **`d7fcf156d7ce7f1fec0f30d13d96a53d88b2045dcfc7eef23aafa1f0a9656638` / 7,608 B**（`target/` 工作材料，非证据）。
+- **反例非空转补强（卡 E）**：原 `recipe_param_mismatch_is_detected` 的两个负例都落在**既有**键上；卡 E 改为
+  「1 个既有键（`samples_per_pixel`）+ 1 个**新增键**（`use_textures`，21 项新增断言之一）」，两次 `catch_unwind`
+  均必须 panic。21 项新增断言与 `assert_params_match_capture` 口径零改动；证据见
+  `r06-flex-multiframe-recipe-params-negative-new-key/`。
+- **exe 身份 supersession**：本文 §5「本卡后 live `d226bb76…`/118,588,392」是卡 C 时点构建值；卡 E 后新 live =
+  **`0966bf4cccc7312c26c1204a2148473c597a833b4c04bc8e7a216ca8eccdaef4` / 118,588,904 B**。同源重建 exe sha 不保证
+  逐字节可复现（见 `perworld-l-v2-two-run-sha-print/logs/identity-measurements.txt`），exe 身份以冻结产物为准；
+  后续 R06 窗口仍需重冻。
