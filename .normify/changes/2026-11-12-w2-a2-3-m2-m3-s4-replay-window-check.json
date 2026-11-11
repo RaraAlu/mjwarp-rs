@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-a2-3-m2-m3-s4-replay-window-check",
+  "title": {
+    "zh": "QA 复核 W2/A2-3 M2/M3/S4 重放验证窗（证据 `bd231ace`，卡收口 `9a450a2e`）：**PASS（0 阻断，0 严重、0 一般 + 3 低 + 5 观察）**——10/10 exit 0（合计 234.48 s、无超时）、sha 守卫 **27/27** 我逐条重算磁盘、monitor 60/60（util_max=22、free_min=12,128、过滤后计算进程 0、构建进程 0）、floor 生效 10,240（pre 12,954 / post 12,958）、零 Rust 编译（precheck/post PASS + 窗口时段 target 无任何构建产物）、无残留、stage2 9 synth 两跑一致；U7/U8 我按参考 JSON 原件用 f32 ULP 步进独立重算——U7 count=1、dist 恰 4 ULP（边界）、pos 0/0/1 ULP；U8 count=4、dist 4/4 均 0 ULP、pos **f32 位级集合完全相等**且设备行=参考行 [1,0,3,2]（不是容差硬凑）；pass_rule 全条件未覆盖的限制声明在位、policy_scan 21 文件 0 命中；卡 9 条 json 指针 9/9 满足；§1 勘误的 O1 digest 口径我独立复现 `266bbf94…`。低=window console 日志编码损坏（内容可还原且与 facts 一致）、readiness 承诺的窗内 0.25 s 采样未实现/未披露、identity addenda「不改任何历史字节」未覆盖 receipt 改动；观察=floor min/max 写法、三点基线无 raw log、addenda 条数措辞、卡 addenda 与 gate run 时间可读性、monitor 脚本路径笔误",
+    "en": "QA review of the A2-3 GPU replay window: PASS (0 blockers, 0 major + 3 lows + 5 observations). 10/10 exit 0, 27/27 sha guards recomputed, monitor 60/60, floor enforced, zero Rust compile, no residual, stage2 two-run consistent; U7/U8 recomputed independently from the reference JSON as exact f32 ULP steps (U7 dist exactly 4 ULP boundary; U8 count=4, dist 0 ULP, pos exact f32 set equality with device-row->ref-row [1,0,3,2]); pass_rule full-coverage limitation disclosed; policy scan 0 hits; card json checks 9/9."
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对 A2-3 窗口（`6cc1356c`→`44164965`→`bd231ace`→`9a450a2e`）做独立只读复核（不重开窗、不跑 GPU）：窗口执行事实（10 实体结果、sha 守卫、monitor、基线、floor、零 Rust 编译、残留、stage2）、U7/U8 可观测子集数据按参考原件独立重算、诚实性红线、receipt 字段与卡检查、§1 勘误（L1/L2/O1/O2/O3 + 三条裁决）。只写本卡证据。",
+    "en": "Independent read-only review of the A2-3 window: execution facts, U7/U8 observable-subset recomputation from the reference JSON, honesty red lines, receipt-vs-card checks, and section-1 errata."
+  },
+  "modules": {},
+  "acceptance": [
+    "**窗口执行 ✅**：`facts.txt` 10 条 `RESULT exit=0`、9 个实体日志 `test result: ok` + stage2 `1 passed`、`results.json` 10 条 `exit_code=0`；耗时合计 234.48 s（=receipt）、单实体最大 45.49 s < 300 s、无超时；exe mtime 01:45–01:47 早于窗口（未重建）",
+    "**sha 守卫 ✅**：`facts.txt` 27 条 `SHA_OK`（exe 10 + fixture 15 + 参考 2）我逐条重算磁盘哈希，**27/27 相等、0 缺失**",
+    "**monitor/基线/floor ✅**：CSV 60 行（02:06:00–02:11:00，streak 1..60、clean 全 True、util_max 22、free_min 12,128、compute_filtered/build 全 0）与 receipt 一致；三点基线数值在位；`FLOOR gate pre=12,954 / POST=12,958 ≥ 10,240`",
+    "**零 Rust 编译/残留/stage2 ✅**：precheck 无 cargo/rustc/cl/nvcc + POST PASS；我扫窗口时段 `target/` 46 个改动文件，**无任何构建产物**（10 个 `.err` 全 0 B）；POST 过滤后残留 0；stage2 9 synth 全部「两次一致=true」",
+    "**U7/U8 数据（独立重算）✅**：U7 count 1=1、dist 恰 **4 ULP**（f32 nextafter 步进，边界 ≤4）、pos **0/0/1 ULP**；U8 count 4=4、dist **4/4 均 0 ULP**、pos **f32 位级集合完全相等**（4 个互异角）、设备行→参考行 **[1,0,3,2]**（无歧义轮换，非容差硬凑）；「设备 count 1→4」有旧 S4 `window-receipt.json`（device 1 / ref 4）历史依据",
+    "**诚实性 ✅**：README §1/§3/§6 与 receipt `u7_u8_pass_rule_full_coverage=false` + 5 条 `u7_u8_limitations` 明写「只判可观测子集、不宣称全条件通过、不宣称 U8 已验收」；21 文件 policy_scan **0 命中**；禁语只出现在「不宣称」句",
+    "**卡检查/§1 勘误 ✅**：卡 13 检查（4 gate + unchanged src/ + 9 json）我逐条解析，**9/9 json 指针满足**、unit 1409/0/402；§1 的 L1 append 最终 PASS（原快照保留，我复扫 0 命中 + self-test 34/34）、L2 说明 27→33（mapping 27/6/33 实测）、O1 digest 口径**我独立复现 266bbf94…**、O2/O3/三条裁决在位；identity manifest 12/12 重算 0 错、window manifest 20/20 重算 0 错",
+    "**结论：复核通过（0 阻断，0 严重、0 一般 + 3 低 + 5 观察）。** 低 L1=window console 日志编码损坏（内容可还原且与 facts 一致，不影响结论）；低 L2=readiness 承诺的窗内 0.25 s 采样未实现/未披露；低 L3=identity addenda「不改历史字节」未覆盖 receipt 改动；观察=floor min/max 写法、三点基线无 raw log、addenda 条数措辞、卡 addenda/run 时序可读性、monitor 脚本路径笔误"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-a2-3-m2-m3-s4-replay-window"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w2-a2-3-window-check/"
+    ],
+    "resources": [],
+    "priority": 88
+  },
+  "note": "Chief 2026-11-12 派工的 A2-3 窗口复核；结论 PASS（0 阻断，3 低 + 5 观察）。窗口未重开、未跑 GPU；U7/U8 用参考 JSON 原件独立重算。不宣称 U7/U8 全条件通过、U8 已验收、mesh 容量缺口已清、与上游等价（over-32）；不作位级等价声明、不提供位级等价保证。",
+  "revision": {
+    "before": "31074912bd9a839991c496320b86bbca186497cb",
+    "after": null
+  },
+  "created_at": "2026-11-12T02:30:00.000Z",
+  "updated_at": "2026-11-11T18:30:27.641Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-a2-3-m2-m3-s4-replay-window-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/reviewed_card",
+      "equals": "2026-11-12-w2-a2-3-m2-m3-s4-replay-window"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/checked/window_execution/entities_exit_zero",
+      "equals": 10
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/checked/sha_guards/verified",
+      "equals": 27
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/checked/u7_u8/u8_device_count",
+      "equals": 4
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/checked/u7_u8/u8_pos_exact_f32_set_equal",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-3-window-check/receipt.json",
+      "pointer": "/checked/u7_u8/u7_dist_ulp_exact",
+      "equals": 4
+    }
+  ]
+}
