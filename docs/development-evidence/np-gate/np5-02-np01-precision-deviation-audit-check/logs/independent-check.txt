@@ -1,0 +1,70 @@
+# QA independent check log — NP5-02
+# script: target/qa-r2/np502-check.py
+written
+
+# output: target/qa-r2/np502-check.txt
+=== NP5-02 evidence keys ===
+schema, task, scope, criterion, inputs, audit_objects, type_deviation, recipe_difference, engine_semantic, implementation_residual, coverage, conclusion, non_claims
+receipt keys: schema, task_id, verdict, kind, np5_01a_sites, np5_01a_unique_expressions, type_tables, type_deviation_count, precision_deviation_zero_items_verified, required_unfinished_statement, recipe_difference, engine_semantic, implementation_residual, coverage_blocked, inputs, tree, ptx_landed, selfcheck, boundaries, non_claims, manifest
+
+=== NP5-02 numbers ===
+type_deviation: {"count": 0, "basis": ["NP5-01a 608 站点逐站点 type_mapping：type_class 全部为 f32/int-encoded-f32/bool 等 f32 派生（无 f64/f16/tf32）；double_in_product 仅 1 条 field_batch wrap-pulley，且已记 double_precision_parity（上游 numpy float64→f32 同路径，非产品单方面升精度）", "30 条产品路径逐字段类型表（field-tables/）+ 3 条 host 站点表（host-tables/）", "CUDA token 门禁：cuda-surface.json 快照（文件/__global__ 计数）由 ratchet 维护，产品 .cu 代码区不得含 double/half/bfloat16/tf32（np01-type-mapping README 记录）", "host source 门禁：src/**/*.rs 精度 token 白名单（host-source-gate 卡）"], "explicitly_not_inferred_from": "数值完全相等/ULP 计数（可从 recipe/引擎语义差产生）"}
+recipe_difference: {"definition": "同码不同后端：warp CPU 参考 recipe（每乘加两次舍入）vs warp CUDA 参考 recipe（NVVM 默认 fma.rn 收缩）", "mechanism": {"source": "B1 逐表达式 PTX 定序表", "expressions": 12, "summary": "带乘加表达式在 --fmad=true 下全部出现 fma.rn、mul.rn/add.rn 归零；--fmad=false 下与 host 每乘加两次舍入对应"}, "quantized_cases": {"cylinder-box": {"counts_equal": true, "two_captures_bitwise_identical": true, "integer_fields_bit_equal": true, "fields": {"dist": {"components": 8, "bit_equal": 8, "bit_equal_ratio": 1.0, "zero_vs_nonzero": 0, "max_abs": 0.0, "max_ulp_nonzero": 0}, "pos": {"components": 24, "bit_equal": 19, "bit_equal_ratio": 0.7916666666666666, "zero_vs_nonzero": 0, "max_abs": 1.4901161193847656e-08, "max_ulp_nonzero": 16}, "frame": {"com
+engine_semantic: {"definition": "不同引擎/接触选择/裁剪语义的差（native MuJoCo C vs warp；hfield/sdf 接触选择）", "np5_01a_source_level_sites": {"a1a": 1, "a1b": 3, "a2": 4, "a3": 3, "b1": 6, "c1": 2, "c3": 1}, "np5_01a_source_level_total": 20, "np5_01a_re3_device_rows": {"device_rows": 24, "device_sites": 304, "classification_sites_total": {"B": {"rows": 7, "sites": 78, "classification_sites": {"engine-semantic": 52, "n/a": 10, "not-decidable": 16}, "classification_rows": {"engine-semantic": 4, "n/a": 1, "not-decidable": 2}}, "C": {"rows": 17, "sites": 226, "classification_sites": {"engine-semantic": 152, "not-decidable": 57, "n/a": 17}, "classification_rows": {"engine-semantic": 11, "not-decidable": 5, "n/a": 1}}}}, "a0_refere
+conclusion: {"type_deviation_count": 0, "precision_deviation_zero_items_verified": false, "statement": "NP01 精度偏离 0 项未完成", "reasons": ["E 指标未定稿（用户 2026-10-27），精度偏离的判据与容限无法冻结", "跨 recipe 位级判据前提不成立（RE-0 仅 G1-partial；B1 证明 host/device 是两套 recipe）", "device 级覆盖为可映射子集，缺项为 not-decidable；未做全路径 device 采样", "未实现子系统（7 条）与 Linux/双平台项仍阻塞（NP5-03/NP5-04 账本）"], "allowed_conclusion": "类型偏离 0 项（依据类型表 + 两道 token 门禁 + 608 站点 type_mapping）；recipe 差已量化并单列；引擎语义差单列；同 recipe 实现残差已登记——但整体「NP01 精度偏离 0 项」未完成，不宣言 NP01 通过"}
+receipt.verdict: "PASS"
+receipt.np5_01a_sites: 608
+receipt.np5_01a_unique_expressions: 598
+
+recomputed landing histogram (608): {"n/a": 320, "engine-semantic": 20, "not-decidable": 3, "identical": 262, "pin-needed": 1, "recipe-difference": 2}
+recomputed type_class: {"int-encoded-f32": 10, "f32": 510, "bool/int": 1, "int→f32 编码": 1, "bool": 15, "bool→f32": 4, "int": 41, "n/a": 16, "f32 编码": 2, "n/a-view": 7, "f64-to-f32": 1}
+double_in_product count: 1
+NP5-02 manifest rows=4 bad=0 bytes=555
+NP5-02 selfcheck:
+NP5-02 selfcheck
+task=2026-11-11-np5-02-np01-precision-deviation-audit
+PASS NP5-01a sites 608 / unique 598
+PASS 11 slices sum 608 [11]
+PASS 33 type tables (30 field + 3 host) [{"field_tables": 30, "host_tables": 3, "total": 33}]
+PASS 1 double_in_product site (field_batch parity)
+PASS type_deviation count 0
+PASS type deviation basis >=4 items
+PASS explicitly-not-inferred-from recorded
+PASS precision_deviation_zero_items_verified == false
+PASS evidence carries required unfinished statement
+PASS README carries required unfinished statement
+PASS README says no NP01 pass claim
+PASS input evidence sha/bytes match disk [[]]
+PASS RE-1/2/3 device slices present
+PASS RE-3 device rows 24 / sites 304
+PASS recipe quantized 5 cases
+PASS engine-semantic source sites 20
+PASS 1 known deviation (witness sweep)
+PASS receipt verdict/task
+PASS receipt 608 / 33 tables
+PASS receipt type deviation 0 + not verified
+PASS receipt required statement exact
+PASS receipt clarifies PASS is audit execution only
+PASS policy_scan 0 hits hits=0
+PASS policy_scan --self-test
+PASS no coverage/pass-rate numeric wording [[]]
+PASS encoding UTF-8/LF/no BOM [[]]
+PASS boundaries: only np5-02 + .normify (QA check dirs noted) [{"foreign": [], "qa": ["docs/development-evidence/np-gate/np5-01a-closing-check/"]}]
+manifest: exists (4 files)
+PASS manifest sha/bytes verify
+RESULT: PASS
+
+NP5-02 hashes:
+  README.md: 15a247c70291613a 5483
+  evidence.json: 6526ca1331842e23 32689
+  receipt.json: 98b05ef7aaea51bf 10211
+  manifest.txt: 8aaeedf85f883015 555
+  logs/selfcheck.txt: 0a71e3776b1b0370 1356
+fmt: passed=True exit=0
+clippy: passed=True exit=0
+clippy-cuda: passed=True exit=0
+unit: passed=True exit=0 tests={"passed": 1406, "failed": 0, "ignored": 402}
+
+# policy scan
+policy_scan: files=3 hits=0 RESULT: PASS
+

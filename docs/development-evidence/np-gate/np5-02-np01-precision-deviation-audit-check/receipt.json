@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-02-np01-precision-deviation-audit-check",
+  "kind": "np5-02-np01-precision-deviation-audit-check",
+  "reviewed": [
+    "ac840ff7c24cee5605510de7c667e5d981359de6"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 2,
+    "observation": 1
+  },
+  "checked": {
+    "sites_and_histogram": "np5_01a_sites=608 / unique=598; landing histogram independently recomputed from 11 slices = {n/a 320, identical 262, engine-semantic 20, recipe-difference 2, pin-needed 1, not-decidable 3} = 608",
+    "type_class": "11 classes recomputed: f32 510, int-encoded-f32 10, bool 15 + bool->f32 4 + bool/int 1 = 20, int 41, n/a 16, n/a-view 7, f32-encoding 2, int->f32-encoding 1, f64-to-f32 1 = 608; no bare f64/f16/tf32",
+    "double_in_product": "exactly 1 (field_batch wrap-pulley) with double_precision_parity (upstream numpy float64->f32 same path, not product-side promotion)",
+    "type_tables": "33 (30 field + 3 host) match receipt; input evidence sha/bytes verified",
+    "type_deviation": "count=0; basis = 608-site type_mapping + 33 type tables + CUDA token gate + host source gate; explicitly_not_inferred_from numeric equality/ULP counts",
+    "recipe_difference": "B1 12 expressions fmad=true -> fma.rn; B2 5 cases x 3 fields max_abs 1e-9..8e-7 with max_abs (not ULP) reading; A-1a landing recipe-difference 2 + R2 reclassified acc:3",
+    "engine_semantic": "source-level 20 sites (A-1a1/A-1b3/A-2 4/A-3 3/B-1 6/C-1 2/C-3 1) recomputed from per-slice evidence; RE-3 device-level 15 rows/204 sites separated; A0 reference",
+    "implementation_residual": "B2 4 cases (hfield bit-equal; sdf/ellipsoid 7.45e-9/3.80e-7) + 1 known deviation witness/cylinder-box-sweep registered",
+    "unfinished_statement": "precision_deviation_zero_items_verified=false and exact Chinese statement present in evidence and README; README says no NP01 pass claim; receipt clarifies PASS is audit-execution-only",
+    "manifests_gates": "manifest 4/4 (555B); selfcheck all PASS; fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored",
+    "policy_scan": "0 hits on README/evidence/receipt",
+    "hygiene": "UTF-8/LF no BOM/CR/NUL; boundaries np5-02 + .normify only; no coverage/pass-rate numbers",
+    "hashes": "README 15a247c7/5,483; evidence 6526ca13/32,689; receipt 98b05ef7/10,211; manifest 8aaeedf8/555; selfcheck 0a71e377/1,356"
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "summary": "README §3 \"recipe-difference 3 sites (A-1a acc:3, A-1b acc:5, RE-1 acc:5)\" mixes layers: A-1b acc:5 and RE-1 acc:5 are the SAME site mass_solve:rigid_mass_solve:accumulation:5 (source-level not-decidable -> device-level recipe-difference via RE-1), while A-1a 3 sites are sparse_mass_diag:accumulation:2, small_prefix...:accumulation:1 and accumulation:3. Suggest layered wording with ids; per-site data in evidence is correct"
+    },
+    {
+      "id": "L2",
+      "severity": "low",
+      "summary": "README §1 landing histogram note \"final calibration see §4\" should be §3 (recipe difference); §4 is engine-semantic/implementation residual and contains no histogram calibration"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "README §1 type_class grouping \"other f32-derived\" folds n/a-view 7 + f32-encoding 2 + int->f32-encoding 1 + f64-to-f32 1 (=11), but n/a-view and f64-to-f32 are not f32-derived; total 608 correct, suggest listing all 11 classes verbatim"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision-deviation-zero completion",
+    "does not claim E-metric finalized; no upstream equivalence claim; no bit-level equivalence claim; no dual-platform claim",
+    "review of the NP5-02 aggregation and statement only; no criteria/reference/tolerance changes"
+  ]
+}
