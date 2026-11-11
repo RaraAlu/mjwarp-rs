@@ -1,0 +1,43 @@
+# QA independent check - 2026-11-11-w1-r06-p8-umbrella-closure-eval (9e56d050)
+=== A2 z2vec closure ===
+card commit history: 79361ae1 5009c1c1 da74c9fe 04793345
+acceptance count old=5 new=5 unchanged=True
+old status=backlog checks=5; new status=verified checks=5 closed_at=2026-11-11T15:33:02.110Z
+da74c9fe: files=2 src/tests/fixtures/scripts hits=[]
+5009c1c1: files=1 src/tests/fixtures/scripts hits=[]
+40ed8b20: files=1 src/tests/fixtures/scripts hits=[]
+c21a421b: files=6 src/tests/fixtures/scripts hits=[]
+79361ae1: files=5 src/tests/fixtures/scripts hits=[]
+db95f7b3: files=5 src/tests/fixtures/scripts hits=[]
+19a68b49 stat: 修复(渲染): z2vec 片 1（flex 近平行分支显式四位四元数 + 宿主镜像 CPU 单测；megakernel 新身份；零 GPU） |  |  .../changes/2026-11-11-render-flex-z2vec-pin.json  |   5 +- |  .../clippy-cuda.json                               |  13 ++ |  .../2026-11-11-render-flex-z2vec-pin/clippy.json   |  13 ++ |  .../runs/2026-11-11-render-flex-z2vec-pin/fmt.json |  13 ++ |  .../2026-11-11-render-flex-z2vec-pin/unit.json     |  18 ++ |  .../perworld-l-v2-flex-z2vec-pin/README.md         | Bin 0 -> 5256 bytes
+render_flex.cu sha=97d5fb2c439cc50b bytes=7426
+render_flex.cu 47-56: ['    if (a < FLEX_MINVAL) {', '        // 近平行：上游 `math.py::quat_z2vec` 是**整体替换**为单位四元数；反向时 `quat = (1,0,0,0)`，', '        // 同向保持初始单位四元数 `(0,0,0,1)`。z2vec 修复（2026-11-11）：必须显式写全四位——', '        // 旧版只写 `quat[0] = 1.0f`，遗留初始化的 `quat[3] = 1.0f`，得到 `(1,0,0,1)`（矩阵差 2.0）。', '        if (unit.z < 0.0f) {', '            quat[0] = 1.0f;', '            quat[1] = 0.0f;', '            quat[2] = 0.0f;', '            quat[3] = 0.0f;', '        }']
+last commit on render_flex.cu: 19a68b49 修复(渲染): z2vec 片 1（flex 近平行分支显式四位四元数 + 宿主镜像 CPU 单测；megakernel 新身份；零 GPU）
+render_flex_z2vec.rs sha=334100b7aa7101ca bytes=8956 tests=9
+matrix assertions: DIAG_NEG_NEG_POS=True identity=True y-axis matrix=True
+docs/development-evidence/render-bvh/r06-s3b-flex-z2vec -> README.md=e28cbeb90b3239ed/9605 receipt.json=5bc16d57fc662a51/7103 manifest.txt=491d90890a3facb0/733
+docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin -> README.md=d52627193cc5ac20/7436 receipt.json=50388381a7cd06e0/2798 manifest.txt=9e848448d08167ee/1251
+closure manifest sha=9e9e1c1c8d6daf93 bytes=649 rows=5 ok=True
+gate log has 1406=True has 0 fail=False
+
+=== B2 r06-p8 eval ===
+r06-p8 status=proposed checks=0 acceptance=6 depends_on=None
+umbrella card unchanged by eval chain=True
+evaluation keys=["schema", "task_id", "umbrella_card", "umbrella_status_at_eval", "umbrella_checks_count", "family_closeout", "supporting_cards", "acceptance_mapping", "counts", "all_acceptance_satisfied", "umbrella_
+mapping verdict counts={"unmet": 4, "partial": 1, "met": 1} len=6
+2026-10-11-roadmap-np01: status=backlog checks=0
+2026-10-11-roadmap-np02: status=backlog checks=0
+2026-10-11-roadmap-np03: status=backlog checks=0
+2026-10-11-roadmap-np04: status=backlog checks=0
+committed cards=1164 depends_on r06-p8 hits=0 [] checks hits=1 ['.normify/changes/2026-11-11-w1-r06-p8-umbrella-closure-eval.json']
+23fc8884: files=1 .normify/changes/2026-11-11-w1-r06-p8-umbrella-closure-eval.json
+e9540d0a: files=4 docs/development-evidence/plan/w1-r06-p8-umbrella-closure-eval/README.md | docs/development-evidence/plan/w1-r06-p8-umbrella-closure-eval/evaluation.json | docs/development-evidence/plan/w1-r06-p8-umbrella-closure-eval/manifest.txt | docs/development-evidence/plan/w1-r06-p8-umbrella-closure-eval/receipt.json
+9e56d050: files=5 .normify/changes/2026-11-11-w1-r06-p8-umbrella-closure-eval.json | .normify/runs/2026-11-11-w1-r06-p8-umbrella-closure-eval/clippy-cuda.json | .normify/runs/2026-11-11-w1-r06-p8-umbrella-closure-eval/clippy.json | .normify/runs/2026-11-11-w1-r06-p8-umbrella-closure-eval/fmt.json | .normify/runs/2026-11-11-w1-r06-p8-umbrella-closure-eval/unit.json
+eval manifest rows=3 ok=True
+eval receipt: umbrella_closed=False all_acceptance_satisfied=False decision=DO_NOT_CLOSE
+
+# QA re-run: cargo test --locked --features cuda-probe --test render_flex_z2vec -- --test-threads=1
+(not applicable: evaluation is read-only; no code/test changes)
+
+# policy scan (backend evidence)
+policy_scan: files=3 hits=0 RESULT: PASS
