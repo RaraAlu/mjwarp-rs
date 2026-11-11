@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-w9-00-readonly-diagnostics",
+  "title": {
+    "zh": "W9-00 只读诊断：hfield/sdf/shadow 采集 refit 同型风险 + P0-1 计时含 refit 文档 + R06 recipe params 7→28（零代码/零 GPU）",
+    "en": "W9-00 read-only diagnostics: hfield/sdf/shadow capture refit same-type risk, P0-1 timing-with-refit doc, R06 recipe params 7 vs 28 (no code, zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 派工：W9 只读诊断（零代码、零 GPU、零窗）——①hfield/sdf/shadow 采集 refit 同型风险：复刻采集工具 source 装配并与回执记录 sourceSha 比对（含 scene_bvh_ray 已知漂移参照）；②P0-1 计时含 refit 文档缺口；③R06 recipe params 7 vs 28 维持不修的理由与补齐触发条件。只写诊断证据，不改代码/判据/历史报告。",
+    "en": "W9 read-only diagnostics: hfield/sdf/shadow capture source-identity drift check (with known scene_bvh_ray drift as reference), P0-01 timing-with-refit documentation gap, R06 recipe-params 7 vs 28 keep-not-fix rationale. No code, GPU, window; evidence only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**诊断 1**：hfield/sdf（collision product.cu 装配源）与 render_megakernel/render_depth_seg（concat! 源，含 render_shadow.cu）的 recorded sourceSha vs 当前装配 sha 逐步比对；给出 match/no-match 与已知 scene_bvh_ray 漂移参照；refit 词频统计",
+    "**诊断 2**：P0-01 复核记录是否含「计时包含 BVH refit」说明 → 记为文档缺口（不改历史报告），并给补写建议",
+    "**诊断 3**：R06 recipe params（实体 A 7 项 vs 单帧 28 项）现状、backlog 不排期理由、补齐触发条件与 CPU-only 补齐路径",
+    "**结论**：`readonly=true`、`code_changes_made=false`、`gpu_used=false`、`window_used=false`；不宣称任何门禁/准入通过、不排期 deferred 项",
+    "**证据与验证**：README + contract.json + receipt.json + logs/selfcheck.txt + manifest（4 文件）；selfcheck PASS；policy_scan 0 命中 + `--self-test` 34/34；UTF-8/LF/无 BOM；四门禁通过",
+    "**边界**：写域仅本片证据目录 + `.normify/`；`unchanged src/ tests/ fixtures/ scripts/`；零 GPU、零窗、零代码"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/plan/w9-00-readonly-diagnostics/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Chief 2026-11-11 派工的 W9 只读诊断（0 窗、零代码）；不改代码/判据/历史报告，不排期 deferred 项。",
+  "revision": {
+    "before": "4386ce9a58a9a77ec6ebaffe7e2f16d070b78d4b",
+    "after": null
+  },
+  "created_at": "2026-11-11T15:50:00.000Z",
+  "updated_at": "2026-11-11T15:08:11.896Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w9-00-readonly-diagnostics/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-w9-00-readonly-diagnostics"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w9-00-readonly-diagnostics/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w9-00-readonly-diagnostics/contract.json",
+      "pointer": "/boundaries/zero_code",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w9-00-readonly-diagnostics/contract.json",
+      "pointer": "/items_count",
+      "equals": 3
+    }
+  ]
+}
