@@ -1,0 +1,16 @@
+# QA independent identity recompute for z2vec slice 1 (19a68b49, zero GPU)
+# method: concatenate source per src/render/kernel/mod.rs concat!/include_str! order (raw bytes),
+#         compile with repo-pinned NVRTC 12.8.1 (product options), sha256 over source and over PTX trimmed of trailing NUL.
+# nvrtc opts: --fmad=true --std=c++17 --gpu-architecture=compute_70 --device-as-default-execution-space --include-path=<repo>/include/warp-headers
+# program names: render_megakernel.cu / render_depth_seg.cu / aa_resolve.cu (sha-sensitive; must match)
+#
+mega-new   source cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48  110879 B
+mega-new   PTX    b63a51ddcc41a5ec7520fdc38a5234a2d44a1874bc4b38b298f4338bfb11df14  348459 B   (raw nvrtc size 348460 incl. trailing NUL)
+mega-old   source 6b1ade37958facfd48f485a7433f93bcf7256a6b08a167c1ece078e0744de278  110509 B   (render_flex.cu taken from 19a68b49^)
+mega-old   PTX    48f8e7f820f7a0a931a82e07efbebef07b831b3895bb7c6423dcd4975c31fa02  348399 B   (raw 348400)
+depth_seg  source 1e3f273c88a77235640c44b2e3d52e39984cf659da87e6ff1dd237d8c871e1b9   53552 B   UNCHANGED vs P10
+depth_seg  PTX    31912377f59305e85b164da3d8b487ad127b6c262aa3792b99ecdb1b17c1cf50  138857 B   UNCHANGED vs P10
+aa_resolve source 0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76    2364 B   UNCHANGED
+aa_resolve PTX    b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70   27536 B   UNCHANGED
+# deltas: source +370 B (5 lines incl. comment), PTX +60 B -- consistent with only the near-parallel branch gaining explicit zero stores
+# script: target/qa-r2/identity-z2vec.py ; PTX dumps: target/qa-r2/z2vec-*.ptx

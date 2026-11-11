@@ -1,0 +1,53 @@
+# Commit surface / boundaries / tests / anchors (QA independent, read-only)
+# object: 19a68b49 (19 files, +281 -3)
+#
+## 1) changed files
+#   src/render/kernel/cuda/render_flex.cu         +6 -1   (only flex_quat_z2vec near-parallel branch; 4 quat stores)
+#   tests/render_flex_z2vec.rs                    +215    (new CPU-only host mirror)
+#   docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin/  (README/receipt/manifest+logs, 11 files)
+#   .normify/{changes,runs}/...flex-z2vec-pin     (card + 4 gate records)
+#   fixtures/ = 0 files ; scripts/ = 0 files ; guards JSON = unchanged
+#
+## 2) branch diff (from git show 19a68b49 -- render_flex.cu)
+#   - // 近平行：反向时绕 x 轴 180°；同向保持单位四元数。
+#   + // 近平行：上游 math.py::quat_z2vec 是整体替换为单位四元数；反向时 quat = (1,0,0,0)，
+#   + // 同向保持初始单位四元数 (0,0,0,1)。z2vec 修复（2026-11-11）：必须显式写全四位——
+#   + // 旧版只写 quat[0] = 1.0f，遗留初始化的 quat[3] = 1.0f，得到 (1,0,0,1)（矩阵差 2.0）。
+#       if (unit.z < 0.0f) {
+#           quat[0] = 1.0f;
+#   +       quat[1] = 0.0f;
+#   +       quat[2] = 0.0f;
+#   +       quat[3] = 0.0f;
+#       }
+#   => 4 stores complete; init quat=[0,0,0,1] (lines 21-25), same-direction early return, general branch,
+#      flex_quat_to_mat all untouched. Full-file grep of "quat[" shows exactly 4 stores in the branch (52-55 in worktree numbering).
+#
+## 3) encoding
+#   render_flex.cu 7426 B, UTF-8 no BOM, CR=0, NUL=0
+#   tests/render_flex_z2vec.rs 215 lines added, UTF-8/LF (cargo fmt gate passed)
+#
+## 4) tests rerun by QA (not trusting the archived log)
+#   cargo test --locked --test render_flex_z2vec
+#   => running 9 tests ... test result: ok. 9 passed; 0 failed; 0 ignored; 0 filtered out
+#   expectation split: #1 (0,0,-1) exact identity via assert_eq!; #2-#7 tolerance 1e-6; threshold 1e-16/1e-20;
+#   near-parallel (1e-30,0,-1)/(1e-30,0,1); -0.0; plus cu_source_anchors_match_mirror_contract.
+#
+## 5) text anchors + no-silent-fallback (file head //! and anchor test)
+#   "不静默回退" / "不得作为运行时回退" / "必须失败" / "不允许 skip/fallback"  -- present in //! header (lines 6-8)
+#   test cu_source_anchors_match_mirror_contract (line 175) reads the real .cu and asserts anchors:
+#     includes warp_length3 / atan2f(a, unit.z) / quat[0..3] lines
+#
+## 6) evidence manifest (independent recompute)
+#   rows=11 files=11 bad=0 missing=0 extra=0 self_listed=NO
+#   README e4cb509811d8f1ba625596805e2fc5c93dc42e812a0ba03119cb60c6e9efb1ab 5256
+#   receipt 50388381a7cd06e0354a559cb2599bbb8e7d2e1bd8e3a80677c5a758b343f4ed 2798
+#   manifest bf9eac4ecfa38246efb1c22fe91148b5caab3f0a20d4965a511458c70b5c60b6 1251
+#
+## 7) boundaries
+#   guards JSON sha256 94478b3de924ee2940315de1f04617d4c81e48e0b4b9adb77f8a8301ae48734f 43729  (unchanged)
+#   fixtures/ scripts/ 0 diff; no criterion/reference/tolerance/camera/recipe change; zero GPU.
+#
+## 8) low finding L1
+#   card/commit/README say "不改 (0,1,0,0)" but no such tuple exists in render_flex.cu or anywhere in src/ render code
+#   (grep hits only src/physics/** unrelated tuples). What is actually unchanged is the same-direction initial
+#   identity quaternion (0,0,0,1). Wording should be fixed; no code impact.

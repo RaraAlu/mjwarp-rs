@@ -5,7 +5,7 @@
     "zh": "QA 复核 z2vec 片 1（`19a68b49`）：改动面恰为 `render_flex.cu` 近平行反向分支 **+6/−1**（`quat[0..3]` 四位显式写全 `(1,0,0,0)`；初始化 `(0,0,0,1)`、同向路径、一般分支、`flex_quat_to_mat` 未动）+ 新增 `tests/render_flex_z2vec.rs` 215 行；我独立重跑 **9 passed/0 failed**（#1 精确 `assert_eq!` 单位阵、#2–#7 容差 1e-6、阈值 1e-16/1e-20、近平行两支、`-0.0`）；文本锚点自检与**不静默回退**硬约束在文件头+anchor 测试双处落地；**内核身份我独立复算**（NVRTC 12.8.1 product 选项、去尾部 NUL 口径）：mega source `6b1ade37…`/110,509→**`cf356b72…`/110,879**、PTX `48f8e7f8…`/348,399→**`b63a51dd…`/348,459**，depth_seg `1e3f273c…`/`31912377…`/138,857 与 aa_resolve `0bf8af5a…`/`b28e155c…`/27,536 **逐字未变**；证据 manifest **11/11**、guards `94478b3d…`/43,729 未变、`fixtures/`/`scripts/` 零改动；编码 UTF-8/无 BOM/CR0 → **复核通过（0 阻断，1 低 + 1 观察）**；低项=卡/README 措辞「不改 `(0,1,0,0)`」在源码无对应字面（实际未动的是 `(0,0,0,1)` 初值）；观察=镜像 `warp_length3` 非位级 oracle（采纳 Arch，1 ulp 级、容差内）",
     "en": "QA review of z2vec slice 1 (19a68b49): change surface is exactly one render_flex.cu near-parallel branch (+6-1, four explicit quat stores for (1,0,0,0)) plus a new 215-line host-mirror test file; 9/9 tests rerun; anchors + no-silent-fallback present; kernel identities independently recomputed (mega source cf356b72 / PTX b63a51dd 348459; old 6b1ade37 / 48f8e7f8 348399; depth_seg and aa_resolve unchanged); manifest 11/11; boundaries clean - PASS with 1 low (wording '(0,1,0,0)' has no source literal) + 1 observation (mirror length3 is not a bit-level oracle)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 z2vec 片 1（提交 **`19a68b49`** + 卡 `2026-11-11-render-flex-z2vec-pin`）做独立只读复核（零 GPU）：①改动面是否只 1 个 `.cu` 分支 + 1 个测试文件、四位是否齐；②9 测试与期望口径（#1 精确、其余 1e-6、边界/`-0.0`）；③文本锚点自检与不静默回退声明；④内核身份独立复算与 depth_seg/aa_resolve 未变；⑤门禁/manifest/边界；⑥非声明口径。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of z2vec slice 1: change surface, four quat stores, 9 test expectations, anchors/no-fallback, kernel identity recompute, gates/manifest/boundaries, non-claims."
@@ -36,11 +36,12 @@
   },
   "note": "Chief 2026-11-11 08:18 派工（写窗口到 08:50）：快核 z2vec 片 1。结论：复核通过（0 阻断，1 低 + 1 观察）。已独立核：改动面仅 render_flex.cu +6-1（近平行反向分支 quat[0..3] 四位齐 (1,0,0,0)）+ 新测试文件 215 行，fixtures/scripts 0；我重跑 9/9 host mirror tests；#1 精确 assert_eq!、#2–#7 1e-6、阈值 1e-16/1e-20、近平行两支、-0.0 口径在位；文本锚点与不静默回退声明在文件头+anchor 测试；内核身份独立复算 mega source cf356b72/110879、PTX b63a51dd/348459（旧 6b1ade37/110509、48f8e7f8/348399），depth_seg 1e3f273c/31912377 与 aa_resolve 0bf8af5a/b28e155c 未变；manifest 11/11；guards 94478b3d/43729 未变；编码 UTF-8/无 BOM/CR0。低 L1：措辞「不改 (0,1,0,0)」源码无该字面（实际是 (0,0,0,1) 初值未动）。观察 O1（采纳 Arch）：镜像 warp_length3 非位级 oracle（1 ulp 级、容差内）；O2：PTX 长度含/不含尾 NUL 差 1 B 口径。内核身份已变 ⇒ 后续渲染 GPU 窗口须重新冻结（backlog）。不宣称设备端修复/验收，不改判据，零 GPU。",
   "revision": {
-    "before": "87fb27af8ef75b395ed0544dfb29890e8bf8229f",
+    "before": "a3f861cab3c22176b54961730b82fc8eb6691055",
     "after": null
   },
   "created_at": "2026-11-11T00:56:00.000Z",
-  "updated_at": "2026-11-11T00:56:00.000Z",
+  "updated_at": "2026-11-11T00:22:49.570Z",
+  "closed_at": "2026-11-11T00:22:49.570Z",
   "checks": [
     {
       "kind": "gate",

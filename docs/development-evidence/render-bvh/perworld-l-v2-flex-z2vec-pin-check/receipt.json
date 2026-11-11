@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-flex-z2vec-pin-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "19a68b49b02f3de4fc1fe3b99bd3e6b88aa8efda",
+    "card": "2026-11-11-render-flex-z2vec-pin",
+    "head_at_review_start": "19a68b49 (tree clean, lock FREE)",
+    "note": "independently reviewed after the errata r2 check card landing (fd72cf0b)"
+  },
+  "summary": "PASS: 0 blocker, 1 low (wording '(0,1,0,0)' does not exist in source), 1 observation adopted from Arch (mirror warp_length3 is a numeric, not bit-level, oracle). Change surface is exactly one .cu branch with 4 explicit quat stores plus one new test file; 9/9 host mirror tests rerun; kernel identities independently recomputed (mega source cf356b72 / PTX b63a51dd 348459; old 6b1ade37 / 48f8e7f8 348399; depth_seg 1e3f273c/31912377 and aa_resolve 0bf8af5a/b28e155c unchanged); manifest 11/11; boundaries clean.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "措辞「不改 (0,1,0,0)」在源码中无对应字面",
+      "detail": "render_flex.cu (and src/ render code) contain no (0,1,0,0) tuple; grep only hits unrelated src/physics tuples. What is actually unchanged is the same-direction initial identity quaternion (0,0,0,1). Reword to avoid a phantom anchor; no code impact."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "镜像 warp_length3 非位级 oracle（采纳 Arch）",
+      "detail": "host mirror uses Rust left-assoc summation while .cu uses explicit fmaf chain; ~1 ulp difference, inside the 1e-6 tolerance. Suggest slice 2 comment note 'numeric equivalence, not a bit-level oracle'."
+    },
+    {
+      "id": "O2",
+      "title": "PTX 长度含/不含终止 NUL 口径",
+      "detail": "nvrtcGetPTXSize includes a trailing NUL (raw 348460 vs 348459). This review hashes the trimmed PTX, matching the card; the 1-byte difference is a counting convention only, content identical."
+    }
+  ],
+  "verified": {
+    "surface": "render_flex.cu +6-1 (only flex_quat_z2vec near-parallel branch, 4 quat stores) + new tests/render_flex_z2vec.rs (215 lines); fixtures/ scripts/ 0; no other .cu",
+    "branch": "quat[0]=1, quat[1]=0, quat[2]=0, quat[3]=0 in the if (unit.z < 0) block; init [0,0,0,1], same-direction early return, general branch, flex_quat_to_mat untouched",
+    "tests_rerun": "cargo test --locked --test render_flex_z2vec => 9 passed / 0 failed (probe1 exact assert_eq!, probe2-7 1e-6, threshold 1e-16/1e-20, near-parallel both sides, -0.0, anchors test)",
+    "anchors_and_fallback": "//! header declares no-silent-fallback hard constraint; cu_source_anchors_match_mirror_contract reads real .cu and asserts the 4 stores / absence of old form / warp_length3 / atan2f(a, unit.z)",
+    "identity": "recomputed with repo-pinned NVRTC 12.8.1, product options; mega-new source cf356b72/110879 B, PTX b63a51dd/348459 B; mega-old source 6b1ade37/110509 B, PTX 48f8e7f8/348399 B; depth_seg 1e3f273c/31912377/138857 unchanged; aa_resolve 0bf8af5a/b28e155c/27536 unchanged",
+    "manifest": "11/11 recomputed (bad=0 missing=0 extra=0, not self-listed); README e4cb5098/5256, receipt 50388381/2798, manifest bf9eac4e/1251",
+    "boundaries": "fixtures/ scripts/ zero diff; guards JSON 94478b3d/43729 unchanged; no criterion/reference/tolerance/camera/recipe change",
+    "encoding": "render_flex.cu 7426 B UTF-8 no BOM CR=0 NUL=0"
+  },
+  "non_claims": [
+    "does not claim device-side rendering change or fix effect",
+    "CPU mirror assertions are not device acceptance",
+    "kernel identity changed (mega cf356b72/b63a51dd) => any later render GPU window must refreeze (backlog)",
+    "zero GPU, no window rerun, no refreeze"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 5,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}
