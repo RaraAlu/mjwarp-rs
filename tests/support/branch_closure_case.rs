@@ -127,7 +127,7 @@ pub(crate) const LIMIT_CASES: [Case; 2] = [
     },
 ];
 
-/// S3 签名集合里的 13 个 fixture（路径 + sha256；CPU 测试逐项复核）。
+/// S3 签名集合里的 15 个 fixture（路径 + sha256；CPU 测试逐项复核；A2 新增 fan-cone-33/prism-33）。
 pub(crate) const FIXTURE_SHA256: [(&str, &str); 15] = [
     (
         "fixtures/g10-p5-primitive-branches/plane-cylinder-degenerate.xml",
