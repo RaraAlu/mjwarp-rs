@@ -12,21 +12,29 @@ Negation exemption: a negator (不得/未/不/无/非/禁止/not/no/never) insid
 before the match exempts it. "不同/不仅/不但" are removed from the window first so that the
 "不" inside them is not mistaken for a negator (this was a real false-negative bug).
 
-Explicit quote-block exemption (added after the RE-2 review): a verbatim quotation of a
-WITHDRAWN historical statement may be exempted only when it sits inside a marked block
+Explicit quote-block exemption (added after the RE-2 review; hardened after the B-1 review):
+a verbatim quotation of a WITHDRAWN historical statement may be exempted only when it sits
+inside a marked block
 
   <!-- policy-scan:quote:start -->
   ... 撤回 / supersede declaration ...
   ... verbatim quoted text ...
   <!-- policy-scan:quote:end -->
 
-and the block itself contains a withdrawal declaration (撤回 / supersede / 作废). Rules:
+and the block itself contains an AFFIRMATIVE withdrawal declaration. Rules:
+- the declaration must be affirmative: a declaration token (撤回 / 作废 / supersede) that is
+  not immediately negated ("未撤回", "不作废", "没有撤回", "尚未撤回", "无法撤回" do NOT count);
+  a fixed form such as "撤回(5)" or "supersedes:" counts;
 - the block must be closed; an unclosed start marker grants no exemption;
-- the declaration must be INSIDE the block, before or after the quote;
+- the declaration must be INSIDE the block;
 - the quote must be verbatim (逐字原文). Do NOT split/reword a quote to slip past the scanner:
   split-writing to evade is policy circumvention, not exemption;
 - the exemption is per block: text after the end marker is scanned normally;
-- a marked block without a withdrawal/supersede declaration is scanned normally.
+- a marked block without an affirmative withdrawal/supersede declaration is scanned normally;
+- every exempted block must leave a human-review trace: put `reviewed_by: <name>-<YYYY-MM-DD>`
+  inside the block (preferred), or list the block in the evidence receipt's
+  `quote_block_inventory` with its reviewer. `--list-quote-blocks FILE...` prints the inventory
+  (file, line range, closed, affirmative declaration, reviewed_by marker) for QA verification.
 
 This exemption lets evidence keep the original wording for audit while the surrounding
 narrative states the withdrawal. It is still a guard rail: QA must manually review every
@@ -38,6 +46,7 @@ Always pair this scanner with manual review; it is a guard rail, not a proof.
 
 Usage:
   python policy_scan.py --self-test
+  python policy_scan.py --list-quote-blocks FILE [FILE...]
   python policy_scan.py FILE [FILE...]
 
 Header note: NOT in the 93 guards inputs; adding it to guards requires a user re-sign.
@@ -64,6 +73,15 @@ FALSE_NEGATOR_PREFIXES = ("\u4e0d\u540c", "\u4e0d\u4ec5", "\u4e0d\u4f46")
 QUOTE_START = "<!-- policy-scan:quote:start -->"
 QUOTE_END = "<!-- policy-scan:quote:end -->"
 QUOTE_DECLARATIONS = ("\u64a4\u56de", "supersede", "\u4f5c\u5e9f")  # 撤回 / supersede / 作废
+# A declaration token immediately preceded by one of these is a negated declaration and grants
+# no exemption ("未撤回", "不作废", "没有撤回", "尚未撤回", "无法撤回", ...).
+DECLARATION_NEGATORS = (
+    "\u672a", "\u4e0d", "\u6ca1", "\u65e0", "\u975e", "\u5426",  # 未 不 没 无 非 否
+    "\u6ca1\u6709", "\u65e0\u6cd5", "\u4e0d\u80fd", "\u4e0d\u4f1a",  # 没有 无法 不能 不会
+    "\u5c1a\u672a", "\u5e76\u672a", "\u4e0d\u4e88", "\u672a\u4e88",  # 尚未 并未 不予 未予
+)
+DECLARATION_PREFIX_STRIP = " \t\r\n\u00b7-/._\u3002\uff0c\uff1a:\uff08\uff09()[]\u3010\u3011\"'"
+REVIEW_MARKER = "reviewed_by"
 
 
 def _normalize(text):
@@ -76,8 +94,53 @@ def _normalize(text):
     return "".join(out), index
 
 
+def has_affirmative_declaration(inner):
+    """True when `inner` contains a declaration token that is not immediately negated."""
+    lowered = inner.lower()
+    for token in QUOTE_DECLARATIONS:
+        pos = 0
+        while True:
+            hit = lowered.find(token, pos)
+            if hit < 0:
+                break
+            prefix = lowered[max(0, hit - 10):hit].rstrip(DECLARATION_PREFIX_STRIP)
+            if not any(prefix.endswith(neg) for neg in DECLARATION_NEGATORS):
+                return True
+            pos = hit + 1
+    return False
+
+
+def quote_blocks(text):
+    """Inventory every marked quote block: closed/declared/affirmative/reviewed/line range."""
+    out = []
+    pos = 0
+    while True:
+        start = text.find(QUOTE_START, pos)
+        if start < 0:
+            return out
+        end = text.find(QUOTE_END, start + len(QUOTE_START))
+        closed = end >= 0
+        if closed:
+            inner = text[start + len(QUOTE_START):end]
+            block_end = end + len(QUOTE_END)
+        else:
+            inner = text[start + len(QUOTE_START):]
+            block_end = len(text)
+        lowered = inner.lower()
+        out.append({
+            "start_line": text.count("\n", 0, start) + 1,
+            "end_line": text.count("\n", 0, block_end) + 1,
+            "closed": closed,
+            "affirmative_declaration": has_affirmative_declaration(inner),
+            "reviewed": REVIEW_MARKER in lowered,
+        })
+        if not closed:
+            return out
+        pos = block_end
+
+
 def quote_exempt_regions(text):
-    """Return char ranges covered by closed marked quote blocks that carry a declaration."""
+    """Return char ranges covered by closed marked quote blocks with an affirmative declaration."""
     regions = []
     pos = 0
     while True:
@@ -88,8 +151,7 @@ def quote_exempt_regions(text):
         if end < 0:
             return regions  # unclosed: no exemption
         inner = text[start + len(QUOTE_START):end]
-        lowered = inner.lower()
-        if any(d in lowered for d in QUOTE_DECLARATIONS):
+        if has_affirmative_declaration(inner):
             regions.append((start, end + len(QUOTE_END)))
         pos = end + len(QUOTE_END)
 
@@ -165,6 +227,13 @@ SELF_TESTS = [
     (f"{_S}\n撤回：结果位级等价\n{_E}\n正文结论：结果位级一致", 1),
     # english core inside a declared marked block is exempt too
     (f"{_S}\nsupersede: historical wording\nbit-level equivalent\n{_E}", 0),
+    # negated declarations must NOT exempt (B-1 review L1); the positive claim sits far enough
+    # after the negated declaration that the 18-char negation window cannot exempt it
+    (f"{_S}\n未撤回：" + "x" * 24 + f"结果位级等价\n{_E}", 1),
+    (f"{_S}\n不作废：" + "x" * 24 + f"结果位级等价\n{_E}", 1),
+    (f"{_S}\n没有撤回：" + "x" * 24 + f"结果位级等价\n{_E}", 1),
+    # fixed affirmative declaration form counts
+    (f"{_S}\n撤回(5)：结果位级等价\n{_E}", 0),
 ]
 
 
@@ -182,6 +251,14 @@ def self_test():
 
 
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "--list-quote-blocks":
+        blocks = []
+        for arg in sys.argv[2:]:
+            p = pathlib.Path(arg)
+            for b in quote_blocks(p.read_text(encoding="utf-8", errors="replace")):
+                blocks.append({"file": str(p).replace("\\", "/"), **b})
+        print(json.dumps(blocks, ensure_ascii=False))
+        return 0
     if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
         return self_test()
     total = 0
