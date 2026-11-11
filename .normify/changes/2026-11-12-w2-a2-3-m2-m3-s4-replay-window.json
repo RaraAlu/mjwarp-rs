@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-a2-3-m2-m3-s4-replay-window",
+  "title": {
+    "zh": "W2/A2-3：M2/M3/S4 重放验证窗（U7/U8 改判 pass/fail；A2 身份冻结；含 A2-2 证据勘误第一节；窗口由 Chief 按四前提开）",
+    "en": "W2/A2-3: M2/M3/S4 replay validation window (U7/U8 promoted to pass/fail, A2 identity freeze, with A2-2 evidence errata section 1; window opened by Chief under the four preconditions)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-12 放行与就绪包（target/render-bvh/gl2-ptx-diff/w2-a2-precheck/a2-3-window-readiness.md）：(1) 先落本卡第一节（0 窗部分）——A2-2 证据勘误：L1 中间失败快照日志 append 最终 PASS 日志+addenda、manifest 11→12；L2 索引 25→33 更正为 27→33（append-only，不改历史字节）；O1 写死 `source_tree_digest.combined` 拼接口径与可复算值；O2 更正 A2-3 计划头部「不入仓」表述；O3（branch_closure_case.rs 注释 13→15）**只记录、窗口后再修**（现在改 tests 会让冻结 exe 与 HEAD 不同源）；并写入三条裁决与窗口执行说明。(2) 窗口本体（10 exe 冻结集、M2/M3/S4+U7/U8 改判、A1 CPU 回归、A2 边界、NP02 6 行、stage2 record-C；monitor 60/60、三点基线、floor 取严、fail-stop、窗内零 Rust 编译）**只由 Chief 按四前提开窗**，本卡不自行开窗；窗后补窗口证据并 done。",
+    "en": "Land section 1 (0-window errata + decisions + window-execution notes) now; the GPU window itself is opened only by Chief under the four preconditions; post-window evidence then closes the card."
+  },
+  "modules": {},
+  "acceptance": [
+    "§1 勘误（append-only、不改历史字节）：L1 在 `g10-p5-mesh-cap32-identity/logs/policy-scan-a2-1-evidence.log` 末尾 append 最终 PASS 扫描（12 文件 0 命中 + self-test 34/34），新增 `addenda.md` 说明中间失败快照已被取代；identity manifest 11→12 重算",
+    "§1 L2：更正 identity README §4 与 NP02 wave README §2 的「25→33」为「27→33」（历史链 13→25（25bd3479）→27（d46f435f）→33（0e5343b8）；`np02-identity-mapping.json` 的 27/6/33 为准），只加说明不改历史字节",
+    "§1 O1：写死 `source_tree_digest.combined` 拼接口径（29 个 `src/physics/collision/cuda/*.cu` 按文件名排序、逐文件 LF 归一化后依次 `sha256(update(name_utf8 + content))`）与复算值 `266bbf94fd92cce3202159df196d84824dacbaa6d22f4b848eddd83ac57fcb44`",
+    "§1 O2：更正 `a2-3-window-plan.md` 头部「写入 target 工作材料（不入仓）」表述（实际已入仓）",
+    "§1 O3：`tests/support/branch_closure_case.rs` 注释「13 个 fixture」与 15 不符——**只记录、窗口后再修**（避免冻结 exe 与 HEAD 不同源）",
+    "§1 三条裁决：over-32 设备 case 不进本窗（host 确定性容量错误由 A2-1 边界单测覆盖；device record-only 不进 pass/fail；不补 XML/MeshData/case；QA 若要 record-only 证据另开 0 窗片）；NP02 inventory 全量重算不做（identity-only swap 保留；scanner 基线 100/33 与 patched 清单 102/32 差异挂 NP5-03 面；**不得宣称 inventory 全量一致**）；新 exe 身份已变 → 后续任何重建 Rust exe 的窗口（含渲染）都要重冻",
+    "窗口内容（由 Chief 开）：10 exe（sha 表见就绪包 §1）顺序执行；M2 2 case、M3 1 case、S4 branch 9 case、U7/U8 改判 pass/fail（U7 强制 dist/pos；U8 设备 count 1→4 且 pos 四角 (±0.05,±0.05,0.045)）、launcher 4、multicontact 3、primitive 3、plane 6、sphere/capsule 4、branches 6+4 swap、stage2 9 synth（record-C）、A1 CPU 回归、A2 边界 CPU、NP02 6 行；fail-stop 8 条（就绪包 §5），任一命中即停、不重试不放宽",
+    "窗口纪律：fresh freeze 复用（A2-2 10/10 copy_match；开窗前 `src/` 自冻结零 diff 且 10 exe 未重建，否则整包作废）；monitor 60/60；三点基线；floor=min(10240, baseline_free−3072) 取严；sha 守卫 10 exe + 15 fixture + 2 参考；窗内零 Rust 编译（runner precheck：cargo/rustc/cl/nvcc 出现即 abort exit 9）；不自行开窗",
+    "窗后：证据目录 `docs/development-evidence/g10-p5-mesh-cap32-window/`（README/receipt/logs/manifest，含 10 exe 逐项结果、U7/U8 判据明细、sha-guards、facts、monitor/基线/floor 记录）；O3 注释修正随后落（tests 注释改动需重跑门禁）；四门禁 + normify check/done",
+    "非声明：窗口前不宣称 U7/U8 通过；不宣称 mesh 容量缺口已清、与上游等价（over-32）、G10@P5 整族通过、NP01/NP02 门禁通过"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-a2-2-identity-refreeze"
+    ],
+    "phase": "W2-A2",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/g10-p5-mesh-cap32-identity/",
+      "docs/development-evidence/g10-p5-mesh-cap32-window/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Chief 2026-11-12：A2-3 窗口等 QA A2-2 PASS 后由 Chief 按四前提开（fresh freeze / monitor 60/60 / 三点基线 / floor 取严），开窗前群留痕后给 go；Backend 不自行开窗。本卡先落第一节（0 窗勘误+裁决+窗口执行说明），status 保持 in_progress 直到窗口完成与窗后证据收口。窗口材料：target/render-bvh/gl2-ptx-diff/w2-a2-precheck/a2-3-window-readiness.md（10 exe sha/bytes、15 fixture、2 参考、runner、fail-stop、时长、零 Rust 编译、四前提勾表）。",
+  "revision": {
+    "before": "74dc4d0c6bae9b7accbe74491c711855e45d8f46",
+    "after": null
+  },
+  "created_at": "2026-11-12T02:03:00.000Z",
+  "updated_at": "2026-11-11T18:02:42.594Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": ".normify/changes/2026-11-12-w2-a2-2-identity-refreeze.json",
+      "pointer": "/status",
+      "equals": "verified"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-identity/receipt.json",
+      "pointer": "/a2_1_evidence_errata/policy_scan_hits",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-a2-3-m2-m3-s4-replay-window"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/failures",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/u8_device_count",
+      "equals": 4
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/u7_pass",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/sha_guards_ok",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap32-window/receipt.json",
+      "pointer": "/zero_rust_compile",
+      "equals": true
+    }
+  ]
+}
