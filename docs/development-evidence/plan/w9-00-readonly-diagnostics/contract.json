@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-w9-00-readonly-diagnostics",
+  "kind": "w9-readonly-diagnostics",
+  "items_count": 3,
+  "items": [
+    {
+      "id": "W9-1",
+      "name": "hfield/sdf/shadow 采集 refit 同型风险诊断",
+      "method": "复刻 np02 采集工具 source 装配（collision DEVICE_SOURCES concat + product.cu；render concat! 列表），与 inventory/receipt 记录的 sourceSha256 比对；并统计被采源码中的 refit 词频",
+      "units": [
+        {
+          "unit": "mjwarp_collision_hfield",
+          "recorded_source_sha256": "12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7",
+          "current_tool_assembly_sha256": "12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7",
+          "bytes": 254263,
+          "match": true
+        },
+        {
+          "unit": "mjwarp_collision_sdf",
+          "recorded_source_sha256": "12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7",
+          "current_tool_assembly_sha256": "12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7",
+          "bytes": 254263,
+          "match": true
+        },
+        {
+          "unit": "render_megakernel",
+          "recorded_source_sha256": "cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48",
+          "current_tool_assembly_sha256": "cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48",
+          "bytes": 110879,
+          "match": true,
+          "includes": "render_shadow.cu（shadow）"
+        },
+        {
+          "unit": "render_depth_seg",
+          "recorded_source_sha256": "1e3f273c88a77235640c44b2e3d52e39984cf659da87e6ff1dd237d8c871e1b9",
+          "current_tool_assembly_sha256": "1e3f273c88a77235640c44b2e3d52e39984cf659da87e6ff1dd237d8c871e1b9",
+          "bytes": 53552,
+          "match": true
+        }
+      ],
+      "known_drift_reference": {
+        "unit": "scene_bvh_ray",
+        "recorded_source_sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d",
+        "current_scene_cu_sha256": "caac8c86a4e4f1e7942cf5c920e2406755dc2e2cade73505f45e28cfff46ab93",
+        "match": false,
+        "cause": "d35cab68（R06-S3b 1D flex 修复）改动 scene.cu；属 NP02 第 10 条漂移待裁项（NP5-04）"
+      },
+      "refit_mentions_in_captured_sources": {
+        "src/physics/collision/cuda/product.cu": 0,
+        "src/render/bvh/cuda/scene.cu": 0,
+        "src/render/kernel/cuda/render_shadow.cu": 0,
+        "src/render/kernel/cuda/render_shade.cu": 0
+      },
+      "refit_note": "refit_bvh/refit_splat_bvh 是 host 侧 API（render::bvh → RenderContext），不在被采内核源码中；被采源码 refit 词频均为 0 → refit 语义变化不会在采集回执中静默出现（除非 host glue 改动，超出内核采集范围）",
+      "risk": "同型机制存在（采集回执按 sourceSha 绑定），但 hfield/sdf/shadow 当前未实现：4 个被采单元的 source 身份与回执记录全匹配；唯一实际漂移是已知的 scene_bvh_ray（第 10 条待裁）",
+      "finding": "no_drift_for_hfield_sdf_shadow"
+    },
+    {
+      "id": "W9-2",
+      "name": "P0-1 计时含 refit 文档",
+      "location": "docs/replication-plan.md §2026-10-22 P0-01 复核记录（约 L405-L419）",
+      "finding": "P0-01 复核记录含 验证命令/平台/通过/失败/未测/误差与容量/剩余缺口，但**没有**「计时是否包含 BVH refit」的显式说明；其他性能文档只写「计时包含编译、传输与依赖 / 计划JIT与宿主诊断」等边界（joint-passive.md、mass-multiply.md、resident-mixed-mass.md），均未提 refit",
+      "recommendation": "W9 文档项：在 P0-01 复核记录补一句「计时边界是否含 refit_calls（当前 P0-01 记录无性能计时，仅命令与通过数，故不影响既有数字；若后续性能对比引用 P0-01，须显式声明）」；本片只诊断为文档缺口，不改历史报告",
+      "risk": "低（P0-01 记录本身无性能数字）；中（若未来把 refit 计入/不计入的两种口径混用，会影响性能对比可比性）",
+      "status": "recorded_doc_gap"
+    },
+    {
+      "id": "W9-3",
+      "name": "R06 recipe params 清理项（7→28 对齐或写明不修理由）",
+      "card": "2026-11-05-render-r06-flex-multiframe-recipe-params-backlog",
+      "current": "实体 A 的 assert_params_match_capture 比对 7 项（use_shadows/use_fast_math/samples_per_pixel/enabled_geom_groups/cam_active/background_color/nworld）；单帧验收 tests/render_flex_validate.rs 覆盖 28 项",
+      "recorded_reason": "风险低：多帧与单帧参考来自同一 pinned 环境/同一 recipe 采集；capture.json.provenance 已锚定 spec sha + 三脚本 sha + refit_calls/actual_sequence；帧内判据已覆盖三相机输出位级；缺口只在「其余 21 项若漂移，实体不会显式失败」",
+      "status": "backlog / 不排期（卡面明示不 start，无机器检查项）",
+      "recommendation": "维持不修并写明理由（已记录）；触发补齐条件=验证窗或后续审计暴露 recipe 参数漂移风险；若补齐→CPU-only 零 GPU 自证，把 7 项对齐到 28 项差异并逐项列出，不改已签 spec/判据/参考、不改 G-2 夹具",
+      "finding": "not_fix_with_recorded_reason"
+    }
+  ],
+  "conclusion": {
+    "readonly": true,
+    "code_changes_made": false,
+    "gpu_used": false,
+    "window_used": false,
+    "summary": "3 项只读诊断完成：①hfield/sdf/shadow 采集 source 身份与回执全匹配（无漂移；refit 不在被采源码、唯一实际漂移为已知 scene_bvh_ray 第 10 条）；②P0-01 记录缺「计时含 refit」显式说明 → 记为文档缺口（不改历史报告）；③R06 recipe params 7 vs 28 维持 backlog 不修 + 理由在案，补齐触发条件与 CPU-only 路径已写明。零代码、零 GPU、零窗。"
+  },
+  "boundaries": {
+    "zero_code": true,
+    "zero_gpu": true,
+    "zero_window": true,
+    "writes": "本目录 + .normify/",
+    "criteria_changed": false,
+    "historical_reports_changed": false,
+    "cards_modified": false
+  },
+  "non_claims": [
+    "does not claim any gate passed or any stage admission",
+    "does not modify code, criteria, references, or historical reports",
+    "does not schedule the two deferred items (P0-01 doc fix, R06 recipe-params alignment)",
+    "read-only diagnosis only; zero GPU / zero window"
+  ]
+}
