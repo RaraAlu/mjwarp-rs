@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-two-run-sha-print",
+  "title": {
+    "zh": "G-L2 实体：两跑 sha / B / world 隔离的打印补齐（测试侧 println；断言/判据零改动；零 GPU）",
+    "en": "G-L2 entity: print two-run sha values (and confirm B stats / world isolation / C numbers are printed); test-side println only, assertions unchanged, zero GPU"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "收掉 attempt-4 归档 backlog「两跑 sha 具体值未打印（只有断言）」：在 tests/render_per_world_light.rs 的 `gpu_per_world_light_matches_reference` 内，于两跑 sha 断言前补 println! 打印 `first_sha`/`second_sha` 的十六进制值（`sha256_frames` 返回 [rgb,depth,seg] 三个 hex 串）；并确认 B 的 `LightStats` 全字段（`{bstats:?}`，Debug 含 worlds/lights/xpos_mismatched/xdir_mismatched）、world 隔离矩阵（`changed={changed:?}`）、C 数值（c1_rgb/c2_depth/c2_seg/verdict/diag/capture 交叉核对）与 A 逐帧统计均已在 `--nocapture` 日志中打印——已打印者只做确认（证据留对照表），不重复加噪。**只改测试源与证据：断言/判据/阈值/参考/相机/recipe 零改动，内核身份不变（无 .cu、无 src）**；实体测试 exe 字节会变（记录 old→new），证据写明「后续渲染 GPU 窗口 guards 输入需重冻，本次不重冻」。零 GPU、零窗口。",
+    "en": "Close the attempt-4 backlog 'two-run sha values not printed (assertion only)': add println! for the hex `first_sha`/`second_sha` values (sha256_frames returns [rgb,depth,seg] hex strings) in the entity test, and confirm that B LightStats (Debug with all four fields), world isolation matrix, C numbers and A per-frame stats are already printed in --nocapture logs (record a confirmation table in evidence; do not add noise). Test source and evidence only: no assertion/criterion/threshold/reference/camera/recipe change, kernel identity unchanged (no .cu, no src). The entity test exe bytes will change (record old->new) and evidence states that later render GPU windows must re-freeze guards (this card does not). Zero GPU/windows."
+  },
+  "modules": {},
+  "acceptance": [
+    "`tests/render_per_world_light.rs` 的 `gpu_per_world_light_matches_reference` 在两跑 sha（first/second）断言前打印两者十六进制值（`[rgb, depth, seg]` 三串），并打印 `equal=` 布尔；断言与逻辑零改动（diff 仅新增 println 行）。",
+    "确认并在证据留对照表：A 逐帧 `FrameStats`（`A worldW camC: {stats:?}`）、B `LightStats` 全字段（`B: {bstats:?}`，Debug 派生含 4 字段）、world 隔离矩阵（`isolation changed={changed:?}`）与 C 数值（c1_rgb_changed/c2_depth_changed/c2_seg_changed/verdict、diag、capture 交叉核对）均已在现有日志打印，无需新增。",
+    "其它打印保持：`pilot_c1_crosscheck_matches_readout` 的 C 数值打印不动。",
+    "仅改 `tests/render_per_world_light.rs` 与新增证据目录；`unchanged src/`、`fixtures/`、`scripts/`；无 `.cu` ⇒ 内核身份不变（megakernel `cf356b72…`/`b63a51dd…`、depth_seg、aa_resolve 沿用 z2vec 片 1 基线）。",
+    "实体测试 exe 身份 old→new（sha256/bytes）记录：old live `ee1fd0ae…`/92,630,818 B（本卡前；attempt-4 冻结值 `73245bbf…`/92,590,602 B 已因 P10/z2vec 变化而 drift）；证据写「后续渲染 GPU 窗口的 guards 输入需重冻，本次不重冻、不占窗」。",
+    "四门禁 fmt/clippy/clippy-cuda/unit + `normify check`；证据目录 README/receipt/manifest 自核；中文提交；零 GPU（本卡不执行 `--ignored` 实体用例，证据写明未执行原因）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_per_world_light.rs",
+      "docs/development-evidence/render-bvh/perworld-l-v2-two-run-sha-print/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Chief 2026-11-11 12:2x 派工卡 D（backlog R1：两跑 sha 具体值未打印）；测试侧 println、零 GPU、零 .cu、断言/判据不动；实体测试 exe 字节会变，后续渲染 GPU 窗口 guards 需重冻（本次不重冻）。",
+  "revision": {
+    "before": "509018dee1fae9ac183a5e33e41c50875e9379cb",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:18:00.000Z",
+  "updated_at": "2026-11-11T04:17:59.172Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-two-run-sha-print/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-perworld-l-v2-two-run-sha-print"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-two-run-sha-print/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
