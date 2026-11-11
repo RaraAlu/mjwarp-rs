@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-a3-com-mass-multiply-source-level-check",
+  "kind": "np5-01a-a3-com-mass-multiply-source-level-check",
+  "reviewed": [
+    "12156259"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "section1_re3_l1_o1": {
+      "rows_fields": "rows-fields-v1.json row_count=24; engine-semantic 15 rows with why_engine_semantic + bit_level_guarantee:false; not-decidable 7 with reasons+why+missing; n/a 2 with why_not_applicable; fields equal evidence basis; 0 field problems",
+      "original_evidence_unchanged": "source_evidence sha f5988b7c/94,815 matches; original bytes unchanged",
+      "manifest": "RE-3 manifest 6/6 (744B) all sha/bytes match",
+      "o1_correction": "addenda + rows-fields not_decidable_reasons_split_measured: no-reference-entry 4 rows/47 sites; no-lineinfo+frozen 3 rows/26 sites; total 73"
+    },
+    "section2_a3": {
+      "sites": 40,
+      "ids_match_rows": "com_position 14 + com_velocity 8 + mass_multiply 18 union exact",
+      "histogram": {
+        "identical": 18,
+        "engine-semantic": 3,
+        "n/a": 19
+      },
+      "engine_semantic": "3 (com_position intermediate:4, accumulation:0, accumulation:2) with why + bit_level_guarantee:false (matrix-product composition x2, serial tree order vs atomic_add x1); no numeric-equivalence conclusion",
+      "mass_multiply": "18 entries: validate/borrowed_validate/views/rounding-note n/a (why_not_applicable), accumulation/output identical; README records RE-2 device-level no-reference-entry",
+      "cumulative": "443 + 40 = 483; A batch 179 complete (A-1 76 + A-2 63 + A-3 40)",
+      "anchors": "40 file:line; 0 resolution errors",
+      "manifest": "4/4 (539B)",
+      "selfcheck": "30 PASS",
+      "gates": "1406/0/402",
+      "hashes": "README 13085701/5,883; evidence c9a9676f/53,532; receipt c42dbbbd/4,224; manifest 337b3367/539; selfcheck 2392debb/1,843",
+      "policy_scan": "0 hits",
+      "hygiene": "clean"
+    }
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "schema-consistency",
+      "where": "np5-01a-a3 evidence.json entries[]",
+      "summary": "A-3 entries omit the `kind` and `label` fields present in every earlier slice (id/anchors/type_mapping/classification/basis/confidence/premise/evidence_pointer are present); kind is only derivable from the id. The A-3 selfcheck \"kind match\" therefore uses the id segment",
+      "suggest": "add kind/label per entry (or document the schema reduction) for consistency with A-1a/A-1b/A-2/B-1/C-1..C-4"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "type": "total-accounting",
+      "summary": "cross-row duplication: kernel rigid_com_position appears in BOTH the `kinematics` row (A-2: 11 sites) and the `com_position` row (A-3: 14 sites); 10 identical (kernel,kind,index) tails are counted in both slices -> 483 now / 608 planned is a row-times-site count; unique expressions = 598",
+      "suggest": "state both counts in the closing addenda (by-row 608 vs deduplicated 598) and name the row overlap so the headline total is not read as 608 unique expressions"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "A-3 engine-semantic why wording (\"数学等价但实现与 fma 收缩形态不同，不作数值等价结论\") follows the A-2 precedent and is acceptable"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence; no bit-level test performed",
+    "review of A-3 source-level records and RE-3 field addendum only"
+  ]
+}
