@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-00-gate-ledger-freeze-r2",
+  "title": {
+    "zh": "NP5-00：NP01/NP02 全量清单与判据映射冻结（机读账本 190 条 + 校验器落仓；只记状态与 owner，不宣称通过；零 GPU）",
+    "en": "NP5-00: freeze the full NP01/NP02 inventory and criterion mapping (190-entry machine-readable ledger + landed checker; status/owner only, no pass claims; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 裁定 1 与 Arch 更新版规格（np-gate-ledger-spec.md 8a88fa9d…/10,610 B，工作材料非证据）：把已提交、可复核的 NP01/NP02 全量清单冻结为独立证据卡 docs/development-evidence/np-gate/——机读账本 np-gate-ledger.json（schema 1，190 条 = np01.paths 30 + host_sites 3 + unregistered 23 + np02.kernels 100 + missing_kernel_rows 2 + gaps 32；逐字节复制 target 定稿 6d6ff7d9…/116,688 B，不重排）+ README（规格 §1/§2/§4/§5/§6/§7 摘要、23 未登记单元与 4+3 分流、scene_bvh_ray 第 10 条漂移 CPU-only 补采、NP02 缺 2 行并入 NP5-03、非声明、复现命令）+ receipt（inputs/totals/工具 sha/tree.head/裁定摘要/边界）+ manifest 自核 + logs；并把生成器/校验器落 scripts/np-gate/**（Chief 已批写域；与 target 源仅差 1 行 guards-93 头注、无逻辑改动；不碰 freeze script/guards JSON/既有采集脚本/guards 输入清单）。本片只冻结清单/判据映射/状态与 owner，不宣称 NP01/NP02 通过、不宣称全产品精度门禁通过；不改判据/参考/容差；不重采证据；不重跑窗口；零 GPU；不写 src/tests/fixtures。",
+    "en": "Per Chief ruling 1 and Arch's updated spec: freeze the committed NP01/NP02 inventory as an independent evidence card under docs/development-evidence/np-gate/ (190-entry machine-readable ledger, byte-identical copy of the target final 6d6ff7d9.../116,688; README/receipt/manifest; logs) and land generator/checker under scripts/np-gate/** (Chief-approved; one-line guards-93 header note differs from the target source, no logic change; does not touch freeze script/guards JSON/existing capture scripts/guards input list). Freeze inventory/criterion mapping/status/owner only; no NP01/NP02 pass claims, no full-product precision gate pass claim; no criteria changes; no re-capture; no windows; zero GPU; no src/tests/fixtures writes."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/np-gate/np-gate-ledger.json` 存在且与 target 定稿**逐字节相同**（sha256 `6d6ff7d98f82e6429038d6f4c731afcc49cf693951a17e520a5a6fde6568c8ad` / 116,688 B）；不重排 JSON。",
+    "条目数 190 且分项 30/3/23/100/2/32；每条有状态与 owner（np01 paths/host 为 `ledger_status`、unregistered 为 `np01_status`、gaps 为 `ledger_action` + owner），状态词表与 `status_vocabulary` 一致；无历史时点混用（显式 `generated_at` + `inputs.tree.head` 快照）。",
+    "机读校验跑通：`python -B scripts/np-gate/check_np5_ledger.py` ⇒ **19 PASS / RESULT: PASS**；日志 `logs/np-gate-ledger-check.log` = `beae8f16…`/862 B（与 target canonical 逐字节相同，由落仓工具重跑生成，UTF-8/LF/无 BOM）。",
+    "工具落仓 `scripts/np-gate/gen_np5_ledger.py`（`bc9e9e0e…`/17,892 B）与 `check_np5_ledger.py`（`e7174bce…`/4,902 B）：与 target 源（`7fe344d1…`/17,807、`a7dbde52…`/4,817）仅差 1 行文件头注记（「NOT in the 93 guards inputs; adding it to guards requires a user re-sign」），无逻辑改动；不触碰 freeze script/guards JSON/既有采集脚本/guards 输入清单（`logs/tool-diff.txt` + receipt 记录）。",
+    "README 记录规格要求内容（§1/§2/§4/§5/§6/§7）+ 23 未登记单元明细 + 4 张阻塞卡只登记/3 个已实现走 NP5-01b 登记 + scene_bvh_ray CPU-only 补采 + NP02 缺失 2 行并入 NP5-03 + 复现命令 + 材料版本说明；**不宣称 NP01/NP02 通过 / 全产品精度门禁通过**。",
+    "边界：写域仅 `docs/development-evidence/np-gate/**` + `scripts/np-gate/**` + `.normify/**`；`unchanged src/`、`tests/`、`fixtures/`，既有敏感脚本零改动；零 GPU、零窗口、不重采证据。",
+    "四门禁 fmt/clippy/clippy-cuda/unit + `normify check`；receipt/manifest 自核（manifest 含两脚本 repo-relative 条目、不自列）；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np-gate/",
+      "scripts/np-gate/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 12:2x 派工卡 F（NP5-00，0 窗）+ 更新版材料 + 批准 scripts/np-gate/** 写域。旧卡 `2026-11-11-np5-00-gate-ledger-freeze` 因运行中声明/检查/验收冻结（无法纳入 190 条账本、scripts 写域与收紧 unchanged）已 abandon（提交 769e6933），内容转本 r2 卡（登记即最终 scope/checks）。材料：规格 8a88fa9d…/10,610 B、账本 6d6ff7d9…/116,688 B、校验器 a7dbde52…/4,817 B、生成器 7fe344d1…/17,807 B、裁定备忘 3c0d68a4…/9,667 B、追加裁定 ce49fcf7…/6,222 B（target/ 工作材料非证据）。只记状态/owner，不宣称 NP 通过；13:40 硬停。",
+  "revision": {
+    "before": "ceaedc7074ba1e38cf297aa6884696ea229d6e5e",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:42:00.000Z",
+  "updated_at": "2026-11-11T04:32:20.413Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts/capture_render_perworld.py",
+        "scripts/perworld_capture_meta.py",
+        "scripts/perworld_light_prep.py",
+        "scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1",
+        "scripts/validate/render-bvh/guards-perworld-l2-light.json"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-00-gate-ledger-freeze-r2"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
