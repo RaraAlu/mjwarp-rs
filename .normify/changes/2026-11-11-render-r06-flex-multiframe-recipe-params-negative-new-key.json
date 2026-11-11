@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key",
+  "title": {
+    "zh": "R06 recipe-params 反例非空转补强：新增「新增键」负例（use_textures）覆盖 21 项新增断言（测试侧，零 GPU）",
+    "en": "R06 recipe-params counterexample fill: add a new-key negative case (use_textures) covering the 21 new assertions (test-side, zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 指令做零偏差收口：卡 C 的两个反例都落在**既有**键（use_shadows/samples_per_pixel），21 项新增断言的「非空转」未被直接证明。最小改法：保留 1 个既有键负例（samples_per_pixel），新增 1 个**新增键**负例（翻转 use_textures，`catch_unwind` 必须 panic，断言消息标注该新增键）；断言口径与 21 项比对本身不动。顺带把卡 C 规格 sha `d7fcf156…`/7,608 B 补入证据引用（append-only addendum）。仅测试支持/用例与证据；零 `.cu`、零 `src/`；multiframe 测试 exe 会再变（记录 old→new，写「R06 后续窗需重冻、本卡不重冻」）。",
+    "en": "Zero-deviation closeout for the R06 recipe-params fill: the previous two negative cases both used pre-existing keys, so the 21 new assertions were not directly proven non-vacuous. Minimal fix: keep one pre-existing-key negative (samples_per_pixel) and add one NEW-key negative (flip use_textures; catch_unwind must panic; message names the new key); the assertions and the 21-item comparison stay unchanged. Also record card C's spec sha d7fcf156.../7608 B via an append-only addendum. Test support/tests and evidence only; no .cu, no src; the multiframe test exe changes again (record old->new; later R06 windows must re-freeze, this card does not)."
+  },
+  "modules": {},
+  "acceptance": [
+    "`tests/support/render_bvh/multiframe_recipe.rs::recipe_param_mismatch_is_detected`：保留 1 个既有键负例（`samples_per_pixel`），新增 1 个新增键负例（翻转 `use_textures`），两次 `catch_unwind` 均必须 panic，且断言消息分别标注「既有键」/「新增键」；正例对照保留。",
+    "21 项新增断言与 `assert_params_match_capture` 比对口径零改动；负例只构造 capture parameters 的变异副本，不改 capture JSON/夹具。",
+    "multiframe 测试 exe old→new（sha256/bytes）记录（卡 C 记录值 `d226bb76…`/118,588,392 B 作为点值 + 卡 E 前的 HEAD 源重建基线）；注明同源重建不可复现的测量 caveat 与「R06 后续窗需重冻，本卡不重冻、不占窗」。",
+    "证据：新小目录 `r06-flex-multiframe-recipe-params-negative-new-key/`（README/receipt/manifest + host tests/identity/diff/21 项覆盖映射）+ 卡 C 证据目录 README 追加 §7 addendum（规格 sha `d7fcf156…`/7,608 B、新键负例、身份 supersession）并重算其 manifest；原文字节不改。",
+    "`unchanged src/`、`fixtures/`、`scripts/`；无 `.cu`；四门禁 fmt/clippy/clippy-cuda/unit（unit 仍 1,406/0/402）+ `normify check`；CPU 用例 41 passed/0 failed/1 ignored；中文提交；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/support/render_bvh/multiframe_recipe.rs",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-negative-new-key/",
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Chief 2026-11-11 12:2x 指令（卡 C 复核 PASS + 规格字面零偏差收口）。Arch 规格 sha = d7fcf156d7ce7f1fec0f30d13d96a53d88b2045dcfc7eef23aafa1f0a9656638 / 7,608 B（target/ 工作材料，非证据）。零 GPU、零窗、不重冻。",
+  "revision": {
+    "before": "bd9a2d8cdb4dc1ff25d784e57f71acb1c369559c",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:23:00.000Z",
+  "updated_at": "2026-11-11T04:22:30.003Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-negative-new-key/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-negative-new-key/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
