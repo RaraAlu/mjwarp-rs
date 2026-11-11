@@ -313,6 +313,7 @@ pub fn output_sha(rgb: &[u32], depth: &[f32], seg: &[[i32; 2]]) -> (String, Stri
 // ----------------------------------------------------------------------------------
 
 pub use mjwarp_rs::model::flex::{FlexEdgeFields, FlexPositionFields, FlexRenderFields};
+pub use mjwarp_rs::render::ContextParams;
 pub use mjwarp_rs::render::LeafPose;
 pub use mjwarp_rs::render::RenderContext;
 pub use mjwarp_rs::render::SceneLeaf;
@@ -323,7 +324,6 @@ pub use mjwarp_rs::render::context::flex_host::{FlexHostAssembly, FlexHostData};
 pub use mjwarp_rs::render::context::owner::MeshState;
 pub use mjwarp_rs::render::kernel::MegakernelRenderer;
 pub use mjwarp_rs::render::kernel::cast::CameraPose;
-pub use mjwarp_rs::render::{CameraActive, ContextParams};
 
 #[rustfmt::skip]
 pub fn scene_meshes(model: &Value) -> Vec<MeshState> {
@@ -414,15 +414,9 @@ pub fn flex_inputs(frame: &Frame) -> FlexInputs {
 pub fn context_params() -> ContextParams<'static> {
     ContextParams { nworld: 1, render_rgb: Some(RenderFlagSpec::Bool(true)), render_depth: Some(RenderFlagSpec::Bool(true)), render_seg: Some(RenderFlagSpec::Bool(true)), use_fast_math: false, use_shadows: true, enabled_geom_groups: &[0, 1, 2, 3], ..Default::default() }
 }
-#[rustfmt::skip]
-pub fn assert_params_match_capture(params: &ContextParams<'_>, recipe: &Value) {
-    assert_eq!(params.use_shadows, recipe["use_shadows"].as_bool().expect("bool"), "use_shadows");
-    assert_eq!(params.use_fast_math, recipe["use_fast_math"].as_bool().expect("bool"), "use_fast_math");
-    assert_eq!(params.samples_per_pixel as u64, recipe["samples_per_pixel"].as_u64().expect("u32"), "samples_per_pixel");
-    assert_eq!(params.enabled_geom_groups, recipe["enabled_geom_groups"].as_array().expect("groups").iter().map(|v| v.as_i64().expect("i32") as i32).collect::<Vec<_>>().as_slice(), "enabled_geom_groups");
-    assert!(matches!(params.cam_active, CameraActive::All), "cam_active");
-    assert_eq!(params.background_color.to_vec(), recipe["background_color"].as_array().expect("bg").iter().map(|v| v.as_f64().expect("f64")).collect::<Vec<_>>(), "background_color");
-}
+// recipe 参数比对（7 → 28 项口径）按功能抽出到 `multiframe_recipe` 子模块（守单文件 500 行棘轮）；
+// 这里保留同名 re-export，GPU 用例与既有调用点无需改动。
+pub use crate::multiframe_recipe::assert_params_match_capture;
 
 #[rustfmt::skip]
 pub fn camera_poses() -> Vec<CameraPose> {

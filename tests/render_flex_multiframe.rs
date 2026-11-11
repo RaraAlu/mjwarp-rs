@@ -4,6 +4,10 @@
 mod allowlist;
 #[path = "support/render_bvh/multiframe.rs"]
 mod multiframe;
+// recipe 参数比对（7 → 28 项口径）与 CPU 自证用例按功能抽出（守单文件 500 行棘轮）；
+// 测试仍由本 test target 执行（`#[test]` 在子模块内同样被收集）。
+#[path = "support/render_bvh/multiframe_recipe.rs"]
+mod multiframe_recipe;
 #[path = "support/render_bvh/s7b1.rs"]
 mod s7b1;
 #[path = "support/render_bvh/s7b2.rs"]
@@ -245,15 +249,6 @@ fn output_sha_static_determinism() {
         &other,
     );
     assert_ne!(first.2, changed.2, "不同 seg 的 sha 必须不同");
-}
-
-#[test]
-fn context_params_match_capture_recipe() {
-    let params = multiframe::context_params();
-    multiframe::assert_params_match_capture(&params, &multiframe::capture()["parameters"]);
-    let resolved = resolve_context(&render_fields(), &params).expect("context 解析");
-    assert_eq!(resolved.nworld, 1);
-    assert_eq!(resolved.enabled_geom_ids.len(), 4, "4 个 geom 全开");
 }
 
 #[test]

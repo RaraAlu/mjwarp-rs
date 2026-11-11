@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill",
+  "verdict": "PASS",
+  "kind": "r06-multiframe-recipe-params-fill",
+  "status": "assertions_filled_zero_gpu",
+  "sources": {
+    "backlog_card": "2026-11-05-render-r06-flex-multiframe-recipe-params-backlog",
+    "spec": "target/render-bvh/gl2-ptx-diff/r06-recipe-params-spec.md (target/ work material; not committed, not evidence)"
+  },
+  "item_scope": {
+    "before": "7 item scope (6 recorded comparisons + resolved.nworld check)",
+    "after": "28 item scope = 26 recorded keys + nworld (not recorded) + cam_res (implicit)",
+    "new_assertions": 21,
+    "retained": [
+      "use_shadows",
+      "use_fast_math",
+      "samples_per_pixel",
+      "enabled_geom_groups",
+      "background_color"
+    ],
+    "retained_and_strengthened": [
+      "cam_active (added recipe[cam_active].is_null() to match the single-frame scope)"
+    ],
+    "cam_res_note": "no literal assertion added (capture does not record it; the single-frame check is implicit too); documented as 28 = 26 recorded + nworld + cam_res"
+  },
+  "anti_omission_guard": {
+    "recipe_param_keys": "RECIPE_PARAM_KEYS: [&str; 26] (all recorded capture keys, lexicographic)",
+    "compared_set_assertion": "assert_params_match_capture ends with compared key set == RECIPE_PARAM_KEYS",
+    "capture_key_set_assertion": "capture_parameter_keys_match_28_item_scope: capture.parameters key set == RECIPE_PARAM_KEYS"
+  },
+  "cpu_self_checks": {
+    "command": "cargo test --locked --features cuda-probe --test render_flex_multiframe -- --test-threads=1",
+    "result": "41 passed / 0 failed / 1 ignored (exit 0)",
+    "new_tests": [
+      "recipe_params_match_capture_28_item_cpu_self_check (positive)",
+      "recipe_param_mismatch_is_detected (counterexample: flipped use_shadows and bumped samples_per_pixel must panic; proves the comparison is not a no-op)",
+      "capture_parameter_keys_match_28_item_scope (key-set guard)"
+    ],
+    "migrated_tests": [
+      "context_params_match_capture_recipe (moved from tests/render_flex_multiframe.rs with the recipe tests; same assertions)"
+    ]
+  },
+  "test_binary_identity": {
+    "test_target": "tests/render_flex_multiframe.rs",
+    "pre_card_live": {
+      "sha256": "3d482e56cb70075fd0946d7d97622ce2c749b991349b0d1f78697976ade2feac",
+      "bytes": 118291924
+    },
+    "pre_card_frozen_stash": {
+      "path": "target/render-bvh/r06-multiframe-window/frozen-exes/render_flex_multiframe.exe",
+      "sha256": "0f76f9e14d1e0bd685f6331655e8b41c18ef6e38a97c0d3d03c4c8365412b0f2",
+      "bytes": 118098954,
+      "note": "already drifted before this card (test sources changed after the old attempt); not caused by this card"
+    },
+    "post_card_live": {
+      "sha256": "d226bb76dfa22c42b45c4ab49637ec5a01ea336f9949994f293b26e826d21488",
+      "bytes": 118588392
+    },
+    "freeze_rule": "any later R06 window must re-freeze its executables/stash; this card does not re-freeze and takes no GPU window"
+  },
+  "file_surface": {
+    "changed": [
+      "tests/support/render_bvh/multiframe.rs (old 6/7-item assertion removed; re-export of the new one; 496 -> 490 lines)",
+      "tests/render_flex_multiframe.rs (declares mod multiframe_recipe; moved one existing CPU test; 499 -> 494 lines)"
+    ],
+    "added": [
+      "tests/support/render_bvh/multiframe_recipe.rs (188 lines: 28-item assertion + guard + 4 CPU tests)"
+    ],
+    "unchanged": [
+      "src/",
+      "fixtures/",
+      "scripts/",
+      "capture.json",
+      "criteria/reference/tolerance/camera/recipe",
+      "tests/render_flex_validate.rs"
+    ],
+    "why_extracted": "both touched files were already at 496/499 lines, near the 500-line single-file ratchet; the function is extracted by feature and the tests still run in the same test target"
+  },
+  "guards_read_only": {
+    "guards-perworld-l2-light.json": "94478b3de924ee2940315de1f04617d4c81e48e0b4b9adb77f8a8301ae48734f / 43729 B (unchanged)",
+    "guards-r06-multiframe.json": "64bfecdfd179c4b7160c4f853660671ec9fb570b4d6c7702aa6c35c2c3cb352d / 11899 B (read-only, unchanged)"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": {
+      "passed": 1406,
+      "failed": 0,
+      "ignored": 402
+    },
+    "recorded_in": ".normify/runs/2026-11-11-render-r06-flex-multiframe-recipe-params-fill/"
+  },
+  "manifest": "manifest.txt (sha256 + bytes, does not list itself)",
+  "non_claims": [
+    "does not claim any rendering numeric change, equivalence, or release conclusion",
+    "assertions only compare; the rendering/numeric path is untouched (no src/ change)",
+    "does not re-freeze guards or executables and takes no GPU window",
+    "does not change any criterion/reference/tolerance/camera/recipe and does not modify capture.json"
+  ]
+}
