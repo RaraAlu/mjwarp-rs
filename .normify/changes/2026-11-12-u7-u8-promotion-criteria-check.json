@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-u7-u8-promotion-criteria-check",
+  "title": {
+    "zh": "QA 复核 U7/U8 提升后判据证据卡（`1da6bbad`）：**PASS（0 阻断，0 一般 + 2 低 + 3 观察）**——判据零放宽（复用 mesh_multicontact_compare_support：nacon 零容差、结构键排序配对、位级优先/4 ULP@scale 回退、零容差字段清单、efc_address=-1、geom 序）；U7 强制 dist/pos；fail_on 五项齐；over-32 只判 host 确定容量错误 + device record-only + not_claimed 排除等价/缺口已清；10 条口径 partial4+uncovered6、仅 UNC-1/UNC-3 措辞受影响，计数仍 8/4/0/6；A2 三片行号对源码实况、ABI 零改动、10 exe 与 NP02 6 行可执行；manifest `6ce2b4b9…`/597（5 行）、卡 8 检查全过；低=policy_scan 1 命中（criteria not_claimed 的「位级等价声明」未否定）+ receipt kind「no card, no commit」与实际矛盾",
+    "en": "QA review of U7/U8 promotion criteria evidence: PASS (0 blockers, 0 major + 2 lows + 3 observations); criteria zero-relaxation, U7 dist/pos guard, fail_on complete, over-32 host-only capacity error + record-only, 10-row disposition counts unchanged, A2 scope anchors match source; lows = policy hit and receipt kind wording"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 U7/U8 提升后判据证据卡（`1da6bbad`）做独立只读复核（零 GPU）：判据是否零放宽、over-32 口径、10 条 partial/uncovered 计数、A2 三片范围与源码实况、证据卫生。只写本卡证据。",
+    "en": "Read-only review of the U7/U8 criteria evidence: rule fidelity, over-32 calibration, disposition counts, A2 scope anchors, hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**判据零放宽 ✅**：与 `tests/support/mesh_multicontact_compare_support.rs` 逐项比对——nacon 零容差、`(worldid,geomcollisionid)` 排序配对、位级优先/4 ULP@scale 回退、11 个零容差字段、`efc_address==-1`、geom 序一致；U7 `u7_extra`+`coincidence_guard` 强制 dist/pos；`fail_on` 五项覆盖 count/结构键/字段/overflow/efc_address",
+    "**over-32/口径 ✅**：`over_range` 规定 host 确定容量错误、device 直调 record-only、不进分母/不写等价；`a2-slices` 写明「仅 host 拒绝则可不采 over-32 设备参考」；`not_claimed` 显式排除「与上游一致（over-range）/mesh 容量缺口已清/U8 已通过/位级等价声明」",
+    "**10 条口径 ✅**：10 行=partial 4+uncovered 6，计数 met 8/partial 4/unmet 0/uncovered 6 与 `g10-p5-acceptance-map/map.json` summary 一致；仅 UNC-1/UNC-3 的 U7/U8 表述受影响，其余 8 条「不受影响/不适用」，无其它条变 pass",
+    "**A2 范围 ✅**：`multicontact_geom.cu:384-385`(10/20)、`contact.cu:216-228`(40/20/10)、`clip.rs`([20]/40)、`types.rs:141/143`(20/10) 与源码实测一致；ABI 零改动；10 个 exe 全部存在；NP02 6 行在 inventory 且采集工具支持",
+    "**结论：复核通过（0 阻断，0 一般 + 2 低 + 3 观察）。** 低 L1=policy_scan 1 命中（criteria `not_claimed` 的「位级等价声明」未否定）、L2=receipt `kind` 写「no card, no commit」与实际有卡有提交矛盾；观察 O1=UNC-1 术语混用、O2=a2-slices 的 §1.3 交叉引用应指 README、O3=卡自加 forbid_claim 检查（正向）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-u7-u8-promotion-criteria"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/u7-u8-promotion-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-12 派工的 U7/U8 判据证据复核；结论 PASS（0 阻断，2 低 + 3 观察）。不宣称 U7/U8 通过或缺口已清。",
+  "created_at": "2026-11-12T00:20:00.000Z",
+  "updated_at": "2026-11-12T00:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/u7-u8-promotion-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-u7-u8-promotion-criteria-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/u7-u8-promotion-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "860e65b275a1178f2e2d768dd1b8ba23262c412a",
+    "after": null
+  }
+}
