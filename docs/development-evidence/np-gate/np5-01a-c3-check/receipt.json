@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-c3-rne-gravity-source-level-check",
+  "kind": "np5-01a-c3-rne-gravity-source-level-check",
+  "reviewed": [
+    "37a21e59"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 1,
+    "observation": 1
+  },
+  "checked": {
+    "section1_c2_obs": {
+      "symmetric_declarations": "tool 8753685b/14,885; self-test 31/31; crafted: withdrawn/withdrawal/retracted/withdraw affirmative -> exempt; 撤回 affirmative exempt; not withdrawn / 未撤回 -> hit",
+      "veto": "block-level veto works (affirmative_declaration False for \"withdrawn: never supersede\" blocks) but a claim within 18 chars after the negator is still exempted by the negation window -> same-line probe yields 0 hits (see L1)",
+      "docstring": "4,017-char docstring lists 撤回/作废/撤销/收回 + supersede/withdraw/withdrawn/withdrawal/retract/retracted and negator vocabulary",
+      "errata_forwarded": "errata-0001 forwarded to C-3 errata_pending with status forwarded to closing addenda; field-table history unchanged"
+    },
+    "section2_c3": {
+      "sites": 43,
+      "ids_match_rows": "rne_acc 18 + gravity_compensation 13 + rne_bias 12 union exact",
+      "histogram": {
+        "identical": 29,
+        "n/a": 13,
+        "engine-semantic": 1
+      },
+      "engine_semantic": "1 (rne_bias:accumulation:1): deterministic reverse-order accumulation vs upstream body_tree atomic_add, why + bit_level_guarantee:false, no numeric-equivalence claim",
+      "cumulative": "337 + 43 = 380 overlap-free",
+      "anchors": "40 file:line + 3 no-reference-expression; 0 resolution errors; samples verified (rne.cu 35/37/39 <-> smooth.py 1331/1366/1372; rne_bias.rs 274 <-> smooth.py 1444)",
+      "required_fields": "43/43",
+      "policy_scan": "0 hits on C-3 evidence/README",
+      "manifest": "4/4 (539B)",
+      "selfcheck": "16 PASS",
+      "gates": "1406/0/402",
+      "hashes": "evidence 3f9a7c86/63,172; README 57c39e88/5,661; receipt 529130c2/4,312; manifest 8a9f8791/539; selfcheck 4b724b4b/1,088",
+      "no_coverage_wording": true,
+      "hygiene": "clean"
+    }
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "scanner-interaction",
+      "where": "scripts/np-gate/policy_scan.py veto + 18-char negation window",
+      "summary": "block-level veto works, but a claim placed within 18 chars after the negated declaration is still exempted by the negation window: \"{S}\\nwithdrawn: never supersede\\n结果位级等价\\n{E}\" yields 0 hits although the block is vetoed (add 24-char filler -> 1 hit). The tool self-test only covers the English-claim layout where the negator falls outside the window",
+      "suggest": "when a block is vetoed (a negated declaration), scan its claims without the negation-window exemption; add an adjacent-claim vertex self-test"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "C-3 has 1 engine-semantic with proper why/bit_level_guarantee; cumulative 380 and errata forwarding verified; the remaining scanner behavior is a documented heuristic limitation (guard rail + manual review)"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence; no bit-level test performed",
+    "review of C-3 source-level records and C-2 observation closures only"
+  ]
+}
