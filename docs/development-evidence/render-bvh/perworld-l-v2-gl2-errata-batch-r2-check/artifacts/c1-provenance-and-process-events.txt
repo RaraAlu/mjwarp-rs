@@ -1,0 +1,42 @@
+# C section (QA #7 residuals) + process events verification (read-only, zero GPU)
+#
+## C1 evidence (diag7, in target/, not committed)
+# target/render-bvh/perworld-l-v2-gl2/diag7/window/gpu-snapshot.txt  672 B  mtime 2026-11-11 08:06:18
+#   gpu_pre_actual  = 2 %, 3,924 MiB used, 12,138 MiB free, 26 C      <- matches pre-state.txt exactly
+#   gpu_post_actual = 2 %, 3,919 MiB used, 12,143 MiB free, 26 C      <- NO in-window source (see G1)
+#   dispatch_reference = pre 4 % / 3,919 MiB / 26 C ; post 2 % / 3,914 MiB / 26 C (REFERENCE ONLY)
+#   timestamps_actual  = "post recorded in run-summary.txt (same diagnostic round)"   <- CONTRADICTED below
+# target/render-bvh/perworld-l-v2-gl2/diag7/run-summary.txt:
+#   gpu_after=$gpu            <- still an unexpanded placeholder; no post-run GPU value exists in the round's records
+# target/.../diag7/pre-state.txt:
+#   gpu_pre=2 %, 3924 MiB, 12138 MiB, 26
+# template: docs/development-evidence/render-bvh/perworld-l-v2-gl2-errata-batch/artifacts/window-snapshot-template.txt (617 B, UTF-8/LF, no TAB/NUL)
+#
+# G1 (general, non-blocking): C1 fix supplies a post value that was not sampled at run end; file mtime 08:06:18
+# (= errata editing window) and the empty run-summary placeholder show it is a later re-query. It must be labelled
+# "errata-time re-measurement", and the false cross-reference to run-summary.txt must be corrected.
+#
+## C2
+# target/.../diag7/body-env.txt rewritten: UTF-8/LF, no TAB/backspace, "where nvrtc64_120_0.dll" line readable,
+# PATH + nvrtc sha256/bytes + cudart sha256/bytes present, explicit "outline env pair: NOT set (entity needs PATH only)".
+#
+## C3
+# nvidia-smi actual treated as authoritative in c-record-fixes.txt; dispatch numbers marked reference; pre matches pre-state.
+#
+## Process events (verified against commit timeline; no lock audit log exists in repo)
+# 08:03:13  6446c509  QA 登记 attempt4-check 卡（QA 持锁期开始）
+# 08:03:30  d82d5905  Backend 登记旧卡（+75 行，仅 .normify/changes/...errata-batch.json）
+# 08:03:32  f9bc436e  Backend start 旧卡（+3 -4，同一 JSON）
+# 08:03:48  5b586e77  QA 证据提交（持锁期结束）
+# => the two Backend governance commits fall inside the QA-held lock interval and touch only card JSON: consistent with disclosure.
+# monitor-stdout.txt restore: current 340 B / c22ea74632060f7983ad9fa39b39f0f69fefcaa8ea8e3a1f8c49dc566ddf7bd3,
+# git shows no M for it since 5f1d436d; readable copies added separately => restore claim holds, net loss 0.
+#
+## E readable copies fidelity (independent decode of the ORIGINAL corrupt bytes)
+# freeze-stdout.log 3,740 B / 4d983c68... : decoded as UTF-16LE, strip NUL/U+FFFD -> 24 CHECK/WARN lines +
+#   "GUARDS_FROZEN suite=render-perworld-l2-light total=107 exes=12 inputs=93 lists=2 aggregate_sha256=08180107... guards_sha256=94478b3d... bytes=43729" +
+#   "SELFCHECK PASS 18/18 mode=execute"  == freeze-stdout.readable.txt content (line by line)
+# monitor-stdout.txt 340 B / c22ea746... : decoded -> "monitor samples=78 longest_clean=60 required=60 ready=True
+#   start=2026-11-11T07:45:21.970+08:00 end=2026-11-11T07:51:54.302+08:00 util_min=2 util_max=6 free_min=12136"
+#   == monitor-stdout.readable.txt content
+# => readable copies are faithful transcriptions, not invented; originals unchanged in git.

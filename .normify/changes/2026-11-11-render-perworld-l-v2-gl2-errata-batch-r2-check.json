@@ -5,7 +5,7 @@
     "zh": "QA 复核 G-L2 errata 批 r2（`84ed67d2`）：A 段 append-only 用旧 blob 前缀证明 8 个内容文件全部**纯追加**（README/logs 旧字节逐字节保全；receipt 语义等价但字节重排=低项）；B 方案 A 实现正确（`geom_type` 取模型 `geom_type[geom_id]`、geom 3⇒7、无模型/越界 null、`seg_objtype=seg[1]`、schema 仍 2），我独立重跑静态单测 **5 passed/0 failed**；C 落点成立但 **C1 一般项：post-run GPU 值非 run 时采样（run-summary 仍是 `gpu_after=$gpu` 占位，snapshot 引用不实、mtime=errata 时段）**；E 两份可读副本我按 UTF-16LE 解码原始损坏字节逐行比对**忠实**（原字节未改：freeze 3,740 B/`4d983c68…`、monitor 340 B/`c22ea746…`）；8 个受影响目录 manifest 独立重算 **8/13/2/5/17/5/6/53** 全对；边界 `src/fixtures/scripts`=0、`*.cu`=0（内核身份未触碰）、tests 仅 2 文件、guards `94478b3d…`/43,729 未变、签名材料零改动；编码全 UTF-8/无 BOM/无 CR/TAB/NUL；门禁 fmt/clippy/clippy-cuda exit 0、unit **1,394/0/402**；两起过程事件时间线可核 → **复核通过（0 阻断，1 一般 + 4 低 + 1 观察）**；低项=diff 工件名不副实、receipt 非纯追加、行数口径 466/231（物理 484/237，均<500）、证据 task_id 指向旧卡；观察=锁无审计日志",
     "en": "QA review of the G-L2 errata batch r2 (84ed67d2): A append-only proven by old-blob prefix for 8 content files; B option A implemented correctly (geom_type from model array, geom 3 => 7, null when missing/out-of-range, seg_objtype = seg[1], schema stays 2) with 5/5 static tests independently rerun; C landing correct except general G1 (post-run GPU value is an errata-time re-query, run-summary still has the gpu_after=$gpu placeholder and the snapshot cross-reference is false); E readable copies faithful (UTF-16LE decode of the corrupt originals matches line by line) with original bytes unchanged; 8 affected manifests recomputed 8/13/2/5/17/5/6/53; boundaries clean, no .cu change, guards unchanged; encoding clean; gates fmt/clippy/clippy-cuda exit 0, unit 1394/0/402; both process events timeline-verified - PASS with 1 general + 4 low + 1 observation"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 G-L2 errata 批 r2（提交 **`84ed67d2`** + 卡 `2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2`）做独立只读复核（零 GPU）：A1–A6 append-only/历史字节、B 字段 errata 实现与单测/无 `.cu`/schema==2、C 三条 QA#7 记录面落点与来源、E attempt4 §11 与可读副本忠实性、8 目录 manifest 行级重算、边界（src/fixtures/scripts/guards/签名材料）、编码卫生、门禁、过程事件与锁纪律。**只写本卡与本卡证据。**",
     "en": "Independent read-only review of the errata batch r2: append-only proofs, B field errata implementation/tests/no .cu/schema 2, C record-level residuals and provenance, E addendum and readable-copy fidelity, 8 manifests recompute, boundaries, encoding, gates, process events and lock discipline."
@@ -35,11 +35,12 @@
   },
   "note": "Chief 2026-11-11 08:04 派工：复核 errata 批 r2（提交 84ed67d2）并在 08:50 前落卡；写窗口内 Backend 开 z2vec 片 1 持锁（08:13 起）+ 工作树含其未提交 render_flex.cu，故落卡推迟到锁释放后/12:00。结论：复核通过（0 阻断，1 一般 + 4 低 + 1 观察）。已独立核：A 8 个内容文件旧 blob 前缀证明纯追加（receipt 语义等价但重排=低）；B 实现正确、schema 仍 2、无 .cu、我重跑 5/5 静态单测通过；C 落点成立但 C1 post-run GPU 值为 errata 时段复测（run-summary 仍 gpu_after=$gpu 占位、snapshot 引用不实）；E 可读副本按 UTF-16LE 解码原始字节逐行一致、原字节未改；8 目录 manifest 8/13/2/5/17/5/6/53 全对；边界 src/fixtures/scripts=0、*.cu=0、guards 94478b3d/43729 未变、签名材料零改动；编码卫生；门禁 unit 1,394/0/402；过程事件①时间线落在我持锁区间内（仅 .normify 卡 JSON）与披露一致、②monitor-stdout 恢复成立。低：b-field-change.diff 名不副实、receipt 非纯追加、行数口径 466/231（物理 484/237）、证据 task_id 指向旧卡。观察：锁无审计日志。不宣称修复/等价、不改判据、零 GPU。",
   "revision": {
-    "before": "fe4e22624414adae80329756170583e5531df8ad",
+    "before": "62cccc08c15d50644e82baee552b87bdd3fb504f",
     "after": null
   },
   "created_at": "2026-11-11T00:19:00.000Z",
-  "updated_at": "2026-11-11T00:19:00.000Z",
+  "updated_at": "2026-11-11T00:20:05.594Z",
+  "closed_at": "2026-11-11T00:20:05.594Z",
   "checks": [
     {
       "kind": "gate",

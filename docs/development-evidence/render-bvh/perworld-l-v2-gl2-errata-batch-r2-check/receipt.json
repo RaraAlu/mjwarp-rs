@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "84ed67d2e835cfff5c5c0741eade8f6fe292a6fb",
+    "card": "2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2",
+    "baseline_for_diff": "5f1d436d (attempt4 archive) / b5e04c84 (84ed67d2^)",
+    "head_at_review_start": "84ed67d2 (tree clean, lock FREE)",
+    "note": "during review Backend started z2vec slice 1 (lock HELD 08:13, uncommitted render_flex.cu); reviewed tree content is 84ed67d2 and diag/diag_ext are unchanged after it"
+  },
+  "summary": "PASS: 0 blocker, 1 general, 4 low, 1 observation. A append-only holds for all README/log files (byte prefix proof), B implementation correct with 5/5 static tests independently rerun, C landing correct except G1 (post-run GPU value provenance), E readable copies faithful (decoded original bytes line-by-line), 8 manifests recomputed, boundaries clean, gates unit 1394/0/402.",
+  "general_findings": [
+    {
+      "id": "G1",
+      "title": "C1 补记的 post-run GPU 值不是 run 时采样，且交叉引用不实",
+      "detail": "target/.../diag7/window/gpu-snapshot.txt records gpu_post_actual=2%/3919MiB/12143MiB/26C but the round's only post-run record run-summary.txt still contains the unexpanded placeholder 'gpu_after=$gpu'; the snapshot claims 'post recorded in run-summary.txt (same diagnostic round)' which is contradicted; file mtime 08:06:18 (= errata window) shows it is an errata-time re-query. No numeric impact on any verdict, but C1's claim should be downgraded to 'post-run snapshot completed by errata-time re-measurement' and the false cross-reference removed.",
+      "blocking": false
+    }
+  ],
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "artifacts/b-field-change.diff 名不副实",
+      "detail": "contains only the test-relocation hunks (diag.rs -49 / diag_ext.rs +51), not the geom_type/seg_objtype semantic change; its diag.rs 'old' blob index 25affdc8 is an intermediate edit state (84ed67d2^ is 02533c7d)."
+    },
+    {
+      "id": "L2",
+      "title": "A2 receipt.json 不是 append-only",
+      "detail": "single-normalize/receipt.json is re-serialised from byte 5245 (compact inline -> multi-line) and addenda[] appended; semantic content equal (old 83 leaf keys == new non-addenda keys) but old bytes not preserved. A-section wording should distinguish README/logs (pure append) from receipt.json (structured rewrite + addendum)."
+    },
+    {
+      "id": "L3",
+      "title": "行数口径 466/231 是 PowerShell Get-Content 计数",
+      "detail": "physical lines (LF count / ReadAllLines) are diag.rs 484 / diag_ext.rs 237; both are below the 500-line ratchet so the verdict is unaffected, but the record should quote physical line counts."
+    },
+    {
+      "id": "L4",
+      "title": "证据 task_id 指向被 abandon 的旧卡",
+      "detail": "batch README line 3 and receipt.json task_id use 2026-11-11-render-perworld-l-v2-gl2-errata-batch (abandoned), not the successor -r2 card; card note explains the lifecycle but the evidence face does not."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "锁审计日志仍缺失",
+      "detail": "repo-write-lock.ps1 has no historical audit log; the two disclosed process events were cross-checked against commit timeline (d82d5905 08:03:30 / f9bc436e 08:03:32 inside QA-held lock interval 08:03:13-08:03:48, only .normify card JSON touched) and against git (monitor-stdout.txt 340 B/c22ea746... with no M) - both consistent with disclosure."
+    }
+  ],
+  "verified": {
+    "a_append_only": "8 content files pure prefix-append (old bytes preserved); receipt.json re-serialised + addenda (semantic equal)",
+    "b_implementation": "geom_type from model geom_type[geom_id] (geom 3 => 7), null when no model/out of range; seg_objtype = seg[1]; schema stays 2; no .cu change => kernel identity untouched",
+    "b_tests_rerun": "cargo test --locked --features cuda-probe --test render_per_world_light -- light_diag => 5 passed / 0 failed",
+    "b1_audit": "model-315.json geom_type=[0,6,2,7,3,5,4] (geom 3 => 7 MESH), geom_matid=[2,0,1,0,2,1,2]; errata stands",
+    "c_landing": "gpu-snapshot.txt + template added; body-env.txt rewritten clean UTF-8/LF; GPU numbers nvidia-smi authoritative, dispatch marked reference",
+    "e_attempt4": "section 11 covers E1-E5; originals unchanged (freeze 3740 B/4d983c68..., monitor 340 B/c22ea746...); readable copies faithful by UTF-16LE decode comparison",
+    "manifests": "8 dirs recomputed: 8/13/2/5/17/5/6/53, bad=0 missing=0 extra=0, none self-listed",
+    "claimed_hashes": "batch README dd3836e8/5719, receipt 3ee94ff3/4650, manifest 1274effe/968; attempt4 README 4725b7de/11374, manifest b9932264/5985",
+    "boundaries": "src/ fixtures/ scripts/ = 0 files; *.cu = 0; tests/ only diag.rs + diag_ext.rs; guards JSON 94478b3d/43729 unchanged; no signed-material changes",
+    "encoding": "all changed/added docs and tests UTF-8, no BOM, no CR, no TAB, no NUL; readable copies UTF-8/LF",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1394 passed / 0 failed / 402 ignored, exit 0",
+    "process_events": "both events recorded in card note + receipt process_events + README section F; timeline verified",
+    "old_card": "2026-11-11-render-perworld-l-v2-gl2-errata-batch status=abandoned via 82f5dd76; r2 card verified"
+  },
+  "non_claims": [
+    "does not verify any rendering numeric regression or fix effect",
+    "does not change criterion/threshold/reference/tolerance/camera/recipe",
+    "does not claim upstream equivalence or light-field end-to-end acceptance",
+    "zero GPU; no window rerun, no refreeze"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 6,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}

@@ -1,0 +1,41 @@
+# B section verification (independent, read-only; zero GPU)
+# target commit: 84ed67d2 ; tests/support/render_bvh/light/{diag,diag_ext}.rs unchanged after it (git diff 84ed67d2 -- ... = empty)
+#
+## 1) change surface
+# 84ed67d2^..84ed67d2:
+#   tests/support/render_bvh/light/diag.rs      +20 -2
+#   tests/support/render_bvh/light/diag_ext.rs  +51 -0
+#   src/  fixtures/  scripts/  = 0 files ;  *.cu = 0 files  => kernel identity untouched (P10 baseline source 6b1ade37 / PTX 48f8e7f8 not re-verified by rebuild, only by absence of .cu change)
+#
+## 2) semantics (line-level)
+# OLD: let (geom_id, geom_type) = (seg[0], seg[1]);            // geom_type was seg[1] (object type)
+# NEW: let (geom_id, seg_objtype) = (seg[0], seg[1]);
+#      geom_type = model["arrays"]["geom_type"]["values"][geom_id]  (geom_id<0 or out of range => null)
+#      no model => geom_type=null, seg_objtype kept, mat_id=null
+#      out of range geom => mat_id = -1
+#      other fields and order unchanged ; SCHEMA: u32 = 2 unchanged
+#
+## 3) B1 audit cross-check with real fixture
+# tests/support/render_bvh/light/model-315.json  (read via ConvertFrom-Json)
+#   geom_type  = [0,6,2,7,3,5,4]   => geom 3 = 7 (MESH)
+#   geom_matid = [2,0,1,0,2,1,2]   => geom 3 -> mat 0
+# diag7/diag8 seg.product = [3,5] => old geom_type 5 == seg[1] (mjOBJ_GEOM); errata stands, not retracted.
+#
+## 4) tests: independent run (not trusting logs/static-tests.log)
+# cmd: cargo test --locked --features cuda-probe --test render_per_world_light -- light_diag
+# out: running 5 tests ... 5 passed; 0 failed; 0 ignored; 18 filtered out
+#   light_diag::tests::schema_constant_and_document_top_level_agree
+#   light_diag::tests::rgb_mismatch_entries_always_carry_diagnostics_key
+#   light_diag_ext::tests::segment_attribution_uses_model_geom_type_and_keeps_seg_objtype
+#   light_diag_ext::tests::segment_attribution_without_model_keeps_seg_objtype_and_nulls_geom_type
+#   light_diag_ext::tests::segment_attribution_out_of_range_geom_type_is_null
+# SCHEMA constant: tests/support/render_bvh/light/diag.rs:23  pub const SCHEMA: u32 = 2;
+#
+## 5) line-count jargon (low L3)
+# claimed 466/231 ==  Windows PowerShell  Get-Content  element count (default ANSI decoding swallows some LF bytes after CJK tail bytes)
+# physical lines (LF byte count == ReadAllLines): diag.rs 484 , diag_ext.rs 237  ; both < 500 ratchet => verdict unaffected
+#
+## 6) artifact issue (low L1)
+# artifacts/b-field-change.diff contains only the test-relocation hunks (diag.rs -49 / diag_ext.rs +51);
+# it does NOT contain the geom_type/seg_objtype semantic change, and its diag.rs "old" blob index 25affdc8 is an
+# intermediate edit state (84ed67d2^ has 02533c7d). Name is misleading.
