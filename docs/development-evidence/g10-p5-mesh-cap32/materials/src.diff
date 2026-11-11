@@ -1,0 +1,829 @@
+diff --git a/src/physics/collision/cuda/contact.cu b/src/physics/collision/cuda/contact.cu
+index 44d1f302..0c2416af 100644
+--- a/src/physics/collision/cuda/contact.cu
++++ b/src/physics/collision/cuda/contact.cu
+@@ -213,19 +213,19 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
+                     (in.geomtype1 == G5_BOX && in.geomtype2 == G5_BOX);
+   if (want_multi && has_polytope && multiccd_idx > -1 &&
+       g5_mc_supported_type(in.geomtype1) && g5_mc_supported_type(in.geomtype2)) {
+-    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=20（A1，2026-10-31；含 cylinder）、
+-    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder/mesh 分支）。
+-    v3 polygon[40];
+-    v3 clipped[40];
+-    v3 pnormal[20];
+-    float pdist[20];
+-    int idx1[10];
+-    int idx2[10];
+-    v3 n1[10];
+-    v3 n2[10];
+-    v3 endvert[10];
+-    v3 face1[20];
+-    v3 face2[20];
++    // 上游 convex_narrowphase 的 scratch 容量上界（A2，2026-11-12）：npolygonmax=32、nmeshdegmax=32
++    // （U7/U8 已提升为 pass/fail；over-32 仍由 mesh 助手 guard 回退单接触）。
++    v3 polygon[64];
++    v3 clipped[64];
++    v3 pnormal[32];
++    float pdist[32];
++    int idx1[32];
++    int idx2[32];
++    v3 n1[32];
++    v3 n2[32];
++    v3 endvert[32];
++    v3 face1[32];
++    v3 face2[32];
+     g5_mc_result mc = g5_multicontact(polygon, clipped, pnormal, pdist, idx1, idx2, n1, n2,
+                                       endvert, face1, face2, pt->vert, pt->vert_index,
+                                       pt->face[multiccd_idx], w1, w2, phase.geom1, phase.geom2,
+diff --git a/src/physics/collision/cuda/multicontact.cu b/src/physics/collision/cuda/multicontact.cu
+index 54794353..ffc7bf2f 100644
+--- a/src/physics/collision/cuda/multicontact.cu
++++ b/src/physics/collision/cuda/multicontact.cu
+@@ -10,9 +10,9 @@
+ // 接入（mesh 助手在 `multicontact_mesh.cu`）。sidecar 缺失（9 数组全空 / `mesh_polyadr < 0`）
+ // 时回退单接触，与 M0a 的 null sidecar 语义一致。box/cylinder 路径逐字保持不变。
+ //
+-// 调用方（`contact.cu`）保证 scratch 容量（A1，2026-10-31）：`polygon`/`clipped` 各 40 个 v3、
+-// `plane_normal` 20、`plane_dist` 20、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 10、`face1`/`face2` 各 20
+-// （npolygonmax=20；degree 仍 10，U7 未覆盖）。
++// 调用方（`contact.cu`）保证 scratch 容量（A2，2026-11-12）：`polygon`/`clipped` 各 64 个 v3、
++// `plane_normal` 32、`plane_dist` 32、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 32、`face1`/`face2` 各 32
++// （npolygonmax=32、nmeshdegmax=32；U7/U8 已提升为 pass/fail，over-32 仍是限制）。
+ // 本函数不做动态分配、不用递归。
+ #pragma once
+ #include "multicontact_clip.cu"
+diff --git a/src/physics/collision/cuda/multicontact_clip.cu b/src/physics/collision/cuda/multicontact_clip.cu
+index 492b8e77..50faf015 100644
+--- a/src/physics/collision/cuda/multicontact_clip.cu
++++ b/src/physics/collision/cuda/multicontact_clip.cu
+@@ -6,9 +6,9 @@
+ // `_set_edge`（L2199）属几何恢复助手，放在 `multicontact_geom.cu`；本文件只做裁剪。
+ // 数值纪律同 geom 片：全 f32、上游操作数顺序、不做代数化简。
+ //
+-// 容量契约（调用方 `multicontact.cu` 的本地 scratch；A1，2026-10-31）：`plane_normal` 20 个 v3、
+-// `plane_dist` 20 个 float（npolygonmax=20 时的最大 nface1）、`polygon_out`/`clipped_out` 各 40 个 v3
+-// （上游 npolygonmax=20 的两倍上界，见 L2094 注释）。
++// 容量契约（调用方 `multicontact.cu` 的本地 scratch；A2，2026-11-12）：`plane_normal` 32 个 v3、
++// `plane_dist` 32 个 float（npolygonmax=32 时的最大 nface1）、`polygon_out`/`clipped_out` 各 64 个 v3
++// （上游 npolygonmax=32 的两倍上界，见 L2094 注释）。
+ #pragma once
+ #include "multicontact_geom.cu"
+ 
+diff --git a/src/physics/collision/cuda/multicontact_geom.cu b/src/physics/collision/cuda/multicontact_geom.cu
+index 26daf968..05a6fb40 100644
+--- a/src/physics/collision/cuda/multicontact_geom.cu
++++ b/src/physics/collision/cuda/multicontact_geom.cu
+@@ -378,11 +378,12 @@ struct g5_mc_mesh_view {
+     bool has_poly;
+ };
+ 
+-// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[10]`、`face1/face2[20]` 一致）：
+-// 超出时对应 mesh 助手返回 0，由 `g5_multicontact` 回退单接触（未覆盖边界，见证据）。
+-// A1（2026-10-31）：npolygonmax 16 -> 20（对应上游 npolygonmax=20）；degree 仍 10（U7 未覆盖，A2）。
+-#define G5_MC_MESH_DEG_MAX 10
+-#define G5_MC_MESH_FACE_MAX 20
++// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[32]`、`face1/face2[32]` 一致）：
++// 超出时对应 mesh 助手返回 0，由 `g5_multicontact` 回退单接触（over-32 仍是限制，见证据）。
++// A1（2026-10-31）：npolygonmax 16 -> 20；degree 仍 10。
++// A2（2026-11-12）：容量 20/10 -> 32/32（U7/U8 已提升为 pass/fail；over-32 为限制）。
++#define G5_MC_MESH_DEG_MAX 32
++#define G5_MC_MESH_FACE_MAX 32
+ 
+ __device__ __forceinline__ g5_mc_mesh_view g5_mc_mesh_view_of(const d_geom& mesh_geom) {
+     g5_mc_mesh_view view;
+diff --git a/src/physics/collision/cuda/multicontact_mesh.cu b/src/physics/collision/cuda/multicontact_mesh.cu
+index 4514e3fa..2eecd931 100644
+--- a/src/physics/collision/cuda/multicontact_mesh.cu
++++ b/src/physics/collision/cuda/multicontact_mesh.cu
+@@ -9,11 +9,11 @@
+ //
+ // 容量边界（本实现写死；超出时返回 0 → 由 `g5_multicontact` 回退单接触）：
+ // - 单顶点相邻 polygon 数（= `polymapnum[vertadr+v]`，上游 `nmeshdegmax`）≤
+-//   `G5_MC_MESH_DEG_MAX`(10)，与 `contact.cu` 的 `n1`/`n2`/`endvert` scratch 一致；
+-// - 单个 polygon 顶点数（`polyvertnum`，上游 `npolygonmax`）≤ `G5_MC_MESH_FACE_MAX`(20，
+-//   A1 2026-10-31 由 16 提升)，与 `face1`/`face2` scratch 一致。
+-// 本片 fixture（cube）的 degree=3、polygon 顶点=4，远低于上界；一般 mesh 超出上界的组合
+-// 记未覆盖，不改变判据。
++//   `G5_MC_MESH_DEG_MAX`(32，A2 2026-11-12 由 10 提升)，与 `contact.cu` 的 `n1`/`n2`/`endvert` scratch 一致；
++// - 单个 polygon 顶点数（`polyvertnum`，上游 `npolygonmax`）≤ `G5_MC_MESH_FACE_MAX`(32，
++//   A2 2026-11-12 由 20 提升)，与 `face1`/`face2` scratch 一致。
++// A2 后 U7/U8 case（24/24、20/3）在界内；guard 保留为 defense-in-depth（in-range 不应触发）。
++// over-32 仍是限制：助手返回 0 → 回退单接触，不改变判据。
+ #pragma once
+ #include "multicontact_geom.cu"
+ 
+diff --git a/src/physics/collision/gjk/multicontact/clip.rs b/src/physics/collision/gjk/multicontact/clip.rs
+index b5aa796a..d08cfb35 100644
+--- a/src/physics/collision/gjk/multicontact/clip.rs
++++ b/src/physics/collision/gjk/multicontact/clip.rs
+@@ -33,9 +33,15 @@ pub(crate) fn polygon_clip(
+         return result;
+     }
+ 
+-    // 每个顶点的平面法线与平面常数（A1 2026-10-31：容量 16 -> 20，与设备 `pnormal/pdist[20]` 对齐）。
+-    let mut pn = [[0.0_f32; 3]; 20];
+-    let mut pd = [0.0_f32; 20];
++    // A2（2026-11-12）：容量前置检查——33+ 顶点返回确定性空结果（与设备 guard 语义对齐，
++    // 不越界 panic）。上限与设备 `G5_MC_MESH_FACE_MAX`(32) / `pnormal/pdist[32]` 一致。
++    if nface1 > 32 || nface2 > 32 {
++        return result;
++    }
++
++    // 每个顶点的平面法线与平面常数（A2 2026-11-12：容量 20 -> 32，与设备 `pnormal/pdist[32]` 对齐）。
++    let mut pn = [[0.0_f32; 3]; 32];
++    let mut pd = [0.0_f32; 32];
+     for i in 0..nface1 - 1 {
+         let (plane_d, plane_n) = plane_normal(face1[i], face1[i + 1], n);
+         pd[i] = plane_d;
+@@ -45,9 +51,9 @@ pub(crate) fn polygon_clip(
+     pd[nface1 - 1] = plane_d;
+     pn[nface1 - 1] = plane_n;
+ 
+-    // 裁剪后的多边形最多 2 倍边数（A1 2026-10-31：32 -> 40，与设备 `polygon/clipped[40]` 对齐）。
+-    let mut polygon = vec![[0.0_f32; 3]; 40];
+-    let mut clipped = vec![[0.0_f32; 3]; 40];
++    // 裁剪后的多边形最多 2 倍边数（A2 2026-11-12：40 -> 64，与设备 `polygon/clipped[64]` 对齐）。
++    let mut polygon = vec![[0.0_f32; 3]; 64];
++    let mut clipped = vec![[0.0_f32; 3]; 64];
+     let mut npolygon = nface2;
+     let mut nclipped = 0_usize;
+ 
+diff --git a/src/physics/collision/gjk/multicontact/mod.rs b/src/physics/collision/gjk/multicontact/mod.rs
+index 1ee86e1f..4b2d11b4 100644
+--- a/src/physics/collision/gjk/multicontact/mod.rs
++++ b/src/physics/collision/gjk/multicontact/mod.rs
+@@ -326,4 +326,83 @@ mod tests {
+         );
+         assert!(result.ncontact >= 1, "20 顶点 face2 应能裁剪出接触");
+     }
++
++    /// A2（2026-11-12）：容量 20 -> 32；face1=32 会写 `pn/pd[31]`，与设备 `pnormal/pdist[32]` 对齐。
++    #[test]
++    fn polygon_clip_accepts_thirty_two_vertex_face1() {
++        let face1 = regular_polygon(32, 2.0);
++        let face2 = square(0.25);
++        let result = polygon_clip(
++            &face1,
++            face1.len(),
++            &face2,
++            face2.len(),
++            [0.0, 0.0, -1.0],
++            [0.0, 0.0, 1.0],
++        );
++        assert!(
++            result.ncontact <= 4,
++            "ncontact 上限 4，实际 {}",
++            result.ncontact
++        );
++        assert!(result.ncontact >= 1, "32 边形应能裁剪出接触（A2 容量 32）");
++    }
++
++    /// A2：face2=32 需要 64 格中间缓冲（2×32）——A1 的 40 格在此不够用。
++    #[test]
++    fn polygon_clip_accepts_thirty_two_vertex_face2() {
++        let face1 = square(1.0);
++        let face2 = regular_polygon(32, 0.75);
++        let result = polygon_clip(
++            &face1,
++            face1.len(),
++            &face2,
++            face2.len(),
++            [0.0, 0.0, -1.0],
++            [0.0, 0.0, 1.0],
++        );
++        assert!(
++            result.ncontact <= 4,
++            "ncontact 上限 4，实际 {}",
++            result.ncontact
++        );
++        assert!(
++            result.ncontact >= 1,
++            "32 顶点 face2 应能裁剪出接触（A2 64 格中间缓冲）"
++        );
++    }
++
++    /// A2：33 顶点超过容量 → 容量前置检查返回确定性空结果（不 panic）。
++    #[test]
++    fn polygon_clip_rejects_thirty_three_vertex_face() {
++        let face1 = regular_polygon(33, 2.0);
++        let face2 = square(0.25);
++        let result = polygon_clip(
++            &face1,
++            face1.len(),
++            &face2,
++            face2.len(),
++            [0.0, 0.0, -1.0],
++            [0.0, 0.0, 1.0],
++        );
++        assert_eq!(
++            result.ncontact, 0,
++            "33 顶点 face1 必须返回空结果（不 panic）"
++        );
++
++        let face1 = square(1.0);
++        let face2 = regular_polygon(33, 0.75);
++        let result = polygon_clip(
++            &face1,
++            face1.len(),
++            &face2,
++            face2.len(),
++            [0.0, 0.0, -1.0],
++            [0.0, 0.0, 1.0],
++        );
++        assert_eq!(
++            result.ncontact, 0,
++            "33 顶点 face2 必须返回空结果（不 panic）"
++        );
++    }
+ }
+diff --git a/src/runtime/collision_gpu/error.rs b/src/runtime/collision_gpu/error.rs
+index e1d3bab2..6563a431 100644
+--- a/src/runtime/collision_gpu/error.rs
++++ b/src/runtime/collision_gpu/error.rs
+@@ -24,7 +24,7 @@ pub enum CollisionGpuError {
+     InvalidArgument(&'static str),
+     /// 方案 C（mesh 多接触容量）：产品 plan 入口对超界 mesh 输入的显式拒绝。
+     ///
+-    /// 宿主用已有 mesh 数组算出模型级 `npolygonmax`/`nmeshdegmax`，超过设备固定容量
++    /// 宿主用已有 mesh 数组算出模型级 `npolygonmax`/`nmeshdegmax`，超过设备固定容量（A2 起 32/32）
+     /// （`multicontact_geom.cu` 的 `G5_MC_MESH_FACE_MAX`/`G5_MC_MESH_DEG_MAX`）时返回本错误，
+     /// 不再让产品继续静默回退到单接触。`violations` 至少一条，按 face → degree 顺序。
+     MeshMulticontactCapacity {
+diff --git a/src/runtime/collision_gpu/inputs_from_snapshot.rs b/src/runtime/collision_gpu/inputs_from_snapshot.rs
+index 00645bac..6730c053 100644
+--- a/src/runtime/collision_gpu/inputs_from_snapshot.rs
++++ b/src/runtime/collision_gpu/inputs_from_snapshot.rs
+@@ -143,7 +143,7 @@ impl<'a> CollisionInputsSnapshot<'a> {
+ 
+ /// 用调用方给定的 [`CollisionGpuMeta`] 组装 [`CollisionGpuInputs`] 并调用既有
+ /// `validate_collision_inputs`（语义与 [`super::CollisionGpuProgram::run`] 首步校验完全一致），
+-/// 随后执行**方案 C 的产品路径容量门**：mesh 多接触设备固定容量（face≤20 / degree≤10）超界时
++/// 随后执行**方案 C 的产品路径容量门**：mesh 多接触设备固定容量（A2 起 face≤32 / degree≤32）超界时
+ /// 返回 [`CollisionGpuError::MeshMulticontactCapacity`]，不再让产品静默回退单接触。
+ ///
+ /// 9 项 mesh_poly 全空 → 校验通过且容量门通过，`run` 侧保持 `mesh_poly_args = null`；
+@@ -189,7 +189,7 @@ pub fn inputs_from_snapshot<'a>(
+         meta,
+     };
+     validate_inputs(&inputs)?;
+-    // 方案 C（产品路径容量门）：设备 mesh 多接触是固定容量（face≤20 / degree≤10），超界时
++    // 方案 C（产品路径容量门）：设备 mesh 多接触是固定容量（A2 起 face≤32 / degree≤32），超界时
+     // 设备会逐 feature 回退单接触；产品路径在这里显式拒绝，不把静默近似交给下游。
+     let violations = super::types::mesh_multicontact_capacity_violations(
+         inputs.mesh_polyvertnum,
+@@ -229,270 +229,5 @@ fn index_field(model: &CollisionInputsModelInput, id: u32) -> Result<&[i32], Col
+ }
+ 
+ #[cfg(test)]
+-mod tests {
+-    use super::{
+-        CollisionGpuError, CollisionGpuMeta, CollisionInputsSnapshot, inputs_from_snapshot,
+-    };
+-    use crate::runtime::collision_gpu::types::{
+-        MESH_MULTICONTACT_DEGREE_MAX, MESH_MULTICONTACT_FACE_MAX, MESH_MULTICONTACT_REJECT_PATH,
+-        MeshCapacityDimension,
+-    };
+-    const FAN_CONE_24_OBJ: &str =
+-        include_str!("../../../fixtures/g10-p5-mesh-multicontact/fan-cone-24.obj");
+-    const MULTICONTACT_GEOM_CU: &str =
+-        include_str!("../../physics/collision/cuda/multicontact_geom.cu");
+-    /// 解析 OBJ 的 `v`/`f`（只关心顶点数与逐面顶点号；索引转 0 基）。
+-    fn parse_obj(text: &str) -> (usize, Vec<Vec<usize>>) {
+-        let mut vertices = 0;
+-        let mut polygons = Vec::new();
+-        for line in text.lines().map(str::trim) {
+-            if line.starts_with("v ") {
+-                vertices += 1;
+-            } else if let Some(rest) = line.strip_prefix("f ") {
+-                polygons.push(rest.split_whitespace().map(face_index).collect());
+-            }
+-        }
+-        (vertices, polygons)
+-    }
+-    fn face_index(token: &str) -> usize {
+-        token
+-            .split('/')
+-            .next()
+-            .unwrap_or(token)
+-            .parse::<usize>()
+-            .expect("OBJ face index")
+-            - 1
+-    }
+-    /// 单 mesh 的最小合法 sidecar + geom 数组（够走通 `validate_inputs` 的形状/值域校验）。
+-    struct Fixture {
+-        geom_xpos: Vec<f32>,
+-        geom_xmat: Vec<f32>,
+-        geom_size: Vec<f32>,
+-        geom_margin: Vec<f32>,
+-        geom_gap: Vec<f32>,
+-        geom_rbound: Vec<f32>,
+-        geom_aabb: Vec<f32>,
+-        geom_type: Vec<i32>,
+-        geom_dataid: Vec<i32>,
+-        mesh_vertadr: Vec<i32>,
+-        mesh_vertnum: Vec<i32>,
+-        mesh_vert: Vec<f32>,
+-        mesh_polynum: Vec<i32>,
+-        mesh_polyadr: Vec<i32>,
+-        mesh_polynormal: Vec<f32>,
+-        mesh_polyvertadr: Vec<i32>,
+-        mesh_polyvertnum: Vec<i32>,
+-        mesh_polyvert: Vec<i32>,
+-        mesh_polymapadr: Vec<i32>,
+-        mesh_polymapnum: Vec<i32>,
+-        mesh_polymap: Vec<i32>,
+-    }
+-    impl Fixture {
+-        fn new(vertices: usize, polygons: &[Vec<usize>]) -> Self {
+-            let mut polyvertadr = Vec::new();
+-            let mut polyvertnum = Vec::new();
+-            let mut polyvert = Vec::new();
+-            for face in polygons {
+-                polyvertadr.push(polyvert.len() as i32);
+-                polyvertnum.push(face.len() as i32);
+-                polyvert.extend(face.iter().map(|vertex| *vertex as i32));
+-            }
+-            let mut polymap_counts = vec![0usize; vertices];
+-            for vertex in polygons.iter().flatten() {
+-                polymap_counts[*vertex] += 1;
+-            }
+-            let mut polymapadr = Vec::new();
+-            let mut polymapnum = Vec::new();
+-            let mut polymap = Vec::new();
+-            for (vertex, count) in polymap_counts.iter().enumerate() {
+-                polymapadr.push(polymap.len() as i32);
+-                polymapnum.push(*count as i32);
+-                for (polygon, face) in polygons.iter().enumerate() {
+-                    if face.contains(&vertex) {
+-                        polymap.push(polygon as i32);
+-                    }
+-                }
+-            }
+-            Self {
+-                geom_xpos: vec![0.0; 3],
+-                geom_xmat: vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+-                geom_size: vec![0.1; 3],
+-                geom_margin: vec![0.0],
+-                geom_gap: vec![0.0],
+-                geom_rbound: vec![0.1],
+-                geom_aabb: vec![0.0; 6],
+-                geom_type: vec![7],
+-                geom_dataid: vec![0],
+-                mesh_vertadr: vec![0],
+-                mesh_vertnum: vec![vertices as i32],
+-                mesh_vert: vec![0.0; vertices * 3],
+-                mesh_polynum: vec![polygons.len() as i32],
+-                mesh_polyadr: vec![0],
+-                mesh_polynormal: vec![0.0; polygons.len() * 3],
+-                mesh_polyvertadr: polyvertadr,
+-                mesh_polyvertnum: polyvertnum,
+-                mesh_polyvert: polyvert,
+-                mesh_polymapadr: polymapadr,
+-                mesh_polymapnum: polymapnum,
+-                mesh_polymap: polymap,
+-            }
+-        }
+-        /// 9 项 mesh_poly 全空：无 sidecar，产品行为与改动前一致。
+-        fn without_sidecar() -> Self {
+-            let mut fixture = Self::new(0, &[]);
+-            fixture.mesh_polynum.clear();
+-            fixture.mesh_polyadr.clear();
+-            fixture
+-        }
+-        fn snapshot(&self) -> CollisionInputsSnapshot<'_> {
+-            CollisionInputsSnapshot {
+-                geom_xpos: &self.geom_xpos,
+-                geom_xmat: &self.geom_xmat,
+-                geom_size: &self.geom_size,
+-                geom_margin: &self.geom_margin,
+-                geom_gap: &self.geom_gap,
+-                geom_rbound: &self.geom_rbound,
+-                geom_aabb: &self.geom_aabb,
+-                geom_type: &self.geom_type,
+-                geom_dataid: &self.geom_dataid,
+-                mesh_vertadr: &self.mesh_vertadr,
+-                mesh_vertnum: &self.mesh_vertnum,
+-                mesh_graphadr: &[],
+-                mesh_octadr: &[],
+-                mesh_vert: &self.mesh_vert,
+-                mesh_graph: &[],
+-                mesh_polynum: &self.mesh_polynum,
+-                mesh_polyadr: &self.mesh_polyadr,
+-                mesh_polynormal: &self.mesh_polynormal,
+-                mesh_polyvertadr: &self.mesh_polyvertadr,
+-                mesh_polyvertnum: &self.mesh_polyvertnum,
+-                mesh_polyvert: &self.mesh_polyvert,
+-                mesh_polymapadr: &self.mesh_polymapadr,
+-                mesh_polymapnum: &self.mesh_polymapnum,
+-                mesh_polymap: &self.mesh_polymap,
+-                hfield_size: &[],
+-                hfield_nrow: &[],
+-                hfield_ncol: &[],
+-                hfield_adr: &[],
+-                hfield_data: &[],
+-                oct_aabb: &[],
+-                oct_child: &[],
+-                oct_coeff: &[],
+-            }
+-        }
+-    }
+-    fn meta() -> CollisionGpuMeta {
+-        CollisionGpuMeta {
+-            nworld: 1,
+-            ngeom: 1,
+-            naconmax: 1,
+-            efc_width: 1,
+-            ..CollisionGpuMeta::default()
+-        }
+-    }
+-    /// 断言产品入口显式拒绝；返回（维度, actual, limit）列表与 Display 文本。
+-    fn reject(fixture: &Fixture) -> (Vec<(MeshCapacityDimension, i32, i32)>, String) {
+-        let error = inputs_from_snapshot(&fixture.snapshot(), meta()).expect_err("产品入口应拒绝");
+-        let text = error.to_string();
+-        let CollisionGpuError::MeshMulticontactCapacity {
+-            violations,
+-            reject_path,
+-        } = error
+-        else {
+-            panic!("期望容量拒绝");
+-        };
+-        assert_eq!(reject_path, MESH_MULTICONTACT_REJECT_PATH);
+-        let list = violations
+-            .iter()
+-            .map(|v| (v.dimension, v.actual, v.limit))
+-            .collect();
+-        (list, text)
+-    }
+-    #[test]
+-    fn product_entry_rejects_fan_cone_24_on_both_dimensions() {
+-        let (vertices, polygons) = parse_obj(FAN_CONE_24_OBJ);
+-        assert_eq!((vertices, polygons.len()), (25, 25), "fan-cone-24 几何");
+-        let (violations, text) = reject(&Fixture::new(vertices, &polygons));
+-        assert_eq!(
+-            violations,
+-            vec![
+-                (MeshCapacityDimension::Face, 24, MESH_MULTICONTACT_FACE_MAX),
+-                (
+-                    MeshCapacityDimension::Degree,
+-                    24,
+-                    MESH_MULTICONTACT_DEGREE_MAX
+-                ),
+-            ],
+-            "fan-cone-24 两维同时报告"
+-        );
+-        for needle in [
+-            "face",
+-            "actual=24",
+-            "limit=20",
+-            "degree",
+-            "limit=10",
+-            "拒绝路径",
+-        ] {
+-            assert!(text.contains(needle), "Display 缺 {needle}：{text}");
+-        }
+-    }
+-    #[test]
+-    fn product_entry_rejects_face_only() {
+-        let mut polygons: Vec<Vec<usize>> = vec![(0..21).collect()];
+-        polygons.push(vec![0, 1, 2]);
+-        let (violations, _) = reject(&Fixture::new(21, &polygons));
+-        assert_eq!(
+-            violations,
+-            vec![(MeshCapacityDimension::Face, 21, MESH_MULTICONTACT_FACE_MAX)]
+-        );
+-    }
+-    #[test]
+-    fn product_entry_rejects_degree_only() {
+-        let polygons: Vec<Vec<usize>> = (0..24)
+-            .map(|index| vec![1 + index, 1 + (index + 1) % 24, 0])
+-            .collect();
+-        let (violations, _) = reject(&Fixture::new(25, &polygons));
+-        assert_eq!(
+-            violations,
+-            vec![(
+-                MeshCapacityDimension::Degree,
+-                24,
+-                MESH_MULTICONTACT_DEGREE_MAX
+-            )]
+-        );
+-    }
+-    #[test]
+-    fn product_entry_accepts_face_20_degree_10_boundary() {
+-        let mut polygons: Vec<Vec<usize>> = vec![(0..20).collect()];
+-        for index in 0..10 {
+-            polygons.push(vec![index, (index + 1) % 20, 20]);
+-        }
+-        assert!(inputs_from_snapshot(&Fixture::new(21, &polygons).snapshot(), meta()).is_ok());
+-    }
+-    #[test]
+-    fn product_entry_accepts_without_mesh_sidecar() {
+-        assert!(inputs_from_snapshot(&Fixture::without_sidecar().snapshot(), meta()).is_ok());
+-    }
+-    #[test]
+-    fn host_limits_match_device_macros() {
+-        fn base_macro(source: &str, name: &str) -> i32 {
+-            source
+-                .lines()
+-                .find_map(|line| {
+-                    let mut parts = line.split_whitespace();
+-                    (parts.next() == Some("#define") && parts.next() == Some(name))
+-                        .then(|| parts.next()?.parse::<i32>().ok())
+-                        .flatten()
+-                })
+-                .unwrap_or_else(|| panic!("multicontact_geom.cu 缺少 {name}"))
+-        }
+-        assert_eq!(
+-            base_macro(MULTICONTACT_GEOM_CU, "G5_MC_MESH_FACE_MAX"),
+-            MESH_MULTICONTACT_FACE_MAX
+-        );
+-        assert_eq!(
+-            base_macro(MULTICONTACT_GEOM_CU, "G5_MC_MESH_DEG_MAX"),
+-            MESH_MULTICONTACT_DEGREE_MAX
+-        );
+-    }
+-}
++#[path = "inputs_from_snapshot_tests.rs"]
++mod tests;
+diff --git a/src/runtime/collision_gpu/inputs_from_snapshot_tests.rs b/src/runtime/collision_gpu/inputs_from_snapshot_tests.rs
+new file mode 100644
+index 00000000..012da0ad
+--- /dev/null
++++ b/src/runtime/collision_gpu/inputs_from_snapshot_tests.rs
+@@ -0,0 +1,258 @@
++//! `inputs_from_snapshot` 单元测试（A2 容量 32/32 边界；测试专用，不进产品路径）。
++//!
++//! A2（2026-11-12）：容量 20/10 -> 32/32；in-range 24/24 与 32/32 边界接受，
++//! over-32（face=33 / degree=33）由宿主容量门给出确定性错误；`.cu` 宏一致性由
++//! `host_limits_match_device_macros` 守护。
++
++use super::{CollisionGpuError, CollisionGpuMeta, CollisionInputsSnapshot, inputs_from_snapshot};
++use crate::runtime::collision_gpu::types::{
++    MESH_MULTICONTACT_DEGREE_MAX, MESH_MULTICONTACT_FACE_MAX, MESH_MULTICONTACT_REJECT_PATH,
++    MeshCapacityDimension,
++};
++const FAN_CONE_24_OBJ: &str =
++    include_str!("../../../fixtures/g10-p5-mesh-multicontact/fan-cone-24.obj");
++const MULTICONTACT_GEOM_CU: &str =
++    include_str!("../../physics/collision/cuda/multicontact_geom.cu");
++/// 解析 OBJ 的 `v`/`f`（只关心顶点数与逐面顶点号；索引转 0 基）。
++fn parse_obj(text: &str) -> (usize, Vec<Vec<usize>>) {
++    let mut vertices = 0;
++    let mut polygons = Vec::new();
++    for line in text.lines().map(str::trim) {
++        if line.starts_with("v ") {
++            vertices += 1;
++        } else if let Some(rest) = line.strip_prefix("f ") {
++            polygons.push(rest.split_whitespace().map(face_index).collect());
++        }
++    }
++    (vertices, polygons)
++}
++fn face_index(token: &str) -> usize {
++    token
++        .split('/')
++        .next()
++        .unwrap_or(token)
++        .parse::<usize>()
++        .expect("OBJ face index")
++        - 1
++}
++/// 单 mesh 的最小合法 sidecar + geom 数组（够走通 `validate_inputs` 的形状/值域校验）。
++struct Fixture {
++    geom_xpos: Vec<f32>,
++    geom_xmat: Vec<f32>,
++    geom_size: Vec<f32>,
++    geom_margin: Vec<f32>,
++    geom_gap: Vec<f32>,
++    geom_rbound: Vec<f32>,
++    geom_aabb: Vec<f32>,
++    geom_type: Vec<i32>,
++    geom_dataid: Vec<i32>,
++    mesh_vertadr: Vec<i32>,
++    mesh_vertnum: Vec<i32>,
++    mesh_vert: Vec<f32>,
++    mesh_polynum: Vec<i32>,
++    mesh_polyadr: Vec<i32>,
++    mesh_polynormal: Vec<f32>,
++    mesh_polyvertadr: Vec<i32>,
++    mesh_polyvertnum: Vec<i32>,
++    mesh_polyvert: Vec<i32>,
++    mesh_polymapadr: Vec<i32>,
++    mesh_polymapnum: Vec<i32>,
++    mesh_polymap: Vec<i32>,
++}
++impl Fixture {
++    fn new(vertices: usize, polygons: &[Vec<usize>]) -> Self {
++        let mut polyvertadr = Vec::new();
++        let mut polyvertnum = Vec::new();
++        let mut polyvert = Vec::new();
++        for face in polygons {
++            polyvertadr.push(polyvert.len() as i32);
++            polyvertnum.push(face.len() as i32);
++            polyvert.extend(face.iter().map(|vertex| *vertex as i32));
++        }
++        let mut polymap_counts = vec![0usize; vertices];
++        for vertex in polygons.iter().flatten() {
++            polymap_counts[*vertex] += 1;
++        }
++        let mut polymapadr = Vec::new();
++        let mut polymapnum = Vec::new();
++        let mut polymap = Vec::new();
++        for (vertex, count) in polymap_counts.iter().enumerate() {
++            polymapadr.push(polymap.len() as i32);
++            polymapnum.push(*count as i32);
++            for (polygon, face) in polygons.iter().enumerate() {
++                if face.contains(&vertex) {
++                    polymap.push(polygon as i32);
++                }
++            }
++        }
++        Self {
++            geom_xpos: vec![0.0; 3],
++            geom_xmat: vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
++            geom_size: vec![0.1; 3],
++            geom_margin: vec![0.0],
++            geom_gap: vec![0.0],
++            geom_rbound: vec![0.1],
++            geom_aabb: vec![0.0; 6],
++            geom_type: vec![7],
++            geom_dataid: vec![0],
++            mesh_vertadr: vec![0],
++            mesh_vertnum: vec![vertices as i32],
++            mesh_vert: vec![0.0; vertices * 3],
++            mesh_polynum: vec![polygons.len() as i32],
++            mesh_polyadr: vec![0],
++            mesh_polynormal: vec![0.0; polygons.len() * 3],
++            mesh_polyvertadr: polyvertadr,
++            mesh_polyvertnum: polyvertnum,
++            mesh_polyvert: polyvert,
++            mesh_polymapadr: polymapadr,
++            mesh_polymapnum: polymapnum,
++            mesh_polymap: polymap,
++        }
++    }
++    /// 9 项 mesh_poly 全空：无 sidecar，产品行为与改动前一致。
++    fn without_sidecar() -> Self {
++        let mut fixture = Self::new(0, &[]);
++        fixture.mesh_polynum.clear();
++        fixture.mesh_polyadr.clear();
++        fixture
++    }
++    fn snapshot(&self) -> CollisionInputsSnapshot<'_> {
++        CollisionInputsSnapshot {
++            geom_xpos: &self.geom_xpos,
++            geom_xmat: &self.geom_xmat,
++            geom_size: &self.geom_size,
++            geom_margin: &self.geom_margin,
++            geom_gap: &self.geom_gap,
++            geom_rbound: &self.geom_rbound,
++            geom_aabb: &self.geom_aabb,
++            geom_type: &self.geom_type,
++            geom_dataid: &self.geom_dataid,
++            mesh_vertadr: &self.mesh_vertadr,
++            mesh_vertnum: &self.mesh_vertnum,
++            mesh_graphadr: &[],
++            mesh_octadr: &[],
++            mesh_vert: &self.mesh_vert,
++            mesh_graph: &[],
++            mesh_polynum: &self.mesh_polynum,
++            mesh_polyadr: &self.mesh_polyadr,
++            mesh_polynormal: &self.mesh_polynormal,
++            mesh_polyvertadr: &self.mesh_polyvertadr,
++            mesh_polyvertnum: &self.mesh_polyvertnum,
++            mesh_polyvert: &self.mesh_polyvert,
++            mesh_polymapadr: &self.mesh_polymapadr,
++            mesh_polymapnum: &self.mesh_polymapnum,
++            mesh_polymap: &self.mesh_polymap,
++            hfield_size: &[],
++            hfield_nrow: &[],
++            hfield_ncol: &[],
++            hfield_adr: &[],
++            hfield_data: &[],
++            oct_aabb: &[],
++            oct_child: &[],
++            oct_coeff: &[],
++        }
++    }
++}
++fn meta() -> CollisionGpuMeta {
++    CollisionGpuMeta {
++        nworld: 1,
++        ngeom: 1,
++        naconmax: 1,
++        efc_width: 1,
++        ..CollisionGpuMeta::default()
++    }
++}
++/// 断言产品入口显式拒绝；返回（维度, actual, limit）列表与 Display 文本。
++fn reject(fixture: &Fixture) -> (Vec<(MeshCapacityDimension, i32, i32)>, String) {
++    let error = inputs_from_snapshot(&fixture.snapshot(), meta()).expect_err("产品入口应拒绝");
++    let text = error.to_string();
++    let CollisionGpuError::MeshMulticontactCapacity {
++        violations,
++        reject_path,
++    } = error
++    else {
++        panic!("期望容量拒绝");
++    };
++    assert_eq!(reject_path, MESH_MULTICONTACT_REJECT_PATH);
++    let list = violations
++        .iter()
++        .map(|v| (v.dimension, v.actual, v.limit))
++        .collect();
++    (list, text)
++}
++/// A2（2026-11-12）：容量 32/32 后 fan-cone-24（24/24）在界内 → 产品入口接受。
++#[test]
++fn product_entry_accepts_fan_cone_24_within_capacity_32() {
++    let (vertices, polygons) = parse_obj(FAN_CONE_24_OBJ);
++    assert_eq!((vertices, polygons.len()), (25, 25), "fan-cone-24 几何");
++    assert!(
++        inputs_from_snapshot(&Fixture::new(vertices, &polygons).snapshot(), meta()).is_ok(),
++        "24/24 在 32/32 容量内，产品入口必须接受"
++    );
++}
++/// A2：33 顶点 polygon 超过 face 容量 → 确定性容量错误（limit=32）。
++#[test]
++fn product_entry_rejects_face_33() {
++    let mut polygons: Vec<Vec<usize>> = vec![(0..33).collect()];
++    polygons.push(vec![0, 1, 2]);
++    let (violations, text) = reject(&Fixture::new(33, &polygons));
++    assert_eq!(
++        violations,
++        vec![(MeshCapacityDimension::Face, 33, MESH_MULTICONTACT_FACE_MAX)]
++    );
++    for needle in ["face", "actual=33", "limit=32", "拒绝路径"] {
++        assert!(text.contains(needle), "Display 缺 {needle}：{text}");
++    }
++}
++/// A2：单顶点相邻 33 个 polygon 超过 degree 容量 → 确定性容量错误（limit=32）。
++#[test]
++fn product_entry_rejects_degree_33() {
++    // 顶点 0 被 33 个三角形共享 → polymapnum[0]=33，其余顶点度 1。
++    let polygons: Vec<Vec<usize>> = (0..33)
++        .map(|index| vec![1 + index, 1 + (index + 1) % 33, 0])
++        .collect();
++    let (violations, _) = reject(&Fixture::new(34, &polygons));
++    assert_eq!(
++        violations,
++        vec![(
++            MeshCapacityDimension::Degree,
++            33,
++            MESH_MULTICONTACT_DEGREE_MAX
++        )]
++    );
++}
++#[test]
++fn product_entry_accepts_face_32_degree_32_boundary() {
++    // 32 边形 + 32 个共享顶点 32 的三角形：模型级 max face=32、max degree=32（恰为容量上限）。
++    let mut polygons: Vec<Vec<usize>> = vec![(0..32).collect()];
++    for index in 0..32 {
++        polygons.push(vec![index, (index + 1) % 32, 32]);
++    }
++    assert!(inputs_from_snapshot(&Fixture::new(33, &polygons).snapshot(), meta()).is_ok());
++}
++#[test]
++fn product_entry_accepts_without_mesh_sidecar() {
++    assert!(inputs_from_snapshot(&Fixture::without_sidecar().snapshot(), meta()).is_ok());
++}
++#[test]
++fn host_limits_match_device_macros() {
++    fn base_macro(source: &str, name: &str) -> i32 {
++        source
++            .lines()
++            .find_map(|line| {
++                let mut parts = line.split_whitespace();
++                (parts.next() == Some("#define") && parts.next() == Some(name))
++                    .then(|| parts.next()?.parse::<i32>().ok())
++                    .flatten()
++            })
++            .unwrap_or_else(|| panic!("multicontact_geom.cu 缺少 {name}"))
++    }
++    assert_eq!(
++        base_macro(MULTICONTACT_GEOM_CU, "G5_MC_MESH_FACE_MAX"),
++        MESH_MULTICONTACT_FACE_MAX
++    );
++    assert_eq!(
++        base_macro(MULTICONTACT_GEOM_CU, "G5_MC_MESH_DEG_MAX"),
++        MESH_MULTICONTACT_DEGREE_MAX
++    );
++}
+diff --git a/src/runtime/collision_gpu/types.rs b/src/runtime/collision_gpu/types.rs
+index 7b565b4d..d388917e 100644
+--- a/src/runtime/collision_gpu/types.rs
++++ b/src/runtime/collision_gpu/types.rs
+@@ -137,10 +137,10 @@ impl MeshCapacityDimension {
+ }
+ 
+ /// 设备侧 mesh 多接触固定容量上限（`multicontact_geom.cu` 宏的宿主镜像；
+-/// 模块内 `include_str!` 断言守护两者一致，A 方案改宏后必须同步）。
+-pub const MESH_MULTICONTACT_FACE_MAX: i32 = 20;
+-/// 单顶点相邻 polygon 数上限（同上，镜像 `G5_MC_MESH_DEG_MAX`）。
+-pub const MESH_MULTICONTACT_DEGREE_MAX: i32 = 10;
++/// 模块内 `include_str!` 断言守护两者一致，改宏后必须同步）。A2（2026-11-12）：20 -> 32。
++pub const MESH_MULTICONTACT_FACE_MAX: i32 = 32;
++/// 单顶点相邻 polygon 数上限（同上，镜像 `G5_MC_MESH_DEG_MAX`）。A2：10 -> 32。
++pub const MESH_MULTICONTACT_DEGREE_MAX: i32 = 32;
+ /// 方案 C 的拒绝路径标识（写进诊断载荷，便于产品日志定位）。
+ pub const MESH_MULTICONTACT_REJECT_PATH: &str =
+     "runtime::collision_gpu::inputs_from_snapshot (product collision plan)";

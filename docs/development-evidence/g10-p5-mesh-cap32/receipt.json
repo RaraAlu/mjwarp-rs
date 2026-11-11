@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-12-w2-a2-1-mesh-capacity-32",
+  "kind": "code-slice-evidence",
+  "owner": "Backend",
+  "date": "2026-11-12",
+  "commit": "5689e0ef",
+  "parent": "984cb630",
+  "verdict": "PASS",
+  "capacity_face_max": 32,
+  "capacity_degree_max": 32,
+  "device_macros": {
+    "file": "src/physics/collision/cuda/multicontact_geom.cu",
+    "G5_MC_MESH_DEG_MAX": 32,
+    "G5_MC_MESH_FACE_MAX": 32
+  },
+  "scratch_target": {
+    "polygon": 64,
+    "clipped": 64,
+    "pnormal": 32,
+    "pdist": 32,
+    "idx1": 32,
+    "idx2": 32,
+    "n1": 32,
+    "n2": 32,
+    "endvert": 32,
+    "face1": 32,
+    "face2": 32
+  },
+  "host_mirror": {
+    "file": "src/runtime/collision_gpu/types.rs",
+    "MESH_MULTICONTACT_FACE_MAX": 32,
+    "MESH_MULTICONTACT_DEGREE_MAX": 32
+  },
+  "capacity_precheck": {
+    "file": "src/physics/collision/gjk/multicontact/clip.rs",
+    "rule": "nface1 > 32 || nface2 > 32 -> empty ClipResult (deterministic, no panic)",
+    "scratch": {"pn": 32, "pd": 32, "polygon": 64, "clipped": 64}
+  },
+  "device_guards_kept": {
+    "file": "src/physics/collision/cuda/multicontact_mesh.cu",
+    "lines": [120, 148, 180],
+    "note": "degree/face guards kept as defense-in-depth; in-range cases must not trigger"
+  },
+  "files_changed": 12,
+  "new_files": ["src/runtime/collision_gpu/inputs_from_snapshot_tests.rs"],
+  "deleted_inline_tests_from": "src/runtime/collision_gpu/inputs_from_snapshot.rs",
+  "line_counts": {
+    "src/physics/collision/cuda/multicontact_geom.cu": 412,
+    "src/physics/collision/cuda/contact.cu": 271,
+    "src/physics/collision/cuda/multicontact.cu": 235,
+    "src/physics/collision/cuda/multicontact_clip.cu": 257,
+    "src/physics/collision/cuda/multicontact_mesh.cu": 191,
+    "src/physics/collision/gjk/multicontact/clip.rs": 180,
+    "src/physics/collision/gjk/multicontact/mod.rs": 408,
+    "src/runtime/collision_gpu/types.rs": 187,
+    "src/runtime/collision_gpu/error.rs": 72,
+    "src/runtime/collision_gpu/inputs_from_snapshot.rs": 233,
+    "src/runtime/collision_gpu/inputs_from_snapshot_tests.rs": 258
+  },
+  "tests": {
+    "targeted_multicontact": {"command": "cargo test --locked --lib physics::collision::gjk::multicontact", "passed": 5, "failed": 0},
+    "targeted_capacity_gate": {"command": "cargo test --locked --lib runtime::collision_gpu::inputs_from_snapshot", "passed": 6, "failed": 0},
+    "boundary_tests": [
+      "polygon_clip_accepts_thirty_two_vertex_face1",
+      "polygon_clip_accepts_thirty_two_vertex_face2",
+      "polygon_clip_rejects_thirty_three_vertex_face",
+      "product_entry_accepts_face_32_degree_32_boundary",
+      "product_entry_rejects_face_33",
+      "product_entry_rejects_degree_33",
+      "host_limits_match_device_macros",
+      "polygon_clip_accepts_twenty_vertex_face1 (A1 retained)",
+      "polygon_clip_accepts_twenty_vertex_face2 (A1 retained)"
+    ]
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": {"passed": 1409, "failed": 0},
+    "logs": ["logs/gate.txt", ".normify/runs/2026-11-12-w2-a2-1-mesh-capacity-32/"]
+  },
+  "abi_unchanged": true,
+  "abi_invariants": {
+    "contact_slots": 81,
+    "collision_args_bytes": 504,
+    "launch_signature": "unchanged",
+    "product_json_fields": "unchanged",
+    "abi_rs_changed": false,
+    "product_cu_changed": false
+  },
+  "device_sources_count": 28,
+  "product_entry_count": 6,
+  "module_source": {
+    "module": "mjwarp.runtime.collision-gpu",
+    "before": 20,
+    "after": 21,
+    "added": "src/runtime/collision_gpu/inputs_from_snapshot_tests.rs"
+  },
+  "fixtures_scripts_cargo_unchanged": true,
+  "zero_gpu": true,
+  "zero_window": true,
+  "non_claims": [
+    "U8 device count=4 not verified here (requires A2-3 GPU window)",
+    "U7 not claimed as pass here",
+    "not a claim that mesh capacity gap is cleared / G10@P5 family passes",
+    "no upstream equivalence claim; over-32 remains a limit and is not claimed as upstream-consistent",
+    "A2-2 (identity recapture / refreeze list) and A2-3 (validation window) are not in this slice"
+  ],
+  "process_events": [
+    "2026-11-12 01:33 a concurrent QA commit raced during this slice's commit window (backend held the repo lock); the first commit d0e2b236 carried QA's subject line. Corrected locally by reset + recommit 5689e0ef; this commit contains only the 12 A2-1 files (no QA / external Codex files). QA worktree content untouched; snapshot kept outside the repo."
+  ]
+}
