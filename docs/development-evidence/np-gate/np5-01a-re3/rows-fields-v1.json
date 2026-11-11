@@ -1,0 +1,267 @@
+{
+  "schema": 1,
+  "task": "np5-01a-re3-tendon-and-c-mappable-device-level",
+  "artifact": "rows-fields-v1",
+  "why": "RE-3 review L1: rows[] lacked machine-readable per-row classification fields; this addendum supplies them for all 24 rows without touching the landed evidence.json bytes",
+  "supersedes": null,
+  "original_evidence_unchanged": true,
+  "source_evidence": {
+    "path": "docs/development-evidence/np-gate/np5-01a-re3/evidence.json",
+    "sha256": "f5988b7ce0ebebf1bc072b9149c14e8a8a4ae37d2d08bda905765e18eda7873e",
+    "bytes": 94815
+  },
+  "row_count": 24,
+  "not_decidable_reasons_split_measured": {
+    "no-reference-entry": {
+      "rows": 4,
+      "sites": 47
+    },
+    "no-lineinfo+frozen-artifact-only": {
+      "rows": 3,
+      "sites": 26
+    },
+    "total_rows": 7,
+    "total_sites": 73,
+    "note": "O1 correction: the dispatch summary 40/33 was wrong; measured split is 47/26"
+  },
+  "rows": [
+    {
+      "row": "fixed_tendon",
+      "batch": "B",
+      "sites": 7,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品单 entry `fixed_tendon` 合并「长度=Σcoef·q 累加 + 力臂=coef 写入」；参考侧对应 `_tendon_armature`（armature 累加）与 `_transmission`（force 传递链）两个 entry，长度/力臂分散在两 entry 内 —— 结构与数据流不同，不作数值或指令等价结论",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "spatial_tendon",
+      "batch": "B",
+      "sites": 20,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 3 entry（spatial_site 合并 site+geom 两参考 entry；spatial_moment ↔ `_transmission_body_moment(_scale)`；spatial_wrap ↔ `_spatial_tendon_wrap`）；参考侧 `_spatial_site_tendon`/`_spatial_geom_tendon`/`_spatial_tendon_wrap`/`_transmission_body_moment*` 为 4 entry 拆分 —— 合并路线不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "tendon",
+      "batch": "B",
+      "sites": 10,
+      "device_mapping": "none",
+      "classification": "n/a",
+      "why_not_applicable": "产品 `tendon_values`/`tendon_indices` 只做 values/indices 搬运（整数寻址 + 无浮点算术）；参考对应 `_joint_tendon`/`_transmission` 为算术 entry，但该行产品语义是传输/索引搬运 —— 非 PTX 可比"
+    },
+    {
+      "row": "tendon_wrap",
+      "batch": "B",
+      "sites": 9,
+      "device_mapping": "none",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "frozen-artifact-only",
+        "no-lineinfo"
+      ],
+      "why_not_decidable": "产品 launch unit 无 entry：wrap/circle/inside/intersect 是 __device__ 函数，被 spatial_tendon 内核内联（PTX 202 B、0 entry）；参考侧同型数学内联在 `_spatial_tendon_wrap` entry 内，无独立 entry，冻结件无 lineinfo 无法切出该片段",
+      "missing_evidence": "需参考侧 lineinfo 或站点级参考表达式"
+    },
+    {
+      "row": "tendon_velocity",
+      "batch": "B",
+      "sites": 7,
+      "device_mapping": "none",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "no-reference-entry"
+      ],
+      "why_not_decidable": "参考 `_tendon_velocity` 位于 forward.py（未冻结；冻结件只有 smooth.py 48 + passive module 15 entry）；产品 2 entry（validate/compute）无参考 entry 可映射",
+      "missing_evidence": "需参考侧采集/离线 codegen 出对应 entry（见 RE-0/A1 先例）"
+    },
+    {
+      "row": "tendon_passive",
+      "batch": "B",
+      "sites": 12,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 3 entry（tendon_passive_validate/clear/compute）拆分；参考单 entry `_spring_damper_tendon_passive`。validate/clear 为产品自加支撑内核，计算与清零数据流不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "joint_passive",
+      "batch": "B",
+      "sites": 13,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 3 entry（joint_passive_validate/compute/sum）拆分；参考单 entry `_spring_damper_dof_passive`。validate/sum 为产品自加，数据流不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "flex_position",
+      "batch": "C",
+      "sites": 9,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 flex_positions 单 entry 合并参考 `_flex_vertices` + `_flex_nodes` 两 entry；flex_invalidate 为产品自加失效内核 —— 合并路线不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "flex_edge",
+      "batch": "C",
+      "sites": 9,
+      "device_mapping": "full",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "no-lineinfo",
+        "frozen-artifact-only"
+      ],
+      "why_not_decidable": "产品 flex_edges ↔ 参考 `_flex_edges` 1:1、语义同名；但两侧编译形态不同且冻结件无 lineinfo，无法把 9 站点映射到参考源码行（只能到 entry 级）—— 需参考侧 lineinfo 或站点级参考表达式才能升级",
+      "missing_evidence": "需参考侧 lineinfo 或站点级参考表达式"
+    },
+    {
+      "row": "flex_face",
+      "batch": "C",
+      "sites": 8,
+      "device_mapping": "full",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "no-lineinfo",
+        "frozen-artifact-only"
+      ],
+      "why_not_decidable": "产品 flex_faces ↔ 参考 `_flex_face_kinematics` 1:1、语义同名；无 lineinfo 无法做站点级映射",
+      "missing_evidence": "需参考侧 lineinfo 或站点级参考表达式"
+    },
+    {
+      "row": "flex_hessian",
+      "batch": "C",
+      "sites": 15,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 flex_hessian 单 entry 合并参考 `_flex_hessian_elem`/`_flex_hessian_diag`/`_flex_hessian_clear` 三 entry；flex_hessian_validate 为产品自加 —— 合并路线不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "flex_edge_passive",
+      "batch": "C",
+      "sites": 11,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 3 entry（validate/clear/compute）拆分；参考单 entry `_spring_damper_flexedge_passive`",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "fluid_force",
+      "batch": "C",
+      "sites": 27,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 4 entry（validate/body/project/clear）拆分；参考单 entry `_fluid_force`（1507 instr）。validate/clear 为产品自加支撑内核，body/project 与参考单 entry 的数据流组织不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "gravity_compensation",
+      "batch": "C",
+      "sites": 13,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 4 entry（clear/validate/compute/sum）拆分；参考单 entry `_gravity_force`（297 instr）",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "rne_bias",
+      "batch": "C",
+      "sites": 12,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品单 entry `rne_bias` 合并参考 `_qfrc_bias`/`_cfrc`/`_cacc_world` 三 entry 的偏置力链路；参考为多 kernel 分工（cacc→cfrc→qfrc）",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "rne_acc",
+      "batch": "C",
+      "sites": 18,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 4 entry（rne_cacc/rne_cfrc/rne_backward/rne_qfrc）vs 参考 5 entry（`_cacc_world`/`_cacc_branch`/`_cfrc_backward`/`_cfrc`/`_qfrc_bias`）—— 拆分边界不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "camlight",
+      "batch": "C",
+      "sites": 17,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 launch unit = FIELD_BATCH_CUDA + KINEMATICS_CUDA + CAMLIGHT_CUDA（plan_kernels.rs:173-175），camlight_rigid 合并参考 `_cam_local_to_global` + `_light_local_to_global` 两 entry；camlight_com 计算 COM 段",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "smooth_force",
+      "batch": "C",
+      "sites": 9,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 2 entry（smooth_force_validate/smooth_force）vs 参考 3 entry（`_joint_tendon`/`_transmission`/`_transmission_body_moment`）的合成路径 —— 组织不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "passive_force",
+      "batch": "C",
+      "sites": 7,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 4 entry（passive_force_clear/sum/clear_gravity/add_fluid）合成 vs 参考 5 entry（spring_damper_dof/tendon/flexedge + fluid_force + gravity_force）—— 合成/加法路线不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "attached",
+      "batch": "C",
+      "sites": 14,
+      "device_mapping": "partial",
+      "classification": "engine-semantic",
+      "why_engine_semantic": "产品 launch unit = KINEMATICS_CUDA + ATTACHED_CUDA（attached.rs:155）：rigid_kinematics 前导 + attached_kinematics 合并参考 `_site_local_to_global`/`_geom_local_to_global` 两 entry —— 合并路线不同",
+      "bit_level_guarantee": false
+    },
+    {
+      "row": "applied_force",
+      "batch": "C",
+      "sites": 12,
+      "device_mapping": "none",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "no-reference-entry"
+      ],
+      "why_not_decidable": "上游 `_apply_face_forces` 为 passive.py 内部函数；smooth/module 冻结件无 applied_force entry（产品 3 entry applied_force_validate/delta/publish 已编译出 entry）",
+      "missing_evidence": "需参考侧采集/离线 codegen 出对应 entry（见 RE-0/A1 先例）"
+    },
+    {
+      "row": "kinetic_energy",
+      "batch": "C",
+      "sites": 13,
+      "device_mapping": "none",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "no-reference-entry"
+      ],
+      "why_not_decidable": "上游 kinetic energy 走 sensor.py 的 warp 1.15 tile reduce（tile.h/tile_reduce.h），冻结件无对应 entry；产品 2 entry（kinetic_energy_validate/reduce32）",
+      "missing_evidence": "需参考侧采集/离线 codegen 出对应 entry（见 RE-0/A1 先例）"
+    },
+    {
+      "row": "sleep_wake",
+      "batch": "C",
+      "sites": 15,
+      "device_mapping": "none",
+      "classification": "not-decidable",
+      "not_decidable_reasons": [
+        "no-reference-entry"
+      ],
+      "why_not_decidable": "上游 sleep.py `_sleep_cycle`/`_wake_tree` 未在冻结件中（smooth/module 均无 entry）；产品 2 entry（sleep_copy/tendon_wake）",
+      "missing_evidence": "需参考侧采集/离线 codegen 出对应 entry（见 RE-0/A1 先例）"
+    },
+    {
+      "row": "field_batch",
+      "batch": "C",
+      "sites": 17,
+      "device_mapping": "none",
+      "classification": "n/a",
+      "why_not_applicable": "FIELD_BATCH_CUDA 只含 __device__ 字段取数函数，pack_model/pack_* 为 host 打包（无 __global__ entry）；上游为 io.py 侧 Python pack —— 非 PTX 可比"
+    }
+  ]
+}

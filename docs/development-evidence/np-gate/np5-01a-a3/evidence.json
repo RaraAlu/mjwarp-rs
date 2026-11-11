@@ -1,0 +1,1237 @@
+{
+  "schema": 1,
+  "task": "np5-01a-a3-com-mass-multiply-source-level",
+  "scope": "com_position 14 + com_velocity 8 + mass_multiply 18 = 40 sites; source-level type mapping + expression classification (six-class vocab)",
+  "split_source": "target/render-bvh/gl2-ptx-diff/np5-01a/sites.json (rows com_position/com_velocity/mass_multiply)",
+  "vocabulary_authority": {
+    "path": "target/render-bvh/gl2-ptx-diff/np5-01a-vocab-addendum.md",
+    "sha256": "453c5c9157341fa28ecb009c50f2ff560b6f43e15f593ed9b7a75f27dd5b1b26",
+    "bytes": 6771
+  },
+  "site_count": 40,
+  "pending_manual": 0,
+  "np5_01a_total_sites": 483,
+  "np5_01a_prior_sites": {
+    "total": 443,
+    "a1a": 40,
+    "a1b": 36,
+    "a2": 63,
+    "b1": 78,
+    "c1": 52,
+    "c2": 68,
+    "c3": 43,
+    "c4": 63
+  },
+  "group_totals": {
+    "com_position": 14,
+    "com_velocity": 8,
+    "mass_multiply": 18
+  },
+  "classifications_histogram": {
+    "n/a": 19,
+    "identical": 18,
+    "engine-semantic": 3
+  },
+  "not_decidable_reasons_vocabulary": [
+    "no-reference-entry",
+    "mathdx-cusolver-unavailable",
+    "no-lineinfo",
+    "frozen-artifact-only",
+    "capture-scenario-miss",
+    "host-path-no-ptx"
+  ],
+  "device_level_note": "RE-2 device 级记 mass_multiply 无冻结参考 entry（not-decidable/no-reference-entry）；本片 source 级仍逐站点分类，两条口径并行不互相替代",
+  "reference_anchors_note": "上游为冻结 71da24d9 的 target/mjwarp-parallel/upstream/mujoco_warp/_src（smooth.py/math.py/support.py）",
+  "non_claims": [
+    "does not claim NP01 pass or precision completion (E not finalized); no bit-level guarantee",
+    "source-level only; zero GPU/window",
+    "source-level identical means expression/type/order correspondence, not a bit-level result"
+  ],
+  "entries": [
+    {
+      "id": "com_position:rigid_com_position:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 194,
+        "expression": "mass=field_parameter(p,desc,w,nb); inertia=field_parameter(p,desc+2,w,3*nb)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 659,
+        "function": "_subtree_com_init",
+        "body_lines": [
+          656,
+          666
+        ],
+        "expression": "body_mass / body_inertia 输入数组"
+      },
+      "type_mapping": {
+        "product": "f32（field_parameter 视图，无副本转换）",
+        "upstream": "wp array2d[float] f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "视图/输入绑定（field_parameter 取段），非算术表达式；上游直接传 body_mass/body_inertia 数组",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:intermediate:0",
+      "why_not_applicable": "field_parameter 视图与上游数组入参均为 f32 只读绑定，无数值运算"
+    },
+    {
+      "id": "com_position:rigid_com_position:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 206,
+        "expression": "sm[b]=mass[b]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 690,
+        "function": "_subtree_div",
+        "body_lines": [
+          687,
+          700
+        ],
+        "expression": "body_subtreemass[worldid%..., bodyid]"
+      },
+      "type_mapping": {
+        "product": "f32 子树质量（输出块首段）",
+        "upstream": "wp array2d[float] f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "子树质量中间量初始化（初值=mass[b]），乘法加权在 intermediate:2 / accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:intermediate:1",
+      "why_not_applicable": "单缓冲初值写入，非独立表达式；累计与除法在 accumulation / output 站点对照"
+    },
+    {
+      "id": "com_position:rigid_com_position:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 207,
+        "expression": "com[3*b+a]=mass[b]*ipos[3*b+a]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 666,
+        "function": "_subtree_com_init",
+        "body_lines": [
+          656,
+          666
+        ],
+        "expression": "subtree_com_out = xipos_in * body_mass"
+      },
+      "type_mapping": {
+        "product": "f32 质量加权位置",
+        "upstream": "wp vec3 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：f32 乘法、同序写入；无升精度",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:intermediate:2"
+    },
+    {
+      "id": "com_position:rigid_com_position:intermediate:3",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 217,
+        "expression": "x=ipos[3b]-com[3root] / y / z / mb=mass[b]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 720,
+        "function": "_cinert",
+        "body_lines": [
+          704,
+          746
+        ],
+        "expression": "dif = xipos_in - subtree_com_in[body_rootid]"
+      },
+      "type_mapping": {
+        "product": "f32 标量（质心相对位移与 body 质量）",
+        "upstream": "wp vec3 f32 + float f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：f32 减法逐分量、同序",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:intermediate:3"
+    },
+    {
+      "id": "com_position:rigid_com_position:intermediate:4",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 220,
+        "expression": "float t[9]; for row/col/a: v += r[3row+a]*d[a]*r[3col+a]; t[3row+col]=v"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 725,
+        "function": "_cinert",
+        "body_lines": [
+          703,
+          746
+        ],
+        "expression": "tmp = mat @ wp.diag(inert) @ wp.transpose(mat); res[0..5]=tmp 分量"
+      },
+      "type_mapping": {
+        "product": "f32 旋转后惯量张量",
+        "upstream": "wp mat33 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "engine-semantic",
+      "basis": "实现路线不同：产品 3 层循环显式三重乘加，上游 warp 矩阵乘组合（mat @ diag @ transpose）；数学等价但实现/收缩形态不同（同 A-2 kinematics:rigid_com_position:accumulation:2 先例）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:intermediate:4",
+      "bit_level_guarantee": false,
+      "why_engine_semantic": "产品显式三重循环 vs 上游 warp 矩阵乘组合（mat@diag@mat.T）；数学等价但实现与 fma 收缩形态不同，不作数值等价结论"
+    },
+    {
+      "id": "com_position:rigid_com_position:intermediate:5",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 234,
+        "expression": "off[a]=com[3root+a]-anchor[3j+a]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 772,
+        "function": "_cdof",
+        "body_lines": [
+          749,
+          791
+        ],
+        "expression": "offset = subtree_com_in[body_rootid] - xanchor_in"
+      },
+      "type_mapping": {
+        "product": "f32 关节轴与质心偏移",
+        "upstream": "wp vec3 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：f32 减法逐分量、同序",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:intermediate:5"
+    },
+    {
+      "id": "com_position:rigid_com_position:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 210,
+        "expression": "sm[up] += sm[b]（b=nb-1..1，串行）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 684,
+        "function": "_subtree_com_acc",
+        "body_lines": [
+          670,
+          684
+        ],
+        "expression": "wp.atomic_add(subtree_com_out, worldid, pid, subtree_com_in[worldid, bodyid])"
+      },
+      "type_mapping": {
+        "product": "f32 顺序累加（树序 b=nb-1..1，非原子）",
+        "upstream": "wp.atomic_add f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "engine-semantic",
+      "basis": "累加/并行语义不同：产品按 parent 优先的串行树序累加（非原子），上游按 body_tree 分层遍历 + wp.atomic_add 并行累加；f32 加法非结合，顺序/实现不同（同 A-2 kinematics:rigid_com_position:accumulation:0 先例）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:accumulation:0",
+      "bit_level_guarantee": false,
+      "why_engine_semantic": "产品串行树序累加 vs 上游分层 atomic_add 并行累加；f32 加法顺序不同、实现路线不同，不作数值等价结论"
+    },
+    {
+      "id": "com_position:rigid_com_position:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 211,
+        "expression": "com[3up+a] += com[3b+a]（同一树序）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 684,
+        "function": "_subtree_com_acc",
+        "body_lines": [
+          670,
+          684
+        ],
+        "expression": "wp.atomic_add(..., subtree_com_in[worldid, bodyid]) 的 vec3 分量"
+      },
+      "type_mapping": {
+        "product": "f32 顺序累加（同一树序遍历）",
+        "upstream": "wp.atomic_add f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：与 accumulation:0 同一树序遍历的三分量累加；三元组原子加与分量串行加在「每 parent 收一次子项累加」上形式对应（A-2 同型站点先例 identical）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:accumulation:1"
+    },
+    {
+      "id": "com_position:rigid_com_position:accumulation:2",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 223,
+        "expression": "v += r[3row+a]*d[a]*r[3col+a]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 725,
+        "function": "_cinert",
+        "body_lines": [
+          703,
+          746
+        ],
+        "expression": "tmp = mat @ wp.diag(inert) @ wp.transpose(mat)"
+      },
+      "type_mapping": {
+        "product": "f32 顺序乘加（无 f64、无显式 fma 指令）",
+        "upstream": "wp mat33 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "engine-semantic",
+      "basis": "实现路线不同：产品显式 3 层循环三重乘加（a 序累加），上游 warp 矩阵乘组合（mat@diag@transpose）内部求和次序不同；数学等价但不作数值等价结论（同 A-2 kinematics:rigid_com_position:accumulation:2 先例）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:accumulation:2",
+      "bit_level_guarantee": false,
+      "why_engine_semantic": "显式三重循环 vs 上游 warp 矩阵乘组合；数学等价，实现与求和/收缩形态不同，不作数值等价结论"
+    },
+    {
+      "id": "com_position:rigid_com_position:output:0",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 203,
+        "expression": "float* sm=output+4+(unsigned long long)w*(14*nb+6*nv)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 666,
+        "function": "_subtree_com_init",
+        "body_lines": [
+          656,
+          666
+        ],
+        "expression": "subtree_com_out[worldid, bodyid] 写出"
+      },
+      "type_mapping": {
+        "product": "f32 [4 + w*(14nb+6nv) + 0..]",
+        "upstream": "wp array2d[wp.vec3] f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出段与上游子树质心输出对应（f32 直接写、无转换）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:output:0"
+    },
+    {
+      "id": "com_position:rigid_com_position:output:1",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 213,
+        "expression": "if(sm[b]!=0.0f) com[3b+a]/=sm[b]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 700,
+        "function": "_subtree_div",
+        "body_lines": [
+          687,
+          700
+        ],
+        "expression": "if mass != 0.0: subtree_com_out = com / mass"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp vec3 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：同为零质量跳过 + f32 除法逐分量；除零域一致",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:output:1"
+    },
+    {
+      "id": "com_position:rigid_com_position:output:2",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 226,
+        "expression": "c[0]=t[0]+mb*(y*y+z*z) ... c[9]=mb（cinert 10 分量）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 726,
+        "function": "_cinert",
+        "body_lines": [
+          704,
+          746
+        ],
+        "expression": "res[0]=tmp[0,0]+mass*(dif1^2+dif2^2) ... res[9]=mass"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "vec10 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：10 分量公式逐项同序（含 res[3]-=mass*dif0*dif1 等）；顺序一致",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:output:2"
+    },
+    {
+      "id": "com_position:rigid_com_position:output:3",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 232,
+        "expression": "cd 段：FREE/BALL/SLIDE/HINGE 分支写 6 分量（含 cross(ax,off)）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 774,
+        "function": "_cdof",
+        "body_lines": [
+          749,
+          791
+        ],
+        "expression": "res[dofid+i]=wp.spatial_vector(...) / wp.cross(xmat[i], offset)"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp.spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：同一关节类型分支与分量公式（FREE/BALL/SLIDE/HINGE）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:output:3"
+    },
+    {
+      "id": "com_position:rigid_com_position:rounding-note:0",
+      "product_anchor": {
+        "file": "src/physics/mod.rs",
+        "line": 223,
+        "expression": "无显式 __fadd_rn/__fmaf_rn；f32 乘加按编译器契约"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 725,
+        "function": "_cinert",
+        "body_lines": [
+          703,
+          746
+        ],
+        "expression": "wp mat33 f32 运算"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note 说明项，非单一表达式；fma 收缩由编译器契约管理（见 evidence 的 rounding 说明）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_position:rigid_com_position:rounding-note:0",
+      "why_not_applicable": "rounding-note 为说明条目，不是可分类表达式"
+    },
+    {
+      "id": "com_velocity:com_velocity:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 32,
+        "expression": "float v[6]; v[k]=cvel[6*parent[b]+k]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 2542,
+        "function": "_comvel_branch",
+        "body_lines": [
+          2515,
+          2587
+        ],
+        "expression": "cvel = cvel_out[worldid, pid]"
+      },
+      "type_mapping": {
+        "product": "f32 每 body 空间速度（父 body 值复制后按关节累加）",
+        "upstream": "wp spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "局部缓冲（父 body 速度副本），非单一表达式；累加在 accumulation 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:intermediate:0",
+      "why_not_applicable": "父速度副本缓冲，非独立表达式"
+    },
+    {
+      "id": "com_velocity:com_velocity:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 16,
+        "expression": "motion_cross(a,b,out)：分组显式括号 6 分量叉积"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+        "line": 134,
+        "function": "motion_cross",
+        "body_lines": [
+          133,
+          144
+        ],
+        "expression": "ang = cross(u0,v0); vel = cross(u1,v0)+cross(u0,v1)"
+      },
+      "type_mapping": {
+        "product": "f32 6 维空间叉积",
+        "upstream": "wp.spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "device 函数定义（多表达式封装），非单站点表达式；其调用结果在 accumulation/output 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:intermediate:1",
+      "why_not_applicable": "函数定义级（多表达式封装），逐表达式在 accumulation/output 站点对照"
+    },
+    {
+      "id": "com_velocity:com_velocity:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 27,
+        "expression": "const float* qvel=velocities+4+w*nv"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 2536,
+        "function": "_comvel_branch",
+        "body_lines": [
+          2515,
+          2587
+        ],
+        "expression": "qvel = qvel_in[worldid]"
+      },
+      "type_mapping": {
+        "product": "f32 dof 速度",
+        "upstream": "wp array2d[float] f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "输入视图，非算术表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:intermediate:2",
+      "why_not_applicable": "输入视图绑定，无运算"
+    },
+    {
+      "id": "com_velocity:com_velocity:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 36,
+        "expression": "v[k]+=cdof[6(d+i)+k]*qvel[d+i]（FREE 前 3 dof）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 2555,
+        "function": "_comvel_branch",
+        "body_lines": [
+          2515,
+          2587
+        ],
+        "expression": "cvel += cdof[dofid+0..2]*qvel[dofid+0..2]"
+      },
+      "type_mapping": {
+        "product": "f32 顺序累加（dof 按 adr 顺序，每项一次乘加）",
+        "upstream": "wp spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：同一 FREE dof 顺序、同一乘加形式（f32）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:accumulation:0"
+    },
+    {
+      "id": "com_velocity:com_velocity:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 46,
+        "expression": "v[k]+=cdof[6d+k]*qvel[d]（else/SLIDE/HINGE 分支）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 2583,
+        "function": "_comvel_branch",
+        "body_lines": [
+          2515,
+          2587
+        ],
+        "expression": "cvel += cdof[dofid]*qvel[dofid]（else 分支）"
+      },
+      "type_mapping": {
+        "product": "f32 顺序累加",
+        "upstream": "wp spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式对应：else 分支同一单项累加",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:accumulation:1"
+    },
+    {
+      "id": "com_velocity:com_velocity:output:0",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 49,
+        "expression": "cvel[6b+k]=v[k]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 2587,
+        "function": "_comvel_branch",
+        "body_lines": [
+          2515,
+          2587
+        ],
+        "expression": "cvel_out[worldid, bodyid] = cvel"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 cvel 对应（f32 直接写；body 0 预置 0 对应 _comvel_root）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:output:0"
+    },
+    {
+      "id": "com_velocity:com_velocity:output:1",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 39,
+        "expression": "motion_cross(v,cdof+6(d+i),dot+6(d+i))"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 2562,
+        "function": "_comvel_branch",
+        "body_lines": [
+          2515,
+          2587
+        ],
+        "expression": "cdof_dot_out = math.motion_cross(cvel, cdof[dofid+i])"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp spatial_vector f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 cdof_dot 对应（同序 motion_cross 调用；关节类型 0 前 3 dof 置 0 对应上游 L2559-2561）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:output:1"
+    },
+    {
+      "id": "com_velocity:com_velocity:rounding-note:0",
+      "product_anchor": {
+        "file": "src/physics/com_velocity/cuda.rs",
+        "line": 18,
+        "expression": "motion_cross 分组括号固定加法顺序，无显式 fma 指令"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+        "line": 141,
+        "function": "motion_cross",
+        "body_lines": [
+          133,
+          144
+        ],
+        "expression": "ang = wp.cross(u0,v0); vel = wp.cross(u1,v0)+wp.cross(u0,v1)"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note 说明项，非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#com_velocity:com_velocity:rounding-note:0",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "mass_multiply:mass_multiply_validate:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 8,
+        "expression": "valid 判定：sentinel 精确比较 + isfinite（非 skip world）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 172,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "wp.static(check_skip): if skip[worldid]: return"
+      },
+      "type_mapping": {
+        "product": "bool（sentinel 精确比较 + isfinite）",
+        "upstream": "host 侧 skip（bool 数组）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "产品自加校验内核（sentinel/isfinite 校验）；上游 skip 为 host 传入的 bool 数组、kernel 内仅静态分支，无对应校验表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply_validate:intermediate:0",
+      "why_not_applicable": "产品探针校验逻辑；上游 skip 在 host 侧布尔数组、kernel 内无对应的数值校验表达式（无可比参考表达式）"
+    },
+    {
+      "id": "mass_multiply:mass_multiply_validate:output:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 10,
+        "expression": "status[4+w]=valid?1.0f:0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 172,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "skip 分支（无 status 输出）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "无对应输出",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "产品校验结果输出；上游无对应 status 字段",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply_validate:output:0",
+      "why_not_applicable": "上游无 status 输出字段"
+    },
+    {
+      "id": "mass_multiply:mass_multiply:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 16,
+        "expression": "const float* matrix=M+4+w*mc; const float* v=vec+4+w*n"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 162,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "M_in / vec 输入数组"
+      },
+      "type_mapping": {
+        "product": "const float* 视图（无副本、无转换）",
+        "upstream": "wp array2d[float] f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "输入视图，非算术表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply:intermediate:0",
+      "why_not_applicable": "输入视图绑定，无运算"
+    },
+    {
+      "id": "mass_multiply:mass_multiply:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 16,
+        "expression": "float acc=0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 177,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "acc = float(0.0)"
+      },
+      "type_mapping": {
+        "product": "f32 点积累加器，初值 0.0f",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "累加器初值，非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply:intermediate:1",
+      "why_not_applicable": "累加器声明/初值，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "mass_multiply:mass_multiply:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 19,
+        "expression": "acc=acc+matrix[row*MASS_NV+j]*v[j]（dense, #pragma unroll）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 211,
+        "function": "_mul_m_dense",
+        "body_lines": [
+          190,
+          214
+        ],
+        "expression": "acc += M_in[worldid,i,j]*vec[worldid,j]（j=0..nv-1）"
+      },
+      "type_mapping": {
+        "product": "f32 列序顺序累加；可收缩（fmad=true 契约）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式与累加次序对应：均为 j=0..nv-1 列序 f32 累加（上游 wp.static(nv) 展开）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply:accumulation:0"
+    },
+    {
+      "id": "mass_multiply:mass_multiply:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 22,
+        "expression": "acc=acc+matrix[adr[k]]*v[col[k]]（CSR 行内序）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 183,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "acc += M_in[worldid,madr]*vec[worldid,col]（CSR 行内）"
+      },
+      "type_mapping": {
+        "product": "f32 顺序累加（CSR 行内顺序固定）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式与累加次序对应：同为 CSR 行内 gather 顺序的 f32 累加",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply:accumulation:1"
+    },
+    {
+      "id": "mass_multiply:mass_multiply:output:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 24,
+        "expression": "result[4+tid]=acc"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 185,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "res[worldid,dofid] = acc"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 res 对应（f32 直接写；skip world 提前 return 不写对应上游 skip 分支）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:mass_multiply:output:0"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_validate:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 11,
+        "expression": "valid：维度/清单/sentinel/isfinite + CSR 结构（row 首尾、col 范围、adr 期望地址）联合判定"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 172,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "skip 分支（无结构校验）"
+      },
+      "type_mapping": {
+        "product": "bool",
+        "upstream": "host 侧 skip",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "产品自加校验内核（CSR 结构校验）；上游无对应校验表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_validate:intermediate:0",
+      "why_not_applicable": "产品探针校验逻辑；上游 kernel 内无对应结构校验表达式"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_validate:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 8,
+        "expression": "unsigned long long stride=10*nb+1*n*n"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 195,
+        "function": "_mul_m_dense",
+        "body_lines": [
+          190,
+          214
+        ],
+        "expression": "M_in: wp.array3d[float]（stride 由 warp 数组布局给出）"
+      },
+      "type_mapping": {
+        "product": "unsigned long long（10*nb+n*n）",
+        "upstream": "warp array3d 布局",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "产品借用路径的地址 stride（视图布局），非算术表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_validate:intermediate:1",
+      "why_not_applicable": "布局 stride 计算，非物理算术"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_validate:output:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 21,
+        "expression": "status[4+w]=valid?1.0f:0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 172,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "skip 分支（无 status 输出）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "无对应输出",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "产品校验结果输出；上游无对应 status 字段",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_validate:output:0",
+      "why_not_applicable": "上游无 status 输出字段"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_multiply:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 27,
+        "expression": "const float* M=source+4+stride*w+10nb; const float* v=vec+4+w*n"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 162,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "M_in / vec 输入数组"
+      },
+      "type_mapping": {
+        "product": "const float* 视图（无副本、无转换）",
+        "upstream": "wp array2d[float] f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "输入视图，非算术表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_multiply:intermediate:0",
+      "why_not_applicable": "输入视图绑定，无运算"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_multiply:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 28,
+        "expression": "float acc=0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 177,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "acc = float(0.0)"
+      },
+      "type_mapping": {
+        "product": "f32 点积累加器，初值 0.0f",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "累加器初值，非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_multiply:intermediate:1",
+      "why_not_applicable": "累加器声明/初值，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_multiply:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 31,
+        "expression": "acc=acc+M[r*BORROW_NV+c]*v[c]（dense, #pragma unroll）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 211,
+        "function": "_mul_m_dense",
+        "body_lines": [
+          190,
+          214
+        ],
+        "expression": "acc += M_in[worldid,i,j]*vec[worldid,j]（j=0..nv-1）"
+      },
+      "type_mapping": {
+        "product": "f32 列序顺序累加",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式与累加次序对应：同为 c=0..NV-1 列序 f32 累加（矩阵来源为 resident CRB 借用，算术相同）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_multiply:accumulation:0"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_multiply:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 34,
+        "expression": "acc=acc+M[adr[k]]*v[col[k]]（CSR 行内序）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 183,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "acc += M_in[worldid,madr]*vec[worldid,col]（CSR 行内）"
+      },
+      "type_mapping": {
+        "product": "f32 CSR 行内顺序累加",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level 表达式与累加次序对应：同为 CSR 行内 gather f32 累加",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_multiply:accumulation:1"
+    },
+    {
+      "id": "mass_multiply:borrowed_mass_multiply:output:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 36,
+        "expression": "result[4+tid]=acc"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 185,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "res[worldid,dofid] = acc"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 res 对应（f32 直接写）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:borrowed_mass_multiply:output:0"
+    },
+    {
+      "id": "mass_multiply:rounding-note:0",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 19,
+        "expression": "纯 f32 乘加：acc=acc+a*b 顺序累加；无显式 __fmaf_rn/__fmul_rn，也无 atomicAdd"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 183,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "acc += M_in*vec 纯 f32 累加"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note 说明项；raw-kernels 扫描 fma=0/atomicAdd=0 与本表复核一致",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:rounding-note:0",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "mass_multiply:rounding-note:1",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/cuda.rs",
+        "line": 19,
+        "expression": "稠密 #pragma unroll 展开但累加次序仍为列序；稀疏按 CSR 行内序"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 210,
+        "function": "_mul_m_dense",
+        "body_lines": [
+          190,
+          214
+        ],
+        "expression": "for j in range(wp.static(nv)): acc += ..."
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note 说明项",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:rounding-note:1",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "mass_multiply:rounding-note:2",
+      "product_anchor": {
+        "file": "src/physics/mass_matrix/multiply/borrowed/cuda.rs",
+        "line": 27,
+        "expression": "借用路径与一次性路径 ABI 差异只在矩阵来源/stride，算术表达式相同"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 183,
+        "function": "_mul_m",
+        "body_lines": [
+          153,
+          187
+        ],
+        "expression": "同一 _mul_m / _mul_m_dense 内核"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note 说明项",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 NVRTC 12.9 vs 产品 12.8.93、arch sm_89 vs compute_70，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a3/evidence.json#mass_multiply:rounding-note:2",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    }
+  ]
+}
