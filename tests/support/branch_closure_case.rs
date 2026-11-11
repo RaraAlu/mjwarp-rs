@@ -128,7 +128,7 @@ pub(crate) const LIMIT_CASES: [Case; 2] = [
 ];
 
 /// S3 签名集合里的 13 个 fixture（路径 + sha256；CPU 测试逐项复核）。
-pub(crate) const FIXTURE_SHA256: [(&str, &str); 13] = [
+pub(crate) const FIXTURE_SHA256: [(&str, &str); 15] = [
     (
         "fixtures/g10-p5-primitive-branches/plane-cylinder-degenerate.xml",
         "393ff1af9811b9badf6e9c13e707fa9a843e2b1d6f3face4f98b2cc7c6157583",
@@ -180,6 +180,14 @@ pub(crate) const FIXTURE_SHA256: [(&str, &str); 13] = [
     (
         "fixtures/g10-p5-mesh-multicontact/mesh-limits-prism-box.xml",
         "1bee35cfa3378d96d18317ff75bbf4af0561f7bd71915574e2ea596bc8d4f3b5",
+    ),
+    (
+        "fixtures/g10-p5-mesh-multicontact/fan-cone-33.obj",
+        "589080586fac53cca91ff6d1355b4e92c95b4a83bd512caf4ced33546444ee0b",
+    ),
+    (
+        "fixtures/g10-p5-mesh-multicontact/prism-33.obj",
+        "bb1b05c276b3f78a0bf680ff64682a4abad72233b880f1ed19c14f060677c401",
     ),
 ];
 
