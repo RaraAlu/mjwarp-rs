@@ -1,0 +1,1309 @@
+{
+  "schema": 1,
+  "task": "np5-01a-d2-ccd-host-source-level",
+  "scope": "ccd_host 37 sites + 2 appendix units (src/math/fma.rs, render_light_dir_normalize); host-path source-level type mapping + expression classification",
+  "split_source": "target/render-bvh/gl2-ptx-diff/np5-01a/sites.json (row ccd_host + appendix rows)",
+  "vocabulary_authority": {
+    "path": "target/render-bvh/gl2-ptx-diff/np5-01a-vocab-addendum.md",
+    "sha256": "453c5c9157341fa28ecb009c50f2ff560b6f43e15f593ed9b7a75f27dd5b1b26",
+    "bytes": 6771
+  },
+  "site_count": 37,
+  "appendix_unit_count": 2,
+  "pending_manual": 0,
+  "np5_01a_total_sites": 608,
+  "np5_01a_unique_expressions": 598,
+  "np5_01a_prior_sites": {
+    "total": 571,
+    "a1a": 40,
+    "a1b": 36,
+    "a2": 63,
+    "a3": 40,
+    "b1": 78,
+    "c1": 52,
+    "c2": 68,
+    "c3": 43,
+    "c4": 63,
+    "d1": 88
+  },
+  "group_totals": {
+    "ccd_host": 37
+  },
+  "kind_counts": {
+    "intermediate": 13,
+    "accumulation": 6,
+    "output": 14,
+    "rounding-note": 4
+  },
+  "classifications_histogram": {
+    "n/a": 21,
+    "identical": 16
+  },
+  "appendix_units": [
+    {
+      "unit": "src/math/fma.rs",
+      "kind": "appendix-unit",
+      "label": "fma_f32（IEEE-754 f32 精确 FMA：硬件 FMA 主路 + 整数精确模拟兜底）",
+      "product_anchor": {
+        "file": "src/math/fma.rs",
+        "line": 75,
+        "expression": "pub(crate) fn fma_f32(a,b,c) -> f32（单次正确舍入 a*b+c）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase（warp fma.rn 语义）",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "无上游源码函数对应：上游对应的是 warp/编译器 fma.rn 指令语义"
+      },
+      "type_mapping": {
+        "product": "f32 输入输出（不升 f64）",
+        "upstream": "PTX fma.rn.f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "产品内部数学助手（IEEE-754 单次舍入 FMA 的 host 实现），不是上游表达式的对应点；语义由产品单元测试（1e6 用例 + 77 例边界集）覆盖，host 路径无 PTX 对照",
+      "why_not_applicable": "内部数学助手，无上游源码表达式映射；host 路径不可做 PTX/device 对照",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#appendix:src/math/fma.rs"
+    },
+    {
+      "unit": "render_light_dir_normalize",
+      "kind": "appendix-unit",
+      "label": "光方向归一化（warp normalize 的 fma(z,z,fma(y,y,x*x)) 序列 + 逐分量除法）",
+      "product_anchor": {
+        "file": "src/render/kernel/megakernel_arrays.rs",
+        "line": 228,
+        "expression": "length = fma_f32(z,z,fma_f32(y,y,x*x)).sqrt(); xdir = [x/length,y/length,z/length]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 951,
+        "function": "_light_local_to_global",
+        "body_lines": [
+          929,
+          960
+        ],
+        "expression": "light_xdir_out[worldid, lightid] = wp.normalize(light_xdir_out[...])"
+      },
+      "type_mapping": {
+        "product": "f32（显式精确 f32 FMA 固定收缩序）",
+        "upstream": "wp.normalize（warp fma 序列）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：产品显式用精确 f32 FMA 复刻 warp normalize 的 fma(z,z,fma(y,y,x*x)) 收缩序，length>0 时逐分量除法、否则零向量；与上游 smooth.py:951 wp.normalize 同序（不声明位级）",
+      "why_identical": "warp normalize 的 fma 收缩序列与逐分量除法均被显式固定（f32 精确 FMA），无升精度",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#appendix:render_light_dir_normalize"
+    }
+  ],
+  "not_decidable_reasons_vocabulary": [
+    "no-reference-entry",
+    "mathdx-cusolver-unavailable",
+    "no-lineinfo",
+    "frozen-artifact-only",
+    "capture-scenario-miss",
+    "host-path-no-ptx"
+  ],
+  "device_level_note": "D 批为 host 路径：37 站点均无 PTX（device 级整体记 not-decidable 原因 host-path-no-ptx）；本片只做 source 级对照，不声明 device/位级结论",
+  "host_recipe_note": "host 站点刻意非融合（两次舍入、不用 mul_add、不引 f64）；device 侧 pinned ccd PTX 为 fma.rn 融合语义 —— 两套 recipe",
+  "dual_count_note": "608 = 场表行×站点（A179+B78+C226+D125）；598 = 去重唯一表达式（608−10，rigid_com_position 在 kinematics 行与 com_position 行重复登记 10 个 tail）",
+  "non_claims": [
+    "does not claim NP01 pass or precision completion (E not finalized); no bit-level guarantee",
+    "host path has no PTX; source-level only, zero GPU/window",
+    "source-level identical means expression/type/order correspondence, not a bit-level result",
+    "608 is field-table row x site count, not 608 unique expressions (unique = 598)"
+  ],
+  "entries": [
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:intermediate:0",
+      "kind": "intermediate",
+      "label": "orig_margin/orig_size",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 157,
+        "expression": "let orig_margin1=geom1.margin; let orig_margin2=geom2.margin;（orig_size 快照）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "shrink 前 margin/size 快照"
+      },
+      "type_mapping": {
+        "product": "f32 / [f32;3]",
+        "upstream": "float / wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "快照缓冲（shrink 前值），非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:intermediate:0",
+      "why_not_applicable": "快照/缓冲声明，操作在后续站点对照"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:intermediate:1",
+      "kind": "intermediate",
+      "label": "size1/size2, full_margin1/full_margin2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 174,
+        "expression": "full_margin1 = size1 + 0.5*orig_margin1; full_margin2 = ..."
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "full_margin = size + 0.5*orig_margin"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "shrink 中间量，表达式在 absorption/accumulation 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:intermediate:1",
+      "why_not_applicable": "中间量声明，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:intermediate:2",
+      "kind": "intermediate",
+      "label": "cutoff（局部）",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 166,
+        "expression": "let mut cutoff=cutoff; cutoff += full_margin1+full_margin2（重跑前减回）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "cutoff 局部修正同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "局部 cutoff 中间量，修正与减回在各站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:intermediate:2",
+      "why_not_applicable": "中间量声明，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:intermediate:3",
+      "kind": "intermediate",
+      "label": "inflate 的 n",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 124,
+        "expression": "let n = normalize3(sub3(x2, x1));（随后 x1+=margin1*n, x2-=margin2*n, dist-=margin1+margin2）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2455,
+        "function": "_inflate",
+        "body_lines": [
+          2455,
+          2501
+        ],
+        "expression": "inflate 法线与 witness 修正同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "法线中间量，表达式在 accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:intermediate:3",
+      "why_not_applicable": "中间量声明，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:accumulation:0",
+      "kind": "accumulation",
+      "label": "dist -= margin1 + margin2（先求 margin 和再一次减）",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 139,
+        "expression": "dist -= margin1 + margin2;"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2455,
+        "function": "_inflate",
+        "body_lines": [
+          2455,
+          2501
+        ],
+        "expression": "同一先加后减顺序"
+      },
+      "type_mapping": {
+        "product": "f32 两次舍入",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与求值顺序对应（margin 先各自求和外加，再一次减）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:accumulation:0",
+      "why_identical": "source 级表达式与求值顺序对应（margin 先各自求和外加，再一次减）"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:accumulation:1",
+      "kind": "accumulation",
+      "label": "HFIELD 浅穿透：tri_affine_coord 重心坐标后两次各三项乘加",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 101,
+        "expression": "let coordinates = tri_affine_coord(a, b, c, x2);（两侧各三项乘加）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "HField 浅穿透重心坐标同式"
+      },
+      "type_mapping": {
+        "product": "f32 顺序加",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与求值顺序对应（重心坐标 + 两次三项乘加）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:accumulation:1",
+      "why_identical": "source 级表达式与求值顺序对应（重心坐标 + 两次三项乘加）"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:accumulation:2",
+      "kind": "accumulation",
+      "label": "dist = -length3(sub3(x1, x2))（HField 分支与后续 inflate 同式）",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 119,
+        "expression": "dist = -length3(sub3(x1, x2));"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "同一减法→平方和→sqrt→取负"
+      },
+      "type_mapping": {
+        "product": "f32 减法→平方和→sqrt→取负",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：同一距离公式与符号",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:accumulation:2",
+      "why_identical": "source 级表达式对应：同一距离公式与符号"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:output:0",
+      "kind": "output",
+      "label": "GjkPhase.dist",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 274,
+        "expression": "GjkPhase{ needs_epa, dist: result.dist, ... }（浅穿透走 inflate 修正值）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "phase.dist 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 phase dist 对应（浅穿透 inflate 修正/分离取 result.dist）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:output:0",
+      "why_identical": "输出字段与上游 phase dist 对应（浅穿透 inflate 修正/分离取 result.dist）"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:output:1",
+      "kind": "output",
+      "label": "GjkPhase.x1/x2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 274,
+        "expression": "GjkPhase{ x1, x2 }（膨胀回真实表面后的 witness）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "phase witness 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 witness 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:output:1",
+      "why_identical": "输出字段与上游 witness 对应"
+    },
+    {
+      "id": "ccd_host:gjk_phase_phase.rs:output:2",
+      "kind": "output",
+      "label": "GjkPhase.needs_epa",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 261,
+        "expression": "needs_epa = result.dist<=tolerance && dim>=2 && !separated（透传为 false）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "needs_epa 判据同式"
+      },
+      "type_mapping": {
+        "product": "bool",
+        "upstream": "bool",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出判据与上游同式（dist/ dim/ separated 三条件）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:gjk_phase_phase.rs:output:2",
+      "why_identical": "输出判据与上游同式（dist/ dim/ separated 三条件）"
+    },
+    {
+      "id": "ccd_host:ccd_internal_ccd.rs:intermediate:0",
+      "kind": "intermediate",
+      "label": "phase",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 240,
+        "expression": "let phase = gjk_phase(...)（GjkPhase 结果）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2683,
+        "function": "ccd",
+        "body_lines": [
+          2683,
+          2729
+        ],
+        "expression": "gjk_phase 结果结构"
+      },
+      "type_mapping": {
+        "product": "GjkPhase",
+        "upstream": "GjkPhase",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构中间量（phase 结果），字段在各 output 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_internal_ccd.rs:intermediate:0",
+      "why_not_applicable": "结构中间量，字段在 output 站点对照"
+    },
+    {
+      "id": "ccd_host:ccd_internal_ccd.rs:intermediate:1",
+      "kind": "intermediate",
+      "label": "epa_phase_result",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 250,
+        "expression": "if phase.needs_epa { let epa = epa_phase_with_horizon(...) }"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2683,
+        "function": "ccd",
+        "body_lines": [
+          2683,
+          2729
+        ],
+        "expression": "needs_epa 时调用 epa_phase"
+      },
+      "type_mapping": {
+        "product": "EpaPhase",
+        "upstream": "EpaPhase",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构中间量（EPA 阶段结果），字段在 output 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_internal_ccd.rs:intermediate:1",
+      "why_not_applicable": "结构中间量，字段在 output 站点对照"
+    },
+    {
+      "id": "ccd_host:ccd_internal_ccd.rs:output:0",
+      "kind": "output",
+      "label": "CcdInternal.dist",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 191,
+        "expression": "dist: internal.dist（phase.dist 或 epa.dist 透传）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2683,
+        "function": "ccd",
+        "body_lines": [
+          2683,
+          2729
+        ],
+        "expression": "dist 透传同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 dist 对应（两阶段透传）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_internal_ccd.rs:output:0",
+      "why_identical": "输出字段与上游 dist 对应（两阶段透传）"
+    },
+    {
+      "id": "ccd_host:ccd_internal_ccd.rs:output:1",
+      "kind": "output",
+      "label": "CcdInternal.x1/x2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 191,
+        "expression": "x1/x2 透传"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2683,
+        "function": "ccd",
+        "body_lines": [
+          2683,
+          2729
+        ],
+        "expression": "witness 透传同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 witness 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_internal_ccd.rs:output:1",
+      "why_identical": "输出字段与上游 witness 对应"
+    },
+    {
+      "id": "ccd_host:ccd_internal_ccd.rs:output:2",
+      "kind": "output",
+      "label": "CcdInternal.ncontact / multiccd_idx / overflow",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 191,
+        "expression": "ncontact/multiccd_idx/overflow 结构字段（overflow 只透传 EPA_HORIZON 位）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2683,
+        "function": "ccd",
+        "body_lines": [
+          2683,
+          2729
+        ],
+        "expression": "计数/索引/溢出位"
+      },
+      "type_mapping": {
+        "product": "i32 / i32 / u32",
+        "upstream": "int / int / uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构化字段（计数/索引/溢出位），非浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_internal_ccd.rs:output:2",
+      "why_not_applicable": "结构字段输出，非浮点算术"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:intermediate:0",
+      "kind": "intermediate",
+      "label": "pt",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 53,
+        "expression": "let mut pt = Polytope::with_capacity_and_horizon(...);（dim 决定 polytope2/3/4）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "polytope 构造（2/3/4 顺序）"
+      },
+      "type_mapping": {
+        "product": "Polytope",
+        "upstream": "Polytope",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构缓冲（polytope），构造顺序在 polytope_build 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:intermediate:0",
+      "why_not_applicable": "结构缓冲，非浮点算术"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:intermediate:1",
+      "kind": "intermediate",
+      "label": "is_discrete",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 128,
+        "expression": "let is_discrete = core::is_discrete(geomtype1, geomtype2, geom1.margin, geom2.margin);"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "两侧 margin==0 判据同式"
+      },
+      "type_mapping": {
+        "product": "bool",
+        "upstream": "bool",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "控制流布尔量（离散几何判定），非浮点表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:intermediate:1",
+      "why_not_applicable": "控制流布尔量，非浮点算术"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:intermediate:2",
+      "kind": "intermediate",
+      "label": "multiccd_idx",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 151,
+        "expression": "let mut multiccd_idx = epa_result.face_idx;（margin!=0 或类型不在集合置 -1）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "multiccd 许可判定同式"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型索引（multicontact 是否可用），非浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:intermediate:2",
+      "why_not_applicable": "整型索引，非浮点算术"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:output:0",
+      "kind": "output",
+      "label": "EpaPhase.dist",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 141,
+        "expression": "dist: FLOAT_MAX（EPA 失败时）；否则 epa_result.dist"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "dist 输出同式（失败置 FLOAT_MAX）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 epa dist 对应（失败分支 FLOAT_MAX）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:output:0",
+      "why_identical": "输出字段与上游 epa dist 对应（失败分支 FLOAT_MAX）"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:output:1",
+      "kind": "output",
+      "label": "EpaPhase.x1/x2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 141,
+        "expression": "x1/x2：EPA witness 或 result witness（原点在边界时）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "witness 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 EPA witness 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:output:1",
+      "why_identical": "输出字段与上游 EPA witness 对应"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:output:2",
+      "kind": "output",
+      "label": "EpaPhase.ncontact / multiccd_idx / overflow",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 168,
+        "expression": "ncontact/multiccd_idx/overflow 结构字段"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "计数/索引/溢出位"
+      },
+      "type_mapping": {
+        "product": "i32 / i32 / u32",
+        "upstream": "int / int / uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构化字段输出，非浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:output:2",
+      "why_not_applicable": "结构字段输出，非浮点算术"
+    },
+    {
+      "id": "ccd_host:epa_phase_with_horizon_ccd.rs:output:3",
+      "kind": "output",
+      "label": "EpaPhase.polytope",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 169,
+        "expression": "polytope: Some(epa_result.polytope)（失败 None）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "polytope 透传给 multicontact"
+      },
+      "type_mapping": {
+        "product": "Option<Polytope>",
+        "upstream": "Polytope",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构输出（供 multicontact 恢复 feature），非浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:epa_phase_with_horizon_ccd.rs:output:3",
+      "why_not_applicable": "结构输出，非浮点算术"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:0",
+      "kind": "intermediate",
+      "label": "origin",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 118,
+        "expression": "let origin = geom1.pos; geom1.pos=[0.0;3]; geom2.pos=sub3(geom2.pos,origin);"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "平移不变性（原点移至 geom1.pos）"
+      },
+      "type_mapping": {
+        "product": "[f32;3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "平移基准（坐标变换），非算术表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:0",
+      "why_not_applicable": "平移基准/坐标变换，非算术表达式"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:1",
+      "kind": "intermediate",
+      "label": "cutoff",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 111,
+        "expression": "let cutoff = if options.collision_sensor {1.0e32} else {options.gap};"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "cutoff 选择同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "分离判据阈值选择（sensor/gap 分支），非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:1",
+      "why_not_applicable": "阈值选择，非算术表达式"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:2",
+      "kind": "intermediate",
+      "label": "witness1/witness2/dists",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 186,
+        "expression": "witness1/witness2/dists：multicontact 裁剪结果（0 接触回退单 witness）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2216,
+        "function": "multicontact",
+        "body_lines": [
+          2216,
+          2454
+        ],
+        "expression": "裁剪结果缓冲"
+      },
+      "type_mapping": {
+        "product": "[f32;3]×4 / f32×4",
+        "upstream": "wp.vec3[4] / float[4]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结果缓冲，回退在 output 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:2",
+      "why_not_applicable": "结果缓冲，回退/输出在 output 站点对照"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:3",
+      "kind": "intermediate",
+      "label": "frame",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 205,
+        "expression": "let frame = if dist<=margin {make_frame(w1-w2)} else {make_frame(w2-w1)};"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "frame=make_frame(witness 差，按符号定向)"
+      },
+      "type_mapping": {
+        "product": "[f32;9]",
+        "upstream": "wp.mat33",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "中间矩阵（make_frame 结果），表达式在 output:2 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:intermediate:3",
+      "why_not_applicable": "中间矩阵，表达式在 output 站点对照"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:accumulation:0",
+      "kind": "accumulation",
+      "label": "dist += options.margin（从膨胀形状修正回真实表面）",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 191,
+        "expression": "dist += options.margin;"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "margin 修正同式"
+      },
+      "type_mapping": {
+        "product": "f32 一次加",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：一次 margin 加",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:accumulation:0",
+      "why_identical": "source 级表达式对应：一次 margin 加"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:accumulation:1",
+      "kind": "accumulation",
+      "label": "pos = 0.5*(witness1+witness2) + origin，逐分量先加后乘再平移",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 215,
+        "expression": "let sum=add3(w1,w2); let pos=add3([0.5*sum[0],...],origin);"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "中点 + 平移同式"
+      },
+      "type_mapping": {
+        "product": "f32 两次舍入",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：先加后乘 0.5 再平移",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:accumulation:1",
+      "why_identical": "source 级表达式对应：先加后乘 0.5 再平移"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:accumulation:2",
+      "kind": "accumulation",
+      "label": "contact_dist < margin + gap 才写接触（严格 <）",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 214,
+        "expression": "if contact_dist < options.margin + options.gap {"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "detected 判据同式"
+      },
+      "type_mapping": {
+        "product": "f32 加法与比较",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：margin+gap 加法与严格小于判据",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:accumulation:2",
+      "why_identical": "source 级表达式对应：margin+gap 加法与严格小于判据"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:0",
+      "kind": "output",
+      "label": "CcdContact.dist",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 218,
+        "expression": "dist: contact_dist（ncollision>1 取 dists[i]）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "contact.dist 同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 contact.dist 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:0",
+      "why_identical": "输出字段与上游 contact.dist 对应"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:1",
+      "kind": "output",
+      "label": "CcdContact.pos",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 219,
+        "expression": "pos（中点 + origin）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "contact.pos 同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 contact.pos 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:1",
+      "why_identical": "输出字段与上游 contact.pos 对应"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:2",
+      "kind": "output",
+      "label": "CcdContact.frame",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 220,
+        "expression": "frame（make_frame 行优先 3×3）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "contact.frame 同式"
+      },
+      "type_mapping": {
+        "product": "f32[9]",
+        "upstream": "wp.mat33",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 contact.frame 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:2",
+      "why_identical": "输出字段与上游 contact.frame 对应"
+    },
+    {
+      "id": "ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:3",
+      "kind": "output",
+      "label": "CcdOutput.ncontact / dist / overflow",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 225,
+        "expression": "CcdOutput{contacts, overflow, ncontact, dist}"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "计数/距离/溢出位"
+      },
+      "type_mapping": {
+        "product": "i32 / f32 / u32",
+        "upstream": "int / float / uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构汇总输出（计数/距离/溢出位），非单一算术点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:ccd_pair_contact.rs_装配_输出_dist_pos_frame:output:3",
+      "why_not_applicable": "结构汇总输出，非浮点算术"
+    },
+    {
+      "id": "ccd_host:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "host 站点非融合：gjk_phase/inflate 的 dot/length/normalize 均为独立乘加语句（两次舍入），不用 mul_add、不引 f64",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 119,
+        "expression": "dist = -length3(sub3(x1,x2)) 等独立乘加"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "CPU backend 非融合 recipe"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：host recipe 说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:rounding-note:0",
+      "why_not_applicable": "recipe 说明条目，不是可分类表达式"
+    },
+    {
+      "id": "ccd_host:rounding-note:1",
+      "kind": "rounding-note",
+      "label": "shrink 修正的算术顺序固定为 `size + 0.5*orig_margin`、`cutoff += full_margin1 + full_margin2`（先各自求和外加），重跑前再整体减回",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 186,
+        "expression": "cutoff += full_margin1 + full_margin2;"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "同一顺序说明"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：算术顺序说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:rounding-note:1",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "ccd_host:rounding-note:2",
+      "kind": "rounding-note",
+      "label": "multicontact 关闭条件：任一侧 margin != 0、类型不在 {BOX,MESH,CYLINDER}、或 mesh 缺图 → multiccd_idx = -1（则只写单接触）",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/ccd.rs",
+        "line": 154,
+        "expression": "multiccd_idx = -1（条件分支）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2573,
+        "function": "epa_phase",
+        "body_lines": [
+          2573,
+          2682
+        ],
+        "expression": "同一关闭条件"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：multicontact 关闭条件说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:rounding-note:2",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "ccd_host:rounding-note:3",
+      "kind": "rounding-note",
+      "label": "device 对照：pinned ccd PTX 为 fma.rn 融合语义，与 host 两次舍入不同 recipe → host/device 位级判据必须声明前提",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/phase.rs",
+        "line": 119,
+        "expression": "host 两次舍入 vs device fma.rn"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2502,
+        "function": "gjk_phase",
+        "body_lines": [
+          2502,
+          2572
+        ],
+        "expression": "device PTX 融合语义（另一 recipe）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：device/host recipe 差异说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp host/CPU backend recipe（非融合独立乘加、两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d2/evidence.json#ccd_host:rounding-note:3",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    }
+  ]
+}
