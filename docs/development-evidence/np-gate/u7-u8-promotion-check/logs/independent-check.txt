@@ -1,0 +1,77 @@
+# QA independent check - U7/U8 promotion criteria (1da6bbad)
+=== 1 pass_rule vs tests/support/mesh_multicontact_compare_support.rs ===
+support file bytes=17882 lines=495
+  support contains 'fn ': True
+  support contains 'M1': True
+  support contains 'M2': True
+  support contains 'M3': True
+  support contains '4': True
+  support contains 'ULP': True
+  support contains 'sort': True
+  support contains 'worldid': True
+  support contains 'geomcollisionid': True
+  support contains 'efc_address': True
+  support contains 'friction': True
+  support contains 'solref': True
+  support contains 'solreffriction': True
+  support contains 'solimp': True
+  support contains 'includemargin': True
+  support contains 'adhesion': True
+  support contains 'overflow': True
+  support contains 'nacon': True
+support mentions ZERO_TOL fields count-ish: 57
+
+=== 2 criteria semantic checks ===
+u7_extra dist/pos: True
+fail_on items: ["count 不等", "结构键无法配对", "任一字段超容差", "overflow!=0", "efc_address!=-1"]
+  fail_on covers count: True
+  fail_on covers 结构键: True
+  fail_on covers 字段: True
+  fail_on covers overflow: True
+  fail_on covers efc_address: True
+over32 not_claimed: ["与上游一致（over-range）", "mesh 容量缺口已清", "U8 已通过（A2 窗之前）", "位级等价声明"]
+  contains 不存在等价/与上游一致: True
+over_range wording: degree>32 或 polygon>32 -> host 容量门必须返回确定容量错误（机器可判，inputs_from_snapshot capacity tests）；device 直调回退行为 record-only、不进分母、不写等价
+host capacity error in over_range: True
+device record-only: True
+不采 over-32 设备对照参考 (a2-slices refreeze refs): True
+
+=== 3 partial/uncovered disposition ===
+rows=10 groups={"partial": 4, "uncovered": 6}
+declared counts={"met": 8, "partial": 4, "unmet": 0, "uncovered": 6}
+rows touching U7/U8 promotion: ["G6-1.2", "G6-1.7", "G6-2.1", "G6-2.4", "UNC-3"]
+other rows: ["UNC-1", "UNC-2", "UNC-4", "UNC-5", "UNC-6"]
+map.json counts present=False
+umbrella card note has met 8/partial 4/uncovered 6: True
+
+=== 4 a2-slices anchors vs source ===
+multicontact_geom.cu 384-385: ['#define G5_MC_MESH_DEG_MAX 10', '#define G5_MC_MESH_FACE_MAX 20']
+contact.cu 216-228: ['    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=20（A1，2026-10-31；含 cylinder）、', '    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder/mesh 分支）。', '    v3 polygon[40];', '    v3 clipped[40];', '    v3 pnormal[20];', '    float pdist[20];', '    int idx1[10];', '    int idx2[10];', '    v3 n1[10];', '    v3 n2[10];', '    v3 endvert[10];', '    v3 face1[20];', '    v3 face2[20];']
+clip.rs has [20]: True has 40: True
+types.rs 141/143: ['pub const MESH_MULTICONTACT_FACE_MAX: i32 = 20;', 'pub const MESH_MULTICONTACT_DEGREE_MAX: i32 = 10;']
+
+=== 5 fixtures/reference/exes/np02 ===
+fan-cone-24.obj exists=True sha=4bc34a51a60d7646
+prism-20.obj exists=True sha=a4477d3b080479e7
+reference exists=True sha=b6abb8fa5820c103 expected=b6abb8fa5820c103
+exe names in refreeze list: ["g10_p5_branch_closure_cuda", "g10_p5_nvrtc_launcher", "g10_p5_multicontact_cuda", "g10_p5_primitive_cuda", "g10_p5_primitive_plane_cuda", "g10_p5_primitive_sphere_capsule_cuda", "g10_p5_primitive_branches_cuda", "g10_p5_mesh_multicontact_m2_cuda", "g10_p5_mesh_multicontact_m3_cuda", "stage2_equivalence_window"]
+existing test files matching: ["g10_p5_branch_closure_cuda", "g10_p5_nvrtc_launcher", "g10_p5_multicontact_cuda", "g10_p5_primitive_cuda", "g10_p5_primitive_plane_cuda", "g10_p5_primitive_sphere_capsule_cuda", "g10_p5_primitive_branches_cuda", "g10_p5_mesh_multicontact_m2_cuda", "g10_p5_mesh_multicontact_m3_cuda", "stage2_equivalence_window"]
+np02 rows present: {"mjwarp_collision_boxbox": true, "mjwarp_collision_contact": true, "mjwarp_collision_contact_multi": true, "mjwarp_collision_hfield": true, "mjwarp_collision_primitive": true, "mjwarp_collision_sdf": true}
+
+=== 6 evidence hygiene ===
+manifest sha=6ce2b4b9d8263786 bytes=597 rows=5 ok=True
+commit file scope: no src/tests/fixtures/scripts = True
+README contains 'fan-cone-33': True
+README contains 'prism-33': True
+README contains '不采 over-32': False
+README contains 'over-32': True
+README contains 'ABI': True
+README contains '零 ABI': False
+receipt keys=["schema", "task", "date", "kind", "decision", "write_scope", "lock", "tree", "inputs", "outputs", "facts_checked", "non_claims", "gpu_used"]
+receipt decision="用户已签：U7/U8 提升 pass/fail；A2 容量 20/10 -> 32/32（签名级，已生效）"
+
+# policy scan (evidence, QA re-run)
+HIT D:\Rust\mjwarp-rs\docs\development-evidence\plan\u7-u8-promotion\u7-u8-criteria.json [λ���ȼ�] ... ge��", "mesh ����ȱ������", "U8 ��ͨ����A2 ��֮ǰ��", "λ���ȼ�����"]}, "a2_target": {"degree_max": 32, " ...
+policy_scan: files=5 hits=1 RESULT: FAIL
+
+# encoding check: BOM/NUL/bare-CR files = []
