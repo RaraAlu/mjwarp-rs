@@ -55,3 +55,20 @@
   不宣称 mesh 容量缺口已清、与上游等价（over-32）、G10@P5 整族通过、NP01/NP02 门禁通过；
   不作位级等价声明、不提供位级等价保证。
 - 不改判据/容差/参考/comparator；不改 r2-fail 与 A2-3 历史字节。
+
+## 7. floor 口径消歧（2026-11-12，Chief 复核后 append-only 补正；QA 独立核）
+
+- 本节更正 §3.2 中「公式 10,376、严格生效 max=10,376」的表述（把**候选值**误当夹取后 floor）。
+  以本节四值为准，**§3.2 原文保留（历史字节不改），冲突时以本节为准**：
+  1. **候选**：`candidate = baseline_free − 3072 = 13,448 − 3,072 = 10,376`；
+  2. **计划公式夹取**：`floor = min(10,240, candidate) = min(10,240, 10,376) = 10,240`；
+  3. **硬门**：`hard_gate = 10,240`；
+  4. **生效门槛**：`effective = max(hard_gate, floor) = max(10,240, 10,240) = 10,240`。
+- 结论：按计划公式的生效门槛为 **10,240 MiB**；窗内观测 pre/post free **13,440 MiB > 10,240**
+  （同时 > 候选 10,376），**窗口有效性不变**；receipt `floor_effective_mib=10240` 与该生效值一致。
+- **固定表述（后续窗口 readiness 一律使用此句）**：
+  「floor：candidate = baseline_free − 3072；candidate=10,376；min(10,240, candidate)=**10,240**（夹取后 floor）；
+   hard_gate=10,240；effective=max(hard_gate, floor)=max(10,240,10,240)=**10,240**。」
+- 说明：计划原文 `floor = min(10240, baseline_free − 3072)` 本身无误；消歧点仅在“公式候选值”与“夹取后 floor /
+  生效门槛”的分层。此前 §3.2 的文字为笔误，不改任何数值结论或历史字节。
+
