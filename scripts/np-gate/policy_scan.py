@@ -31,8 +31,15 @@ and the block itself contains an AFFIRMATIVE withdrawal declaration. Rules:
   split-writing to evade is policy circumvention, not exemption;
 - the exemption is per block: text after the end marker is scanned normally;
 - a marked block without an affirmative withdrawal/supersede declaration is scanned normally;
-- declaration support is bilingual: Chinese tokens 撤回/作废 and English token supersede; negators
-  are recognised in both languages (Chinese 未/不/... and English not/no/never/without/...).
+- declaration tokens (full list): Chinese 撤回/作废/撤销/收回; English supersede/withdraw/
+  withdrawn/withdrawal/retract/retracted. A block is exempt only if at least one declaration token
+  is present AND no declaration token is negated (a negated declaration anywhere vetoes the block,
+  e.g. "withdrawn: never supersede" does NOT exempt).
+- negators that trigger the veto (full list, checked against the stripped prefix before the token):
+  Chinese 未/不/没/无/非/否/没有/无法/不能/不会/尚未/并未/不予/未予; English not/no/never/without/
+  none/cannot and common contractions (mustnot/donot/doesnot/didnot/isnot/arenot/wasnot/werenot/
+  hasnot/havenot/hadnot/dont/doesnt/didnt/isnt/arent/wasnt/werent/hasnt/havent/hadnt/wont/
+  wouldnt/shouldnt/couldnt/mustnt). English negators require a word boundary.
 - every exempted block must leave a human-review trace: put `reviewed_by: <name>-<YYYY-MM-DD>`
   inside the block (preferred), or list the block in the evidence receipt's
   `quote_block_inventory` with its reviewer. `--list-quote-blocks FILE...` prints the inventory
@@ -77,7 +84,11 @@ WINDOW = 18
 FALSE_NEGATOR_PREFIXES = ("\u4e0d\u540c", "\u4e0d\u4ec5", "\u4e0d\u4f46")
 QUOTE_START = "<!-- policy-scan:quote:start -->"
 QUOTE_END = "<!-- policy-scan:quote:end -->"
-QUOTE_DECLARATIONS = ("\u64a4\u56de", "supersede", "\u4f5c\u5e9f")  # 撤回 / supersede / 作废
+QUOTE_DECLARATIONS = (
+    "撤回", "作废", "撤销", "收回",  # Chinese: 撤回 / 作废 / 撤销 / 收回
+    "supersede", "withdraw", "withdrawn", "withdrawal",  # English withdrawal family
+    "retract", "retracted",
+)
 # A declaration token immediately preceded by one of these is a negated declaration and grants
 # no exemption ("未撤回", "不作废", "没有撤回", "尚未撤回", "无法撤回", "never supersede",
 # "must not supersede", ...). Chinese negators match as suffix substrings; English negators
@@ -120,8 +131,14 @@ def _normalize(text):
 
 
 def has_affirmative_declaration(inner):
-    """True when `inner` contains a declaration token that is not immediately negated."""
+    """True when a declaration token is present and no declaration token is negated.
+
+    Conservative direction: a negated declaration anywhere in the block vetoes the exemption
+    ("withdrawn: never supersede" does NOT exempt), so a mixed block never silently counts as a
+    withdrawal statement.
+    """
     lowered = inner.lower()
+    affirmative = False
     for token in QUOTE_DECLARATIONS:
         pos = 0
         while True:
@@ -129,10 +146,11 @@ def has_affirmative_declaration(inner):
             if hit < 0:
                 break
             prefix = lowered[max(0, hit - 10):hit].rstrip(DECLARATION_PREFIX_STRIP)
-            if not _is_negated(prefix):
-                return True
+            if _is_negated(prefix):
+                return False
+            affirmative = True
             pos = hit + 1
-    return False
+    return affirmative
 
 
 def quote_blocks(text):
@@ -265,6 +283,11 @@ SELF_TESTS = [
     (f"{_S}\nmust not supersede：" + "x" * 24 + f"bit-level equivalent\n{_E}", 1),
     # english affirmative declaration form counts
     (f"{_S}\nsupersedes: bit-level equivalent\n{_E}", 0),
+    # symmetric declaration words (C-2 review O1)
+    (f"{_S}\nwithdrawn: bit-level equivalent\n{_E}", 0),
+    (f"{_S}\nretracted: this wording is void\nresult bit-level equivalent\n{_E}", 0),
+    # a negated declaration vetoes the block even if another token is affirmative
+    (f"{_S}\nwithdrawn: never supersede\nresult bit-level equivalent\n{_E}", 1),
 ]
 
 

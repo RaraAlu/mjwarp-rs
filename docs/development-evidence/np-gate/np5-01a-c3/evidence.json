@@ -1,0 +1,1531 @@
+{
+  "schema": 1,
+  "task": "np5-01a-c3-rne-gravity-source-level",
+  "scope": "section 2: C batch rne/gravity 43 sites (3 rows) source-level type mapping + expression classification; section 1: C-2 review observations close-out",
+  "split_source": "target/render-bvh/gl2-ptx-diff/np5-01a/sites.json (rows rne_acc/gravity_compensation/rne_bias)",
+  "vocabulary_authority": {
+    "path": "target/render-bvh/gl2-ptx-diff/np5-01a-vocab-addendum.md",
+    "sha256": "453c5c9157341fa28ecb009c50f2ff560b6f43e15f593ed9b7a75f27dd5b1b26",
+    "bytes": 6771
+  },
+  "site_count": 43,
+  "pending_manual": 0,
+  "np5_01a_total_sites": 380,
+  "np5_01a_prior_sites": {
+    "total": 337,
+    "a1a": 40,
+    "a1b": 36,
+    "a2": 63,
+    "b1": 78,
+    "c1": 52,
+    "c2": 68
+  },
+  "group_totals": {
+    "rne_acc": 18,
+    "gravity_compensation": 13,
+    "rne_bias": 12
+  },
+  "kind_counts": {
+    "intermediate": 17,
+    "accumulation": 13,
+    "output": 11,
+    "rounding-note": 2
+  },
+  "classifications_histogram": {
+    "n/a": 13,
+    "identical": 29,
+    "engine-semantic": 1
+  },
+  "not_decidable_reasons_vocabulary": [
+    "no-reference-entry",
+    "mathdx-cusolver-unavailable",
+    "no-lineinfo",
+    "frozen-artifact-only",
+    "capture-scenario-miss",
+    "host-path-no-ptx"
+  ],
+  "reference_anchor_status_vocabulary": {
+    "no-reference-expression": "site itself is not a comparable arithmetic expression or upstream has no corresponding expression; used for source-level n/a entries",
+    "no-reference-entry": "semantic counterpart exists but reference side has no entry/PTX; used in not-decidable not_decidable_reasons[]"
+  },
+  "section1": {
+    "date": "2026-11-11",
+    "card": "2026-11-11-np5-01a-c3-rne-gravity-source-level",
+    "source_findings": "C-2 review: 2 observations (O1 asymmetric declaration vocabulary, O2 errata list)",
+    "l1_symmetric_declarations": true,
+    "l1_detail": {
+      "problem": "declaration tokens were asymmetric: English past participle 'withdrawn:' was not a declaration token, so blocks using it still hit (conservative, not a loophole)",
+      "fix": "added symmetric declaration tokens: Chinese 退回/作废/撤销/收回 and English supersede/withdraw/withdrawn/withdrawal/retract/retracted; a negated declaration vetoes the block ('withdrawn: never supersede' does NOT exempt); docstring lists the full declaration and negator vocabularies",
+      "self_tests": 31,
+      "self_tests_added": 3,
+      "tool": {
+        "sha256": "8753685b34053e34901b5ec352e95b47e8e5d219513fb67052cd44ba11223885",
+        "bytes": 14885,
+        "previous": {
+          "sha256": "9a63e720e8cf012d839a023c098fec3d5eafa37dbc521ff938146c389dc130ef",
+          "bytes": 13482,
+          "self_tests": 28
+        }
+      }
+    },
+    "o2_errata_forwarded": true,
+    "o2_detail": {
+      "errata": "errata-0001 (flex_hessian_validate field-table drift, recorded in C-2 evidence)",
+      "action": "forwarded to the closing addenda errata list (record only; field-table history unchanged)",
+      "source": "np-gate/np5-01a-c2 evidence/receipt errata_pending"
+    },
+    "errata_pending": [
+      {
+        "id": "errata-0001",
+        "area": "field-table flex_hessian_validate",
+        "status": "forwarded to closing addenda errata list",
+        "source": "np-gate/np5-01a-c2 evidence errata-0001"
+      }
+    ]
+  },
+  "errata_pending": [
+    {
+      "id": "errata-0001",
+      "area": "field-table flex_hessian_validate",
+      "status": "forwarded to closing addenda errata list",
+      "source": "np-gate/np5-01a-c2 evidence errata-0001"
+    }
+  ],
+  "non_claims": [
+    "not a claim that NP01 passed or precision is complete (E metric not finalized)",
+    "identical only means source-level expression-form correspondence; no bit-level guarantee",
+    "no GPU/window used; PTX artifacts are not landed",
+    "C-3 device-level mapping for rne/gravity is out of scope here (RE-3 follow-up)"
+  ],
+  "entries": [
+    {
+      "id": "rne_acc:rne_cacc:intermediate:0",
+      "kind": "intermediate",
+      "label": "a[6]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 37,
+        "expression": "`a[6]`（空间加速度局部量：父 body 值复制）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1366,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`local_cacc = cacc_out[worldid, pid]`（父值复制，随后逐 dof 累加）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cacc:intermediate:0",
+      "why_not_applicable": "局部量声明（父值复制），非独立表达式；累加在 accumulation:0/1 对照"
+    },
+    {
+      "id": "rne_acc:rne_cacc:intermediate:1",
+      "kind": "intermediate",
+      "label": "acc 初值",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 35,
+        "expression": "`acc[6]` 初值 `k<3 ? 0.0f : -__int_as_float(m[k-1])`（重力位型搬运）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1331,
+        "function": "_cacc_world",
+        "function_def_line": 1324,
+        "body_lines": [
+          1324,
+          1333
+        ],
+        "expression": "`cacc_out[worldid, 0] = wp.spatial_vector(wp.vec3(0.0), -gravity[...])`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cacc:intermediate:1",
+      "notes": "source-level：同一零角分量与负重力线分量；产品经 `__int_as_float` 位型搬运以保位样式、上游直接取 -gravity 值（同一数值意图，未做位级测试）",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cacc:accumulation:0",
+      "kind": "accumulation",
+      "label": "a[k] += dot[6d+k]*qvel[d]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 39,
+        "expression": "`a[k] += dot[6d+k] * qvel[d]`（dof 按 adr 顺序累加）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1372,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`local_cacc += cdof_dot_in[...] * qvel_in[...]`（同 dof 顺序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cacc:accumulation:0",
+      "notes": "source-level：同一 cdof_dot*qvel 累加式与同一 dof 升序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cacc:accumulation:1",
+      "kind": "accumulation",
+      "label": "a[k] += cdof[6d+k]*qacc[d]（flag 为真时）",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 40,
+        "expression": "`a[k] += cdof[6d+k] * qacc[d]`（flag 为真时）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1374,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`local_cacc += cdof_in[...] * qacc_in[...]`（flg_acc 为真时同一位置）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cacc:accumulation:1",
+      "notes": "source-level：同一 flg_acc 条件下的 cdof*qacc 累加与同一顺序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cacc:output:0",
+      "kind": "output",
+      "label": "acc[6b+k]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 42,
+        "expression": "`acc[6b+k]`（空间加速度 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1375,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`cacc_out[worldid, bodyid] = local_cacc`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cacc:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:1/accumulation:0/1 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cfrc:intermediate:0",
+      "kind": "intermediate",
+      "label": "iv[6]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 54,
+        "expression": "`iv[6] = rne_inert_vec(ci, cv)`（惯量向量）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+        "line": 124,
+        "function": "inert_vec",
+        "function_def_line": 121,
+        "body_lines": [
+          121,
+          132
+        ],
+        "expression": "`math.inert_vec(i, v)`（6 分量惯量乘，同式）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:intermediate:0",
+      "notes": "source-level：与 `math.inert_vec` 同一 6 分量乘加式与同一项序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cfrc:intermediate:1",
+      "kind": "intermediate",
+      "label": "cross[6]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 55,
+        "expression": "`cross[6] = rne_cross_force(cv, iv)`（运动叉积力）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+        "line": 155,
+        "function": "motion_cross_force",
+        "function_def_line": 148,
+        "body_lines": [
+          148,
+          160
+        ],
+        "expression": "`math.motion_cross_force(v, f)`（角/线两叉积相加，同式）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:intermediate:1",
+      "notes": "source-level：同一叉积分量式与同一角/线相加顺序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cfrc:intermediate:2",
+      "kind": "intermediate",
+      "label": "i[10] / a[6] / f[6]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 20,
+        "expression": "`i[10] / a[6] / f[6]`（惯量向量与分布力局部量）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1417,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`frc = math.inert_vec(cinert, cacc)`（上游同式，无显式 fma）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:intermediate:2",
+      "why_not_applicable": "局部量/设备函数签名（非单一表达式）；`f[1]` 的显式 fma 细节在 accumulation:1 与 rounding-note:0 对照"
+    },
+    {
+      "id": "rne_acc:rne_cfrc:accumulation:0",
+      "kind": "accumulation",
+      "label": "frc[6b+k] += cross[k]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 56,
+        "expression": "`frc[6b+k] += cross[k]`（顺序累加）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1418,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`frc += math.motion_cross_force(cvel, math.inert_vec(cinert, cvel))`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:accumulation:0",
+      "notes": "source-level：同一「frc + cross」累加与同一项序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cfrc:accumulation:1",
+      "kind": "accumulation",
+      "label": "rne_inert_acc(ci, acc, frc)",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 23,
+        "expression": "`rne_inert_acc(ci, a, frc)`：`f[1] = fmaf(i[1],a[1], __fmul_rn(i[3],a[0]))`（先舍入 i3*a0 再融合 i1*a1）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1417,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`frc = math.inert_vec(cinert, cacc)`（上游普通表达式，收缩由编译器决定）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:accumulation:1",
+      "notes": "source-level：产品按冻结 SASS 的收缩序显式转写（先舍入 `i3*a0`、再把 `i1*a1` 融合）；上游为普通表达式。产品注释另注「cvel 调用路径不同」；不声明位级",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cfrc:output:0",
+      "kind": "output",
+      "label": "frc[6b+k]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 55,
+        "expression": "`frc[6b+k]`（分布力 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1422,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`cfrc_int_out[worldid, bodyid] = frc`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 accumulation:0/1 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_cfrc:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "源码注释冻结上游舍入：`_cfrc` 先舍入 `i3*a0` 再融合 `i1*a1`，实现为 `fmaf(i[1],a[1],__fmul_rn(i[3],a[0]))`（单次正确舍入的 fma + 显式单次舍入乘法）",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 22,
+        "expression": "源码注释冻结上游舍入：`_cfrc` 先舍入 `i3*a0` 再融合 `i1*a1`；cvel 调用路径不同"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1417,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`frc = math.inert_vec(cinert, cacc)`（上游普通表达式，未显式固定收缩）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_cfrc:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note（显式 fma 冻结收缩顺序的说明，非独立表达式）；形式对照在 accumulation:1"
+    },
+    {
+      "id": "rne_acc:rne_backward:intermediate:0",
+      "kind": "intermediate",
+      "label": "b/w",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 62,
+        "expression": "`b/w`（unsigned 索引推导）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 681,
+        "function": "_cfrc_backward",
+        "function_def_line": 1430,
+        "body_lines": [
+          1430,
+          1446
+        ],
+        "expression": "`bodyid = body_tree_[nodeid]`（按树层枚举 body）"
+      },
+      "type_mapping": {
+        "product": "unsigned",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_backward:intermediate:0",
+      "why_not_applicable": "整型索引推导（非浮点物理量）；树层枚举语义在 accumulation:0 对照"
+    },
+    {
+      "id": "rne_acc:rne_backward:accumulation:0",
+      "kind": "accumulation",
+      "label": "atomicAdd(frc[6parent+k], frc[6b+k])",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 66,
+        "expression": "`atomicAdd(frc[6parent+k], frc[6b+k])`（多名子 body 汇入同一父）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1444,
+        "function": "_cfrc_backward",
+        "function_def_line": 1430,
+        "body_lines": [
+          1430,
+          1446
+        ],
+        "expression": "`wp.atomic_add(cfrc_int_out[worldid], pid, cfrc_int_in[worldid, bodyid])`（按树层反向原子加）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_backward:accumulation:0",
+      "notes": "source-level：同为 f32 原子加、同一 body→parent 汇聚；两侧原子执行顺序均非确定（上游按树层并行、产品按 depth 层并行），不声明位级",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_backward:output:0",
+      "kind": "output",
+      "label": "frc[6parent+k]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 65,
+        "expression": "`frc[6parent+k]`（原子加后 f32 直读/直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1444,
+        "function": "_cfrc_backward",
+        "function_def_line": 1430,
+        "body_lines": [
+          1430,
+          1446
+        ],
+        "expression": "`cfrc_int_out/cfrc_int_in[worldid, ...]`（原子加结果即输出）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_backward:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 accumulation:0 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_qfrc:intermediate:0",
+      "kind": "intermediate",
+      "label": "value",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 75,
+        "expression": "`value`（dof 偏置点积累加器）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1466,
+        "function": "_qfrc_bias",
+        "function_def_line": 1455,
+        "body_lines": [
+          1455,
+          1468
+        ],
+        "expression": "`wp.dot(cdof_in[worldid, dofid], cfrc_int_in[worldid, bodyid])`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_qfrc:intermediate:0",
+      "why_not_applicable": "累加器局部量声明（非独立表达式），点积在 accumulation:0 对照"
+    },
+    {
+      "id": "rne_acc:rne_qfrc:accumulation:0",
+      "kind": "accumulation",
+      "label": "value += cdof[6d+k]*frc[6body+k]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 75,
+        "expression": "`value += cdof[6d+k] * frc[6body+k]`（k=0..5 顺序累加）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1466,
+        "function": "_qfrc_bias",
+        "function_def_line": 1455,
+        "body_lines": [
+          1455,
+          1468
+        ],
+        "expression": "`wp.dot(cdof_in, cfrc_int_in)`（warp 6 分量点积，k 顺序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_qfrc:accumulation:0",
+      "notes": "source-level：同一 6 分量点积与同一 k 顺序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_acc:rne_qfrc:output:0",
+      "kind": "output",
+      "label": "bias[d]",
+      "product_anchor": {
+        "file": "src/physics/rne.cu",
+        "line": 76,
+        "expression": "`bias[d]`（dof 偏置 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1466,
+        "function": "_qfrc_bias",
+        "function_def_line": 1455,
+        "body_lines": [
+          1455,
+          1468
+        ],
+        "expression": "`qfrc_bias_out[worldid, dofid] = ...`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_acc:rne_qfrc:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 accumulation:0 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_clear:output:0",
+      "kind": "output",
+      "label": "out[4+tid]",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 10,
+        "expression": "`out[4+tid] = 0.0f`（结果段预置零）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 qfrc_gravcomp 由 `wp.zeros`/调用面零初始化，非独立内核"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_clear:output:0",
+      "why_not_applicable": "零初始化（无算术表达式）"
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_validate:intermediate:0",
+      "kind": "intermediate",
+      "label": "ok",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 13,
+        "expression": "`ok`（f32 比较结果：sentinel/root/dof_jnt/act/isfinite）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "产品扩展校验内核；上游 `_gravity_force` 无 validate 内核"
+      },
+      "type_mapping": {
+        "product": "bool",
+        "upstream": "n/a",
+        "type_class": "bool",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_validate:intermediate:0",
+      "why_not_applicable": "产品 ABI 校验标志（非物理量），上游无对应内核"
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_validate:intermediate:1",
+      "kind": "intermediate",
+      "label": "gc_field(p,field,w,width)",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 7,
+        "expression": "`gc_field(p,field,w,width)`（const float* 视图，纯指针运算）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 345,
+        "function": "_gravity_force",
+        "function_def_line": 327,
+        "body_lines": [
+          327,
+          357
+        ],
+        "expression": "`body_gravcomp[worldid % ...]`（同 per-world 周期取批）"
+      },
+      "type_mapping": {
+        "product": "const float*",
+        "upstream": "wp f32",
+        "type_class": "n/a-view",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_validate:intermediate:1",
+      "why_not_applicable": "只读字段视图（纯指针运算，无转换/算术）"
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_validate:output:0",
+      "kind": "output",
+      "label": "status[4+w]",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 31,
+        "expression": "`status[4+w] = ok ? 1.0f : 0.0f`（状态码）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游无 status 输出"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "n/a",
+        "type_class": "int-encoded-f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_validate:output:0",
+      "why_not_applicable": "ABI 状态码（0/1 编码），非 f32 物理量算术"
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_compute:intermediate:0",
+      "kind": "intermediate",
+      "label": "fx/fy/fz",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 41,
+        "expression": "`fx/fy/fz = (-gravity * mass[b]) * gc`（逐分量）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 349,
+        "function": "_gravity_force",
+        "function_def_line": 327,
+        "body_lines": [
+          327,
+          357
+        ],
+        "expression": "`force = -gravity * body_mass[...] * gravcomp`（同 (-g*mass)*gc 左序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_compute:intermediate:0",
+      "notes": "source-level：同一左结合乘序 `((-g)*mass)*gc`；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_compute:intermediate:1",
+      "kind": "intermediate",
+      "label": "jx/jy/jz",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 45,
+        "expression": "`jx/jy/jz = cdof_lin + cross(cdof_ang, offset)`（雅可比线分量）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 529,
+        "function": "jac_dof",
+        "function_def_line": 505,
+        "body_lines": [
+          505,
+          534
+        ],
+        "expression": "`jacp = cdof_lin + wp.cross(cdof_ang, offset)`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_compute:intermediate:1",
+      "notes": "source-level：同一 `cdof_lin + cross(cdof_ang, offset)` 分量式与项序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_compute:intermediate:2",
+      "kind": "intermediate",
+      "label": "ox/oy/oz",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 44,
+        "expression": "`ox/oy/oz = xipos[3b] - subtree_com[3*root[b]]`（质心相对位移）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+        "line": 523,
+        "function": "jac_dof",
+        "function_def_line": 505,
+        "body_lines": [
+          505,
+          534
+        ],
+        "expression": "`offset = point - wp.vec3(subtree_com_in[worldid, body_rootid[bodyid]])`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_compute:intermediate:2",
+      "notes": "source-level：同一 `point - subtree_com[root]` 分量减；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_compute:accumulation:0",
+      "kind": "accumulation",
+      "label": "atomicAdd(out + 4 + w*nv + d, jx*fx+jy*fy+jz*fz)",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 47,
+        "expression": "`atomicAdd(out + 4 + w*nv + d, jx*fx + jy*fy + jz*fz)`（f32 原子累加，多 body 竞争同一 dof）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 355,
+        "function": "_gravity_force",
+        "function_def_line": 327,
+        "body_lines": [
+          327,
+          357
+        ],
+        "expression": "`wp.atomic_add(qfrc_gravcomp_out[worldid], dofid, wp.dot(jac, force))`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_compute:accumulation:0",
+      "notes": "source-level：同为 f32 原子加、同一 `(jx*fx + jy*fy) + jz*fz` 点积顺序；原子顺序两侧均非确定，不声明位级",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_compute:output:0",
+      "kind": "output",
+      "label": "out[...] (dof 偏置力)",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 47,
+        "expression": "`out[...]`（dof 偏置力，原子加直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 355,
+        "function": "_gravity_force",
+        "function_def_line": 327,
+        "body_lines": [
+          327,
+          357
+        ],
+        "expression": "`qfrc_gravcomp_out`（原子加结果即输出）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_compute:output:0",
+      "notes": "输出转换点：f32 直写（原子加）、无窄化/加宽；数值由 accumulation:0 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_sum:intermediate:0",
+      "kind": "intermediate",
+      "label": "value",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 52,
+        "expression": "`value`（两段 parts 合成累加器）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 703,
+        "function": "_qfrc_passive_kernel",
+        "function_def_line": 687,
+        "body_lines": [
+          687,
+          723
+        ],
+        "expression": "`qfrc_passive = qfrc_spring_in[...]`（随后 += damper）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_sum:intermediate:0",
+      "why_not_applicable": "累加器局部量声明（非独立表达式），合成加法在 accumulation:0 对照"
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_sum:accumulation:0",
+      "kind": "accumulation",
+      "label": "value = __fadd_rn(parts[..], parts[..])",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 52,
+        "expression": "`value = __fadd_rn(parts[spring], parts[damper])`（显式单次 RN 加法）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 703,
+        "function": "_qfrc_passive_kernel",
+        "function_def_line": 687,
+        "body_lines": [
+          687,
+          723
+        ],
+        "expression": "`qfrc_passive = qfrc_spring_in[...]; qfrc_passive += qfrc_damper_in[...]`（两段先加）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_sum:accumulation:0",
+      "notes": "source-level：spring+damper 两段先加、顺序一致；产品显式 `__fadd_rn` 与上游普通 `+=` 均一次 RN；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_sum:accumulation:1",
+      "kind": "accumulation",
+      "label": "value = __fadd_rn(value, gravity[4+tid])",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 53,
+        "expression": "`value = __fadd_rn(value, gravity[...])`（激活标志允许时）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 709,
+        "function": "_qfrc_passive_kernel",
+        "function_def_line": 687,
+        "body_lines": [
+          687,
+          723
+        ],
+        "expression": "`if not jnt_actgravcomp[dof_jntid[dofid]]: qfrc_passive += qfrc_gravcomp_in[...]`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_sum:accumulation:1",
+      "notes": "source-level：同一「未由 actuator 提供 gravcomp 时再加」条件与同一单次加法；显式 `__fadd_rn` vs 普通 `+=`；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "gravity_compensation:gravity_compensation_sum:output:0",
+      "kind": "output",
+      "label": "out[4+tid]",
+      "product_anchor": {
+        "file": "src/physics/gravity_compensation/cuda.rs",
+        "line": 53,
+        "expression": "`out[4+tid]`（f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+        "line": 719,
+        "function": "_qfrc_passive_kernel",
+        "function_def_line": 687,
+        "body_lines": [
+          687,
+          723
+        ],
+        "expression": "`qfrc_passive_out[worldid, dofid] = qfrc_passive`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#gravity_compensation:gravity_compensation_sum:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 sum accumulation:0/1 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:intermediate:0",
+      "kind": "intermediate",
+      "label": "a[6]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 265,
+        "expression": "`a[6]`（空间加速度：父值复制 + `dot*qvel`）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1366,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`local_cacc = cacc_out[worldid, pid]`（父值复制）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:intermediate:0",
+      "why_not_applicable": "局部量声明（父值复制），非独立表达式；累加在 accumulation:0 对照"
+    },
+    {
+      "id": "rne_bias:rne_bias:intermediate:1",
+      "kind": "intermediate",
+      "label": "iv[6]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 270,
+        "expression": "`iv[6] = inertia_vector(ci, v)`（惯量向量）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+        "line": 124,
+        "function": "inert_vec",
+        "function_def_line": 121,
+        "body_lines": [
+          121,
+          132
+        ],
+        "expression": "`math.inert_vec(i, v)`（同一 6 分量乘加式）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:intermediate:1",
+      "notes": "source-level：与 `math.inert_vec` 同一乘加式与项序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:intermediate:2",
+      "kind": "intermediate",
+      "label": "cross[6]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 270,
+        "expression": "`cross[6] = cross_force(v, iv)`（运动叉积力）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+        "line": 155,
+        "function": "motion_cross_force",
+        "function_def_line": 148,
+        "body_lines": [
+          148,
+          160
+        ],
+        "expression": "`math.motion_cross_force(v, f)`（同式）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:intermediate:2",
+      "notes": "source-level：同一叉积分量式与同一角/线相加顺序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:intermediate:3",
+      "kind": "intermediate",
+      "label": "f",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 277,
+        "expression": "`f`（最终 dof 偏置局部值）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1466,
+        "function": "_qfrc_bias",
+        "function_def_line": 1455,
+        "body_lines": [
+          1455,
+          1468
+        ],
+        "expression": "`wp.dot(cdof_in, cfrc_int_in)`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:intermediate:3",
+      "why_not_applicable": "局部量声明（最终 dof 偏置），非独立表达式；点积在 accumulation:3 对照"
+    },
+    {
+      "id": "rne_bias:rne_bias:accumulation:0",
+      "kind": "accumulation",
+      "label": "a[k] += dot[6d+k]*qvel[d]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 268,
+        "expression": "`a[k] += dot[6d+k] * qvel[d]`（dof 按 adr 顺序）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1372,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`local_cacc += cdof_dot_in[...] * qvel_in[...]`（同顺序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:accumulation:0",
+      "notes": "source-level：同一累加式与同一 dof 升序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:accumulation:1",
+      "kind": "accumulation",
+      "label": "frc[6parent+k] += frc[6b+k]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 274,
+        "expression": "`frc[6parent+k] += frc[6b+k]`（b = nb-1..1 顺序累加，非原子）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1444,
+        "function": "_cfrc_backward",
+        "function_def_line": 1430,
+        "body_lines": [
+          1430,
+          1446
+        ],
+        "expression": "`wp.atomic_add(cfrc_int_out[worldid], pid, cfrc_int_in[worldid, bodyid])`（按树层反向并行原子加）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "engine-semantic",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:accumulation:1",
+      "why_engine_semantic": "同一数学解（子树力向父汇聚）的汇聚路径不同：产品每 world 单线程按 body 逆序确定性累加；上游按 body_tree 逆层并行 `wp.atomic_add`，原子顺序非确定。f32 求和次序可能不同，不声明等价",
+      "bit_level_guarantee": false,
+      "notes": "实现路线/调度语义差异"
+    },
+    {
+      "id": "rne_bias:rne_bias:accumulation:2",
+      "kind": "accumulation",
+      "label": "frc[6b+k] += cross[k]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 272,
+        "expression": "`frc[6b+k] += cross[k]`（顺序累加）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1418,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`frc += math.motion_cross_force(cvel, math.inert_vec(cinert, cvel))`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:accumulation:2",
+      "notes": "source-level：同一「frc + cross」累加与同一项序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:accumulation:3",
+      "kind": "accumulation",
+      "label": "f += cdof[6d+k]*frc[6body+k]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 277,
+        "expression": "`f += cdof[6d+k] * frc[6body+k]`（k=0..5）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1466,
+        "function": "_qfrc_bias",
+        "function_def_line": 1455,
+        "body_lines": [
+          1455,
+          1468
+        ],
+        "expression": "`wp.dot(cdof_in, cfrc_int_in)`（同 6 分量点积顺序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:accumulation:3",
+      "notes": "source-level：同一 6 分量点积与同一 k 顺序；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:output:0",
+      "kind": "output",
+      "label": "acc[6b+k]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 261,
+        "expression": "`acc[6b+k]`（空间加速度 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1375,
+        "function": "_cacc_branch",
+        "function_def_line": 1342,
+        "body_lines": [
+          1342,
+          1377
+        ],
+        "expression": "`cacc_out[worldid, bodyid] = local_cacc`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:0/accumulation:0 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:output:1",
+      "kind": "output",
+      "label": "frc[6b+k]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 262,
+        "expression": "`frc[6b+k]`（分布力 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1422,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "`cfrc_int_out[worldid, bodyid] = frc`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:output:1",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:1/2 与 accumulation:1/2 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:output:2",
+      "kind": "output",
+      "label": "bias[d]",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 277,
+        "expression": "`bias[d]`（dof 偏置 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1466,
+        "function": "_qfrc_bias",
+        "function_def_line": 1455,
+        "body_lines": [
+          1455,
+          1468
+        ],
+        "expression": "`qfrc_bias_out[worldid, dofid] = ...`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:output:2",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 accumulation:3 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "rne_bias:rne_bias:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "惯量/叉积表达式与上游 smooth.py 同形（f32 乘加顺序固定），无显式 fma 指令",
+      "product_anchor": {
+        "file": "src/physics/rne_bias.rs",
+        "line": 245,
+        "expression": "惯量/叉积表达式与上游 smooth.py 同形（f32 乘加顺序固定），无显式 fma 指令"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1417,
+        "function": "_cfrc",
+        "function_def_line": 1399,
+        "body_lines": [
+          1399,
+          1424
+        ],
+        "expression": "上游普通表达式（收缩由编译器决定）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c3/evidence.json#rne_bias:rne_bias:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note（非单一表达式）；具体表达式在 intermediate:1/2、accumulation:2 已对照"
+    }
+  ]
+}
