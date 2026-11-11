@@ -28,8 +28,8 @@
   "inputs": {
     "receipts_index": "docs/development-evidence/frozen-inventory/receipts.json",
     "receipt_extra": "docs/development-evidence/np02-evidence/receipt.json",
-    "receipts_total": 713,
-    "receipts_file_hash_ok": 713,
+    "receipts_total": 715,
+    "receipts_file_hash_ok": 715,
     "receipts_failed": 0,
     "t4_artifacts": 30,
     "t4_mappings": 24,
@@ -37,23 +37,23 @@
     "np01_gaps": 10
   },
   "counts": {
-    "windows_implemented_paths": 100,
-    "kernel_rows": 96,
+    "windows_implemented_paths": 102,
+    "kernel_rows": 98,
     "frozen_chain_rows": 3,
     "mathdx_route_rows": 1,
     "derived_kernel_rows": 2,
     "renamed_kernel_rows": 0,
     "undetermined_kernel_rows": 0,
-    "evidence_verified": 89,
-    "evidence_present": 100,
+    "evidence_verified": 91,
+    "evidence_present": 102,
     "evidence_missing": 0,
     "source_identity_drift": 9,
-    "receipts_total": 713,
-    "receipts_file_hash_ok": 713,
-    "receipt_ptx_entities_verified": 709,
+    "receipts_total": 715,
+    "receipts_file_hash_ok": 715,
+    "receipt_ptx_entities_verified": 711,
     "receipt_ptx_entities_missing": 4,
     "coverage_pct_evidence": 100,
-    "coverage_pct_source_identity": 89,
+    "coverage_pct_source_identity": 89.2,
     "gap_items": 32,
     "unimplemented": 7,
     "partial": 3,
@@ -6570,6 +6570,126 @@
         "note": "MathDx Solver LTO 走 libmathdx 求解器 LTOIR，上游为 MathDx SDK 0.3.1 + 冻结 7 维 POTRF 对照，不属 MJWarp/Warp 内核集合"
       },
       "conclusion": "配方级证据：路线键与两级探针日志摘要一致（两环境 1 过 0 败）"
+    },
+    {
+      "id": "kernel:render_megakernel",
+      "name": "render_megakernel",
+      "route": "HandWrittenCuda",
+      "module": "render.kernel.mod",
+      "source": {
+        "path": "src/render/kernel/mod.rs",
+        "const": "MEGAKERNEL_SOURCE",
+        "sha256": "cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48",
+        "note": "7-file concat!（scene.cu + render_math/flex/common/shadow/shade/megakernel.cu）"
+      },
+      "compile": {
+        "recipe": "warp-1.15-render",
+        "fmad": true,
+        "fast_math": false,
+        "std": "--std=c++17",
+        "arch_option": "--gpu-architecture=compute_70",
+        "nvrtc": [
+          12,
+          8
+        ],
+        "precision_gate": "f32-render",
+        "receipt_options": [
+          "--std=c++17",
+          "--gpu-architecture=compute_70"
+        ]
+      },
+      "artifact": {
+        "receipts": 1,
+        "receipt_entries": [
+          "render_megakernel"
+        ],
+        "template_instances": [],
+        "renamed_entries": [],
+        "ptx_verified": 1,
+        "ptx_sha256": [
+          "b63a51ddcc41a5ec7520fdc38a5234a2d44a1874bc4b38b298f4338bfb11df14"
+        ],
+        "t4_variants": 0,
+        "t4_ptx_sha256": [],
+        "evidence_paths": [
+          "docs/development-evidence/np02-evidence/new-kernels-2026-11b/receipts/render_megakernel-b63a51ddcc41a5ec7520fdc38a5234a2d44a1874bc4b38b298f4338bfb11df14.json"
+        ]
+      },
+      "evidence_state": "verified",
+      "source_identity_matches_capture": true,
+      "identity_basis": "source-sha256（编译源 = 当前 concat! 源；CPU-only NVRTC 12.8 回执）",
+      "upstream": {
+        "mjwarp_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+        "np01_module": "render.kernel.mod",
+        "functions": [
+          "_render_megakernel"
+        ],
+        "header_paths": [
+          "include/warp-headers"
+        ],
+        "confidence": "2026-11-11 NP5-03 补采（CPU-only NVRTC 12.8，f32-render gate）"
+      },
+      "conclusion": "证据完整：2026-11-11 CPU-only 回执存在且与当前拼接源身份一致；PTX 实体在仓可复核"
+    },
+    {
+      "id": "kernel:render_depth_seg",
+      "name": "render_depth_seg",
+      "route": "HandWrittenCuda",
+      "module": "render.kernel.mod",
+      "source": {
+        "path": "src/render/kernel/mod.rs",
+        "const": "DEPTH_SEG_SOURCE",
+        "sha256": "1e3f273c88a77235640c44b2e3d52e39984cf659da87e6ff1dd237d8c871e1b9",
+        "note": "3-file concat!（scene.cu + render_math.cu + render.cu）"
+      },
+      "compile": {
+        "recipe": "warp-1.15-render",
+        "fmad": true,
+        "fast_math": false,
+        "std": "--std=c++17",
+        "arch_option": "--gpu-architecture=compute_70",
+        "nvrtc": [
+          12,
+          8
+        ],
+        "precision_gate": "f32-render",
+        "receipt_options": [
+          "--std=c++17",
+          "--gpu-architecture=compute_70"
+        ]
+      },
+      "artifact": {
+        "receipts": 1,
+        "receipt_entries": [
+          "render_depth_seg"
+        ],
+        "template_instances": [],
+        "renamed_entries": [],
+        "ptx_verified": 1,
+        "ptx_sha256": [
+          "31912377f59305e85b164da3d8b487ad127b6c262aa3792b99ecdb1b17c1cf50"
+        ],
+        "t4_variants": 0,
+        "t4_ptx_sha256": [],
+        "evidence_paths": [
+          "docs/development-evidence/np02-evidence/new-kernels-2026-11b/receipts/render_depth_seg-31912377f59305e85b164da3d8b487ad127b6c262aa3792b99ecdb1b17c1cf50.json"
+        ]
+      },
+      "evidence_state": "verified",
+      "source_identity_matches_capture": true,
+      "identity_basis": "source-sha256（编译源 = 当前 concat! 源；CPU-only NVRTC 12.8 回执）",
+      "upstream": {
+        "mjwarp_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+        "np01_module": "render.kernel.mod",
+        "functions": [
+          "_render_megakernel(depth/seg path)"
+        ],
+        "header_paths": [
+          "include/warp-headers"
+        ],
+        "confidence": "2026-11-11 NP5-03 补采（CPU-only NVRTC 12.8，f32-render gate）"
+      },
+      "conclusion": "证据完整：2026-11-11 CPU-only 回执存在且与当前拼接源身份一致；PTX 实体在仓可复核"
     }
   ],
   "gaps": [
@@ -6912,5 +7032,34 @@
     "本清单不构成 NP02 完整验收，也不代表双平台结论",
     "未改产品源码/测试/容差/fixtures；未跑 GPU；未启动 Python",
     "回执与 PTX 实体按文件哈希逐份复核；上游 pin 与上游源 SHA256 常量按 pinned checkout 复核"
-  ]
+  ],
+  "np5_03_update": {
+    "date": "2026-11-11",
+    "card": "2026-11-11-np5-03-np02-gap-disposition",
+    "change": "added 2 real product __global__ rows missing from the inventory (render_megakernel, render_depth_seg) with CPU-only NVRTC receipts",
+    "capture_dir": "docs/development-evidence/np02-evidence/new-kernels-2026-11b/",
+    "counts_before": {
+      "windows_implemented_paths": 100,
+      "kernel_rows": 96,
+      "evidence_present": 100,
+      "evidence_verified": 89,
+      "receipts_total": 713,
+      "receipts_file_hash_ok": 713,
+      "receipt_ptx_entities_verified": 709,
+      "coverage_pct_source_identity": 89
+    },
+    "counts_after": {
+      "windows_implemented_paths": 102,
+      "kernel_rows": 98,
+      "evidence_present": 102,
+      "evidence_verified": 91,
+      "receipts_total": 715,
+      "receipts_file_hash_ok": 715,
+      "receipt_ptx_entities_verified": 711,
+      "coverage_pct_source_identity": 89.2
+    },
+    "gap_items_unchanged": 32,
+    "ratchet": "tests/precision_evidence_gate.rs snapshot updated (rows 100->102, kernel_rows 96->98, evidence_verified 89->91, receipts 713->715, entities 709->711, identity 89->89.2)",
+    "new_kernel_guard": "np02_new_kernel_rows_stay_verified extended 12->14 entries"
+  }
 }

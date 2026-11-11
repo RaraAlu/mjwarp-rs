@@ -61,6 +61,20 @@ UNITS = [
     ("collision", r"src/physics/collision/cuda/product.cu",
      ["mjwarp_collision_boxbox", "mjwarp_collision_contact", "mjwarp_collision_contact_multi",
       "mjwarp_collision_hfield", "mjwarp_collision_primitive", "mjwarp_collision_sdf"], "collision"),
+    # 2026-11-11 NP5-03: two real product render kernels that were missing from the NP02
+    # inventory rows.  Both compile units are multi-file concat! sources (see
+    # src/render/kernel/mod.rs::MEGAKERNEL_SOURCE / DEPTH_SEG_SOURCE); a list relpath means
+    # "concatenate these files in order" exactly like include_str! + concat!.
+    ("render_megakernel",
+     [r"src/render/bvh/cuda/scene.cu", r"src/render/kernel/cuda/render_math.cu",
+      r"src/render/kernel/cuda/render_flex.cu", r"src/render/kernel/cuda/render_common.cu",
+      r"src/render/kernel/cuda/render_shadow.cu", r"src/render/kernel/cuda/render_shade.cu",
+      r"src/render/kernel/cuda/render_megakernel.cu"],
+     ["render_megakernel"], "render"),
+    ("render_depth_seg",
+     [r"src/render/bvh/cuda/scene.cu", r"src/render/kernel/cuda/render_math.cu",
+      r"src/render/kernel/cuda/render.cu"],
+     ["render_depth_seg"], "render"),
 ]
 
 BASE_OPTIONS = ["--std=c++17", "--gpu-architecture=compute_70"]
@@ -296,6 +310,13 @@ def cmd_capture(out_dir, only):
             continue
         if recipe == "collision":
             source = assemble_collision_source()
+        elif isinstance(relpath, list):
+            # multi-file concat! unit: read each file in order (LF-normalised, as rustc does)
+            source = "".join(
+                io.open(os.path.join(REPO, part), encoding="utf-8", errors="replace")
+                .read().replace("\r\n", "\n")
+                for part in relpath
+            )
         else:
             source = extract_unit(relpath)
         source_sha = sha256_hex(source.encode("utf-8"))

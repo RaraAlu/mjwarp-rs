@@ -22,6 +22,10 @@
 //! - 2026-11-04 `2026-11-04-precision-np02-new-kernel-evidence` 补 12 条 CPU-only NVRTC 回执后
 //!   同步快照（88→100 有证据、12→0 缺失、88%→100% 覆盖、701→713 回执、697→709 实体、44→32 缺口；
 //!   上一版清单留在 git 历史）。
+//! - 2026-11-11 `2026-11-11-np5-03-np02-gap-disposition` 补 2 个产品真实渲染 `__global__` 行
+//!   （`render_megakernel` / `render_depth_seg`，7/3 文件 `concat!` 单元，CPU-only NVRTC 12.8
+//!   render recipe 回执）后同步快照（100→102 路径、96→98 内核、89→91 verified、713→715 回执、
+//!   709→711 实体、源身份 89→89.2；32 缺口不变、处置见 `np-gate/np5-03/`）。
 //!
 //! 本测试不覆盖：重新跑 np02 扫描工具（它需要 `target/mjwarp-parallel` 上游 checkout，
 //! 仓库瘦身后不在仓；2026-11-04 曾人工+工具重算一次，见 `np02-evidence/rehash-2026-11-04/`）、
@@ -59,19 +63,19 @@ fn np02_counts_match_the_registered_snapshot() {
     let inventory = load_inventory();
     let counts = &inventory["counts"];
     let expected: [(&str, f64); 16] = [
-        ("windows_implemented_paths", 100.0),
-        ("kernel_rows", 96.0),
+        ("windows_implemented_paths", 102.0),
+        ("kernel_rows", 98.0),
         ("frozen_chain_rows", 3.0),
         ("mathdx_route_rows", 1.0),
-        ("evidence_present", 100.0),
-        ("evidence_verified", 89.0),
+        ("evidence_present", 102.0),
+        ("evidence_verified", 91.0),
         ("evidence_missing", 0.0),
         ("coverage_pct_evidence", 100.0),
-        ("coverage_pct_source_identity", 89.0),
+        ("coverage_pct_source_identity", 89.2),
         ("source_identity_drift", 9.0),
-        ("receipts_total", 713.0),
-        ("receipts_file_hash_ok", 713.0),
-        ("receipt_ptx_entities_verified", 709.0),
+        ("receipts_total", 715.0),
+        ("receipts_file_hash_ok", 715.0),
+        ("receipt_ptx_entities_verified", 711.0),
         ("gap_items", 32.0),
         ("unimplemented", 7.0),
         ("undetermined", 5.0),
@@ -87,8 +91,8 @@ fn np02_counts_match_the_registered_snapshot() {
     }
     assert_eq!(
         inventory["rows"].as_array().expect("rows").len(),
-        100,
-        "证据清单行数必须为 100"
+        102,
+        "证据清单行数必须为 102"
     );
     assert_eq!(
         inventory["gaps"].as_array().expect("gaps").len(),
@@ -136,7 +140,9 @@ fn np02_evidence_pointers_resolve() {
 fn np02_new_kernel_rows_stay_verified() {
     // 2026-11-04 `2026-11-04-precision-np02-new-kernel-evidence` 补齐回执的 12 个内核：
     // 它们曾因「回执索引无该 entry」被判 missing（覆盖 88%）；此断言防止回执/指针被静默移除。
-    const NEW_ROWS: [&str; 12] = [
+    // 2026-11-11 `np5-03` 追加 2 个真实渲染内核（render_megakernel / render_depth_seg）：
+    // 它们曾不在清单内，CPU-only NVRTC 12.8 render recipe 补采后必须保持 verified。
+    const NEW_ROWS: [&str; 14] = [
         "build_rays",
         "mesh_bvh_ray",
         "scene_bvh_ray",
@@ -149,6 +155,8 @@ fn np02_new_kernel_rows_stay_verified() {
         "mjwarp_collision_hfield",
         "mjwarp_collision_primitive",
         "mjwarp_collision_sdf",
+        "render_megakernel",
+        "render_depth_seg",
     ];
     let inventory = load_inventory();
     let rows = inventory["rows"].as_array().expect("rows");
@@ -195,10 +203,14 @@ fn np02_states_and_pins_stay_on_the_registered_vocabulary() {
                 matches!(gate, "f32-physics" | "f32-render"),
                 "{name} 的精度门禁 = {gate}，不在登记词表（f32-physics / f32-render）内"
             );
-            if matches!(name, "aa_resolve" | "s7a_abi_probe") {
+            if matches!(
+                name,
+                "aa_resolve" | "s7a_abi_probe" | "render_megakernel" | "render_depth_seg"
+            ) {
                 assert_eq!(
                     gate, "f32-render",
-                    "{name} 经 W15 头树（builtin.h→svd.h）编译，门禁必须是 f32-render；\
+                    "{name} 经 W15 头树（builtin.h→svd.h）或渲染 recipe（include/warp-headers + \
+                     --device-as-default-execution-space）编译，门禁必须是 f32-render；\
                      两条 f64 死数据常量的定位与引用检查见 np02-evidence/new-kernels-2026-11/README.md"
                 );
             } else {
