@@ -2,7 +2,7 @@
 uid = "63873c25"
 id = "mjwarp.runtime.collision-gpu"
 tags = ["implemented-subset", "gpu", "collision", "windows"]
-fingerprint = "7293dccfeaeaa60cd003c5ae374cb40a3a3eb76ffa024a2a49d5c17cd045767f"
+fingerprint = "868adc42052e0d8f114e1701b41a419bd6dfc522c09d4dfc10d2e45243de9a1d"
 
 [name]
 zh = "GPU 碰撞运行时"
