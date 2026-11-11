@@ -1,0 +1,2038 @@
+{
+  "schema": 1,
+  "task": "np5-01a-c4-pose-batch-sleep-source-level",
+  "scope": "section 2: C batch pose/batch/sleep 63 sites (4 rows) source-level type mapping + expression classification; section 1: C-3 review low/observation close-out",
+  "split_source": "target/render-bvh/gl2-ptx-diff/np5-01a/sites.json (rows camlight/field_batch/sleep_wake/attached)",
+  "vocabulary_authority": {
+    "path": "target/render-bvh/gl2-ptx-diff/np5-01a-vocab-addendum.md",
+    "sha256": "453c5c9157341fa28ecb009c50f2ff560b6f43e15f593ed9b7a75f27dd5b1b26",
+    "bytes": 6771
+  },
+  "site_count": 63,
+  "pending_manual": 0,
+  "np5_01a_total_sites": 443,
+  "np5_01a_prior_sites": {
+    "total": 380,
+    "a1a": 40,
+    "a1b": 36,
+    "a2": 63,
+    "b1": 78,
+    "c1": 52,
+    "c2": 68,
+    "c3": 43
+  },
+  "group_totals": {
+    "camlight": 17,
+    "field_batch": 17,
+    "sleep_wake": 15,
+    "attached": 14
+  },
+  "kind_counts": {
+    "intermediate": 24,
+    "output": 24,
+    "rounding-note": 12,
+    "accumulation": 3
+  },
+  "classifications_histogram": {
+    "n/a": 42,
+    "identical": 21
+  },
+  "double_precision_sites": [
+    "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:intermediate:1"
+  ],
+  "not_decidable_reasons_vocabulary": [
+    "no-reference-entry",
+    "mathdx-cusolver-unavailable",
+    "no-lineinfo",
+    "frozen-artifact-only",
+    "capture-scenario-miss",
+    "host-path-no-ptx"
+  ],
+  "reference_anchor_status_vocabulary": {
+    "no-reference-expression": "site itself is not a comparable arithmetic expression or upstream has no corresponding expression; used for source-level n/a entries",
+    "no-reference-entry": "semantic counterpart exists but reference side has no entry/PTX; used in not-decidable not_decidable_reasons[]"
+  },
+  "section1": {
+    "date": "2026-11-11",
+    "card": "2026-11-11-np5-01a-c4-pose-batch-sleep-source-level",
+    "source_findings": "C-3 review: 1 low + 1 observation (L1 veto-window interaction, workspace pycache)",
+    "l1_veto_window": true,
+    "l1_detail": {
+      "problem": "after the block-level veto, a claim adjacent to a negated declaration was still exempted by the 18-character negation window (withdrawn: never supersede + claim -> 0 hits)",
+      "fix": "vetoed closed quote blocks now DISABLE the negation window: only the block-level affirmative declaration clears claims there; the negation window applies to ordinary text outside exempt/vetoed blocks. Added three constructed self-test layouts (adjacent claim hits; affirmative block + ordinary negated sentence stays clean; negated claim inside veto block hits)",
+      "self_tests": 34,
+      "self_tests_added": 3,
+      "tool": {
+        "sha256": "21a895b6b7b8a596b0821aa4751a32d2282d256a19e60a2592a78e37ef037b34",
+        "bytes": 16532,
+        "previous": {
+          "sha256": "8753685b34053e34901b5ec352e95b47e8e5d219513fb67052cd44ba11223885",
+          "bytes": 14885,
+          "self_tests": 31
+        }
+      }
+    },
+    "gitignore_pycache": true,
+    "gitignore_detail": {
+      "path": ".gitignore",
+      "entries": [
+        "__pycache__/",
+        "*.pyc"
+      ],
+      "reason": "QA review imports scripts/np-gate/policy_scan.py via importlib, which created scripts/np-gate/__pycache__/ and dirtied the workspace (QA cleaned it and committed cf10ed6f; repo files unchanged). Root .gitignore now ignores Python caches.",
+      "repo_files_changed": false
+    },
+    "o2_errata_forwarded": true,
+    "o2_detail": {
+      "errata": "errata-0001 (flex_hessian_validate field-table drift, C-2 evidence)",
+      "status": "still forwarded to the closing addenda errata list (record only; field-table history unchanged)"
+    },
+    "double_precision_sites": [
+      "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:intermediate:1"
+    ],
+    "double_precision_note": "field_batch wrap-pulley scale: product computes 1.0/wrap_prm in Rust f64 then stores f32; upstream io.py put_model computes the same in numpy float64 before storing to the f32 warp array, so the float64-then-f32 path is symmetric (no product-only precision uplift)"
+  },
+  "errata_pending": [
+    {
+      "id": "errata-0001",
+      "area": "field-table flex_hessian_validate",
+      "status": "forwarded to closing addenda errata list",
+      "source": "np-gate/np5-01a-c2 evidence errata-0001"
+    }
+  ],
+  "non_claims": [
+    "not a claim that NP01 passed or precision is complete (E metric not finalized)",
+    "identical only means source-level expression-form correspondence; no bit-level guarantee",
+    "no GPU/window used; PTX artifacts are not landed",
+    "C-4 device-level mapping for pose/batch/sleep is out of scope here (RE-3 follow-up)"
+  ],
+  "entries": [
+    {
+      "id": "camlight:camlight_rigid:intermediate:0",
+      "kind": "intermediate",
+      "label": "q",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 144,
+        "expression": "`q = load_q(xq+4b)`（每相机读 body 四元数）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 163,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`xquat = xquat_in[worldid, bodyid]`（逐 world 只读）"
+      },
+      "type_mapping": {
+        "product": "f32（Q 4×f32）",
+        "upstream": "wp quat",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:intermediate:0",
+      "why_not_applicable": "四元数读取局部量（无算术），位姿表达式在 intermediate:1/2 对照"
+    },
+    {
+      "id": "camlight:camlight_rigid:intermediate:1",
+      "kind": "intermediate",
+      "label": "pos",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 145,
+        "expression": "`pos = xpos + rotate(q, load_v(cp))`；mode==1 用 `xpos + cp0`"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 856,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`cam_xpos_out = xpos + math.rot_vec_quat(cam_pos[...], xquat)`；TRACK 用 `body_xpos + cam_pos0[...]`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:intermediate:1",
+      "notes": "source-level：同一 `xpos + rot_vec_quat(local, xquat)` 形态与同一 track 分支 `xpos+cp0`；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_rigid:intermediate:2",
+      "kind": "intermediate",
+      "label": "look_at 的 x/y/z",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 117,
+        "expression": "`z = normalize(pos-target)`、`x = normalize(cross({0,0,1}, z))`、`y = normalize(cross(z, x))`"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 876,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`mat_3 = normalize(cam_xpos - pos)`、`mat_1 = normalize(cross((0,0,1), mat_3))`、`mat_2 = normalize(cross(mat_3, mat_1))`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:intermediate:2",
+      "notes": "source-level：同一 z/x/y 构造与归一化次序；`add(pos, scale(target,-1))` 与减法同值（否定精确）；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_rigid:intermediate:3",
+      "kind": "intermediate",
+      "label": "invalid",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 157,
+        "expression": "`invalid = (mode==3||mode==4) && t<0`（方向不归一化、原样写出）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 918,
+        "function": "_light_local_to_global",
+        "function_def_line": 896,
+        "body_lines": [
+          896,
+          953
+        ],
+        "expression": "`invalid_target = is_target_light and target<0`（同 invalid 分支）"
+      },
+      "type_mapping": {
+        "product": "bool",
+        "upstream": "bool",
+        "type_class": "bool",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:intermediate:3",
+      "why_not_applicable": "分支布尔标志（无算术），其输出行为在 output:3 对照"
+    },
+    {
+      "id": "camlight:camlight_rigid:output:0",
+      "kind": "output",
+      "label": "cx[3c]",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 147,
+        "expression": "`cx[3c]`（相机位置 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 861,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`cam_xpos_out[...]`（track 分支直写）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:1 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_rigid:output:1",
+      "kind": "output",
+      "label": "mx[9c]",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 151,
+        "expression": "`mx[9c]`（相机矩阵 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 857,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`cam_xmat_out[...] = math.quat_to_mat(math.mul_quat(xquat, cam_quat[...]))`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:output:1",
+      "notes": "输出转换点：f32 直写、无窄化/加宽（矩阵为 9 分量行展开）",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_rigid:output:2",
+      "kind": "output",
+      "label": "lx[3l]",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 161,
+        "expression": "`lx[3l]`（灯光位置 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 929,
+        "function": "_light_local_to_global",
+        "function_def_line": 896,
+        "body_lines": [
+          896,
+          953
+        ],
+        "expression": "`light_xpos_out[...]`（TRACK 直写）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:output:2",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:1 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_rigid:output:3",
+      "kind": "output",
+      "label": "dx[3l]",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 162,
+        "expression": "`dx[3l]`（灯光方向 f32 直写；invalid 时原样写出）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 951,
+        "function": "_light_local_to_global",
+        "function_def_line": 896,
+        "body_lines": [
+          896,
+          953
+        ],
+        "expression": "`light_xdir_out[...] = wp.normalize(light_xdir_out[...])`（invalid 分支提前 return）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_rigid:output:3",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；invalid 时不归一化的分支语义与上游一致",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_com:intermediate:0",
+      "kind": "intermediate",
+      "label": "sc",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 176,
+        "expression": "`sc`（subtree_com 起点视图）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 865,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`subtree_com_in[...]`（COM 模式取数）"
+      },
+      "type_mapping": {
+        "product": "const float*",
+        "upstream": "wp f32",
+        "type_class": "n/a-view",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_com:intermediate:0",
+      "why_not_applicable": "只读字段视图（纯指针运算，无转换/算术）"
+    },
+    {
+      "id": "camlight:camlight_com:intermediate:1",
+      "kind": "intermediate",
+      "label": "look_at（cam mode 4 / light mode 4）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 181,
+        "expression": "`look_at`（cam mode 4 目标换为 subtree_com，与 rigid 段同一实现）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 878,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "同一 `look_at` 实现（mat_1/mat_2/mat_3 构造）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_com:intermediate:1",
+      "notes": "source-level：与 rigid 段同一 look_at 实现（仅 target 来自 subtree_com）；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_com:output:0",
+      "kind": "output",
+      "label": "cx[3c]（cam mode 2）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 180,
+        "expression": "`cx[3c]`（cam mode 2 位置 = subtree_com + cp0）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 865,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`subtree_com_in[...] + cam_poscom0[...]`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_com:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；同 `subtree_com + offset` 形态",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_com:output:1",
+      "kind": "output",
+      "label": "mx[9c]（cam mode 4 且 target>=0）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 181,
+        "expression": "`mx[9c]`（cam mode 4 矩阵直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 876,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "同一 look_at 矩阵构造"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_com:output:1",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:1 的 look_at 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_com:output:2",
+      "kind": "output",
+      "label": "lx[3l]（light mode 2）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 184,
+        "expression": "`lx[3l]`（light mode 2 位置 = subtree_com + lp0）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 933,
+        "function": "_light_local_to_global",
+        "function_def_line": 896,
+        "body_lines": [
+          896,
+          953
+        ],
+        "expression": "`subtree_com_in[...] + light_poscom0[...]`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_com:output:2",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；同 `subtree_com + offset` 形态",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:camlight_com:output:3",
+      "kind": "output",
+      "label": "dx[3l]（light mode 4 且 target>=0）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 186,
+        "expression": "`dx[3l]`（light mode 4 方向 = normalize(target - lx)）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 943,
+        "function": "_light_local_to_global",
+        "function_def_line": 896,
+        "body_lines": [
+          896,
+          953
+        ],
+        "expression": "`light_xdir_out[...] = pos - light_xpos_out[...]`（随后统一 normalize）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:camlight_com:output:3",
+      "notes": "输出转换点：f32 直写；`add(sc, scale(lx,-1))` 与减法同值（否定精确）；归一化与上游末段一致",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "camlight:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "sqrtf + 普通除法（未写 .rn），保留驱动收缩权限",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 110,
+        "expression": "`sqrtf + 普通除法`（未写 .rn，保留驱动收缩权限）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 951,
+        "function": "_light_local_to_global",
+        "function_def_line": 896,
+        "body_lines": [
+          896,
+          953
+        ],
+        "expression": "`wp.normalize(...)`（上游普通表达式，收缩由编译器决定）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note（归一化实现说明，非单一表达式）；点名的表达式在 intermediate:1/2 与输出站点已对照"
+    },
+    {
+      "id": "camlight:rounding-note:1",
+      "kind": "rounding-note",
+      "label": "look_at 的矩阵列装入顺序固定为 [x.x,y.x,z.x, x.y,y.y,z.y, x.z,y.z,z.z]（mat 行展开）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 120,
+        "expression": "look_at 矩阵列装入顺序固定为 x.x,y.x,z.x,…（mat 行展开）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 882,
+        "function": "_cam_local_to_global",
+        "function_def_line": 829,
+        "body_lines": [
+          829,
+          894
+        ],
+        "expression": "`wp.mat33(mat_1[0], mat_2[0], mat_3[0], ...)`（同列装入顺序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:rounding-note:1",
+      "why_not_applicable": "说明性 rounding note（矩阵布局顺序说明，非独立表达式）；表达式在 intermediate:2 已对照"
+    },
+    {
+      "id": "camlight:rounding-note:2",
+      "kind": "rounding-note",
+      "label": "camlight_com 只覆盖 COM 模式项，其余项保持 camlight_rigid 写入值（依赖同一 world 的同步 FK 发射顺序）",
+      "product_anchor": {
+        "file": "src/physics/camlight.rs",
+        "line": 165,
+        "expression": "camlight_com 只覆盖 COM 模式项，其余项保持 camlight_rigid 写入值（依赖同 world 同步 FK 发射顺序）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 camlight() 两次 launch（_cam_local_to_global、_light_local_to_global）在同一内核内处理 COM 模式分支"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#camlight:rounding-note:2",
+      "why_not_applicable": "说明性 rounding note（两段发射顺序/覆盖范围说明，非单一表达式）；对应模式分支在 intermediate/output 站点对照"
+    },
+    {
+      "id": "field_batch:field_parameter_device_取数助手:intermediate:0",
+      "kind": "intermediate",
+      "label": "desc[0]（偏移）",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 218,
+        "expression": "`desc[0]`（偏移，宿主打包累加得出，构造期 i32::MAX 检查）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py put_model 以 numpy 打包参数批并上传；设备侧无同名带描述符取数助手"
+      },
+      "type_mapping": {
+        "product": "int",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:field_parameter_device_取数助手:intermediate:0",
+      "why_not_applicable": "整型描述符偏移（无浮点算术）"
+    },
+    {
+      "id": "field_batch:field_parameter_device_取数助手:intermediate:1",
+      "kind": "intermediate",
+      "label": "world % desc[1]",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 218,
+        "expression": "`world % desc[1]`（world→参数批映射）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游参数批按 world 取模的批次广播由 io.py 打包与 warp 数组批次承载，无逐表达式"
+      },
+      "type_mapping": {
+        "product": "unsigned",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:field_parameter_device_取数助手:intermediate:1",
+      "why_not_applicable": "整型取模（无浮点算术）"
+    },
+    {
+      "id": "field_batch:field_parameter_device_取数助手:intermediate:2",
+      "kind": "intermediate",
+      "label": "(world % desc[1]) * width",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 218,
+        "expression": "宽乘 `(world % desc[1]) * width`（unsigned long long，避免跨 block 偏移溢出）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游以 numpy 数组形状承载批次；无设备侧宽乘表达式"
+      },
+      "type_mapping": {
+        "product": "unsigned long long",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:field_parameter_device_取数助手:intermediate:2",
+      "why_not_applicable": "整型宽乘/指针算术（无浮点算术）"
+    },
+    {
+      "id": "field_batch:field_parameter_device_取数助手:output:0",
+      "kind": "output",
+      "label": "返回指针 p + desc[0] + (world % desc[1]) * width",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 217,
+        "expression": "返回 `p + desc[0] + (world % desc[1]) * width`（const float*）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py 参数批打包；无同名设备取数助手输出"
+      },
+      "type_mapping": {
+        "product": "const float*",
+        "upstream": "n/a",
+        "type_class": "n/a-view",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:field_parameter_device_取数助手:output:0",
+      "why_not_applicable": "返回只读指针（无存储转换/算术输出）"
+    },
+    {
+      "id": "field_batch:pack_model_宿主打包_拓扑_参数描述符:intermediate:0",
+      "kind": "intermediate",
+      "label": "metadata_len / parameters_len",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 183,
+        "expression": "`metadata_len / parameters_len`（packed_length 逐项 checked_add，超 i32::MAX 报 Overflow）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py put_model 以 numpy 构造参数数组；无对应 Rust 表达式"
+      },
+      "type_mapping": {
+        "product": "usize",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_model_宿主打包_拓扑_参数描述符:intermediate:0",
+      "why_not_applicable": "宿主整型长度校验（无浮点算术）"
+    },
+    {
+      "id": "field_batch:pack_model_宿主打包_拓扑_参数描述符:intermediate:1",
+      "kind": "intermediate",
+      "label": "cursor / offset",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 192,
+        "expression": "`cursor / offset`（两套游标：metadata 写描述符、parameters 写 f32 值）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py put_model 以 numpy 数组索引打包；无对应表达式"
+      },
+      "type_mapping": {
+        "product": "usize",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_model_宿主打包_拓扑_参数描述符:intermediate:1",
+      "why_not_applicable": "宿主整型游标（无浮点算术）"
+    },
+    {
+      "id": "field_batch:pack_model_宿主打包_拓扑_参数描述符:accumulation:0",
+      "kind": "accumulation",
+      "label": "offset += v.len()；cursor += 2",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 203,
+        "expression": "`offset += v.len(); cursor += 2`（usize 整型累加，构造期一次，无浮点）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py put_model 打包循环（numpy 索引），无对应累加表达式"
+      },
+      "type_mapping": {
+        "product": "usize",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_model_宿主打包_拓扑_参数描述符:accumulation:0",
+      "why_not_applicable": "整型累加（无浮点求和，不引入求和顺序判据）"
+    },
+    {
+      "id": "field_batch:pack_model_宿主打包_拓扑_参数描述符:output:0",
+      "kind": "output",
+      "label": "metadata",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 200,
+        "expression": "`metadata`（i32[] 描述符输出）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py 描述符/参数数组随 Model 上传；无同名输出"
+      },
+      "type_mapping": {
+        "product": "i32[]",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_model_宿主打包_拓扑_参数描述符:output:0",
+      "why_not_applicable": "整型描述符输出（无浮点算术）"
+    },
+    {
+      "id": "field_batch:pack_model_宿主打包_拓扑_参数描述符:output:1",
+      "kind": "output",
+      "label": "packed.parameters",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 202,
+        "expression": "`packed.parameters`（f32[] 直拷）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py 参数数组随 Model 上传（f32 直拷）"
+      },
+      "type_mapping": {
+        "product": "f32[]",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_model_宿主打包_拓扑_参数描述符:output:1",
+      "why_not_applicable": "f32 值直拷（无算术/无 f64 转换），非数值表达式站点"
+    },
+    {
+      "id": "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:intermediate:0",
+      "kind": "intermediate",
+      "label": "binary_search 列匹配",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 31,
+        "expression": "`binary_search` 在 `ten_J_colind` 有序行内查 `jnt_dofadr`（找不到报 InvalidTopology）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py put_model 以 numpy 搜索/映射 ten_J 结构；非逐表达式"
+      },
+      "type_mapping": {
+        "product": "usize",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:intermediate:0",
+      "why_not_applicable": "宿主整型搜索（无浮点算术）"
+    },
+    {
+      "id": "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:intermediate:1",
+      "kind": "intermediate",
+      "label": "scale（wrap_type==2）",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 162,
+        "expression": "`scale = 1.0 / wrap_prm[i]`（f64 计算后写 f32 参数槽；本行唯一双精度接触点）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/io.py",
+        "line": 1038,
+        "function": "put_model",
+        "function_def_line": 288,
+        "body_lines": [
+          288,
+          1390
+        ],
+        "expression": "`m.wrap_pulley_scale[...] = 1.0 / mjm.wrap_prm[padr]`（numpy float64 计算后存 f32 warp 数组）"
+      },
+      "type_mapping": {
+        "product": "f64 中间量 → f32",
+        "upstream": "numpy float64 → f32",
+        "type_class": "f64-to-f32",
+        "double_in_product": true,
+        "double_precision_parity": "upstream io.py:1038 also computes 1.0/wrap_prm in numpy float64 before storing into the f32 warp array; product mirrors that float64-divide-then-f32-store path",
+        "double_in_product_note": "f64 host intermediate matches the upstream numpy float64 packing path; both sides divide in float64 then store f32"
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:intermediate:1",
+      "notes": "source-level：两侧同为「float64 除法 → f32 存储」；产品为 Rust f64 除法后写 f32 槽、上游为 numpy float64 除法后上传 f32 数组，降精度路径对称；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:accumulation:0",
+      "kind": "accumulation",
+      "label": "parameters[cursor..] 按 tendon 升序回填 scale",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 164,
+        "expression": "`parameters[cursor..]` 按 tendon 升序回填 scale（索引回填，无浮点求和）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/io.py",
+        "line": 1038,
+        "function": "put_model",
+        "function_def_line": 288,
+        "body_lines": [
+          288,
+          1390
+        ],
+        "expression": "`m.wrap_pulley_scale[padr:tadr+tnum] = ...`（区间一次赋值）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:accumulation:0",
+      "why_not_applicable": "索引回填（每个槽单次写、无浮点求和，不引入求和顺序判据）"
+    },
+    {
+      "id": "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:output:0",
+      "kind": "output",
+      "label": "metadata",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 151,
+        "expression": "`metadata`（i32[]，spatial 段）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 Model 描述符数组随 io.py 上传；无同名输出"
+      },
+      "type_mapping": {
+        "product": "i32[]",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:output:0",
+      "why_not_applicable": "整型描述符输出（无浮点算术）"
+    },
+    {
+      "id": "field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:output:1",
+      "kind": "output",
+      "label": "parameters",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 167,
+        "expression": "`parameters`（f32[]，含 geom size 直拷）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 geom_size 参数随 io.py 上传（f32 直拷）"
+      },
+      "type_mapping": {
+        "product": "f32[]",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:pack_fixed_tendon_pack_spatial_tendon_宿主打包_纯肌腱等专段:output:1",
+      "why_not_applicable": "f32 值直拷（无算术），非数值表达式站点"
+    },
+    {
+      "id": "field_batch:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "本行无浮点算术（除上述 f64→f32 除法），全部为整型游标、memcpy 与索引映射",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 23,
+        "expression": "本行无浮点算术（除 f64→f32 除法），其余为整型游标、memcpy 与索引映射"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py 打包（numpy）；设备侧无对应表达式"
+      },
+      "type_mapping": {
+        "product": "n/a",
+        "upstream": "n/a",
+        "type_class": "n/a",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note（本行浮点接触面说明，非单一表达式）；f64 除法站点在 intermediate:1 已对照"
+    },
+    {
+      "id": "field_batch:rounding-note:1",
+      "kind": "rounding-note",
+      "label": "field_parameter 的取模与宽乘为整型，保证跨 block 指针算术确定性；world 到参数批的映射周期必须为正（desc[1]>0，宿主保证）",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 218,
+        "expression": "field_parameter 取模与宽乘为整型，保证跨 block 指针算术确定性（world 周期 desc[1]>0 宿主保证）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游以 numpy 数组形状承载批次；无设备侧取模表达式"
+      },
+      "type_mapping": {
+        "product": "n/a",
+        "upstream": "n/a",
+        "type_class": "n/a",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:rounding-note:1",
+      "why_not_applicable": "说明性 rounding note（整型取数说明，非单一表达式）；取数助手站点已对照"
+    },
+    {
+      "id": "field_batch:rounding-note:2",
+      "kind": "rounding-note",
+      "label": "FIELD_BATCHES 分支对内核只改『取数方式』，不改算式，因此类型映射结论对启用/未启用两形态都成立",
+      "product_anchor": {
+        "file": "src/physics/resident/pack_batches.rs",
+        "line": 216,
+        "expression": "FIELD_BATCHES 分支只改取数方式、不改算式（类型映射结论对启用/未启用两形态都成立）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py 打包参数批；设备侧无对应宏分支"
+      },
+      "type_mapping": {
+        "product": "n/a",
+        "upstream": "n/a",
+        "type_class": "n/a",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#field_batch:rounding-note:2",
+      "why_not_applicable": "说明性 rounding note（编译分支说明，非单一表达式）；attached 行已有同型 note 交叉引用"
+    },
+    {
+      "id": "sleep_wake:sleep_copy:intermediate:0",
+      "kind": "intermediate",
+      "label": "width",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 86,
+        "expression": "`width = 2*m[0]+3`（trees/asleep 段宽，含前置守卫）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "产品 i32 位型搬运内核；上游树状态由 `_zero_sleep_counters`/`_update_sleep_*` 等内核写回"
+      },
+      "type_mapping": {
+        "product": "unsigned long long",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:sleep_copy:intermediate:0",
+      "why_not_applicable": "整型宽度推导（无浮点算术）"
+    },
+    {
+      "id": "sleep_wake:sleep_copy:intermediate:1",
+      "kind": "intermediate",
+      "label": "offset",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 86,
+        "expression": "`offset = 4 + w*width`（含前置 4 守卫元素）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "产品 ABI 布局偏移；上游 d.tree_asleep 数组带 4 守卫元素但无同型 copy 内核"
+      },
+      "type_mapping": {
+        "product": "unsigned long long",
+        "upstream": "n/a",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:sleep_copy:intermediate:1",
+      "why_not_applicable": "整型布局偏移（无浮点算术）"
+    },
+    {
+      "id": "sleep_wake:sleep_copy:output:0",
+      "kind": "output",
+      "label": "result[offset..offset+width]",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 87,
+        "expression": "`result[offset..] = state[offset..]`（i32 逐元素位型拷贝）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 asleep/awake 状态由内核原位更新；无同型 i32 copy 内核"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "i32",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:sleep_copy:output:0",
+      "why_not_applicable": "i32 位型拷贝（无浮点算术），非数值表达式站点"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:intermediate:0",
+      "kind": "intermediate",
+      "label": "range/margin",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 104,
+        "expression": "`range/margin`（per-world 周期取批视图：`2nt*m[3]` 与 `nt*m[4]`）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 70,
+        "function": "_wake_tendon_kernel",
+        "function_def_line": 417,
+        "body_lines": [
+          417,
+          485
+        ],
+        "expression": "`margin = tendon_margin[worldid % ...]`；`r = tendon_range[worldid % ...]`"
+      },
+      "type_mapping": {
+        "product": "const float*",
+        "upstream": "wp f32",
+        "type_class": "n/a-view",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:intermediate:0",
+      "why_not_applicable": "只读字段视图（周期取批，无算术）"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:intermediate:1",
+      "kind": "intermediate",
+      "label": "length",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 106,
+        "expression": "`length`（每 world 肌腱长度视图）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 69,
+        "function": "_wake_tendon_kernel",
+        "function_def_line": 417,
+        "body_lines": [
+          417,
+          485
+        ],
+        "expression": "`length = ten_length[worldid, tenid]`"
+      },
+      "type_mapping": {
+        "product": "const float*",
+        "upstream": "wp f32",
+        "type_class": "n/a-view",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:intermediate:1",
+      "why_not_applicable": "只读字段视图（无算术）"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:intermediate:2",
+      "kind": "intermediate",
+      "label": "wakeval",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 108,
+        "expression": "`wakeval` 初值 -11；扫描 num[t] 个 trees 取 awake==1 者 asleep[tree] 的最小值"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 445,
+        "function": "_wake_tendon_kernel",
+        "function_def_line": 417,
+        "body_lines": [
+          417,
+          485
+        ],
+        "expression": "`wakeval = int(K_AWAKE_VAL)`（同初值语义，随后取最小 asleep 值）"
+      },
+      "type_mapping": {
+        "product": "int",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:intermediate:2",
+      "why_not_applicable": "整型初值/最小化（无浮点算术）；扫描循环在 accumulation:0 之前由 output 站点体现"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:intermediate:3",
+      "kind": "intermediate",
+      "label": "tendon_wake_tree",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 89,
+        "expression": "`tendon_wake_tree`（沿 asleep 链逐节点写 wakeval；old<0 时只收紧不扩链；上限 ntree 步防环）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 250,
+        "function": "_wake_tree",
+        "function_def_line": 236,
+        "body_lines": [
+          236,
+          271
+        ],
+        "expression": "`_wake_tree`（同链写法与 old<0 收紧语义）"
+      },
+      "type_mapping": {
+        "product": "void",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:intermediate:3",
+      "why_not_applicable": "整型树链写入设备函数（无浮点算术）；回环上限在 rounding-note:2 对照"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:intermediate:4",
+      "kind": "intermediate",
+      "label": "any_awake/limited[t]",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 114,
+        "expression": "`any_awake/limited[t]`（与长度边界比较共同决定是否唤醒）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 467,
+        "function": "_wake_tendon_kernel",
+        "function_def_line": 417,
+        "body_lines": [
+          417,
+          485
+        ],
+        "expression": "`if any_awake == 1:` 后接 `_tendon_limit_active`"
+      },
+      "type_mapping": {
+        "product": "int",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:intermediate:4",
+      "why_not_applicable": "整型门控标志（无浮点算术）；边界比较在 accumulation:0 对照"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:accumulation:0",
+      "kind": "accumulation",
+      "label": "length[t]-range[2t] < margin[t] || range[2t+1]-length[t] < margin[t]",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 115,
+        "expression": "`length-range[2t] < margin` 或 `range[2t+1]-length < margin`（各一次 f32 减 + 比较）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 74,
+        "function": "_tendon_limit_active",
+        "function_def_line": 58,
+        "body_lines": [
+          58,
+          85
+        ],
+        "expression": "`dist_low = length - r[0]`；`dist_high = r[1] - length`（同两条比较顺序）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:accumulation:0",
+      "notes": "source-level：同一 `(length - low)` / `(high - length)` 距离式与同一先低后高比较顺序；不减累加，无求和顺序问题；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "sleep_wake:tendon_wake:output:0",
+      "kind": "output",
+      "label": "awake[i]",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 121,
+        "expression": "`awake[i]`（i32 0/1，由 `asleep[i]<0` 派生并计数）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 `tree_asleep` 为 i32 状态数组；产品 awake 派生段无同型上游输出"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "i32",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:output:0",
+      "why_not_applicable": "整型派生标志（无浮点算术）"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:output:1",
+      "kind": "output",
+      "label": "awake[n]",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 122,
+        "expression": "`awake[n]`（唤醒计数，i32）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 awake 计数由 `_zero_sleep_counters`/`_update_sleep_*` 内核维护；无同型输出"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "i32",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:output:1",
+      "why_not_applicable": "整型计数输出（无浮点算术）"
+    },
+    {
+      "id": "sleep_wake:tendon_wake:output:2",
+      "kind": "output",
+      "label": "awake[n+1] / awake[n+2]",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 122,
+        "expression": "`awake[n+1]/awake[n+2]`（保留计数器置 0）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游对应计数段由 `_zero_sleep_counters` 维护；无同型输出"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "i32",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:tendon_wake:output:2",
+      "why_not_applicable": "整型计数输出（无浮点算术）"
+    },
+    {
+      "id": "sleep_wake:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "无浮点累加，故无求和顺序判据；两条边界比较各自只有一次 f32 减法和一次 f32 比较，位级只依赖输入值与减法舍入",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 115,
+        "expression": "无浮点累加，故无求和顺序判据；两边界比较各一次 f32 减法与一次比较"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 74,
+        "function": "_tendon_limit_active",
+        "function_def_line": 58,
+        "body_lines": [
+          58,
+          85
+        ],
+        "expression": "`dist_low/dist_high` 各一次减法后比较"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note（边界比较说明，非单一表达式）；表达式在 accumulation:0 已对照"
+    },
+    {
+      "id": "sleep_wake:rounding-note:1",
+      "kind": "rounding-note",
+      "label": "sleep_copy 是纯位型搬运（i32 → i32），逐元素拷贝即保持位级不变",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 87,
+        "expression": "sleep_copy 是纯位型搬运（i32→i32），逐元素拷贝保持位级不变"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 asleep/awake 状态由内核原位更新；无同型 copy 内核"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "i32",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:rounding-note:1",
+      "why_not_applicable": "说明性 rounding note（位型拷贝说明，非单一表达式）；output 站点已对照"
+    },
+    {
+      "id": "sleep_wake:rounding-note:2",
+      "kind": "rounding-note",
+      "label": "循环上限：asleep 链按 ntree 步截断并检测回环（current==tree 即停），避免脏数据造成死循环",
+      "product_anchor": {
+        "file": "src/physics/sleep.rs",
+        "line": 89,
+        "expression": "循环上限 ntree 步并检测回环（current==tree 即停），避免脏数据死循环"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+        "line": 41,
+        "function": "_wake_tree",
+        "function_def_line": 236,
+        "body_lines": [
+          236,
+          271
+        ],
+        "expression": "`for step in range(ntree + 1)`（同回环上限）"
+      },
+      "type_mapping": {
+        "product": "int",
+        "upstream": "int",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#sleep_wake:rounding-note:2",
+      "why_not_applicable": "说明性 rounding note（循环上限说明，非单一表达式）；树链站点在 intermediate:3 已对照"
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:intermediate:0",
+      "kind": "intermediate",
+      "label": "xp/xq",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 215,
+        "expression": "`xp/xq`（body+4+w*meta[0] 与 +3nb，宽指针算术）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 162,
+        "function": "_site_local_to_global",
+        "function_def_line": 210,
+        "body_lines": [
+          210,
+          229
+        ],
+        "expression": "`xpos = xpos_in[worldid, bodyid]`（同一 body 字段取数）"
+      },
+      "type_mapping": {
+        "product": "const float*",
+        "upstream": "wp f32",
+        "type_class": "n/a-view",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:intermediate:0",
+      "why_not_applicable": "只读字段视图（宽指针算术，无浮点运算）"
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:intermediate:1",
+      "kind": "intermediate",
+      "label": "q",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 236,
+        "expression": "`q = load_q(xq+4b)`（逐 world 只读）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 163,
+        "function": "_site_local_to_global",
+        "function_def_line": 210,
+        "body_lines": [
+          210,
+          229
+        ],
+        "expression": "`xquat = xquat_in[worldid, bodyid]`"
+      },
+      "type_mapping": {
+        "product": "f32（Q 4×f32）",
+        "upstream": "wp quat",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:intermediate:1",
+      "why_not_applicable": "四元数读取局部量（无算术），位姿表达式在 intermediate:2/3 对照"
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:intermediate:2",
+      "kind": "intermediate",
+      "label": "rotate(q, gp+3g)",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 237,
+        "expression": "`xpos + rotate(q, gp)`（warp quat_rotate 等价实现）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 205,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "`geom_xpos_out = xpos + math.rot_vec_quat(geom_pos[...], xquat)`（site 同式）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:intermediate:2",
+      "notes": "source-level：同一 `xpos + rot_vec_quat(local, xquat)` 形态（geom 与 site 两路同式）；收缩许可、未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:intermediate:3",
+      "kind": "intermediate",
+      "label": "multiply(q, load_q(gq+4g))",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 238,
+        "expression": "`multiply(q, load_q(gq))` → matrix 9×f32（行展开写 gm/sm）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 206,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "`geom_xmat_out[...] = math.quat_to_mat(math.mul_quat(xquat, geom_quat[...]))`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:intermediate:3",
+      "notes": "source-level：同一 `quat_to_mat(mul_quat(xquat, local_quat))` 形态（site 同式）；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:output:0",
+      "kind": "output",
+      "label": "gx[3g..3g+3]",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 237,
+        "expression": "`gx[3g..]`（geom 位置 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 205,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "`geom_xpos_out[...]`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:2 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:output:1",
+      "kind": "output",
+      "label": "gm[9g..9g+9]",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 238,
+        "expression": "`gm[9g..]`（geom 矩阵 f32 直写，行展开）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 206,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "`geom_xmat_out[...]`（9 分量行展开）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:output:1",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:3 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:output:2",
+      "kind": "output",
+      "label": "sx[3s..3s+3]",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 242,
+        "expression": "`sx[3s..]`（site 位置 f32 直写）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 226,
+        "function": "_site_local_to_global",
+        "function_def_line": 210,
+        "body_lines": [
+          210,
+          229
+        ],
+        "expression": "`site_xpos_out[...]`"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:output:2",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:2 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:output:3",
+      "kind": "output",
+      "label": "sm[9s..9s+9]",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 243,
+        "expression": "`sm[9s..]`（site 矩阵 f32 直写，行展开）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 227,
+        "function": "_site_local_to_global",
+        "function_def_line": 210,
+        "body_lines": [
+          210,
+          229
+        ],
+        "expression": "`site_xmat_out[...]`（9 分量行展开）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:output:3",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；数值由 intermediate:3 决定",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:attached_frames_device_库_被两个_global_共用:output:4",
+      "kind": "output",
+      "label": "result 每世界段序",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 230,
+        "expression": "`result` 每世界段序（gx/gm/sx/sm 顺序）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "段序为产品 ABI 布局说明；无独立数值表达式，值由 gx/gm/sx/sm 写点决定"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_frames_device_库_被两个_global_共用:output:4",
+      "why_not_applicable": "结果缓冲段序说明（布局，不是数值表达式）；各段写点在 output:0-3 对照"
+    },
+    {
+      "id": "attached:attached_kinematics:output:0",
+      "kind": "output",
+      "label": "result",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 246,
+        "expression": "`result`（attached_kinematics 输出，f32 直写，含 MOCAP 静态 geom 跳过）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 205,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "`geom_xpos_out[...]`（静态 geom 提前 return）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:attached_kinematics:output:0",
+      "notes": "输出转换点：f32 直写、无窄化/加宽；公式与 geom/site 两路一致，静态跳过只影响写不写",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:initialize_attached:output:0",
+      "kind": "output",
+      "label": "result",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 251,
+        "expression": "`result`（initialize_attached 输出：MOCAP 的 initialize=true 分支）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 198,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "`if body_weldid[bodyid] == 0 and body_mocapid[...] == -1: return`（同静态跳过语义）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:initialize_attached:output:0",
+      "notes": "输出转换点：仅初始化分支（跳过条件不同），算式与 attached_kinematics 相同；未做位级测试",
+      "bit_level_guarantee": false
+    },
+    {
+      "id": "attached:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "位姿算式全部走 warp device 助手（add / scale / rotate / multiply / matrix / load_q / load_v / store_v），未写显式 .rn；四元数旋转与矩阵化的舍入顺序由这些助手固定",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 211,
+        "expression": "位姿算式全部走 warp device 助手（add/scale/rotate/multiply/matrix/load_q/store_v），未写显式 .rn；舍入顺序由助手固定"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 227,
+        "function": "_site_local_to_global",
+        "function_def_line": 210,
+        "body_lines": [
+          210,
+          229
+        ],
+        "expression": "上游同走 warp 数学助手（`rot_vec_quat`/`mul_quat`/`quat_to_mat`）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note（助手舍入顺序说明，非单一表达式）；具体表达式在 intermediate:2/3 已对照"
+    },
+    {
+      "id": "attached:rounding-note:1",
+      "kind": "rounding-note",
+      "label": "MOCAP 的 initialize 分支只改变『是否跳过静态 geom』，不改变任何算式顺序",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 233,
+        "expression": "MOCAP 的 initialize 分支只改变「是否跳过静态 geom」，不改变任何算式顺序"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 198,
+        "function": "_geom_local_to_global",
+        "function_def_line": 180,
+        "body_lines": [
+          180,
+          208
+        ],
+        "expression": "静态 geom 跳过条件（上游同语义）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:rounding-note:1",
+      "why_not_applicable": "说明性 rounding note（分支影响范围说明，非单一表达式）；initialize 输出站点已对照"
+    },
+    {
+      "id": "attached:rounding-note:2",
+      "kind": "rounding-note",
+      "label": "FIELD_BATCHES 分支只把 model 取数换成 field_parameter(p, desc, w, width)，算式不变",
+      "product_anchor": {
+        "file": "src/physics/attached.rs",
+        "line": 217,
+        "expression": "FIELD_BATCHES 分支只把 model 取数换成 `field_parameter(p, desc, w, width)`，算式不变"
+      },
+      "reference_anchor": {
+        "status": "no-reference-expression",
+        "reason": "上游 io.py put_model 打包参数批；设备侧无对应编译分支"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "wp f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-c4/evidence.json#attached:rounding-note:2",
+      "why_not_applicable": "说明性 rounding note（编译分支说明，非单一表达式）；attached 的取数差异不改变中间量算式"
+    }
+  ]
+}

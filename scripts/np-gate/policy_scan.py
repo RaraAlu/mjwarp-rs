@@ -40,6 +40,10 @@ and the block itself contains an AFFIRMATIVE withdrawal declaration. Rules:
   none/cannot and common contractions (mustnot/donot/doesnot/didnot/isnot/arenot/wasnot/werenot/
   hasnot/havenot/hadnot/dont/doesnt/didnt/isnt/arent/wasnt/werent/hasnt/havent/hadnt/wont/
   wouldnt/shouldnt/couldnt/mustnt). English negators require a word boundary.
+- inside a closed marked block that grants no exemption (vetoed block), the 18-character negation
+  window is DISABLED: only the block-level affirmative declaration can clear claims there, so a
+  claim next to a negated declaration ("withdrawn: never supersede" + claim) still hits. The
+  negation window applies to ordinary text outside exempt/vetoed blocks.
 - every exempted block must leave a human-review trace: put `reviewed_by: <name>-<YYYY-MM-DD>`
   inside the block (preferred), or list the block in the evidence receipt's
   `quote_block_inventory` with its reviewer. `--list-quote-blocks FILE...` prints the inventory
@@ -182,21 +186,34 @@ def quote_blocks(text):
         pos = block_end
 
 
-def quote_exempt_regions(text):
-    """Return char ranges covered by closed marked quote blocks with an affirmative declaration."""
-    regions = []
+def quote_regions(text):
+    """Return (exempt, veto) closed marked quote-block char ranges.
+
+    exempt: a closed marked block with an affirmative declaration (claims inside are skipped).
+    veto:   a closed marked block without one -- the 18-char negation window is DISABLED inside,
+            so a claim next to a negated declaration still hits (conservative direction).
+    """
+    exempt, veto = [], []
     pos = 0
     while True:
         start = text.find(QUOTE_START, pos)
         if start < 0:
-            return regions
+            return exempt, veto
         end = text.find(QUOTE_END, start + len(QUOTE_START))
         if end < 0:
-            return regions  # unclosed: no exemption
+            return exempt, veto  # unclosed: no exemption and no veto-window change
         inner = text[start + len(QUOTE_START):end]
+        span = (start, end + len(QUOTE_END))
         if has_affirmative_declaration(inner):
-            regions.append((start, end + len(QUOTE_END)))
+            exempt.append(span)
+        else:
+            veto.append(span)
         pos = end + len(QUOTE_END)
+
+
+def quote_exempt_regions(text):
+    """Return char ranges covered by closed marked quote blocks with an affirmative declaration."""
+    return quote_regions(text)[0]
 
 
 def _exempt(pos, regions):
@@ -205,7 +222,7 @@ def _exempt(pos, regions):
 
 def scan_text(text):
     norm, index = _normalize(text)
-    regions = quote_exempt_regions(text)
+    exempt, veto = quote_regions(text)
     hits = []
     for core in FORBIDDEN_CORES:
         start = 0
@@ -215,13 +232,16 @@ def scan_text(text):
                 break
             orig_start = index[pos]
             orig_end = index[min(pos + len(core) - 1, len(index) - 1)] + 1
-            if _exempt(orig_start, regions):
+            if _exempt(orig_start, exempt):
                 start = pos + 1
                 continue
             ctx = text[max(0, orig_start - WINDOW):orig_start]
             for prefix in FALSE_NEGATOR_PREFIXES:
                 ctx = ctx.replace(prefix, "")
-            if not any(neg in ctx for neg in NEGATORS):
+            # A closed block that grants no exemption disables the negation window (L1 review):
+            # only the block-level affirmative declaration can clear claims there.
+            vetoed = _exempt(orig_start, veto)
+            if vetoed or not any(neg in ctx for neg in NEGATORS):
                 hits.append({"core": core, "pos": orig_start,
                              "context": text[max(0, orig_start - 40):orig_end + 40].replace("\n", " ")})
             start = pos + 1
@@ -288,6 +308,12 @@ SELF_TESTS = [
     (f"{_S}\nretracted: this wording is void\nresult bit-level equivalent\n{_E}", 0),
     # a negated declaration vetoes the block even if another token is affirmative
     (f"{_S}\nwithdrawn: never supersede\nresult bit-level equivalent\n{_E}", 1),
+    # vetoed block disables the 18-char negation window: claim adjacent to the negated declaration hits
+    (f"{_S}\nwithdrawn: never supersede\n结果位级等价\n{_E}", 1),
+    # affirmative block + ordinary negated sentence: block exemption still clears it (no misfire)
+    (f"{_S}\n撤回声明：以下否定句为历史原文\n不提供位级保证\n{_E}", 0),
+    # inside a vetoed block a negated claim also hits (window disabled, conservative)
+    (f"{_S}\nwithdrawn: never supersede\n不写位级等价\n{_E}", 1),
 ]
 
 
