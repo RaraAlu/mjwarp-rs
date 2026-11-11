@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill-check",
+  "title": {
+    "zh": "QA 复核 R06 多帧 recipe 参数补强（`20015625`，卡 C）：7→28 口径**是真实比对不是凑数**——`RECIPE_PARAM_KEYS` 26 键与 `capture.json.parameters` **集合完全相等**（我独立比对）、26 recorded+`nworld`+`cam_res` 口径与 21 项新增断言算术自洽、6 项既有保留且 `cam_active` 补 null、**双层防漏守卫**（已比对集合==26 键、capture 键集守卫）与**反例 `catch_unwind` 必须 panic** 证非空转；我独立重跑 recipe 用例 5 passed/0 failed（证据整 target **41/0/1**）；物理行数 **494/490/188** <500、测试 exe 身份我重编实测 `d226bb76…`/118,588,392 **逐位吻合**；边界仅 3 test 文件+证据、`src/fixtures/scripts` 零改动、`capture.json` 未动（`767f8c1b…` 与 TEXT_FILES 锚一致）、guards `94478b3d…`/43,729 与 `64bfecdf…`/11,899 未变；manifest **7/7**、门禁 unit **1,406/0/402**、编码干净 → **复核通过（0 阻断，1 低 + 2 观察）**；低=「单帧亦为隐式」不实（单帧 `render_flex_validate.rs:421-422` 显式对照 `context.resolved.cam_res`；多帧 capture 无 `context` 段，实际逐项断言 27 项、cam_res 仅名义）；观察=model 键名是 `cam_resolution`、GPU ignored 用例未执行（零 GPU 口径）",
+    "en": "QA review of the R06 multiframe recipe-params fill (20015625, card C): the 7->28 fill is a real comparison (26 keys set-equal to capture.parameters, balanced accounting, set-equality anti-omission guards, counterexample catch_unwind proof), 5 recipe tests rerun, identity/line-counts/boundaries/gates/evidence verified - PASS with 1 low (single-frame cam_res wording inaccurate) + 2 observations"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对卡 C（R06 多帧 recipe 参数补强，提交 **`20015625`** + 卡 `2026-11-11-render-r06-flex-multiframe-recipe-params-fill`）做独立只读复核（零 GPU）：7→28 补强是否真实（26 键与 capture 集合比对、21 项断言算术、双层防漏、反例非空转）、行数棘轮、测试 exe 身份、边界与 guards、manifest/编码/门禁。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of card C: whether the 7->28 fill is a real comparison (key set vs capture, accounting, anti-omission guards, counterexample), line ratchet, test-exe identity, boundaries/guards, manifests/encoding/gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**补强真实性 ✅**：`RECIPE_PARAM_KEYS: [&str; 26]` 与 `fixtures/render-bvh/scene-flex/multiframe/capture.json` 的 `parameters` 键集**集合相等**（两侧 26，Compare-Object 无差异）；28 = 26 recorded + `nworld` + `cam_res`；21 项新增 = nworld(1)+3 flag+10 布尔+`shadow_light_fraction`(1)+6 splat(6)；既有 6 项保留、`cam_active` 补 `is_null()`；逐项均为真值对照（布尔取 `as_bool` 比对、数组逐元素、splat 断言 recipe null **且** `params.splat.any_present()==false`）——非凑数",
+    "**防漏/非空转 ✅**：`assert_params_match_capture` 末尾排序后断言「已比对集合 == RECIPE_PARAM_KEYS」；`capture_parameter_keys_match_28_item_scope` 守卫 capture 侧键集且 `26+2==28`；`recipe_param_mismatch_is_detected` 翻转 `use_shadows`、改 `samples_per_pixel` 各一次用 `catch_unwind` 必须捕获 panic，再跑未改动正例",
+    "**独立执行 ✅**：`cargo test --locked --features cuda-probe --test render_flex_multiframe -- recipe` ⇒ 5 passed / 0 failed（4 recipe/键集 + 1 s7b1 名含 recipe）；证据 `logs/host-params-tests.log` 与卡一致（整 target **41/0/1**，ignored=GPU 用例；本卡前 38 +3 自洽）；测试仍同 target 执行、GPU 用例经 re-export 调用新函数（我实编通过）",
+    "**棘轮/身份 ✅**：物理行数 `tests/render_flex_multiframe.rs` **494**（前 499）、`tests/support/render_bvh/multiframe.rs` **490**（前 496）、`multiframe_recipe.rs` **188**，均 <500；我独立重编测试 exe 实测 **118,588,392 B / `d226bb76…`**，与声明 post-card live 逐位一致；pre-card live `3d482e56…`/118,291,924 与既有 frozen stash `0f76f9e1…`/118,098,954（先于本卡已 drift，卡已如实记录）一致",
+    "**边界/证据/门禁 ✅**：提交 16 files = 3 test + 证据 8 + `.normify` 5；无 `src/`/`fixtures/`/`scripts/` 路径，`capture.json` 未改（sha `767f8c1b…` 与 `TEXT_FILES` 锚一致）、`tests/render_flex_validate.rs` 零 diff；guards `94478b3d…`/43,729 与 `guards-r06-multiframe.json` `64bfecdf…`/11,899 未变；manifest **7/7** 重算全对；编码 UTF-8/LF 无 BOM/CR/NUL；门禁 fmt/clippy/clippy-cuda exit 0、unit **1,406/0/402**（+3 自洽）",
+    "**结论：复核通过（0 阻断，1 低 + 2 观察）。** 不改判据/参考/容差/相机/recipe；零 GPU、零窗口、不重冻；不宣称渲染数值/等价/发布",
+    "**低 L1**：注释/README 的「单帧验收亦为隐式比对」不实——单帧 `tests/render_flex_validate.rs:421-422` 显式对照 `capture.context.resolved.cam_res`；真实原因是多帧 capture **无 `context` 段**（我核实），故 cam_res 无对照源、实际逐项断言 27 项（26 recorded + nworld），cam_res 仅为 28 口径的名义项。建议改措辞；若要补可对 model 的 `cam_resolution` 做推导自证（属自证非参考对照）。**观察**：model 数组名为 `cam_resolution`；GPU ignored 用例未执行（零 GPU 口径，后续 R06 窗须重冻 exe）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-r06-flex-multiframe-recipe-params-fill"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill-check/"
+    ],
+    "resources": [],
+    "priority": 20
+  },
+  "note": "Chief 2026-11-11 12:00 派工卡 C 的复核。结论：复核通过（0 阻断，1 低 + 2 观察）。已独立核：26 键与 capture.parameters 集合相等、21 项新增断言算术自洽、双层防漏守卫、反例 catch_unwind 非空转、我重跑 recipe 用例 5 passed（证据整 target 41/0/1）、行数 494/490/188、测试 exe 我重编实测 d226bb76/118,588,392 与声明一致、边界仅 3 test 文件+capture.json 未动+guards 未变、manifest 7/7、门禁 unit 1406/0/402、编码干净。低 L1：「单帧亦为隐式」不实（单帧显式对照 context.resolved.cam_res；多帧 capture 无 context 段，实际断言 27 项、cam_res 名义）。观察：model 键名 cam_resolution；GPU ignored 用例未执行（零 GPU），后续 R06 窗须重冻 exe。不宣称渲染数值/等价、不改判据、零 GPU。",
+  "revision": {
+    "before": "a3867c3b6a47f3b4b65f7604e158f9629204b768",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:20:00.000Z",
+  "updated_at": "2026-11-11T04:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-r06-flex-multiframe-recipe-params-fill-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-fill-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
