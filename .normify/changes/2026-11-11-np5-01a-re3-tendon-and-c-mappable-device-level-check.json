@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-re3-tendon-and-c-mappable-device-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a RE-3（`01d4c979`）：**PASS（0 阻断，0 一般 + 1 低 + 1 观察）**——24 行/304 站点（B78+C226）行级分类我与 evidence 独立复算一致（engine-semantic 15 行/204、not-decidable 7 行/73、n/a 2 行/27）；**24 个产品单元 sha/bytes 我逐文件核对全对**（22 有 entry、tendon_wrap/field_batch 各 202 B 0 entry 且空 PTX 同 sha）；**40 个参考映射对**全部落在冻结 smooth.ptx(48)+module.ptx(15) 的 entry 并集(63)内、无错配（distinct 28）；两份冻结件真 `.loc`=0（我先前 6/4 命中是 `.local`）、no-lineinfo 理由成立；PTX 不入仓、source 级不重判、selfcheck 30 PASS、门禁 1,406/0/402；低=行级缺 why/bit_level_guarantee/why_not_applicable 逐行字段（依赖 basis+全局 method_rules）",
+    "en": "QA review of RE-3: PASS (0 blockers, 0 major + 1 low + 1 observation); 24 rows/304 sites, 24 product units identity verified, 40 reference mapping pairs validated against frozen entry union, true .loc=0, PTX not landed, gates 1406/0/402; low = per-row category-extra fields missing (basis + global method_rules instead)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 RE-3（`01d4c979`）做独立只读复核（零 GPU）：①产品 24 单元/22 entry 与空单元、参考 40 映射对是否可靠；②24 行/304 站点行级直方图；③engine-semantic 行理由与 not-decidable 缺因码、n/a 理由；④source 级不重判与 PTX 不入仓；⑤manifest/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of RE-3: product units and reference mapping, row histogram, reasons, PTX-not-landed, hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**单元/映射 ✅**：产品 **24 单元**（22 有 entry；`tendon_wrap`/`field_batch` 各 **202 B、0 entry**，两者空 PTX sha 相同 `fc056e0f…`，与源码无 `__global__` 一致）；我逐文件核对 **24/24 单元 PTX sha/bytes 与 evidence 一致**（位于 `RE-3-draft/ptx`）；参考侧 **40 个映射对**（24 行合计）全部命中冻结 `smooth.ptx`(48)+`module.ptx`(15) 的 entry 并集(63)，去 hash 名精确匹配、**无错配**（distinct 28）",
+    "**行级直方图 ✅**：24 行 = B 7 + C 17；站点 304 = 78 + 226；分类站点 `{engine-semantic 204, not-decidable 73, n/a 27}`、行数 15/7/2，与 evidence/receipt/selfcheck 一致；not-decidable 缺因：`no-reference-entry` 4 行 **47** 站点（tendon_velocity 7/applied_force 12/kinetic_energy 13/sleep_wake 15）、`no-lineinfo+frozen-artifact-only` 3 行 **26** 站点（tendon_wrap 9/flex_edge 9/flex_face 8），总数 73 自洽",
+    "**lineinfo 前提 ✅**：两份冻结件真 `.loc` 指令数 **0**（`smooth.ptx` 6 处与 `module.ptx` 4 处「loc」是 `.local` 段，非 lineinfo）——`no-lineinfo` 理由成立",
+    "**engine-semantic/n-a 理由 ✅（1 低）**：15 条 engine-semantic 行均有 `basis` 说明「合并/拆分/自加 validate 内核、结构与数据流不同、不作数值或指令等价结论」，`method_rules` 全局声明 `bit_level_guarantee=false`；2 条 n/a 行（tendon 整数寻址搬运、field_batch host 打包 0-entry）均有 `basis` 说明——**但行级缺 `why_engine_semantic`/`bit_level_guarantee`/`why_not_applicable` 机器可读字段**（见 L1）",
+    "**source 级/边界 ✅**：totals/receipt/README 均明写 B-1 与 C1..C4 逐站点分类不重判、device 行结论只属映射层；PTX 不入仓、`ptx_landed=false`、regen 脚本在 target；manifest 4/4（568 B）；selfcheck 30 PASS；门禁 1,406/0/402；哈希与派工值一致（e7de0e55/8,585、f5988b7c/94,815、28f4bd21/4,782、d23a209d/1,769）；编码干净、policy_scan 0 命中、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 1 观察）。** 低 L1=行级 schema 缺分类附加字段（依赖 `basis`+全局 `method_rules`，与 RE-2 逐行字段先例不一致），建议补逐行字段或以 addendum 映射；观察 O1=派工摘要的 not-decidable 缺因拆分写作 40/33，而 evidence 为 **47/26**（总数 73 一致），建议更正摘要措辞"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-re3-tendon-and-c-mappable-device-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-re3-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 RE-3 复核；结论 PASS（0 阻断，1 低 + 1 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T14:00:00.000Z",
+  "updated_at": "2026-11-11T14:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-re3-tendon-and-c-mappable-device-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "28eb6d1876d3caa4b73b177c5dd79a5c83772335",
+    "after": null
+  }
+}
