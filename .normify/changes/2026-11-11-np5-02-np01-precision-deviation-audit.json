@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-02-np01-precision-deviation-audit",
+  "title": {
+    "zh": "片 NP5-02：NP01 精度偏离审计（全路径汇总：类型偏离 0 项 + recipe 差量化 + 引擎语义差单列；E 未定稿 ⇒ 未完成句；零 GPU）",
+    "en": "Slice NP5-02: NP01 precision-deviation audit (type deviation 0, recipe differences quantified, engine-semantic listed separately; E not finalized -> unfinished statement; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 W5 计划 §3 做 NP01 全路径精度偏离审计（只读聚合、零 GPU、零窗）：复用 NP5-01a 608 站点（唯一 598）逐站点类型映射/分类清单与 np01-host-device-*（B1 12 条表达式 PTX 定序、B2 字段级位差分账 5 case×3 字段、4 case 同 recipe 残差、1 known deviation、A0 引擎语义引用）与 33 张类型表（30 field + 3 host）/CUDA surface 快照；把差异拆成「类型偏离（须 0）/recipe 差（量化，单列不计入偏离）/引擎语义差（单列）/同 recipe 实现残差」四类；输出 np5-02 evidence/README/receipt/logs/selfcheck/manifest；必须留「NP01 精度偏离 0 项未完成」句（E 指标未定稿），不宣言 NP01 通过。",
+    "en": "W5 plan §3 NP01 precision-deviation audit (read-only aggregation, zero GPU/window): reuse the NP5-01a 608-site (598 unique) per-site type mapping/classification ledger, the np01-host-device-* evidence (B1 12-expression PTX ordering, B2 field-level ledger 5 cases x 3 fields, 4 same-recipe residual cases, 1 known deviation, A0 engine-semantic reference), 33 type tables (30 field + 3 host) and the CUDA surface snapshot; split differences into type deviation (must be 0) / recipe difference (quantified, listed separately) / engine-semantic (separate) / same-recipe implementation residual; output np5-02 evidence/README/receipt/logs/selfcheck/manifest; must carry the 'NP01 precision deviation 0 items not completed' statement (E metric not finalized) and must not claim NP01 pass."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/np-gate/np5-02/`：evidence.json（inputs 哈希；608 站点/598 唯一；33 张类型表；类型偏离 0 依据 4 条；recipe 差 5 case 量化 + NP5-01a 3 站点；engine-semantic source 级 20 站点 + RE-3 204 站点行级；同 recipe 残差 4 case + 1 known deviation；未覆盖/阻塞 5 项；conclusion 含强制未完成句）、README.md、receipt.json（verdict=PASS 指审计执行、type_deviation_count=0、precision_deviation_zero_items_verified=false、required_unfinished_statement）、logs/selfcheck.txt、manifest 自核；UTF-8/LF 无 BOM。",
+    "审计口径：类型偏离 0 项依据类型表 + CUDA/host 两道 token 门禁 + 608 站点 type_mapping（不从数值反推）；recipe 差（B2 max_abs 1e-9–8e-7）与引擎语义差（20 站点 / 204 站点行级）单列不计入偏离；同 recipe 实现残差与 known deviation 登记。",
+    "强制未完成句「NP01 精度偏离 0 项未完成」在 evidence.conclusion.statement 与 README 同时出现；receipt non_claims 明确 verdict PASS 仅指审计执行、不指 NP01 通过。",
+    "自检：608/598、11 片和、33 表、1 个 double_in_product parity、B1/B2/A0/cuda-surface 哈希与磁盘一致、RE 片存在且 RE-3 24 行 304 站点、recipe 5 case、engine-semantic 20、known deviation 1、未完成句、policy_scan 0 命中、编码/边界/manifest 全 PASS。",
+    "四门禁 + normify check；中文提交；零 GPU/零窗；不改历史片字节。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np-gate/np5-02/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "W5 计划第 3 片（NP5-00/01 已具备 ledger 与 type tables）；只读聚合；E 未定稿不得宣言通过。",
+  "revision": {
+    "before": "1bfc02304240b206e7bb2b042f5d331b9cbeeee6",
+    "after": null
+  },
+  "created_at": "2026-11-11T14:55:00.000Z",
+  "updated_at": "2026-11-11T14:11:29.799Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02/receipt.json",
+      "pointer": "/np5_01a_sites",
+      "equals": 608
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02/receipt.json",
+      "pointer": "/type_tables/total",
+      "equals": 33
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02/receipt.json",
+      "pointer": "/type_deviation_count",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02/receipt.json",
+      "pointer": "/precision_deviation_zero_items_verified",
+      "equals": false
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02/receipt.json",
+      "pointer": "/required_unfinished_statement",
+      "equals": "NP01 精度偏离 0 项未完成"
+    }
+  ]
+}
