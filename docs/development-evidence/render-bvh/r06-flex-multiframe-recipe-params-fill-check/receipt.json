@@ -1,0 +1,62 @@
+{
+    "schema":  1,
+    "task_id":  "2026-11-11-render-r06-flex-multiframe-recipe-params-fill-check",
+    "status":  "qa_review_completed_zero_gpu",
+    "kind":  "qa-check",
+    "verdict":  "PASS",
+    "review_object":  {
+                          "commit":  "20015625aa434c235d5f810b77cbd504db259b3f",
+                          "card":  "2026-11-11-render-r06-flex-multiframe-recipe-params-fill",
+                          "card_alias":  "card C of the 2026-11-11 12:00 window",
+                          "head_at_review_start":  "20015625 (Backend later started card D; reviewed content is this commit)"
+                      },
+    "summary":  "PASS: 0 blocker, 2 low (L1 \u0027single-frame cam_res is implicit too\u0027 wording inaccurate; L2 counterexamples only cover existing keys so the 21 new assertions are not proven non-vacuous - Arch spec deviation, to be fixed by card E), 2 observations. The 7-\u003e28 fill is a real comparison (26 keys set-equal to capture.parameters, anti-omission guards, 41/0/1 tests), identity/line-counts/boundaries/gates/evidence verified.",
+    "low_findings":  [
+                         {
+                             "id":  "L1",
+                             "title":  "「单帧验收亦为隐式比对」不实；多帧实际逐项断言 27 项",
+                             "detail":  "tests/render_flex_validate.rs:421-422 explicitly compares resolved.cam_res against capture.context.resolved.cam_res in render_context_preflight_matches_capture_recipe, so single-frame cam_res comparison is explicit, not implicit. The real reason multi-frame skips it is that the multiframe capture.json has no top-level context section (verified), i.e. no reference source. Actual item-wise assertions in the multiframe comparison are 27 (26 recorded + nworld); cam_res is nominal only. Suggest: \u0027多帧 capture 无 context.resolved 段，cam_res 无独立对照源，仅计入口径\u0027."
+                         },
+                         {
+                             "id":  "L2",
+                             "title":  "反例只覆盖既有键，21 项新增断言非空转未证明（Arch 规格偏差，由卡 E 修）",
+                             "detail":  "recipe_param_mismatch_is_detected flips use_shadows and samples_per_pixel (both pre-existing keys); none of the 21 new assertions (3 render flags, 10 booleans, shadow_light_fraction, 6 splat, nworld) is proven non-vacuous by a negative case. Chief has Backend open card E (one new-key negative + keep one existing-item negative). Forward coverage and anti-omission guards are real; this is a test-strength/evidence-chain gap, non-blocking."
+                         }
+                     ],
+    "observations":  [
+                         {
+                             "id":  "O1",
+                             "title":  "model 侧 cam_res 的正确键名是 cam_resolution",
+                             "detail":  "model-312.json arrays contain cam_resolution (no cam_res key). If a derivation self-check is added later, use that key; note it would be self-consistency, not reference comparison."
+                         },
+                         {
+                             "id":  "O2",
+                             "title":  "GPU ignored 用例未执行（零 GPU 口径）",
+                             "detail":  "multiframe_renders_match_captured_reference stays ignored (needs GPU+NVRTC); it compiles against the new assertion function via the re-export. This card does not judge GPU behaviour; later R06 windows must re-freeze the exe."
+                         }
+                     ],
+    "verified":  {
+                     "key_set":  "RECIPE_PARAM_KEYS [\u0026str;26] set == capture.parameters keys (26, no diff); capture.json sha 767f8c1b... matches the TEXT_FILES anchor and was not modified",
+                     "accounting":  "26 recorded (3 flags + 12 booleans + enabled_geom_groups + cam_active + background_color + shadow_light_fraction + samples_per_pixel + 6 splat) + nworld + cam_res nominal = 28; new assertions 21, old 6 preserved with cam_active strengthened",
+                     "real_comparison":  "booleans/flags compared to recipe values, arrays element-wise, splat asserts recipe null AND params.splat.any_present()==false",
+                     "anti_omission":  "assert_params_match_capture set-equality of compared keys vs RECIPE_PARAM_KEYS; capture key-set test; counterexample test flips use_shadows and samples_per_pixel and requires catch_unwind panic",
+                     "tests_rerun":  "cargo test --locked --features cuda-probe --test render_flex_multiframe -- recipe =\u003e 5 passed / 0 failed; evidence log full target 41 passed / 0 failed / 1 ignored",
+                     "line_counts":  "494 / 490 / 188 physical LF lines (under the 500 ratchet), matching logs",
+                     "identity":  "QA independent rebuild = 118588392 B / d226bb76dfa22c42b45c4ab49637ec5a01ea336f9949994f293b26e826d21488, identical to the claimed post-card live; pre-card live 3d482e56.../118291924 and pre-existing stash drift 0f76f9e1.../118098954 as recorded",
+                     "boundaries":  "only 3 test files + docs evidence + .normify; no src/fixtures/scripts; guards 94478b3d/43729 and 64bfecdf/11899 unchanged; tests/render_flex_validate.rs zero diff",
+                     "manifest":  "7/7 recomputed, not self-listed",
+                     "gates":  "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored",
+                     "encoding":  "all changed/added docs+tests UTF-8, no BOM/CR/NUL"
+                 },
+    "non_claims":  [
+                       "does not claim rendering numeric/equivalence/release conclusions",
+                       "does not change criteria/reference/tolerance/camera/recipe; capture.json read-only",
+                       "zero GPU, zero windows, no re-freeze"
+                   ],
+    "manifest_selfcheck":  {
+                               "file":  "manifest.txt",
+                               "excludes_manifest_itself":  true,
+                               "expected_files":  3,
+                               "result":  "PASS; sha256+bytes of every listed file recomputed"
+                           }
+}

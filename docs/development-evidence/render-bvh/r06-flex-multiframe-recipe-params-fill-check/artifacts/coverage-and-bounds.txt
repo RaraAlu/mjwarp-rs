@@ -1,0 +1,43 @@
+# QA independent checks for R06 multiframe recipe-params fill (commit 20015625, zero GPU)
+#
+## 1) 7 -> 28 accounting (re-derived)
+# RECIPE_PARAM_KEYS declared 26 == capture.parameters keys 26 (set-compare, no diff)
+# breakdown: 3 render flags + 12 booleans + enabled_geom_groups + cam_active + background_color
+#            + shadow_light_fraction + samples_per_pixel + 6 splat = 26 recorded
+# 28 = 26 recorded + nworld (capture does not record; multiframe fixes world=1) + cam_res (nominal; see LOW L1)
+# new assertions = 21 (nworld 1 + flags 3 + booleans 10 + shadow_light_fraction 1 + splat 6), old 6 preserved
+#
+## 2) capture fixture (read-only, unchanged by this commit)
+# fixtures/render-bvh/scene-flex/multiframe/capture.json
+#   sha256 767f8c1b0ea63880b6bbdec0f30452fd24b6166ccef8aceea43acf29417a7252  (matches TEXT_FILES anchor in multiframe.rs)
+#   parameters keys = 26 ; no top-level "context" section
+#
+## 3) tests rerun by QA (CPU only)
+# cargo test --locked --features cuda-probe --test render_flex_multiframe -- recipe
+#   => 5 passed (4 recipe CPU self-checks + 1 s7b1 test whose name contains "recipe"); 0 failed
+# evidence log full target: 41 passed / 0 failed / 1 ignored (ignored = multiframe_renders_match_captured_reference, GPU+NVRTC)
+#
+## 4) anti-omission guards
+# assert_params_match_capture: compared[] sorted == RECIPE_PARAM_KEYS sorted (set equality; missing/extra both fail)
+# capture_parameter_keys_match_28_item_scope: capture.parameters keys == RECIPE_PARAM_KEYS and 26+2 == 28
+# recipe_param_mismatch_is_detected: flips use_shadows and samples_per_pixel, catch_unwind must catch panic,
+#   then reruns the unmodified positive case
+#
+## 5) line counts (physical LF)
+# tests/render_flex_multiframe.rs          494 (was 499)
+# tests/support/render_bvh/multiframe.rs   490 (was 496)
+# tests/support/render_bvh/multiframe_recipe.rs 188 (new)
+#
+## 6) test-binary identity (QA rebuilt independently)
+# QA rebuild: 118588392 B / d226bb76dfa22c42b45c4ab49637ec5a01ea336f9949994f293b26e826d21488  == card's post-card live
+# pre-card live 3d482e56.../118291924 ; pre-existing frozen stash 0f76f9e1.../118098954 (already drifted before this card)
+#
+## 7) boundaries
+# changed files: 3 test files + docs evidence (8) + .normify (5); no src/ fixtures/ scripts/ path
+# guards: guards-perworld-l2-light.json 94478b3d.../43729 unchanged ; guards-r06-multiframe.json 64bfecdf.../11899 unchanged
+# tests/render_flex_validate.rs zero diff
+#
+## 8) evidence / gates / encoding
+# manifest 7/7 recomputed (bad=0 missing=0 extra=0, not self-listed)
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+# encoding: all changed/added docs+tests UTF-8, no BOM, no CR, no NUL
