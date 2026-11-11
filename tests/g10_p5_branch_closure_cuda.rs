@@ -2,7 +2,9 @@
 //!
 //! - 参考：S3 捕获窗落盘的 `docs/development-evidence/g10-p5-branch-closure-capture/`
 //!   `upstream-branch-closure-gpu.json`（branch 验收组：U1/U3×5/U4/U5/U6）与
-//!   `upstream-mesh-limits-gpu.json`（limits 组：U7/U8，**record-only**）。
+//!   `upstream-mesh-limits-gpu.json`（limits 组：U7/U8；A2-3 前 record-only，用户 2026-11-12 签名
+//!   提升为 **pass/fail**，全条件走 `support/mesh_multicontact_compare_support.rs` 的 M1/M2/M3
+//!   同口径 comparator）。
 //! - 输入：逐 case 的 `qpos` 不参与设备输入（设备吃 `geom_xpos`/`geom_xmat` f32 + size/type +
 //!   mesh 拓扑）；`geom_xpos`/`geom_xmat` 逐位取自 S3 参考 JSON（上游 GPU 采集的同一帧），
 //!   mesh 拓扑来自 `support/branch_closure_mesh_data.rs`（pinned mujoco 3.15 对同一批 S3
@@ -11,7 +13,9 @@
 //!   4 ULP@1.0）、`pos` 4·ULP(参考三轴最大绝对值)、`frame` 4 ULP@1.0；count/结构字段/
 //!   接触参数零容差；`efc_address` 全 -1、`overflow` 全 0 设备侧不变量（复用
 //!   `support/primitive_compare.rs`）。
-//! - **limits 组 record-only**：只打印设备与上游的 count/dist/pos，不进 pass/fail 断言。
+//! - **limits 组（U7/U8）pass/fail**：comparator 断言 nacon 零容差、结构键 (worldid, geomcollisionid)
+//!   排序配对、位级优先/4 ULP 回退、11 个零容差字段、overflow 全 0、efc_address 全 -1、
+//!   contact.geom 序 [1,0]；同时保留 count/dist/pos 数值打印供证据表引用。判据/容差/参考/期望值零改动。
 //!
 //! 运行：`cargo test --locked --features cuda-probe --test g10_p5_branch_closure_cuda -- --ignored --test-threads=1 --nocapture`
 
@@ -27,6 +31,8 @@
 mod branch_closure_case;
 #[path = "support/branch_closure_mesh_data.rs"]
 mod branch_closure_mesh_data;
+#[path = "support/mesh_multicontact_compare_support.rs"]
+mod mesh_multicontact_compare_support;
 #[path = "support/primitive_compare.rs"]
 mod primitive_compare;
 
@@ -36,6 +42,7 @@ use mjwarp_rs::runtime::collision_gpu::{CollisionGpuOutput, CollisionGpuProgram,
 use sha2::{Digest, Sha256};
 
 use branch_closure_case::{BRANCH_CASES, Case, CaseInputs, FIXTURE_SHA256, Kernel, LIMIT_CASES};
+use mesh_multicontact_compare_support::compare_case_with_geom_order;
 use primitive_compare::compare;
 
 const BRANCH_REFERENCE: &str =
@@ -162,12 +169,15 @@ fn branch_closure_acceptance_group_matches_s3_upstream_gpu() {
 
 #[test]
 #[ignore = "requires NVIDIA GPU + NVRTC"]
-fn mesh_limits_group_records_device_vs_upstream_values() {
-    // U7/U8 = record-only：只打印/落 facts（count/dist/pos），不参与 pass/fail 分母。
-    // U8 口径：上游支持 20 顶点 polygon（动态容量），设备 FACE_MAX=16 逐 polygon 回退 →
-    // 行为差异 / 限制存在；设备实测 != 4 如实记录，不动 fixture/判据/代码。
+fn mesh_limits_group_matches_s3_upstream_gpu() {
+    // U7/U8 pass/fail（用户 2026-11-12 签名提升；A2 容量 32/32 后 in-range）。
+    // 全条件走 M1/M2/M3 同口径 comparator（`support/mesh_multicontact_compare_support.rs`，本用例只调用、
+    // 不修改该 comparator）：nacon 零容差、结构键 (worldid, geomcollisionid) 排序配对、位级优先/4 ULP 回退、
+    // 11 个零容差字段、overflow 全 0、efc_address 全 -1、contact.geom 序 [1,0]（box 6 < mesh 7）。
+    // 判据/容差/参考/期望值零改动；保留 count/dist/pos 数值打印供证据表引用。
     let program = CollisionGpuProgram::new(0).expect("NVRTC 编译设备源并加载模块/入口");
     let reference = read_reference(LIMITS_REFERENCE, LIMITS_REFERENCE_SHA256);
+    let mut failures: Vec<String> = Vec::new();
     for case in &LIMIT_CASES {
         let case_reference = &reference["cases"][case.name];
         assert_eq!(
@@ -194,7 +204,20 @@ fn mesh_limits_group_records_device_vs_upstream_values() {
             format_points(&device_pos),
             format_points(&reference_pos)
         );
+        let report = compare_case_with_geom_order(case.name, case_reference, &output, "[1,0]");
+        report.print();
+        failures.extend(
+            report
+                .failures
+                .into_iter()
+                .map(|failure| format!("{}: {failure}", case.name)),
+        );
     }
+    assert!(
+        failures.is_empty(),
+        "U7/U8 pass_rule 全条件与 S3 上游 GPU 参考不一致（{} 条）",
+        failures.len()
+    );
 }
 
 #[test]

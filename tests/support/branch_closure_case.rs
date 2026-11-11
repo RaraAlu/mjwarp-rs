@@ -1,4 +1,4 @@
-//! S4 · UNC-3 分支收口：branch 验收组 9 case + limits 记录组 2 case 的输入定义（test-only）。
+//! S4 · UNC-3 分支收口：branch 验收组 9 case + limits 判据组（U7/U8）2 case 的输入定义（test-only）。
 //!
 //! 数据来源（只读）：
 //! - fixture：S3 落盘的 13 个文件（sha256 清单见本文件 `FIXTURE_SHA256`，由 CPU 测试复核）；
@@ -107,7 +107,8 @@ pub(crate) const BRANCH_CASES: [Case; 9] = [
     },
 ];
 
-/// limits 记录组（U7/U8）：**record-only**，不参与 pass/fail 断言。
+/// limits 判据组（U7/U8）：A2-3 前 record-only；用户 2026-11-12 签名提升为 **pass/fail**
+/// （comparator 见 `mesh_multicontact_compare_support.rs`；判据/容差/参考/期望值零改动）。
 pub(crate) const LIMIT_CASES: [Case; 2] = [
     Case {
         name: "mesh-limits-cone-box",
