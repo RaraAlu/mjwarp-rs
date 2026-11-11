@@ -1,0 +1,262 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-02-np01-precision-deviation-audit",
+  "verdict": "PASS",
+  "kind": "np01-precision-deviation-audit",
+  "np5_01a_sites": 608,
+  "np5_01a_unique_expressions": 598,
+  "type_tables": {
+    "field_tables": 30,
+    "host_tables": 3,
+    "total": 33
+  },
+  "type_deviation_count": 0,
+  "precision_deviation_zero_items_verified": false,
+  "required_unfinished_statement": "NP01 精度偏离 0 项未完成",
+  "recipe_difference": {
+    "quantized_cases": 5,
+    "np5_01a_recipe_difference_sites": {
+      "a1a_acc3": 1,
+      "a1b_acc5": 1,
+      "re1_recipe_difference": 1
+    },
+    "max_abs_range": "1e-9 .. 8e-7（B2 5 case × 3 字段）"
+  },
+  "engine_semantic": {
+    "np5_01a_source_level_sites": 20,
+    "np5_01a_re3_device_sites": 304
+  },
+  "implementation_residual": {
+    "b2_cases": [
+      "ellipsoid-box",
+      "hfield-capsule",
+      "hfield-sphere",
+      "sdf-box"
+    ],
+    "failed_cases": [],
+    "known_deviation_count": 1
+  },
+  "coverage_blocked": [
+    "E 指标定稿",
+    "Windows vs Linux 双平台精度复验",
+    "跨 recipe 位级判据",
+    "device 级不可判站点",
+    "7 未实现子系统"
+  ],
+  "inputs": {
+    "b1_expr": {
+      "path": "docs/development-evidence/np01-host-device-expr/host_device_expr.json",
+      "sha256": "3fcb0ebaf7a9453a494982de1d42a7bb0d5a47de546bad1635d61a6da3422854",
+      "bytes": 13193
+    },
+    "b2_fields": {
+      "path": "docs/development-evidence/np01-host-device-fields/host_device_fields.json",
+      "sha256": "83eb3a74e1e0862024c43b60a2adf98402bf7455181de301dad51f989a4a5920",
+      "bytes": 18576
+    },
+    "a0": {
+      "path": "docs/development-evidence/np01-e-recompute/e_recompute.json",
+      "sha256": "8f3400d1f0193b778d2044674d7df66df8d8e950f89b2372922a3a193425c20a",
+      "bytes": 16557
+    },
+    "cuda_surface": {
+      "path": "docs/development-evidence/np01-type-mapping/cuda-surface.json",
+      "sha256": "8cb8361bab8fe8e220975fc3fa4b9851670ea1644b4e909b71e738bc91ab595c",
+      "bytes": 5035,
+      "files": 42,
+      "globals": 22
+    },
+    "re_device_slices": {
+      "re1": {
+        "device_sites": [
+          {
+            "id": "mass_solve:rigid_mass_solve:accumulation:0",
+            "a1a_site": true,
+            "site": "tile Schur factor update（tile_schur_update: mul.f32/sub.f32 可收缩）",
+            "product_anchor": {
+              "file": "src/physics/mass_solve/cuda.rs",
+              "line": 43,
+              "helper": "tile_schur_update @ cuda.rs:5-12 (inline asm mul.f32/sub.f32)"
+            },
+            "product_ptx": {
+              "entry": "rigid_mass_solve",
+              "arch": "compute_70",
+              "nvrtc": "12.8.93",
+              "forms": "mul.f32 / sub.f32（可收缩；由 tile_schur_update 内联 asm 发出）"
+            },
+            "reference": {
+              "variant": "tile_chol_factorize_sz11 / sz12",
+              "entry": "_tile_cholesky_factorize_block__locals__kernel_a33bd3ff_cuda_kernel_forward",
+              "ptx_sha256": "c9dc182a1de2b74a302c2f41e1dd9fffc0f1c615aa68b55440c27f3800aab33f",
+              "forms": {
+                "ld.shared.f32": 37,
+                "mul.f32": 22,
+                "mov.f32": 14,
+                "sub.f32": 14,
+                "st.shared.f32": 13,
+                "st.global.f32": 7,
+                "ld.global.f32": 4,
+                "sqrt.rn.f32": 1,
+                "rcp.rn.f32": 1
+              }
+            },
+            "classification": "identical",
+            "basis": "device-level normalized instruction form（Schur 子运算两侧同为可收缩 mul.f32/sub.f32）",
+            "premise": "B 类前提：参考 PTX 为 NVRTC 12.9 / sm_89 / block_dim=32 离线生成，产品 PTX 为 NVRTC 12.8.93 / compute_70；仅写「归一化指令形态等价」，不写字节/位级等价",
+            "notes": "两侧 Schur 更新均许可 FMA 收缩、操作数顺序一致；是否收缩由驱动 JIT 决定，未做位级测试"
+          },
+          {
+            "id": "mass_solve:rigid_mass_solve:accumulation:1",
+            "a1a_site": true,
+            "site": "tile 对角步：rsqrt.approx + __fmul_rn（产品按 MathDx 冻结 PTX）",
+            "product_anchor": {
+              "file": "src/physics/mass_solve/cuda.rs",
+              "line": 50,
+              "note": "asm rsqrt.approx.f32 @:50；diagonal=__fmul_rn @:51；__fmul_rn(value,reciprocal) @:63"
+            },
+            "product_ptx": {
+              "entry": "rigid_mass_solve",
+              "arch": "compute_70",
+              "nvrtc": "12.8.93",
+              "forms": {
+                "rsqrt.approx.f32": 1,
+                "mul.rn.f32": 1
+              }
+            },
+            "reference": {
+              "variant": "tile_chol_factorize_sz11 / sz12",
+              "entry": "_tile_cholesky_factorize_block__locals__kernel_a33bd3ff_cuda_kernel_forward",
+              "ptx_sha256": "c9dc182a1de2b74a302c2f41e1dd9fffc0f1c615aa68b55440c27f3800aab33f",
+              "forms": {
+                "ld.shared.f32": 37,
+                "mul.f32": 22,
+                "mov.f32": 14,
+                "sub.f32": 14,
+                "st.shared.f32": 13,
+                "st.global.f32": 7,
+                "ld.global.f32": 4,
+                "sqrt.rn.f32": 1,
+                "rcp.rn.f32": 1
+              }
+            },
+            "classification": "not-decidable",
+            "not_decidable_reasons": [
+              "no-lineinfo",
+              "frozen-artifact-only"
+            ],
+            "missing_evidence": "参考构建为 warp scalar 回退（sqrt.rn.f32 + rcp.rn.f32），产品 tile 对角步为 MathDx 形态（rsqrt.approx.f32 + mul.rn.f32）：approx 与 exact 形态差异、非值等价，按 vocab 不能记 recipe-difference（其 value_equivalent 必须为 true）。需 Chief/Arch 裁「MathDx opt-in 路线下 approx 库实现差异」应记 recipe-difference（非零期望量级、单列）还是保持 not-decidable；本卡不代替裁定。"
+          },
+          {
+            "id": "mass_solve:rigid_mass_solve:accumulation:5",
+            "a1b_site": true,
+            "site": "tile 求解列扫描：__frcp_rn 取倒 + __fmul_rn 缩放 + __fmaf_rn 更新（MathDx 形态）",
+            "product_anchor": {
+              "file": "src/physics/mass_solve/cuda.rs",
+              "line": 101,
+              "note": "for j: __frcp_rn @101；__fmul_rn @102；__fmaf_rn @103（正/反向）"
+            },
+            "product_ptx": {
+              "entry": "rigid_mass_solve",
+              "arch": "compute_70",
+              "nvrtc": "12.8.93",
+              "forms": {
+                "rcp.rn.f32": 2,
+                "mul.rn.f32": 2,
+                "fma.rn.f32": 14
+              }
+            },
+            "reference": {
+              "variant": "tile_chol_solve_sz11 / sz12",
+              "entry": "_tile_cholesky_solve_block__locals__kernel_213f23e9_cuda_kernel_forward",
+              "ptx_sha256": "746f9d28fd72fa774224cb7a3ead5c257eaeaf36821d62c9c863cb68ecc43890",
+              "forms": {
+                "ld.shared.f32": 42,
+                "st.shared.f32": 23,
+                "mov.f32": 14,
+                "ld.global.f32": 14,
+                "mul.f32": 14,
+                "sub.f32": 14,
+                "st.global.f32": 7,
+                "setp.eq.f32": 2,
+                "div.rn.f32": 2,
+                "ld.shared.v4.f32": 1
+              }
+            },
+            "classification": "recipe-difference",
+            "value_equivalent": true,
+            "value_equivalence_basis": "analytic, not bit-tested",
+            "product_form": "rcp.rn 取对角倒 + mul.rn 缩放 + fma.rn 单次正确舍入更新",
+            "reference_form": "div.rn 对角除 + mul.f32/sub.f32（可收缩）",
+            "why_value_equivalent": "对角步：rcp.rn(diag) 与 1/diag 的 RN 值相同（正确舍入倒数），随后各一次 RN 乘；更新步：产品显式 fma.rn 与参考可收缩 mul/sub 在「参考实际收缩」时同值。按 Chief R2 先例记 recipe-difference；MathDx 为产品 opt-in 路线、默认路径不走，若未来变默认需重评；未做位级测试",
+            "bit_tested": false
+          }
+        ],
+        "classifications": null
+      },
+      "re2": {
+        "device_rows": null,
+        "device_classifications": null
+      },
+      "re3": {
+        "device_rows": 24,
+        "device_sites": 304,
+        "classification_sites_total": {
+          "B": {
+            "rows": 7,
+            "sites": 78,
+            "classification_sites": {
+              "engine-semantic": 52,
+              "n/a": 10,
+              "not-decidable": 16
+            },
+            "classification_rows": {
+              "engine-semantic": 4,
+              "n/a": 1,
+              "not-decidable": 2
+            }
+          },
+          "C": {
+            "rows": 17,
+            "sites": 226,
+            "classification_sites": {
+              "engine-semantic": 152,
+              "not-decidable": 57,
+              "n/a": 17
+            },
+            "classification_rows": {
+              "engine-semantic": 11,
+              "not-decidable": 5,
+              "n/a": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "tree": {
+    "head": "d3db7d5b01f90c85d56955bb79ac749e9a6f9586"
+  },
+  "ptx_landed": false,
+  "selfcheck": {
+    "log": "logs/selfcheck.txt",
+    "result": "PASS"
+  },
+  "boundaries": {
+    "write_scope": "docs/development-evidence/np-gate/np5-02/** + .normify/**",
+    "historical_bytes_unchanged": true,
+    "src_unchanged": true,
+    "tests_unchanged": true,
+    "fixtures_unchanged": true,
+    "criteria_changed": false,
+    "gpu_used": false,
+    "window_rerun": false
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion (E not finalized)",
+    "does not claim bit-level equivalence or cross-recipe equivalence",
+    "recipe/engine-semantic differences are listed separately and are not type deviations",
+    "zero GPU / zero window; read-only evidence aggregation",
+    "verdict PASS means the audit was executed, not that NP01 passed"
+  ],
+  "manifest": "manifest.txt (sha256 + bytes; does not list itself)"
+}
