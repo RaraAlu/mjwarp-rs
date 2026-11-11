@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-a2-policy-addenda-check",
+  "kind": "np5-01a-a2-policy-addenda-check",
+  "reviewed": [
+    "df5fc8aa"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 1,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "withdrawn_statements": 5,
+    "withdrawn_coverage": "5/5 verified: crb acc:2 why (1 位级等价); crb note:1 label+expression (1 等价 + 1 一致); kinematics note:1 label+expression (2 一致)",
+    "a2_append_only": "evidence.json/README.md/receipt.json/logs unchanged 2cede9b6->df5fc8aa",
+    "a2_addenda": {
+      "bytes": 2030,
+      "sha256_16": "0ba40a0b"
+    },
+    "a2_manifest_recomputed": {
+      "entries": "5/5",
+      "sha256_16": "9109897e",
+      "bytes": 661,
+      "addenda_listed": true
+    },
+    "classifications_unchanged": true,
+    "bit_level_guarantee_holds": true,
+    "a2_evidence_policy_hits": 5,
+    "policy_scan_negation_cases": {
+      "不提供位级保证": "exempt (pass)",
+      "不写位级等价": "exempt (pass)",
+      "不同": "no false positive (pass)",
+      "不仅": "correctly hits (pass)",
+      "不但": "correctly hits (pass)"
+    },
+    "policy_scan_dot_variant": "FALSE NEGATIVE: \"位级·等价\" (middle dot) not matched -> addenda 0-hit is due to the separator, not negation exemption",
+    "receipt_forbidden_list_vs_code": "receipt lists 位级·等价/位级·一致 with middle dot; code FORBIDDEN has no dot",
+    "schema_integration": "evidence_schema.py references policy_scan",
+    "gates": {
+      "fmt": 0,
+      "clippy": 0,
+      "clippy-cuda": 0,
+      "unit": {
+        "passed": 1406,
+        "failed": 0,
+        "ignored": 402
+      }
+    },
+    "boundaries": "docs evidence + .normify only; src/tests/fixtures/scripts unchanged",
+    "hygiene": "UTF-8/LF no BOM/CR/TAB/NUL"
+  },
+  "findings": [
+    {
+      "id": "G1",
+      "severity": "major",
+      "type": "scanner-gap",
+      "where": "np5-01a-tools/policy_scan.py + np5-01a-a2/addenda.md",
+      "summary": "policy_scan matches only the exact strings without separators: \"位级·等价\" (middle dot) is NOT detected. The A-2 addenda writes the withdrawn originals as \"位级·等价\" and reports 0 hits, attributing it to negation exemption; in fact it is the separator that bypasses the pattern. The same gap exists for \"位级 等价\"/\"位级-等价\"/\"位级_等价\". Receipt forbidden_phrases list (with dots) also disagrees with the code (no dots).",
+      "suggest": "normalize separators before matching (strip · space - _ or use regex like 位级[\\s·\\-_]?等价); correct the addenda attribution; align receipt forbidden list with code"
+    },
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "typo",
+      "where": "np5-01a-a2/addenda.md:1",
+      "summary": "title says \"append-orderr\" (should be append-only)"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "policy_scan.py lives only in target/ (not landed); later slices depend on it but the repo cannot reproduce/verify the tool version - inconsistent with RE-0 scripts being landed"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "negation window is 18 chars before the phrase; distant negators cause false positives and nearby negators can over-exempt; record the limitation"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence",
+    "review of the policy withdrawal and scanner only"
+  ]
+}
