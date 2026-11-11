@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-perworld-l-v2-gl2-errata-batch",
+  "title": {
+    "zh": "G-L2 errata 批（H2 前提 addenda A1–A6 + dump 字段 errata B + QA#7 记录面残留 C；纯文档/测试侧诊断；零 GPU）",
+    "en": "G-L2 errata batch (H2 premise addenda A1-A6 + dump field errata B + QA#7 record-level residuals C; docs/test-side diagnostics only; zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "依据 Arch 规格稿 `target/render-bvh/gl2-ptx-diff/errata-batch-spec.md`（`56fc8e2b…`）与 W0 收口 brief（`eccd0b9f…`）：A. 对 5 个证据目录追加 append-only addenda（A1–A6），统一口径为「上游 = 局部归一化 + mat@n + 再归一化（两次）；f728b2d7 删掉第一次归一化，P10 `b0e372be` 已恢复」，不改历史字节；B. 先核 `tests/support/render_bvh/light/diag.rs::segment_attribution` 的 `geom_type` 来源（已核 = `seg[1]`，errata 成立），按方案 A 把 `geom_type` 改为真实 `mjm.geom_type[geom_id]`、新增 `seg_objtype = seg[1]` 过渡、schema 保持 2，并补静态单测；C. 修 QA #7 三条记录面残留（GPU 现场快照模板、body-env 转义污染口径、GPU 数字以 nvidia-smi 为准）。边界：只动 `docs/development-evidence/**` 与诊断测试支持代码/静态单测；`src/`、`fixtures/`、`scripts/`、guards/冻结件、已签 S-1/S-2/S-3 正文零改动；不改判据/参考/容差；不改内核身份（无 `.cu` 改动）。",
+    "en": "Per Arch spec errata-batch-spec.md: A. append-only addenda A1-A6 for the H2 premise errata across 5 evidence dirs; B. dump field errata: verified segment_attribution's geom_type comes from seg[1] (errata stands); adopt option A (geom_type = real mjm.geom_type[geom_id], new seg_objtype = seg[1] transitional key, schema stays 2, static unit tests); C. fix QA#7 three record-level residuals. Only docs/evidence and test-side diagnostics change; no src/fixtures/scripts/guards/.cu change; no kernel identity change; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "B1 核对留证：`segment_attribution` 的 `geom_type` 实际取 `seg[1]`（非 `mjm.geom_type[geom_id]`），模型 `geom_type[3] = 7 (MESH)`、`seg = [3,5]` ⇒ errata 成立（`artifacts/b1-source-audit.txt`）",
+    "A1–A6 append-only addenda 落仓：single-normalize README/receipt/call-chain-audit、criterion-a-rca README、chain-pin README、chain-pin-check README；统一口径句引用 W0 brief；不改历史字节/`f728b2d7` 说明；各目录 manifest 重算",
+    "B 方案 A 实现（仅测试侧诊断）：`geom_type` = 模型 `geom_type[geom_id]`（无模型/越界为 null）、新增 `seg_objtype` = `seg[1]`、其余字段不变、dump 顶层 schema 保持 2；补静态单测（geom 3 ⇒ geom_type=7 / seg_objtype=5 / schema 2）；不改内核/实体内核身份（无 `.cu`）",
+    "C 三条记录面残留：diag7 现场 GPU 快照模板、body-env 以文件写入口径重写（修转义污染）、GPU 数字以 nvidia-smi 实测为准并标派工参考；记录于本批证据",
+    "证据：新增 `perworld-l-v2-gl2-errata-batch/` README/receipt/manifest + artifacts（A 索引、B1 审计、B 代码 diff/字段说明、C 记录修正、模板），各受影响目录 manifest 重算自核；四门禁 + `normify check/done`；中文提交",
+    "边界/非声明：`src/`、`fixtures/`、`scripts/`、guards/冻结件、已签材料零改动；不改判据/参考/容差；历史字节与提交说明不改写；不宣称 G-L2 新结论"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-single-normalize/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-criterion-a-rca/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-mesh-normal-chain-pin-check/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-diag7-check/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-errata-batch/",
+      "tests/support/render_bvh/light/diag.rs"
+    ],
+    "resources": [],
+    "priority": 98
+  },
+  "note": "依 Chief 2026-11-11 派工（W0 收口等待期）。建议拆 2 片，本卡以单提交交付但在 message/README 内分 A / B+C 两段。B 仅测试侧诊断 + 静态单测；无 .cu、无内核身份变化（调用方重编 test exe 属测试二进制变化，非内核身份）。",
+  "revision": {
+    "before": "7cdf20308fa10731ac8d1dc9271b5c6ae8ef185c",
+    "after": null
+  },
+  "created_at": "2026-11-11T00:03:30.371Z",
+  "updated_at": "2026-11-11T00:03:30.371Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/",
+        "src/",
+        "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/"
+      ]
+    }
+  ]
+}
