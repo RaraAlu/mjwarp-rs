@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-flex-z2vec-record-errata-check",
+  "title": {
+    "zh": "QA 复核 z2vec 片 2/记录面修正（`9155b9c1`，卡 A）：8 项更正 C1–C8 + 重冻 backlog **全部落地且可验证**——①镜像 `warp_length3` 已注明「数值对应、非位级 oracle（Rust 左结合 vs `.cu` `fmaf` 链、1 ulp、仅 1e-6 容差；#1 `assert_eq!` 不经该链）」；②L1 措辞改为「`(0,1,0,0)` 在 `render_flex.cu`/全 `src/` 无字面，实际未动的是同向初值 `(0,0,0,1)`」且我实测初始化确在 `render_flex.cu:36-39`；③**G1** 已改标「`gpu_post_actual` = errata 时段复测（mtime 08:06:18）」，错误引用「post recorded in run-summary.txt」已从 target 现场删除（我实测 986 B/mtime 12:03:30），`gpu_after=$gpu` 占位事实写清；④r2 低 4 项逐项核实（`b-field-change.diff` 仅 2 个搬迁 hunk、old index `25affdc8`、`84ed67d2^` 实为 `02533c7d`；receipt 结构重排+addenda；物理行数 **484/237** 我重测一致；task_id successor 说明）；⑤PTX 双口径 348,459/348,460 且我沿 repo `nvrtc.rs:104-105` + cudarc 0.18.2 `result.rs:114-122`/`safe.rs:41-46` 核过链路正确；⑥零 `.cu`、零行为变化（测试文件 **+15 全注释、0 删除**）、attempt4 目录零改动、两处历史 README **纯追加**（前缀==旧长度）、三目录 manifest **11/11、8/8、5/5**、门禁 unit **1,403/0/402**、编码全干净 → **复核通过（0 阻断，1 低 + 1 观察）**；低=§G 编号沿用 QA 编号易与 §A/§B 串号；观察=append-only 使原文 §C 旧表述保留、仅 §G 覆盖",
+    "en": "QA review of z2vec slice 2 / record corrections (9155b9c1, card A): all eight corrections C1-C8 plus the refreeze backlog are landed and independently verifiable; no .cu, no behavior change (tests +15 comment-only lines), attempt4 untouched, two READMEs pure appends, manifests 11/11 8/8 5/5, gates unit 1403/0/402 - PASS with 1 low + 1 observation"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对卡 A（z2vec 片 2 + 记录面修正，提交 **`9155b9c1`**，卡 `2026-11-11-render-flex-z2vec-record-errata`）做独立只读复核（零 GPU）：①Arch 镜像 oracle 观察是否注释；②L1 措辞更正与行号引用；③errata r2 G1（C1 provenance/错误引用/占位事实）；④r2 低 4 项；⑤PTX NUL 双口径与身份重冻 backlog；⑥零 `.cu`/行为未变/门禁/manifest/边界（含 attempt4 目录零改动）。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of card A (record corrections): mirror oracle note, L1 wording, errata-r2 G1 provenance, the four r2 lows, PTX NUL accounting and refreeze backlog, zero .cu/behavior unchanged, gates/manifests/boundaries including attempt4 untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "**①Arch 观察（镜像 oracle）✅**：`tests/render_flex_z2vec.rs` 文件头 + `warp_length3` 文档注释明写「数值对应、**非位级 oracle**（Rust 左结合求和 vs `.cu` 显式 `fmaf` 链，1 ulp 级；该链相关断言只做 1e-6 容差，不承载位级等价结论；#1 的 `assert_eq!` 只针对近平行常量四元数、不经过该求和链）」；`flex-z2vec-pin/README.md` §7 同项记录 —— 与测试实际口径一致",
+    "**②L1 措辞 ✅**：更正为「`(0,1,0,0)` 四元组字面在 `render_flex.cu` 与全 `src/` 不存在；实际未改动的是同向路径保存的初始单位四元数 `(0,0,0,1)`」；我实读 `render_flex.cu`：初始化确在 **:36-39**（`quat[0..3] = 0,0,0,1`）、近平行分支 :51-56、同向 `return` 早退原样 —— 行号与语义引用正确",
+    "**③errata r2 G1 ✅**：`gl2-errata-batch/README.md` §G 明写「`gpu_post_actual` 为 errata 时段复测（mtime 2026-11-11 08:06:18）、非 run 时采样」，并写明「原文 `post recorded in run-summary.txt` 交叉引用不实、该文件仍为 `gpu_after=$gpu` 占位」；我实读 target 现场文件：现 **986 B / mtime 12:03:30**，标题行与 `timestamps_actual` 已带 provenance、错误引用已删；`artifacts/c1-diag7-post-provenance.txt` 的 BEFORE/AFTER 与我此前所见文件内容逐字一致",
+    "**④r2 低 4 项 ✅**：`b-field-change.diff` 名实说明——我核 artifact 确只有 2 个 hunk（3 个测试从 `diag.rs` 搬 `diag_ext.rs`，−49/+51）、old index `25affdc8`，且 `84ed67d2^:…/diag.rs` blob 实为 **`02533c7d`**；`single-normalize/receipt.json` 改为「结构重排 + addenda、非 addenda 键逐键相同」；物理行数 **484 / 237**（我重测：484 行/18,384 B、237 行/9,437 B，与 artifact 一致；18/6 差额解释成立）；`task_id` 补 successor `…-r2`、历史不改写",
+    "**⑤PTX NUL 口径 + 重冻 backlog ✅**：双口径写清（348,459 去 NUL / 348,460 raw `nvrtcGetPTXSize`），sha 按去 NUL 计；我沿代码链路复核 **正确**：repo `src/runtime/launcher/artifact/nvrtc.rs:104-105` = `compile_ptx_with_opts(...).map(|ptx| ptx.to_src())`；cudarc 0.18.2 `src/nvrtc/result.rs:114-122`（`nvrtcGetPTXSize` 定 buffer，size 含终止 NUL）+ `src/nvrtc/safe.rs:41-46`（`Ptx::to_src()` → `CStr::from_ptr` 在 NUL 截止）；身份 logs 实读 `ptx_bytes=348459`/`348399`；backlog「megakernel `cf356b72…`/`b63a51dd…` ⇒ 后续渲染 GPU 窗口必须重新冻结」在 README §7 + 新证据 receipt + 卡 note 三处",
+    "**⑥零改动/门禁/边界 ✅**：`git diff 2b6d9b56..9155b9c1`（实为 `04b981d6..9155b9c1`）`*.cu` 空、`src/`/`fixtures/`/`scripts/` 零改动、`tests/render_flex_z2vec.rs` **+15/−0 全为注释**（9 断言与镜像逻辑零改动）；attempt4 目录零改动；两处历史 README **纯追加**（flex-z2vec-pin 5,256→7,436 前缀 5,256；errata-batch 5,719→8,633 前缀 5,719）；三目录 manifest 重算 **11/11、8/8、5/5**（bad=0/missing=0/extra=0、不自列）；门禁 fmt/clippy/clippy-cuda exit 0、unit **1,403/0/402**；改动/新增文件全 UTF-8/LF、无 BOM/CR/NUL",
+    "**结论：复核通过（0 阻断，1 低 + 1 观察）。** 不判定设备端渲染/修复效果；不重冻、不占窗、零 GPU；不改判据/参考/容差"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-flex-z2vec-record-errata",
+      "2026-11-11-render-flex-z2vec-pin-check",
+      "2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata-check/"
+    ],
+    "resources": [],
+    "priority": 96
+  },
+  "note": "Chief 2026-11-11 12:00 派工卡 A 的复核。结论：复核通过（0 阻断，1 低 + 1 观察）。已独立核：C1 镜像 oracle 注释、C2 L1 措辞与 render_flex.cu:36-39 行号、C3 PTX 双口径（348459/348460 且 repo+cudarc 链路正确）、C4 G1 provenance（target 现场 986 B/12:03:30、错误引用已删、gpu_after=$gpu 占位）、C5 b-field-change.diff 仅 2 搬迁 hunk + old index 25affdc8/02533c7d、C6 receipt 重排+addenda、C7 物理行数 484/237 重测一致、C8 task_id successor 说明；backlog 重冻三处记录。边界：零 .cu、零行为变化（tests +15 注释）、attempt4 目录零改动、两 README 纯追加、三目录 manifest 11/11+8/8+5/5、门禁 unit 1403/0/402、编码干净。低：§G 编号易与 §A/§B 串号；观察：append-only 下原文 §C 保留、仅 §G 覆盖。不宣称设备端修复/等价、不重冻、零 GPU。",
+  "revision": {
+    "before": "0c7715920d2e3cbe1410babafcb128732272c468",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:12:00.000Z",
+  "updated_at": "2026-11-11T04:12:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-flex-z2vec-record-errata-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
