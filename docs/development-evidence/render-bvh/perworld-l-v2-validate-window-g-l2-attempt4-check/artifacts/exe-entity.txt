@@ -1,0 +1,41 @@
+# 12 冻结 exe 与实体结果
+
+entity-results.csv rows=12 exits=['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0']
+   1 render_per_world           exit=0 wall=1.588s stdout_ok=True stderr_empty=True
+   2 render_e2e                 exit=0 wall=9.754s stdout_ok=True stderr_empty=True
+   3 render_kernel_rgb          exit=0 wall=4.273s stdout_ok=True stderr_empty=True
+   4 render_kernel_depth_seg    exit=0 wall=4.919s stdout_ok=True stderr_empty=True
+   5 render_kernel_flags        exit=0 wall=11.016s stdout_ok=True stderr_empty=True
+   6 render_r10_multi_world     exit=0 wall=2.744s stdout_ok=True stderr_empty=True
+   7 render_skybox_reference    exit=0 wall=1.557s stdout_ok=True stderr_empty=True
+   8 render_context_lifecycle   exit=0 wall=7.801s stdout_ok=True stderr_empty=True
+   9 render_mesh_bvh            exit=0 wall=0.802s stdout_ok=True stderr_empty=True
+  10 render_hfield_reference    exit=0 wall=2.739s stdout_ok=True stderr_empty=True
+  11 render_shadow_reference    exit=0 wall=5.189s stdout_ok=True stderr_empty=True
+  12 render_per_world_light     exit=0 wall=2.419s stdout_ok=True stderr_empty=True
+  all consistent: True
+
+every stdout log mentions no compile (no cargo/rustc): True
+
+entity nocapture key lines:
+  test gpu_per_world_light_matches_reference ... c1_rgb_changed=[38285, 40644] c2_depth_changed=[35828, 33883] c2_seg_changed=[16041, 16754] verdict=PassMargin
+  diag campersp depth=[0, 0] seg=[0, 0]; camhinge rgb=[50363, 52329]
+  capture.json C1 交叉核对 = Compared
+  A world0 cam0: FrameStats { rgb_mismatched_pixels: 0, rgb_max_byte_diff: 0, depth_mismatched_pixels: 0, depth_max_ulp: 0, depth_beyond_ulp: 0, seg_mismatched_pixels: 0 }
+  A world0 cam1: FrameStats { rgb_mismatched_pixels: 0, rgb_max_byte_diff: 0, depth_mismatched_pixels: 0, depth_max_ulp: 0, depth_beyond_ulp: 0, seg_mismatched_pixels: 0 }
+  A world1 cam0: FrameStats { rgb_mismatched_pixels: 0, rgb_max_byte_diff: 0, depth_mismatched_pixels: 0, depth_max_ulp: 0, depth_beyond_ulp: 0, seg_mismatched_pixels: 0 }
+  A world1 cam1: FrameStats { rgb_mismatched_pixels: 0, rgb_max_byte_diff: 0, depth_mismatched_pixels: 0, depth_max_ulp: 0, depth_beyond_ulp: 0, seg_mismatched_pixels: 0 }
+  A world2 cam0: FrameStats { rgb_mismatched_pixels: 0, rgb_max_byte_diff: 0, depth_mismatched_pixels: 0, depth_max_ulp: 0, depth_beyond_ulp: 0, seg_mismatched_pixels: 0 }
+  A world2 cam1: FrameStats { rgb_mismatched_pixels: 0, rgb_max_byte_diff: 0, depth_mismatched_pixels: 0, depth_max_ulp: 0, depth_beyond_ulp: 0, seg_mismatched_pixels: 0 }
+  B: LightStats { worlds: 3, lights: 3, xpos_mismatched: 0, xdir_mismatched: 0 }
+  isolation changed=[[false, false], [true, true], [false, false]]
+  test pilot_c1_crosscheck_matches_readout ... pilot C1=[38285, 40644] C2 depth=[35828, 33883] seg=[16041, 16754] verdict=PassMargin
+  旧 pilot capture.json（无 §2.4 字段）C1 交叉核对 = Skipped("capture.json 未记录 c1_rgb_changed_px（spec v3 §2.4；旧参考无此字段）")
+
+two-run sha: test only asserts equality, no println of values (known backlog):
+  tests/render_per_world_light.rs:361 let first_sha = light::sha256_frames(&product);
+  tests/render_per_world_light.rs:423 let second_sha = light::sha256_frames(&light::rendered_frames(&context, &resolved));
+  tests/render_per_world_light.rs:425 first_sha, second_sha,
+
+zero compile in body: build-result.txt = no build inside the window: all 12 exes were launched directly from the frozen stash; cargo/rustc were never invoked (build_processes=0 before/after).
+post-integrity: build_processes=0; build_processes=0

@@ -1,0 +1,33 @@
+# 证据完整性、diff 面、编码卫生与残留观察
+
+manifest entries=51 bad=[] extra=[]
+README 9393 7ec3761f7c24c8340d7fcf2aa1ee856563161a4c03c29ee575c988ed7721af19 (claim 7ec3761f.../9393)
+receipt 9577 23c424b619635997a405c4659d5d64e281d5522a35a4aca8e3e9562e8a2c39f4 (claim 23c424b6.../9577)
+manifest 5772 d3b7a8827c0fb2ff2d8a633e0c5c9c3da9e24ecf5284773bc808280523a02e62 (claim d3b7a882.../5772)
+
+## diff face (body head b84d5996 -> archive 5f1d436d)
+  src/       []
+  tests/     []
+  fixtures/  []
+  scripts/   ['scripts/validate/render-bvh/guards-perworld-l2-light.json']
+  reference dir []
+  criterion/spec touched []
+  archive composition: attempt4 docs=56, guards=1, .normify=5
+
+## encoding hygiene
+  PROBLEM window/freeze-stdout.log size=3740 NUL=1867 utf8=True utf16bom=False crlf=0 head=efbfbdefbfbd430048004500
+  PROBLEM window/monitor-stdout.txt size=340 NUL=167 utf8=True utf16bom=False crlf=0 head=efbfbdefbfbd6d006f006e00
+  => two auxiliary stdout logs are corrupted (UTF-8 replacement chars + NUL bytes; the original UTF-16LE text was
+     re-encoded incorrectly). The readable summaries (freeze-exit-code.txt / monitor-exit-code.txt / README)
+     and the independently recomputed guards/aggregate/stash/input facts carry the window validity evidence.
+  guards JSON CRLF count=684 (PS ConvertTo-Json formatting; JSON valid, same hash as evidence copy)
+
+## residual observations
+  1) README section 1 says 'build=0' but the monitor session had 3 samples with build=2 (07:46:38/43/48) that reset the
+     streak; the final 60/60 clean streak has build=0 (verified) => wording imprecise, no discipline breach on the recorded streak.
+  2) baseline three rows share one timestamp (07:54:27.722167); per-sample timestamps and body start time are not recorded;
+     the 5-minute rule can only be inferred from the ~55 s body wall sum and the archive time.
+  3) floor.txt labels 9,956 as 'signed_stricter'; the S-3 signed floor is 9,956 (S-2 not reused), while max(S-2,S-3)=10,230;
+     on-site free 12,143 MiB >= both values, so the floor decision does not change the result.
+  4) guards JSON still has no body_env key (known G-L2 post-errata backlog); body env is recorded in body-env.txt/checklist. INVALID_ROUND none.
+  5) two-run sha: only the equality assertion is recorded (no printed sha values) - known backlog, documented in README section 6.

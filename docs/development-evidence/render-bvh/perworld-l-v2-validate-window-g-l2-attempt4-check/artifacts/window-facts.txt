@@ -1,0 +1,71 @@
+# G-L2 attempt 4 窗口事实独立核对
+
+HEAD now: 5f1d436d549b222fda71d255af376e4c2cd25243
+body head b84d5996 -> archive 5f1d436d ; git diff b84d5996..5f1d436d src/tests/fixtures/scripts: ['scripts/validate/render-bvh/guards-perworld-l2-light.json']
+  (the only scripts/ change is the frozen guards JSON itself; src/ tests/ fixtures/ are zero-diff)
+archive commit files=58
+tree clean: []
+
+## monitor
+samples=78  ts 2026-11-11T07:45:21.970+08:00 -> 2026-11-11T07:51:54.302+08:00  util 2..6  free_min=12136  compute_filtered_sum=0
+build!=0 samples: [(15, '2026-11-11T07:46:38.453+08:00', '2'), (16, '2026-11-11T07:46:43.542+08:00', '2'), (17, '2026-11-11T07:46:48.628+08:00', '2')]
+final 60 samples: span 2026-11-11T07:46:53.752+08:00 -> 2026-11-11T07:51:54.302+08:00 (300.6 s); all clean=True build0=True cf0=True util_max=6 streak='60'
+
+## baseline / floor
+  ts,query
+  2026-11-11T07:54:27.722167+08:00,3 %, 3919 MiB, 12143 MiB, 26
+  2026-11-11T07:54:27.722167+08:00,2 %, 3919 MiB, 12143 MiB, 26
+  2026-11-11T07:54:27.722167+08:00,2 %, 3919 MiB, 12143 MiB, 26
+  signed_S-2_mib=10230
+  signed_S-3_mib=9956
+  signed_stricter_mib=9956
+  onspot_floor_mib=free_min(12143)-budget(3072)=9071
+  floor_effective_mib=max(9956,9071)=9956
+  QA note: all three baseline rows share ONE timestamp (07:54:27.722167); utils differ 3/2/2 => >=2 real queries,
+  but per-sample timestamps are not recorded; body start time is not recorded either (body wall sum ~55 s;
+  archive write time 07:55:54) => 5-minute rule can only be inferred (~30 s after baseline).
+
+## freeze / guards
+guards JSON: 43729 B 94478b3de924ee2940315de1f04617d4c81e48e0b4b9adb77f8a8301ae48734f attempt=4 counts={'frozen_exes': 12, 'guard_inputs': 93, 'outline_lists': 2, 'total': 107} criterion='render-sdf-criterion-v2.2' bound=128
+guards evidence copy identical: True
+aggregate recompute (freezer algorithm: Sort-Object {path} -> hex concat -> SHA256 ASCII):
+  new counts: {"frozen_exes":12,"guard_inputs":93,"outline_lists":2,"total":107}
+  new stored:  081801076e26128d6bd16c8e8c12f14dc0157fadeccec20b42eb0553c4579ef8
+  new recomputed: 081801076e26128d6bd16c8e8c12f14dc0157fadeccec20b42eb0553c4579ef8
+  old stored:  8a4ddc50be2d8e766431533e6ccd8ab4cf5082fdbd63d6638a44b128e9ad4b3e
+  old recomputed: 8a4ddc50be2d8e766431533e6ccd8ab4cf5082fdbd63d6638a44b128e9ad4b3e
+freeze-exit-code.txt: freeze_exit=0 wall_sec=5.2 SELFCHECK PASS 18/18 mode=execute
+command=freeze-guards-perworld-l2-light.ps1 -Execute -Attempt 4 -AllowOldStashDrift
+
+## 12 exe live==guard==stash
+  render_per_world           live=102955898/bc3f1819f8 stash=102955898/bc3f1819f8 ok=True
+  render_e2e                 live=97548563/ee9d94e3d4 stash=97548563/ee9d94e3d4 ok=True
+  render_kernel_rgb          live=97238131/b9daf9b2fc stash=97238131/b9daf9b2fc ok=True
+  render_kernel_depth_seg    live=94100497/1531e5a46a stash=94100497/1531e5a46a ok=True
+  render_kernel_flags        live=99171248/3628df3ada stash=99171248/3628df3ada ok=True
+  render_r10_multi_world     live=97334885/54c6f0fcd5 stash=97334885/54c6f0fcd5 ok=True
+  render_skybox_reference    live=102524174/2e0f417a4e stash=102524174/2e0f417a4e ok=True
+  render_context_lifecycle   live=88646211/a79b42cb1f stash=88646211/a79b42cb1f ok=True
+  render_mesh_bvh            live=89609066/34e1a76318 stash=89609066/34e1a76318 ok=True
+  render_hfield_reference    live=102885156/f8df4321c5 stash=102885156/f8df4321c5 ok=True
+  render_shadow_reference    live=102192571/b764922205 stash=102192571/b764922205 ok=True
+  render_per_world_light     live=92590602/73245bbf17 stash=92590602/73245bbf17 ok=True
+  12/12 live==guard==stash: True
+
+## 93 guard inputs: match=92 drift=1 missing=0 (claim 92/1/0)
+  DRIFT ('fixtures/render-bvh/scene-e2e/camlight-model.json', 6434, '470adbefd90e', 6020, 'e44786d62282')
+
+## outline lists + sidecars
+  arm=recipe bytes=10099 sha>cfd1038a1c match=True rows=183/183 first_pixel=28969 max_ulp=73 sidecar=5027/8a80fb0a43
+  arm=aa2 bytes=9509 sha>14893fc6a2 match=True rows=172/172 first_pixel=29448 max_ulp=91 sidecar=4734/f23ca697f3
+canary: outline[recipe] cam1: list_rows=183 outside_mismatch=0 in_list_differing=183 in_list_max_ulp=73 violations=0 exact_max_ulp=73 list=D:\Rust\mjwarp-rs\docs\development-evidence\render-bvh\sdf-validate-window\attempts\attem
+env checklist: ENV_SELFCHECK_PASS failures=0
+
+## old suite / invalid rounds / head drift
+old suite: {'json': 'docs/development-evidence/render-bvh/perworld-impl-s1/window-attempt3/guards-perworld-s1.json', 'sha256': 'ca3ecd5c407e0e5273a2867794591026d55ee1904f1cf55b689bdc6c8844a15a', 'total': 96, 'read_only': True}
+old suite file: 38659 ca3ecd5c407e0e5273a2867794591026d55ee1904f1cf55b689bdc6c8844a15a
+invalid-rounds file: No invalid rounds in attempt 4. The window body ran once and all 12 frozen exes exited 0.
+body head b84d5996; post-body QA commits bb179c9e/11530f82 src diff EMPTY: []
+guards-input drift file: guard_inputs=93 match=92 drift=1 missing=0
+DRIFT fixtures/render-bvh/scene-e2e/camlight-model.json recorded 6434B/470adbefd90e9395ee9bfd6dddbb6cfa4ee1407306494bfba690faa0d3e26dc5 actual 6020B/e44786d62282b095f28f2fe3e9e5da57ee0980fdcbfeb94dfa89d4a97e5ca9de
+(inherited drift from the old suite freeze;

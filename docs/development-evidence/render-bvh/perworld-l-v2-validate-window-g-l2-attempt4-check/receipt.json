@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4-check",
+  "status": "qa_review_complete_zero_gpu",
+  "kind": "qa-review",
+  "owner": "QA",
+  "verdict": "PASS",
+  "subject": {
+    "archive_commit": "5f1d436d549b222fda71d255af376e4c2cd25243",
+    "governance_commits": ["fd084dd1", "6ed4065d"],
+    "card": "2026-11-11-render-perworld-l-v2-validate-window-g-l2-attempt4",
+    "body_head": "b84d5996568fe55d69529158b63a83b08cd061ba",
+    "archive_files": 58,
+    "evidence_dir": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-g-l2/attempts/attempt4/",
+    "evidence_files": 52,
+    "guards_sha256": "94478b3de924ee2940315de1f04617d4c81e48e0b4b9adb77f8a8301ae48734f",
+    "guards_bytes": 43729,
+    "aggregate_sha256": "081801076e26128d6bd16c8e8c12f14dc0157fadeccec20b42eb0553c4579ef8"
+  },
+  "verified": {
+    "freeze": "guards JSON 43,729 B / 94478b3d... (repo == evidence copy), attempt=4, criterion render-sdf-criterion-v2.2, bound_ulp=128, counts 12 exe + 93 inputs + 2 lists = 107. freeze exit 0, SELFCHECK 18/18 (readable freeze-exit-code.txt).",
+    "aggregate": "QA recomputed with the freezer's own documented algorithm (Sort-Object { $_.path } -> sha256 hex strings concatenated with no separator -> SHA256 ASCII): new = 08180107... matches; the same algorithm on the old 96-entry suite = 8a4ddc50... matches the old suite record. NOTE: Python ordinal sort cannot reproduce it because PowerShell Sort-Object is culture/case-insensitive order.",
+    "twelve_live_guard_stash": "QA independently hashed live exe (target/debug/deps), stash (frozen-exes) and guards entries: 12/12 live == guard == stash (bytes+sha256). render_per_world_light 92,590,602 B / 73245bbf... (same as diag8).",
+    "guard_inputs": "93 inputs recomputed: 92 match / 1 drift / 0 missing. Only drift is the inherited fixtures/render-bvh/scene-e2e/camlight-model.json (guards 6,434 B/470adbef... vs actual 6,020 B/e44786d6...), reported under -AllowOldStashDrift, not repaired. Old suite file unchanged 38,659 B / ca3ecd5c..., its aggregate field 8a4ddc50...; old stash drift 1 entry recorded.",
+    "monitor_baseline_floor": "monitor 78 samples, 07:45:21.970 -> 07:51:54.302, util 2-6%, free_min 12,136 MiB, compute_filtered=0; final 60/60 streak (07:46:53.752 -> 07:51:54.302, 300.6 s) all clean/build=0/compute_filtered=0, streak=60. baseline free 12,143 MiB x3; onspot floor 12,143-3,072=9,071; floor_effective = max(9,956, 9,071) = 9,956; on-site 12,143 >= 9,956.",
+    "body_env_outline_canary": "body-env.txt exports pinned CUDA bin PATH + the criterion v2.2 outline env pair together (same as run-window.ps1:291-292/307-308), ENV_SELFCHECK_PASS failures=0; outline pre/post OK (recipe cfd1038a.../10,099/183/28,969/73, aa2 14893fc6.../9,509/172/29,448/91, sidecars 8a80fb0a.../5,027 and f23ca697.../4,734 exist and match, bound 128); canary outline[recipe] cam1 list_rows=183 outside_mismatch=0 in_list_differing=183 in_list_max_ulp=73 violations=0.",
+    "twelve_exes": "entity-results.csv 12/12 exit=0; every per-exe stdout contains 'test result: ok.' and matches the csv test_result; all stderr empty; zero compile in body (direct frozen-stash exes, build_processes=0, no cargo/rustc in logs). launcher exit-code self-test 0/7/101 captured correctly.",
+    "entity": "render_per_world_light --nocapture: A six frames rgb_mismatched=0/max_byte_diff=0/depth 0 ULP/seg 0; B (xpos_mismatched=0, xdir_mismatched=0); isolation [[false,false],[true,true],[false,false]]; C c1=[38285,40644], c2_depth=[35828,33883], c2_seg=[16041,16754], PassMargin, capture.json C1=Compared; two-run sha assert_eq passed (values not printed - known backlog); pilot passed and its legacy capture gives explicit Skipped (expected).",
+    "evidence_integrity": "manifest 51/51 independently recomputed (bad=[], extra=[]); README 7ec3761f.../9,393, receipt 23c424b6.../9,577, manifest d3b7a882.../5,772 match the claim. Archive 58 files = 52 attempt4 evidence + 1 guards JSON + 5 .normify.",
+    "diff_face": "git diff b84d5996..5f1d436d: src/ tests/ fixtures/ zero diff; the only scripts/ change is the frozen guards JSON (expected); reference 5-file dir and criterion/spec files untouched; historical attempt1-3 evidence not rewritten. Body ran at b84d5996; the two QA commits bb179c9e/11530f82 after the body are governance/evidence only (src/tests/fixtures/scripts diff EMPTY) and are recorded in the evidence.",
+    "invalid_rounds": "none: invalid-rounds-none.txt states no invalid rounds; window dir has no invalid-round attachment; 12 exes single execution, no retry."
+  },
+  "general_findings": [
+    {
+      "code": "G1",
+      "title": "two auxiliary stdout logs are corrupted (evidence hygiene, not window validity)",
+      "detail": "window/freeze-stdout.log (3,740 B, NUL=1,867) and window/monitor-stdout.txt (340 B, NUL=167) start with two U+FFFD replacement chars (BOM lost) followed by UTF-16LE residue with NUL bytes - neither valid UTF-8 nor readable. The readable summaries (freeze-exit-code.txt, monitor-exit-code.txt, README) plus QA's independent recomputation of guards/aggregate/stash/inputs carry all window facts, so this does not block window validity; but it violates the evidence-log UTF-8/LF rule. Recommend adding readable copies or an errata (no rerun needed)."
+    }
+  ],
+  "low_findings": [
+    {"code": "L1", "title": "README says 'build=0' for the monitor", "detail": "the monitor session had 3 samples with build=2 (07:46:38/43/48) that reset the streak; the final 60/60 clean streak is build=0 (verified). Wording imprecise, no discipline breach on the recorded streak."},
+    {"code": "L2", "title": "baseline samples share one timestamp; body start not recorded", "detail": "all three baseline rows carry 07:54:27.722167 (utils 3/2/2 prove >=2 real queries) and the body start time is not recorded; the 5-minute rule can only be inferred from the ~55 s body wall sum and the archive write time."},
+    {"code": "L3", "title": "floor label 'signed_stricter=9956'", "detail": "9,956 is the S-3 signed floor (S-2 not reused); strict max(S-2,S-3)=10,230. On-site free 12,143 MiB >= both, so the floor decision does not change the result."}
+  ],
+  "observations": [
+    {"code": "O1", "title": "guards JSON CRLF and no body_env key", "detail": "guards JSON uses CRLF (684; PS ConvertTo-Json formatting - valid JSON, same hash as evidence copy); guards still lacks a body_env key (known G-L2 post-errata backlog); body env is recorded in body-env.txt/checklist."},
+    {"code": "O2", "title": "two-run sha values not printed", "detail": "the test only asserts first_sha == second_sha; concrete sha values are not persisted (known backlog, documented in README section 6); no code change inside the window."}
+  ],
+  "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": {"passed": 1391, "failed": 0, "ignored": 402}},
+  "non_claims": [
+    "does not claim upstream equivalence / light-field end-to-end acceptance / rendering numerical equivalence (those require the S-1 criterion and signature process)",
+    "does not change any criterion/threshold/reference/tolerance/camera/recipe",
+    "zero GPU; no rerun/refreeze; window/status closure is the Chief's call"
+  ],
+  "artifacts": [
+    "artifacts/window-facts.txt",
+    "artifacts/exe-entity.txt",
+    "artifacts/evidence-diff-encoding.txt"
+  ]
+}
