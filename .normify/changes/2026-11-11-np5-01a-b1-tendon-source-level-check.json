@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-b1-tendon-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a B-1（`bbd7c7cc`）：**PASS（0 阻断，0 一般 + 2 低 + 1 观察）**——§1 RE-2 三项修复闭环：A-2 addenda v1 字节恢复 2,030/`0ba40a0b` + v2 6,729/`e6bde50c`（supersedes+reason+标记逐字引用块）、A-2 manifest 6/6 909 B、RE-2 指针 additive + L1 `landed_at` 更正；扫描器 `e28ddb89`/8,013 自测 **20/20**，我 11 例构造实测（标记/未标记/无声明/未闭合/块外/拆写）全符合规格，重扫 5/7/0/1/0 如实；§2 B-1 78/78 id 与 sites.json 7 行并集相等、直方图 `n/a50/identical22/engine-semantic6`、6 条 engine-semantic 均带 why+`bit_level_guarantee:false`、累计 **217** 无重叠、锚点全量 0 错误、policy 0 命中、门禁 1,406/0/402",
+    "en": "QA review of B-1: PASS (0 blockers, 0 major + 2 lows + 1 observation); RE-2 G1/G2/L1 closed (addenda versioned v1 restored + v2 supersedes; scanner 20/20 with 11 crafted cases and rescans 5/7/0/1/0; L1 landed_at corrected); B-1 78/78 ids, histogram, 6 engine-semantic justified, cumulative 217, anchors 0 errors, gates 1406/0/402"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 B-1（`bbd7c7cc`）做独立只读复核（零 GPU）：①A-2 addenda v1/v2 版本化与标记引用块；②policy_scan 引用块豁免的构造用例与重扫计数；③RE-2 L1/观察；④B-1 78 站点 id/直方图/engine-semantic/锚点/累计 217/policy 0 命中；⑤manifest/门禁/边界/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of B-1: addenda versioning, quote-block scanner behavior, RE-2 corrections, B-1 78 sites and hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 G1 版本化 ✅**：A-2 `addenda.md` 恢复 v1 = 2,030 B/`0ba40a0b…`（字节级）；新增 `addenda-v2.md` = 6,729 B/`e6bde50c…`，含 `version:2`/`supersedes: addenda.md@0ba40a0b…`/`supersedes_reason`/`quote_policy`；§2 用标记引用块包 5 处逐字原文+撤回声明；A-2 manifest 6/6（909 B、v2 列入、我独立重算 bad=0）；RE-2 evidence 顶层 removed=[] 且新增 `corrections_at_b1`、receipt 仅新增该字段、RE-2 manifest 645 B/4 条全对",
+    "**§1 G2 扫描器 ✅**：`policy_scan.py` = 8,013 B/`e28ddb89…`；`--self-test` 20/20；我另写 11 例：标记+声明→0、未标记→1、标记无声明→1、未闭合→1、声明在块外→1、end 后正文→1、块内拆写原文→0、双块仅一块声明→1；重扫 A-2 evidence 5 / addenda.md 7 / addenda-v2 0 / README 1 / receipt 0，与声明一致（README 1 为否定句窗口漏豁免，人工确认非正面结论）",
+    "**§1 L1/观察 ✅**：`landed_at: e5315d95` + `landing_at_949bf18b` supersede 子对象；receipt `policy_tool_landed_at_949bf18b=false`；两条观察记入 `corrections_at_b1.observations`",
+    "**§2 B-1 ✅**：78/78 与 sites.json 7 行并集逐 id 相等（7/20/10/9/7/12/13）；直方图 `{n/a50, identical22, engine-semantic6}`；6 条 engine-semantic 均带 why（107–139 字）+`bit_level_guarantee:false` 且不作数值等价；累计 217 无重叠；必填字段 78/78；锚点全量解析 **0 错误**（57 file:line + 21 `no-reference-expression` 均 n/a 带 reason）、抽核行内容正确；policy_scan 对 B-1 evidence/README **0 命中**；manifest 4/4；selfcheck 15 PASS；门禁 1,406/0/402；编码干净、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 2 低 + 1 观察）。** RE-2 的 G1/G2/L1 **闭环**。低 L1=引用块声明按裸子串匹配，块内写「未撤回/不作废」仍被豁免（我实测 0 命中），建议防否定；低 L2=`reference_anchor.status=\"no-reference-expression\"`（21 条 n/a）未在 README/词表文档化；观察 O1=豁免内容盲，逐字规则靠 QA 人工复核"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-b1-tendon-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-b1-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 B-1 复核（含 RE-2 三项修复）；结论 PASS（0 阻断，2 低 + 1 观察）。RE-2 的 G1/G2/L1 由此闭环。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T12:50:00.000Z",
+  "updated_at": "2026-11-11T12:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-b1-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-b1-tendon-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-b1-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "c77ffd99556eaef6aeab4d0dd493f5c2567be453",
+    "after": null
+  }
+}
