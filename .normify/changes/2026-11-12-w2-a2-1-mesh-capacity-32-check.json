@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-a2-1-mesh-capacity-32-check",
+  "title": {
+    "zh": "QA 复核 W2/A2-1 mesh multicontact 容量 32/32（`2ee0540d`，源码 `5689e0ef`）：**PASS（0 阻断，0 一般 + 1 低 + 2 观察）**——容量 32/32 与 Arch a2-slices 11 项逐项一致（宏 32/32、scratch 64/32/32、clip.rs 宿主镜像 [32]/vec64 + 33 前置检查、types.rs 32/32、error 措辞）；33 顶点返回确定性空结果不 panic、产品路径容量错误 `limit=32` 且不写 over-32 等价；guards L120/L148/L180 保留、ABI 零改动（CollisionArgs 504 B、DEVICE_SOURCES 28、无新 .cu）；8 组边界断言（clip 3 + 宿主 4 + A1 2 保留）我逐条读断言并重跑 **5 passed/6 passed**；unit **1409/0/402**、500 行棘轮实测 233/258/408/412 与日志一致、manifest 10/10；低=evidence README 非声明列表未否定致 policy 1 命中；观察=「8 条」计数口径（实为 7 组 9 条）与 fan-cone-24 旧用例重命名未点明",
+    "en": "QA review of W2/A2-1 mesh capacity 32/32: PASS (0 blockers, 0 major + 1 low + 2 observations); capacity matches Arch plan, 33 precheck deterministic no-panic with limit=32, guards/ABI unchanged, boundary assertions inspected and re-run (5 and 6 passed), unit 1409/0/402, ratchet and manifest verified; low = policy hit in non-claim list"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 A2-1（`2ee0540d`/源码 `5689e0ef`/证据 `c4c9c41e`）做独立只读复核（零 GPU）：容量 32/32 与 Arch 范围一致、33 顶点容量门语义、guards/ABI/无新增 .cu、边界单测断言内容与重跑、unit/棘轮/manifest/口径。只写本卡证据。",
+    "en": "Read-only review of A2-1: capacity vs Arch scope, 33 precheck semantics, guards/ABI, boundary assertion content + re-run, gates/ratchet/manifest/claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**容量 32/32 ✅**：宏 32/32、`contact.cu` 11 项 scratch 全扩（64/32/32）、`clip.rs` 宿主镜像 `[32]`/`vec64` + `nface>32` 前置检查、`types.rs` 32/32、`error.rs` A2 措辞、三处注释同步——与 Arch `a2-slices.json` 逐项一致",
+    "**33 容量门 ✅**：`clip.rs` 返回确定性零接触（不 panic）；产品路径 `violations=[(Face/Degree,33,MAX)]` 且 Display 含 `limit=32`；over-32 未写成等价（非声明在 README/receipt）",
+    "**guards/ABI ✅**：`multicontact_mesh.cu` L120/L148/L180 保留；`abi_tests` 仍断言 `CollisionArgs==504`；`5689e0ef` 12 文件不含 abi/product/Cargo/fixtures/scripts，`DEVICE_SOURCES=28`，无新增 `.cu`",
+    "**边界断言 + 重跑 ✅**：clip 3 条（32 face1/face2 ncontact∈[1,4]、33→0）、A1 20 顶点保留、宿主 32/32 accept、face33/degree33 精确 violations+limit=32、宏同步解析；我重跑 5 passed / 6 passed（0 failed）",
+    "**门禁/棘轮/证据 ✅**：unit 1409/0/402、500 行棘轮实测与 `line-counts.txt` 一致（233/258/408/412）、manifest 10/10 全对、无「缺口已清/P5 通过/等价」正面声明、U7/U8 明确留 A2-3 窗",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 2 观察）。** 低 L1=evidence README 非声明列表未否定致 policy 1 命中；观察 O1=「8 条」实为 7 组 9 条、O2=fan-cone-24 旧 rejects 用例重命名未点明"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-a2-1-mesh-capacity-32"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w2-a2-1-mesh-capacity-32-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-12 派工的 A2-1 复核；结论 PASS（0 阻断，1 低 + 2 观察）。不宣称 U7/U8 通过或缺口已清。",
+  "created_at": "2026-11-12T01:55:00.000Z",
+  "updated_at": "2026-11-12T01:55:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-1-mesh-capacity-32-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-a2-1-mesh-capacity-32-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-a2-1-mesh-capacity-32-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "7383aec19a9693ae4a09bf62de631b1c2dd96328",
+    "after": null
+  }
+}
