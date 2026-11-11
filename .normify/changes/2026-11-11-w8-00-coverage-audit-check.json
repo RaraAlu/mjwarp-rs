@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-w8-00-coverage-audit-check",
+  "title": {
+    "zh": "QA 复核 W8-00 覆盖审计（`96b8d201`，基线 `f9eb64e1`）：**PASS（0 阻断，0 一般 + 0 低 + 2 观察）**——兼容矩阵我独立解析 **61 行 = GPU物理 28 + 模型与数据 11 + 渲染 10 + 运行时 12**、`by_stage` 11 键逐键相等；阶段统计我逐卡对板面复核 **15/15 status/checks 全对（全 checks=0 不可 start）**、totals **15/15/43/21/41** 完全一致、各阶段 `unverified_deps` 状态 bad=[]；W4 侧 **7/7 伞卡 checks=0**、25 = B0 4 + 实体 21、五片 0 窗可派；缺口总表 **12 项**与实测对应，结论旗标 `umbrella_startable/w4_slice_b_prereq_met/w8_ad_prereq_met/any_admission_claim` 全 false；第一节 ERRATA-E O1/O2 append-only 注记（1,627 B `5c6e06e0…`）在位、errata manifest 4→5、8 个历史文件字节未改；audit manifest 4/4、selfcheck PASS、policy 0 命中 + self-test 34/34、门禁 1,406/0/402；观察=板面计数混时点（1127/936）、slice 只给计数未列 id",
+    "en": "QA review of W8-00 coverage audit: PASS (0 blockers, 0 major + 0 low + 2 observations); matrix 61 rows and by-stage mapping recomputed, stage totals 15/15/43/21/41 match board checks, W4 7/7 umbrellas checks=0, 12 gaps, all admission flags false, ERRATA-E O1/O2 addenda in place, manifests/scans/gates verified; observations = board snapshot time mix and slice ids not listed"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 W8-00（`96b8d201`）做独立只读复核（零 GPU）：①从文档独立解析矩阵 61 行与 by_stage；②逐卡核阶段伞卡 status/checks 与 totals、unverified_deps；③W4 侧 7 伞卡与 25 片；④缺口 12 项与结论旗标；⑤第一节 ERRATA-E O1/O2 与历史字节；⑥manifest/selfcheck/policy/门禁/编码/边界。只写本卡证据。",
+    "en": "Independent read-only review of the W8-00 coverage audit: matrix parse, stage/umbrella checks against board, W4 side, gaps and conclusion flags, ERRATA-E observations, evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**矩阵 ✅**：`docs/compatibility-matrix.md` sha `e68c4456…`/30,782 与 audit 一致；我按表格独立解析 **61 行 = 28+11+10+12**，行 id 集合 G01–G28/M01–M11/R01–R10/A01–A12 无重复漏行；`by_stage` 按「阶段」列重算（含多阶段与全阶段）与 audit 11 个键**逐键集合相等**",
+    "**阶段/依赖 ✅**：15 张阶段级卡我逐卡从 `.normify/changes` 读 status/`len(checks)`——**15/15 全对且 checks=0**；totals 复算 **stage_level_cards 15、zero_checks 15、slice_cards 43、slice_verified 21、distinct_unverified_deps 41** 与 audit 完全一致；各阶段 `unverified_deps` 状态逐条对板面（bad=[]）；分阶段计数和 67 > 去重 41 属共享依赖，totals 用去重口径",
+    "**W4/缺口 ✅**：7 张 W4 伞卡 **7/7 checks=0** 与 `umbrella_zero_checks=7` 一致；`25 = B0 4 + 实体 21`（§9 更正）与治理文档一致；片 B 双阻塞与五片 0 窗可派在位；缺口 **12 项** W8-G1..G12 与实测对应；`umbrella_startable=false / w4_slice_b_prereq_met=false / w8_ad_prereq_met=false / any_admission_claim=false` 均核",
+    "**第一节/证据 ✅**：errata `addenda.md` 1,627 B `5c6e06e0…`（O1 归一化摘要、O2 target 不入仓）与 receipt 记录一致；errata manifest 4→5 我 5/5 重算；np5-02/np5-04 各 4 个历史文件与基线逐字节相同；`plan/w8-00-coverage-audit/` manifest 4/4 全对、selfcheck RESULT: PASS、policy 3 文件 0 命中 + `--self-test` 34/34；提交无 src/tests/fixtures/scripts 改动、未改其它卡；UTF-8/LF 无 BOM/裸 CR/NUL",
+    "**结论：复核通过（0 阻断，0 一般 + 0 低 + 2 观察）。** 观察 O1=`sources.board` 1127/936 混用两个时点（基线 1126/936、登记后 1127/in_progress、收口后 1127/937），建议注明 snapshot 时点或「verified 不含本卡」；O2=`stage_summary` 的 slice 只给计数未列卡 id，无法仅凭 audit.json 逐卡复核（本次用板面交叉核对通过），建议补 id 列表或口径"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-w8-00-coverage-audit"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w8-00-coverage-audit-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 W8-00 复核；结论 PASS（0 阻断，2 观察）。审计为只读覆盖对照，不代表任何准入结论。",
+  "created_at": "2026-11-11T15:20:00.000Z",
+  "updated_at": "2026-11-11T15:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w8-00-coverage-audit-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-w8-00-coverage-audit-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w8-00-coverage-audit-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "a4245d20fe71e9018f3cc8e7cc92a16b9b4682de",
+    "after": null
+  }
+}
