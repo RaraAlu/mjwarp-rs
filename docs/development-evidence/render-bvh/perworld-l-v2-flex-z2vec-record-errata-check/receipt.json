@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-flex-z2vec-record-errata-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "9155b9c1054be9905a47bf2c6a33cea1fe22c2a5",
+    "card": "2026-11-11-render-flex-z2vec-record-errata",
+    "card_alias": "card A of the 2026-11-11 12:00 window",
+    "head_at_review_start": "9155b9c1 (Backend held the write lock for cards B/C; reviewed content is the commit)"
+  },
+  "summary": "PASS: 0 blocker, 1 low (section-G numbering context) + 1 observation (append-only leaves original section C wording). All eight corrections C1-C8 plus the refreeze backlog are landed and independently verifiable; no .cu, no behavior change, tests file +15 comment-only lines; two historical READMEs are pure appends; attempt4 dir untouched; 3 manifests recompute 11/11, 8/8, 5/5; gates fmt/clippy/clippy-cuda pass and unit 1403/0/402.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "§G 编号沿用 QA 编号，与文件 §A/§B 条目编号可能串号",
+      "detail": "gl2-errata-batch README section G reuses the QA review's labels (G1, L1-L4) although the same file already uses A/B/C/E section labels. Suggest a one-line note that section G numbering follows QA review fd72cf0b. Record-face only."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "append-only 使原文 §C 的旧表述保留，仅 §G 覆盖",
+      "detail": "Under the append-only policy the original section C still reads in the 'post-run snapshot filled afterwards' sense; the correction lives only in section G and in the target-side file. Readers of section C alone could be misled; section G states the original bytes are preserved, which is the agreed policy."
+    }
+  ],
+  "verified": {
+    "C1_mirror_oracle": "tests/render_flex_z2vec.rs header + warp_length3 doc state numeric-correspondence-not-bit-level-oracle (Rust left-assoc vs fmaf chain, 1 ulp, 1e-6 assertions, #1 assert_eq! does not pass through the sum chain)",
+    "C2_L1_wording": "(0,1,0,0) declared absent from render_flex.cu and src/; actual untouched init (0,0,0,1) cited at render_flex.cu:36-39 - I re-read the file: init at 36-39, branch at 51-56, same-direction early return intact",
+    "C3_ptx_dual": "348459 NUL-trimmed vs 348460 raw nvrtcGetPTXSize; chain verified in repo src/runtime/launcher/artifact/nvrtc.rs:104-105 and cudarc 0.18.2 src/nvrtc/result.rs:114-122 + src/nvrtc/safe.rs:41-46 (CStr truncation); identity logs ptx_bytes=348459/348399 read directly",
+    "C4_G1_provenance": "target gpu-snapshot.txt now 986 B / mtime 12:03:30 with errata-time re-query wording; false 'post recorded in run-summary.txt' removed; run-summary still gpu_after=$gpu; BEFORE/AFTER verbatim in artifacts/c1-diag7-post-provenance.txt",
+    "C5_b_field_diff": "artifact has exactly 2 hunks (test relocation only), old index 25affdc8; 84ed67d2^ diag.rs blob is 02533c7d - claim correct",
+    "C6_receipt_wording": "single-normalize receipt described as structural rewrite + addenda, non-addenda keys identical",
+    "C7_physical_lines": "diag.rs 484 lines / 18384 B, diag_ext.rs 237 / 9437 B (re-measured); the 18/6 delta from 466/231 explained",
+    "C8_task_id": "successor r2 note added without rewriting historical task_id",
+    "backlog_refreeze": "megakernel identity changed to cf356b72/b63a51dd => future render GPU windows must re-freeze; recorded in flex-z2vec-pin README section 7, new evidence receipt and card note",
+    "surface": "git diff 04b981d6..9155b9c1 -- '*.cu' empty; src/ fixtures/ scripts/ unchanged; tests/render_flex_z2vec.rs +15/-0 comment-only lines; attempt4 dir unchanged",
+    "append_only": "flex-z2vec-pin README 5256->7436 prefix=5256 pure append; errata-batch README 5719->8633 prefix=5719 pure append",
+    "manifests": "flex-z2vec-pin 11/11, errata-batch 8/8, record-errata 5/5 (bad=0 missing=0 extra=0, none self-listed)",
+    "gates": ".normify/runs/2026-11-11-render-flex-z2vec-record-errata: fmt/clippy/clippy-cuda exit 0; unit passed=1403 failed=0 ignored=402",
+    "encoding": "all changed/added docs and tests UTF-8/LF, no BOM/CR/NUL"
+  },
+  "non_claims": [
+    "does not claim device-side render change or fix effect",
+    "does not re-freeze guards, does not take a GPU window",
+    "does not change any criterion/threshold/reference/camera/recipe",
+    "zero GPU, read-only review"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 5,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}

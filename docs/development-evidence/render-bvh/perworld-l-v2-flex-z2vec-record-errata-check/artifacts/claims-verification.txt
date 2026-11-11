@@ -1,0 +1,36 @@
+# Card A independent verification (commit 9155b9c1, zero GPU, read-only)
+#
+## 1) change surface
+# git show --stat 9155b9c1: 16 files
+#   tests/render_flex_z2vec.rs                      +15 -0   (comments only: //! header and /// docs)
+#   docs/.../perworld-l-v2-flex-z2vec-pin/README.md  5256 -> 7436 B (pure append, section 7)
+#   docs/.../perworld-l-v2-flex-z2vec-pin/manifest.txt  (11/11 recomputed)
+#   docs/.../perworld-l-v2-gl2-errata-batch/README.md 5719 -> 8633 B (pure append, section G)
+#   docs/.../perworld-l-v2-gl2-errata-batch/manifest.txt (8/8 recomputed)
+#   docs/.../perworld-l-v2-flex-z2vec-record-errata/{README,receipt,manifest + 3 artifacts} (5/5)
+#   .normify/{changes,runs} card + 4 gate records
+# git diff -- '*.cu'  = EMPTY
+# src/ fixtures/ scripts/ = 0 files
+# attempt4 dir diff = EMPTY
+# tests diff: only added //! and /// lines, zero deletions => "9 assertions and mirror logic unchanged" holds
+#
+## 2) claims cross-check (each re-derived, not trusted)
+# C2 line refs: ReadAllLines(render_flex.cu) -> init quat[0..3]=0,0,0,1 at lines 36-39; near-parallel branch 51-56;
+#               general branch from 59; same-direction early return intact
+# C5 artifact: b-field-change.diff has exactly 2 diff --git blocks / hunks: diag.rs -49 (test move out) and
+#              diag_ext.rs +51 (test move in); index 25affdc8..d1b376f6; 84ed67d2^:diag.rs blob = 02533c7d => claims correct
+# C7 lines: ReadAllText(UTF-8) count of U+000A -> diag.rs 484 lines / 18384 B ; diag_ext.rs 237 / 9437 B (files byte-identical to 84ed67d2)
+# C3 chain:
+#   repo src/runtime/launcher/artifact/nvrtc.rs:104-105  compile_ptx_with_opts(text, options).map(|ptx| ptx.to_src())
+#   cudarc 0.18.2 src/nvrtc/result.rs:114-122            buffer sized by nvrtcGetPTXSize (size includes terminating NUL)
+#   cudarc 0.18.2 src/nvrtc/safe.rs:41-46                Ptx::to_src() -> CStr::from_ptr(bytes.as_ptr()) -> stops at NUL
+#   identity logs (flex-z2vec-pin/logs): new ptx_bytes=348459 ; old ptx_bytes=348399
+#   QA's own NVRTC recompute earlier: raw 348460/348400, trimmed 348459/348399 => dual accounting claim correct
+# C4 target file now 986 B / mtime 2026-11-11 12:03:30 (artifact says corrected 986 B written 12:03:30)
+#    run-summary.txt still contains the unexpanded placeholder on its own line: gpu_after=$gpu
+# C1 comment text states the sum chain is not a bit-level oracle and that only 1e-6 assertions depend on it;
+#    #1 assert_eq! targets the constant near-parallel quaternion, which does not pass through the sum chain => consistent
+#
+## 3) gates
+# .normify/runs/2026-11-11-render-flex-z2vec-record-errata: fmt exit0 / clippy exit0 / clippy-cuda exit0 /
+# unit exit0 passed=1403 failed=0 ignored=402
