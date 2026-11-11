@@ -1,0 +1,82 @@
+QA U7U8 全条件窗 attempt 2 PASS + 主卡收口复核（只读；未重开窗）
+复核对象：2026-11-12-w2-u7u8-full-condition-assert（c36458b6 -> 1166e627 -> 0a99f72e -> 75e296fb -> 1bd85287 -> 4e3abe9c）
+窗口基线 HEAD 2ccc182b；现 HEAD 4e3abe9c；仓库 D:\Rust\mjwarp-rs
+
+[1] 仓库与锁
+  git rev-parse HEAD       -> 4e3abe9c
+  git status --porcelain   -> 仅外部 agent 两项 untracked
+  repo-write-lock status   -> REPO_WRITE_LOCK_FREE
+
+[2] r3 窗口执行
+  results.json             -> exit_code=0 elapsed_s=41.25
+  实体日志                  -> test result: ok. 2 passed; 0 failed; 0 ignored; 4 filtered out; finished in 40.99s
+  .err                     -> 0 B
+  sha-guards.txt           -> 18 条（1 exe + 15 fixture + 2 参考），逐条重算磁盘 0 不符
+  guards-r3.tsv            -> 表头 + 18 行，与 sha-guards 同源
+  target/a2-freeze-r3 branch exe -> 41,782,272 B / ac823b58...（与 receipt 一致）
+  floor facts              -> FLOOR gate free=13440 >= 10240；POST free=13440；GPU pre/post 2%, 2622 MiB, 13440, 25, 596.36
+  monitor-pre-window-r3.csv -> 60 行（03:12:50-03:17:51），streak 1..60，clean 全 True，util_max=4，free_min=13440，
+                               compute_filtered 全 0，build 全 0
+  three-point-baseline-r3.txt -> P1/P2/P3 03:17:59-03:18:02，util 2/4/2，used 2614 MiB，free 13448，25C，596.36
+  window-samples.csv       -> 138 行（03:18:36-03:19:17）；interval_ms 排除首行 0 后 min 290.6 / max 361.3（137/137 在区间）；
+                               util_percent max 4；memory_free_mib min 11793
+  target 窗口时段改动文件   -> 7 个全在 target/a2-window-r3（runner 输出）；无 .rlib/.rmeta/.pdb/.obj/.d/.lib/.exe/.dll
+  exe mtime                -> r3 branch 03:07:57（早于窗口）；其余 9 个 01:47（r2 复制）
+  POST residual            -> 0；PRECHECK/POST zero-rust-compile -> PASS
+
+[3] U7/U8 全条件
+  原始日志                 -> cone-box nacon=1 ref=1 bit_equal=1/1 max_dist/pos/frame_ulp=0 contact.geom=[1,0] failures=0
+                              prism-box nacon=4 ref=4 bit_equal=4/4 max_*_ulp=0 contact.geom=[1,0] failures=0
+  u7-u8-full.json          -> comparator 块同值；_meta.fail_lines=[]，both_cases_observed=true
+  数值独立核对             -> U7 dist -1.0000002e-2 两侧相同、pos 逐轴相同；U8 dist 4x -9.999998e-3、pos 四行逐行相同（pos_order_equal=true）
+
+[4] 修正范围/冻结
+  git show --stat 75e296fb -> 仅 tests/g10_p5_branch_closure_cuda.rs + tests/support/branch_closure_case.rs
+  git diff ef8da38f..HEAD -- src -> 空；.cu 零改动
+  src digest 复算（addenda 口径） -> 266bbf94fd92cce3202159df196d84824dacbaa6d22f4b848eddd83ac57fcb44
+  comparator 文件          -> tests/support/mesh_multicontact_compare_support.rs 495 行、2ee0540d..HEAD 零改动
+  本地 CPU 重跑            -> cargo test --locked --features cuda-probe --test g10_p5_branch_closure_cuda
+                              -> 4 passed / 0 failed / 2 ignored（pair_normalization_matches_upstream_reference ... ok）
+  r3 refreeze              -> 10 行与磁盘全等；rebuilt=1（branch ac823b58 / 41782272；旧 6d2b39fc / 41771008），
+                              copied_unchanged=9，old_freeze_match=9；branch built_at 03:07:54
+  r3 manifest              -> 17 条逐条重算 0 错；磁盘 18 文件全覆盖；不自列
+
+[5] r2 FAIL 记录
+  r2-fail/receipt.json     -> verdict=FAILED、attempt=1、failures_total=21（U7 4 + U8 17）
+  u7-u8-failures.json      -> by_case 4 + 17 = 21（逐条 frame/geom/pos 明细）
+  .err panic               -> U7/U8 pass_rule 全条件与 S3 上游 GPU 参考不一致（21 条）
+  results.json             -> exit_code=null（exit_code_capture_bug）；facts SUMMARY entities=1 failed=4（summary_count_bug）
+  guards                   -> 18/18（r2 branch 6d2b39fc）重算 0 不符
+  window-samples           -> 134 行，interval 288.7-361.2，util_max 42，free_min 13439
+  monitor attempt1 CSV     -> 142 行，util_max 94，clean_all False，streak_last 37
+  append-only              -> 13 文件与 63b95170 blob 逐个相同（0 改写）；manifest 12/12 重算 0 错
+
+[6] 主卡检查/门禁
+  主卡检查                 -> 18 项（4 gate + unchanged + 13 json）；13 条 json 指针逐条解析实际文件 0 失败
+  镜像 vs r3 receipt       -> verdict/failures/u7/u8 counts/sha_guards/zero_compile/src_digest/exe sha+bytes 11 字段逐字段相等
+  主卡 gate runs           -> fmt/clippy/clippy-cuda/unit 全 passed；unit 1410/0/402；run at 03:21:24-43（晚于证据 03:21:03，早于收口 03:21:59）
+  卡 status                -> verified，closed_at 2026-11-11T19:21:59.296Z
+
+[7] §1 收口
+  A2-3 window addenda-qa-review.md -> L1 规范化副本 + diff log；L2 r2/r3 窗内采样实装 + 披露；L3 identity addenda 补正；
+                                       O1-O5 逐条处置
+  原损坏 console           -> blob 65a6dd4f（与 bd231ace 相同，未改）
+  新文件编码               -> UTF-8/LF 无 BOM、0 NUL、0 CR
+  A2-3 window 旧 19 条记录 -> sha/bytes 全部未变；manifest 24/24 重算 0 错、磁盘 25 文件全覆盖
+  identity addenda         -> new 以 old 字节为前缀（append-only）；identity manifest 12/12 重算 0 错
+
+[8] 诚实性
+  policy_scan 38 文件（r2-fail/r3/r2） -> hits=0 PASS
+  正禁语扫描 -> 全部出现在「不宣称/不作/不提供」否定句（含跨行续句，已逐条看上下文）
+
+[9] 发现（详见 README §5/§6）
+  低 L1: 主卡 acceptance 三处与终态不符（item 7 布局、item 9 CPU 计数、item 11 路径）
+  观察 O1: 镜像可接受 + 建议 verdict_scope/mirrors_sha256/中性目录名
+       O2: r2 材料目录无 manifest
+       O3: r3 readiness §6 四前提勾表未填（☐）
+       O4: window-samples 间隔统计隐含排除首行
+       O5: r3 baseline floor min/max 表述不一致（数值结论不受影响）
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 + 1 低 + 5 观察）。
+窗口结论：仅该窗口径下 U7/U8 pass_rule 全条件成立（failures=0、bit-exact）；不宣称缺口已清、与上游等价（over-32）、
+整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。零 GPU 窗口重跑；未改判据/参考/容差/夹具。
