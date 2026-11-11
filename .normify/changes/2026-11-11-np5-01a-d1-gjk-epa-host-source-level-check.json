@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-d1-gjk-epa-host-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a D-1（`32fd81b8`）：**PASS（0 阻断，0 一般 + 1 低 + 2 观察）**——§1 A-3 L1/O1/O2 闭环：`rows-fields-v1` 40 行（39 条 kind/label 与 sites.json 逐字一致；1 条 policy-redacted 保留分类并指回 sites.json 原文、未复制禁词）、原 evidence 字节未改（`c9a9676f`/53,532）、manifest 6/6；双口径 **608（行×站点）= 598（唯一）+10**（含去重方法与来源）写入 receipt/README 并将进收尾；§2 D-1 88 站点 88/88 id 与 sites.json 2 行并集相等、直方图 `identical37/n/a51`、全部 host 无 PTX 记 `host-path-no-ptx` 整体口径、host 非融合两次舍入 recipe 与 device `fma.rn` 分列、锚点 0 错误、累计 **571**、policy 0 命中、门禁 1,406/0/402；低=D-1 条目也缺 kind/label",
+    "en": "QA review of D-1: PASS (0 blockers, 0 major + 1 low + 2 observations); A-3 L1/O1/O2 closed (rows-fields 40 rows incl 1 policy-redacted, original bytes unchanged, manifest 6/6, dual count 608/598/10); D-1 88 host sites verified (host-path-no-ptx overall, host non-fused recipe declared), cumulative 571; low = D-1 entries also omit kind/label"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 D-1（`32fd81b8`）做独立只读复核（零 GPU）：①A-3 rows-fields 40 行与 policy redaction 处理、原字节/manifest、608/598/10 双口径与去重方法；②D-1 88 站点 id/直方图/锚点/host recipe 声明/`host-path-no-ptx`/累计 571/policy 0 命中/无覆盖率；③边界/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of D-1: A-3 field addendum and policy redaction, dual count record, D-1 88 host sites and hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 A-3 L1 ✅**：`rows-fields-v1.json`（8,169 B/`3cb3ba73…`、`row_count=40`）按 evidence 顺序补齐 `id/kind/label/classification`；**39 条 kind/label 与 sites.json 逐字一致**；**1 条 policy-redacted**（`com_position:rigid_com_position:rounding-note:0`，因 sites.json label 含历史正面措辞）——redaction 保留分类信息、指回 sites.json 原文位置、未复制禁词，处理合规；A-3 evidence/README/receipt/selfcheck **字节未改**（`c9a9676f…`/53,532）、manifest 重算 **6/6**（714 B）",
+    "**§1 O1 双口径 ✅**：D-1 receipt `section1.o1_dual_count` = `field_table_sites: 608`、`unique_expressions: 598`、`duplicate_tails: 10`，含来源（kinematics A-2 11 / com_position A-3 14）与去重方法（按 (kernel,kind,index) 去行前缀）；README 同步；并声明收尾 addenda 将并列两口径。O2 记录在 A-3 addenda",
+    "**§2 D-1 ✅**：88/88 与 sites.json 2 行并集逐 id 相等（45+43）；直方图 `{identical 37, n/a 51}`；`device_level_note` 明确 88 站点全部无 PTX、device 级整体记 `not-decidable` 原因 `host-path-no-ptx`（不逐站点重复）；`host_recipe_note` 明确 host 非融合（独立乘加、两次舍入、不用 `mul_add`、不引 f64）与 device `fma.rn` 融合为**两套 recipe**、只做 source 级；`identical` 语义为同表达式/类型/求值次序（f32 全链、无升精度），我抽核 dot3/linear_combine 与 `collision_gjk.py` 行对应；`n/a` 51 条为缓冲/整型/结构/说明并带 why；锚点 **88/88 解析、0 错误**；累计 **483+88=571**；policy_scan **0 命中**；manifest 4/4；selfcheck 30 PASS；门禁 1,406/0/402；哈希与派工值一致（10711306/5,769、2d509468/115,577、0588aed4/4,072、103a930b/557、b03513d7/1,608）；编码干净、无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 2 观察）。** 低 L1=D-1 的 88 条条目同样缺 `kind`/`label`（A-3 已用 rows-fields 补，D-1 尚无等价件），建议收尾前同样补齐；观察 O1=A-3 policy redaction 处理合规（分类不丢、原文可追溯、未复制禁词）；观察 O2=host recipe 声明与 `host-path-no-ptx` 口径完整、双口径记录到位"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-d1-gjk-epa-host-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-d1-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 D-1 复核（含 A-3 L1/O1/O2 闭环）；结论 PASS（0 阻断，1 低 + 2 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T14:30:00.000Z",
+  "updated_at": "2026-11-11T14:30:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-d1-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-d1-gjk-epa-host-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-d1-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "123d75583f0f32b5d16416d1202361472242b104",
+    "after": null
+  }
+}
