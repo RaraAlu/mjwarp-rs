@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-w8-00-coverage-audit",
+  "title": {
+    "zh": "W8-00 覆盖审计：阶段伞卡 × 兼容矩阵行 × 依赖 verified 状态 × 缺口总表（只读零 GPU；含 NP5-ERRATA-E O1/O2 处置）",
+    "en": "W8-00 coverage audit: stage umbrella cards x compatibility-matrix rows x dependency verified status x gap table (read-only, zero GPU; includes NP5-ERRATA-E observations O1/O2)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 派工：一次性产出 W8 全部阶段伞卡 × 兼容矩阵行 × 依赖 verified 状态 × 缺口总表（0 窗只读），明确「伞卡 checks=0 不可 start」「W4 片 B 与 W8 AD 前置未满足」「不得写成准入通过」；同时把 NP5-ERRATA-E 的 2 条 QA 观察在第一节处置（O1：historical_snapshot 为归一化摘要非逐字引用 → append-only addenda + manifest 4→5；O2：W5 working docs 不入仓、记录不修）。零 GPU、零窗、不改任何卡。",
+    "en": "Per Chief's assignment: one-shot read-only audit of all W8 stage umbrella cards x compatibility-matrix rows x dependency verified status x gap table; state explicitly that checks=0 umbrella cards cannot be started and that W4 slice B / W8 AD prerequisites are unmet (no admission claim). Section 1 disposes of the two NP5-ERRATA-E QA observations (O1 normalized-summary note via append-only addendum + manifest 4->5; O2 target working docs recorded, no change). Zero GPU/window; no card modified."
+  },
+  "modules": {},
+  "acceptance": [
+    "**第一节（NP5-ERRATA-E O1/O2）**：`np-gate/np5-e-metric-errata/addenda.md`（新）注明 `historical_snapshot` 为归一化摘要、非逐字引用（原文以历史文件字节为准），O2 作为记录不修；errata 目录 manifest **4→5** 重算，4 个历史文件 sha/bytes 不变",
+    "**阶段 × 矩阵行**：从 `docs/compatibility-matrix.md` 解析 GPU物理/模型数据/渲染/运行时 4 段共 **61 行**，按阶段 token（P4–P11、全阶段）映射；输出阶段→行 id 与行数表",
+    "**伞卡 × 依赖 verified 状态**：P0/工具链 + P4–P11 全部阶段组（阶段级伞卡 + 阶段切片卡）逐卡 status/checks/depends_on；统计阶段级伞卡全 `checks=0`（不可 start）、切片 verified 数、去重未验收依赖数；判定口径只认 verified",
+    "**缺口总表**：12 项（伞卡占位、NP 门禁、R07 ABI、Linux deferred、T4 重基线、W2 U8/U7、P11 用户级、g10-p5 伞卡、未验收依赖链、窗口、W4 片 B 双重阻塞、W8 AD 前置）",
+    "**W4 侧核对**：7 张伞卡全 `checks=0` 不可 start；实体片 25 = B0 4 + 实体 21（24→25 已在 §9 更正）；片 B 双重阻塞（r07-p8 + NP01/NP02）；0 窗可派 W4-01A/02A/05A/03A/04A 五片",
+    "**结论**：`umbrella_startable=false`、`w4_slice_b_prereq_met=false`、`w8_ad_prereq_met=false`、`any_admission_claim=false`；不宣称任何准入通过/伞卡 verified/NP 通过/等价/双平台/发布",
+    "**证据与验证**：`plan/w8-00-coverage-audit/` README + audit.json + logs/selfcheck.txt + manifest（4 文件）；selfcheck PASS；policy_scan 0 命中 + `--self-test` 34/34；UTF-8/LF/无 BOM；四门禁 fmt/clippy/clippy-cuda/unit",
+    "**边界**：写域仅 `docs/development-evidence/plan/w8-00-coverage-audit/` + `docs/development-evidence/np-gate/np5-e-metric-errata/` + `.normify/`；`unchanged src/ tests/ fixtures/ scripts/`；零 GPU、零窗"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/plan/w8-00-coverage-audit/",
+      "docs/development-evidence/np-gate/np5-e-metric-errata/"
+    ],
+    "resources": [],
+    "priority": 92
+  },
+  "note": "Chief 2026-11-11 22:5x 派工：W8-00 覆盖审计（0 窗只读），第一节并入 NP5-ERRATA-E 的 O1/O2 处置；只读，不改任何卡；不宣称准入通过。",
+  "revision": {
+    "before": "021e1b2b89715dc9327fdcb0727eed5a802e04b8",
+    "after": null
+  },
+  "created_at": "2026-11-11T15:10:00.000Z",
+  "updated_at": "2026-11-11T14:45:55.032Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w8-00-coverage-audit/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-w8-00-coverage-audit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w8-00-coverage-audit/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w8-00-coverage-audit/audit.json",
+      "pointer": "/conclusion/umbrella_startable",
+      "equals": false
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/w8-00-coverage-audit/audit.json",
+      "pointer": "/conclusion/any_admission_claim",
+      "equals": false
+    }
+  ]
+}
