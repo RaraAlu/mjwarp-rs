@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-00-gate-ledger-freeze-r2-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "875ae41d032bcf5bd30081b9a06a77dd90d1b160",
+    "card": "2026-11-11-np5-00-gate-ledger-freeze-r2",
+    "card_alias": "card F of the 2026-11-11 12:00 window (successor of the abandoned 2026-11-11-np5-00-gate-ledger-freeze)",
+    "head_at_review_start": "875ae41d"
+  },
+  "summary": "PASS: 0 blocker, 3 low, 1 observation. Ledger is byte-identical to the target final copy (6d6ff7d9/116688 B), 190 entries = 30/3/23/100/2/32 with totals consistent and every entry owned; all four input materials hash-match and 30+3 tables exist; scene_bvh_ray drift current value independently computed as caac8c86 (matches); checker rerun gives 19 PASS / RESULT PASS with the declared log hash; tools differ from target sources by exactly one guard-note line and no other scripts were touched; write scope only np-gate docs + scripts/np-gate + .normify; no unnegated pass claim; manifest 8/8, encoding clean, gates 1406/0/402.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "23 条 unregistered 的 np01_status 带注解，与 status_vocabulary 裸值不能精确匹配",
+      "detail": "Value is 'absent（未入 30 条清单；2026-10-23 后新增/实现）' while status_vocabulary.np01 lists bare 'absent'; a machine-exact scan reports 23 unknown statuses. The checker only covers gaps status mapping, not this field. Ledger must stay byte-identical to target, so fix belongs to the next ledger version (split status/reason or extend vocabulary and checker)."
+    },
+    {
+      "id": "L2",
+      "title": "README 把 inputs.tree.head 说成「本卡登记提交」不准确（r2 语境）",
+      "detail": "f4628bd7 is the registration commit of the abandoned first card F (the HEAD at generation time); the r2 card registration is dec4e7d9. Suggest wording 'generation-time HEAD (first-card registration; before the r2 restructure)'."
+    },
+    {
+      "id": "L3",
+      "title": "账本 task 字段仍为「草稿；待 Backend 落 …」",
+      "detail": "After landing it is no longer a draft/pending; the byte-identical copy constraint prevents an in-card edit, so README should note this stale generation-time field."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "scope 首句「100% / 0」措辞易被误读为验收结论",
+      "detail": "The ledger scope first clause describes inventory completeness (NP01 type mapping 100% / deviation 0; NP02 evidence coverage 100% / missing 0) and the same sentence ends with 'does not claim any gate pass'; still, the 100%/0 wording is easy to misread. Suggest next version wording 'inventory complete (30/3/23/100/2/32), no missing rows'."
+    }
+  ],
+  "verified": {
+    "ledger": "116688 B / 6d6ff7d98f82e6429038d6f4c731afcc49cf693951a17e520a5a6fde6568c8ad, byte-identical to target/render-bvh/gl2-ptx-diff/np-gate-ledger.json",
+    "counts": "190 = np01.paths 30 + host_sites 3 + unregistered 23 + np02.kernels 100 + missing_kernel_rows 2 + gaps 32; totals.ledger_entries_total 190",
+    "statuses_owners": "paths/host_sites all partial; gap action histogram 9/2/7/3/3/2/2/4 = 32; every np02 kernel and every entry has owner (0 missing)",
+    "inputs": "np01 inventory 5259e4b4, np02 inventory c7d84fb2, np02 gap b49cdac2, cuda-surface 8cb8361b all hash-match; 30 field tables + 3 host tables present",
+    "drift": "scene_bvh_ray recorded 8dad4d61 vs current caac8c86; QA computed HEAD blob src/render/bvh/cuda/scene.cu = caac8c86a4e4f1e7942cf5c920e2406755dc2e2cade73505f45e28cfff46ab93 (17834 B) == ledger current",
+    "checker": "python -B scripts/np-gate/check_np5_ledger.py => 19 PASS / RESULT: PASS; log 862 B / beae8f16... as declared",
+    "tools": "scripts/np-gate check 4902 B/e7174bce and gen 17892 B/bc9e9e0e; each differs from target source by exactly one guard-note header line (no logic change)",
+    "boundaries": "only docs/development-evidence/np-gate/** (7 files) + scripts/np-gate/** (2 new) + .normify; no src/tests/fixtures; no other scripts touched; guards 94478b3d/43729 unchanged",
+    "claims": "README occurrences of pass wording are negated; checker's no-unnegated-gate-pass-claim passes; ledger boundaries state it is not a pass conclusion",
+    "manifest": "8/8 recomputed incl. two repo-relative script rows, not self-listed",
+    "encoding": "docs UTF-8/LF no BOM/CR/NUL; scripts i/lf w/lf",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored",
+    "cards": "old card abandoned via 769e6933; r2 card verified; receipt records supersedes_abandoned_card"
+  },
+  "non_claims": [
+    "does not claim NP01/NP02 pass or any full-product precision gate pass",
+    "does not change criteria/reference/tolerance; does not re-capture evidence or rerun windows",
+    "zero GPU; review is limited to completeness/consistency/boundaries of the frozen ledger"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}

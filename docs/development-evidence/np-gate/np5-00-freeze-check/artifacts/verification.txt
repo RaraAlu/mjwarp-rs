@@ -1,0 +1,47 @@
+# QA independent checks for NP5-00 gate ledger freeze (commit 875ae41d, zero GPU)
+#
+## 1) ledger identity and counts
+# docs/development-evidence/np-gate/np-gate-ledger.json  116688 B  sha256 6d6ff7d98f82e6429038d6f4c731afcc49cf693951a17e520a5a6fde6568c8ad
+#   target/render-bvh/gl2-ptx-diff/np-gate-ledger.json  116688 B  same sha256  => byte-identical
+# entries 190 = np01.paths 30 + np01.host_sites 3 + np01.unregistered_product_units 23 + np02.kernels 100
+#               + np02.missing_kernel_rows 2 + np02.gaps 32   (== totals.ledger_entries_total 190)
+# statuses: paths 30 partial ; host_sites 3 partial ; unregistered 23 'absent（...annotation...）'
+# gap ledger_action histogram: archive 9 / covered-by-base 2 / reclassify-or-blocker 7 / partial 3 /
+#                              n/a-archived 3 / undetermined 2 / partial-missing 2 / deferred-linux 4  (=32)
+# owners: every np02 kernel (100) and every other entry has owner field (scan: 0 missing)
+# snapshot: generated_at 2026-11-11T12:27:08+0800 ; inputs.tree.head f4628bd7... (subject recorded) ;
+#           per-input sha/count/timestamps recorded (np02 inputs generated 2026-11-04)
+#
+## 2) input material verified by QA
+# np01 inventory 5259e4b4... match | np02 inventory c7d84fb2... match | np02 gap b49cdac2... match
+# cuda-surface 8cb8361b... match ; field-tables 30 files present ; host-tables 3 files present
+# scene_bvh_ray drift: recorded 8dad4d61... vs current_sha256_lf caac8c86...;
+#   QA computed HEAD blob src/render/bvh/cuda/scene.cu = caac8c86a4e4f1e7942cf5c920e2406755dc2e2cade73505f45e28cfff46ab93 (17834 B) => matches current
+#
+## 3) checker rerun (QA)
+# python -B scripts/np-gate/check_np5_ledger.py => 19 PASS / RESULT: PASS
+# log docs/.../logs/np-gate-ledger-check.log = 862 B / beae8f16e035e2c035fc7b1504adce8c9be9fe58e241e2ae493ad05e578eb22e
+#
+## 4) tools landed vs target sources (line diff)
+# scripts/np-gate/check_np5_ledger.py 4902 B e7174bce...  vs target 4817 B a7dbde52...  => +1 line only:
+#   "# NOT in the 93 guards inputs; adding it to guards requires a user re-sign (NP5-00)."
+# scripts/np-gate/gen_np5_ledger.py  17892 B bc9e9e0e...  vs target 17807 B 7fe344d1...  => +1 line only (same note)
+# no other scripts/ file touched ; guards-perworld-l2-light.json 94478b3d.../43729 unchanged
+#
+## 5) scope / manifest / encoding / gates
+# git diff dec4e7d9..875ae41d: docs/development-evidence/np-gate/** (7 files) + scripts/np-gate/** (2 new) + .normify
+#   no src/ tests/ fixtures/ ; no existing scripts modified
+# manifest 8/8 recomputed (incl. two repo-relative scripts/np-gate/*.py rows), not self-listed
+# docs UTF-8/LF no BOM/CR/NUL ; scripts np-gate `git ls-files --eol` = i/lf w/lf
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+#
+## 6) no pass-claim check (QA grep + checker item)
+# README occurrences of "NP01/NP02 通过" / "全产品精度门禁通过" are all NEGATED (lines 5 and 98);
+# checker's "no unnegated gate pass claim" PASSes; ledger boundaries state it is not a pass conclusion
+#
+## 7) low findings recorded by QA
+# L1 unregistered np01_status carries an annotation => not exactly in status_vocabulary (checker does not cover this field)
+# L2 README says inputs.tree.head is "this card's registration commit" - it is the abandoned first card-F registration (f4628bd7);
+#    r2 registration is dec4e7d9
+# L3 ledger `task` field still says "draft; to be landed by Backend" (byte-copy constraint; README lacks a note)
+# O1 ledger scope first clause uses "100% / 0" wording for inventory completeness - easy to misread as acceptance
