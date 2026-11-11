@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-w4-b0-rulings-execution-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "9830bb7618e8c91ef808dd258d350e828df81478",
+    "card": "2026-11-11-w4-b0-rulings-execution",
+    "card_alias": "card I of the 2026-11-11 12:00 window"
+  },
+  "summary": "PASS: 0 blocker, 3 low, 2 observations. All five execution facts hold: g10-p5 re-pointed to the verified family-closeout with acceptance untouched; three cards' notes carry the NP5-01/02/03-verified prerequisite without any pass wording; r07-p8 dependency edges kept and only fact-recorded (no waive); seven entity cards got real dependency edges whose targets all exist (one proposed r07-p8 true block, NP5-00 r2 used as a documented proxy); board status 0 errors/0 warnings and validate 0 errors (5 pre-existing architecture warnings). Low: stale updated_at on 11 changed cards, whole-file reformat noise on 4 roadmap cards, and the plan text says '全仓无 waive 决策记录' while 5 pre-existing waivers exist.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "11 张被改卡 updated_at 未刷新",
+      "detail": "e.g. g10-p5 still 2026-10-23T04:57:01.394Z, p8-entry still 2026-10-19T09:48:37.618Z although note/depends_on changed. Either refresh updated_at in governance edits or document that normify does not maintain it."
+    },
+    {
+      "id": "L2",
+      "title": "4 张 roadmap 卡被整文件重排（diff 噪声）",
+      "detail": "PowerShell ConvertTo-Json 4-space reformat: semantic change is only note/depends_on but the diff is 87-106 lines per card (+294/-204 overall). Blobs remain UTF-8/no BOM/CR0/NUL. Suggest minimal edits preserving the original 2-space style."
+    },
+    {
+      "id": "L3",
+      "title": "计划文档 §6「全仓无 waive 决策记录」不准确",
+      "detail": "The board has 5 pre-existing waivers (e.g. g01-acceptance-fast-loop), unrelated to this card. Should read '本次无新增 waive（r07-p8/g10-p5 均未 waive）'."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "status 警告与 validate 警告是两套口径",
+      "detail": "The addendum's snapshot uses normify status (0 errors/0 warnings); normify validate reports 0 errors/5 warnings (module structure: api/leaf-empty x2, structure/leaf-too-coarse, layout/order-incomplete x2), all pre-existing and unrelated. Suggest labelling the metric."
+    },
+    {
+      "id": "O2",
+      "title": "NP5-01/02/03 未登记，实体卡用 NP5-00 r2 作可解析代理边",
+      "detail": "Documented honestly ('不伪装成 NP 门禁已满足'), but the real hard prerequisite is still unmet; re-point (B0-3) immediately after NP5-01/02/03 cards are registered to avoid the proxy edge being read as gate satisfaction."
+    }
+  ],
+  "verified": {
+    "B0-2": "g10-p5 depends_on [g07-p5,g08-p5] -> [2026-11-04-g10-p5-family-closeout] (verified); status stays proposed; acceptance unchanged (semantic JSON diff only note+depends_on)",
+    "B0-4": "p8-entry/p8-base/r10-p8 notes carry '前置 = NP5-01/02/03 verified（不是整个 NP 伞卡）...不提前标 NP 通过'; none contains 已通过/已签/已裁决/已批",
+    "B0-1": "r10-p8 and p8-base notes record blocked-by-r07-p8 fact with no waive; both keep 2026-10-11-roadmap-r07-p8 in depends_on; r07-p8 status=proposed (true block); no new waive record",
+    "observation1": "all 7 entity card dependency edges added; every target exists; r10-p8 has 9 deps, p8-base 7, p8 4, others 1; statuses proposed + checks=[]; notes say register-state/no direct start",
+    "B0-3": "plan doc appended (8561 -> 13457 B, prefix=8561 pure append), new sha 7c54ea95.../13457 matches Chief; sections 6/7/8 added",
+    "board": "normify status errors 0 / warnings 0; normify validate errors 0 / warnings 5 (pre-existing architecture warnings, unrelated)",
+    "boundaries": "17 files = 12 card JSONs + 4 gate records + plan doc; no src/tests/fixtures/scripts changes; guards untouched; no criteria/reference/tolerance change",
+    "card_I": "status=verified; 13 checks = 4 gates + unchanged(src,tests,fixtures,scripts) + 8 json /schedule/depends_on/0 guards",
+    "encoding": "4 reformatted roadmap card blobs are UTF-8, no BOM, CR=0, NUL=0 (whitespace reformat only)"
+  },
+  "non_claims": [
+    "does not claim NP/P8/W4 admission pass or all-render pass/equivalence/release",
+    "does not change acceptance or criteria/reference/tolerance; does not delete r07-p8 edges or waive",
+    "zero GPU, zero windows"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}

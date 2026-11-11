@@ -1,0 +1,43 @@
+# QA independent checks for W4-B0 rulings execution (commit 9830bb76, zero GPU)
+#
+## 1) semantic diffs (JSON flattened old vs new for every changed card)
+# g10-p5            : note + schedule.depends_on [g07-p5,g08-p5] -> [2026-11-04-g10-p5-family-closeout(verified)] ; acceptance unchanged
+# p8-base/p8-entry/r10-p8 : note only (B0-4 NP prerequisite sentence, plus B0-1 fact for p8-base/r10-p8)
+# entity cards (7)  : note + schedule.depends_on added; targets all exist:
+#   p8-entry -> np5-00-gate-ledger-freeze-r2 (verified proxy)
+#   m03 -> r01-p8 (verified) ; r10-p8 -> r07-p8(proposed) + np5-00-r2 + r01-r05/r08/r09-p8 (9 deps)
+#   r10-p10 -> r10-p8-batch-scheduling ; m10-p10 -> m10-p7 (verified)
+#   p8-base -> r07-p8 + E1-E5 + np5-00-r2 (7 deps) ; p8 -> p8-base + m03 + g28-p8 + r06-flex-closeout (4 deps)
+# no dead dependency (every target exists); statuses remain proposed with checks=[]
+#
+## 2) B0-1 (r07-p8 fact, no waive)
+# r10-p8 and p8-base notes record blocked-by-r07-p8 (current status proposed), "不 waive、不伪造解除"
+# both cards still contain 2026-10-11-roadmap-r07-p8 in depends_on (edge not deleted)
+# no new waive record in the board (5 pre-existing exemptions are unrelated: g01/ g10-p5-primitive-plane / r06-s2b ...)
+#
+## 3) B0-4 wording check
+# p8-entry/p8-base/r10-p8 notes contain "NP5-01/02/03 verified"; none contains 已通过/已签/已裁决/已批
+#
+## 4) plan document append
+# W4-dependency-governance.md 8561 -> 13457 B, common prefix 8561 = old length => PURE APPEND
+# new sha 7c54ea954b66423ea8174131ffe85c3a9d9c8cda266aa7adb19a07c502fc4f46 (matches Chief's value)
+# appended sections 6 (ruling execution), 7 (B0-3 review), 8 (non-claims)
+#
+## 5) board consistency
+# normify status : errors 0 / warnings 0 (same metric the addendum uses)
+# normify validate: errors 0 / warnings 5 (api/leaf-empty x2, structure/leaf-too-coarse, layout/order-incomplete x2)
+#   -> these are module-structure warnings unrelated to this governance-only commit (category differs from status warnings)
+#
+## 6) boundaries / encoding / card I
+# commit files: 12 card JSONs + 4 gate records + plan doc; no src/tests/fixtures/scripts; guards untouched; no criteria change
+# 4 reformatted roadmap cards: blob UTF-8, no BOM, CR=0, NUL=0 (whitespace reformat only)
+# card I: status=verified, 13 checks = 4 gates + unchanged(src,tests,fixtures,scripts) + 8 json /schedule/depends_on/0 guards
+#
+## 7) low findings
+# L1 11 changed cards keep stale updated_at (e.g. g10-p5 still 2026-10-23T04:57, p8-entry 2026-10-19T09:48)
+# L2 four roadmap cards got whole-file reformat (PowerShell 4-space style): semantic change is only note/depends_on but diff is 87-106 lines/card
+# L3 plan section 6 says "全仓无 waive 决策记录" while the board has 5 pre-existing waivers unrelated to this card;
+#    should be "本次无新增 waive"
+# O1 status warnings vs validate warnings are different metrics (0/0 vs 0/5 pre-existing architecture warnings)
+# O2 NP5-01/02/03 cards are not registered yet; entity cards use verified NP5-00 r2 as a resolvable proxy edge,
+#    documented as "不伪装成 NP 门禁已满足"; real hard prerequisite still unmet -> re-point after those cards are registered
