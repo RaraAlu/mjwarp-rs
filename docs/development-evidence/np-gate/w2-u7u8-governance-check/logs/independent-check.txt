@@ -1,0 +1,66 @@
+QA U7U8 治理片复核（只读；0 窗、零 GPU）
+复核对象：64fc0e41（主卡补注 + r2 镜像加固）-> bde94ca8（r3 addenda-qa-gov + manifest 17->18）
+          -> 2c027d4c（floor 口径消歧 + manifest 重算）；HEAD 2c027d4c
+说明：Chief 消息给的是 HEAD bde94ca8；我复核期间 Backend 已追加 2c027d4c（正是 floor 消歧），本卡按最终 HEAD 核。
+仓库 D:\Rust\mjwarp-rs
+
+[1] 主卡 1 低闭环（64fc0e41）
+  主卡 JSON diff          -> 仅新增 addenda（at 19:31:21，reason 三点）与 updated_at；acceptance/checks/note 未改；
+                             卡仍 verified、closed_at 不变
+  §1 item7               -> 窗后 PASS 证据确在 ...-window-r3/（18 文件 / manifest 17->18）；r2 目录确为材料+镜像（7 文件）
+  §1 item9               -> 终态 CPU 4 passed / 2 ignored（此前我本地已重跑证实）
+  §1 item11              -> 主卡检查确指向 r2/receipt.json 镜像；权威 receipt 在 r3
+  无过度表述             -> 只陈述布局/计数/指向，未写「acceptance 已改」
+
+[2] 镜像加固
+  mirrors_sha256         -> r3 receipt 当前 sha256 365f15e9...01c952 == 镜像 mirrors_sha256（逐字相等；receipt 未改）
+  verdict_scope          -> attempt2-window-only
+  kind/attempt           -> window-receipt-mirror / attempt 2 / window "r3-minimal (attempt 2)"
+  FAILED 指针            -> attempt1.verdict=FAILED + attempt1_fail_record + full_evidence_dir->r3 均在；note 明写非 r2 exe PASS
+  receipt diff           -> 仅追加 mirrors_sha256/mirrors_path/verdict_scope + note 后缀；non_claims 与 11 字段未改
+  r2 manifest            -> 新增 manifest.txt 7/7 重算 0 错，文件集与目录一致
+
+[3] r3 addenda §2 四前提勾表
+  fresh freeze           -> git diff 2ee0540d..HEAD -- src 为空；digest 复算 266bbf94...；
+                            r3 branch ac823b58.../41782272；r1 9fe3192b（target/a2-freeze）、r2 6d2b39fc（target/a2-freeze-r2）未动；
+                            9 个未重建 exe 与 r2 清单 9/9 全等；guards 18/18；runner selftest RESULT=PASS
+  monitor                -> CSV 60 行 03:12:50-03:17:51，util_max=4、free_min=13440、compute_filtered/build 全 0
+  三点基线               -> P1-P3 03:17:59-03:18:02：util 2/4/2、used 2614x3、free 13448x3、25C、596.36
+  floor 硬门             -> 10240 MiB（生效值见 [4]）
+
+[4] floor 口径裁断（重点）
+  计划原文               -> 硬门 free>=10240；floor = min(10240, baseline_free-3072)；取两者更严者
+  r3 baseline_free=13448  -> 候选 candidate = 13448-3072 = 10376
+                            夹取 floor = min(10240, candidate) = 10240
+                            hard_gate = 10240
+                            effective = max(hard_gate, floor) = max(10240, 10240) = 10240
+  窗内 pre/post free     -> 13440 > 10240（也 > 候选 10376）-> 窗口有效性不受影响
+  A2-3 同式              -> 候选 9909 -> floor 9909 -> effective max(10240, 9909)=10240（与其 receipt 一致）
+  §7（2c027d4c）         -> 候选 10376 / 夹取 10240 / 硬门 10240 / 生效 10240，与我裁断逐字一致；且与计划原文一致；
+                            同时写入 target 计划附录 B（我核原文在）；§3.2 旧文保留、冲突以 §7 为准
+  §2 行 4 旧表述          -> 保留（append-only），按「冲突以 §7 为准」记录，不作现行口径
+
+[5] 采样统计
+  window-samples         -> 138 样本（不含表头）、137 间隔；我重算 137/137 全部 290.6-361.3 ms；
+                            util_max=4、free_min=11793 取自 138 样本；receipt samples=138 与 interval_min/max 不矛盾
+
+[6] 边界与 append-only
+  三提交边界             -> 64fc0e41 / bde94ca8 / 2c027d4c 各 7 文件（卡/run + 证据），无其它路径
+  diff 4e3abe9c..HEAD    -> 仅治理片 + 我的两张复核卡文件
+  r2-fail 13 文件         -> 4e3abe9c..HEAD 零改动
+  r3 历史文件             -> 仅 addenda-qa-gov 新增、manifest 变；README/receipt/logs/facts/guards/refreeze/readiness 零改动
+  A2-3 证据               -> cap32-window / cap32-identity / cap32 零改动
+  addenda append-only    -> 新版 6613 B 以旧版 5199 B 字节前缀开头
+  manifest               -> r3 18/18、r2 7/7 重算 0 错、不列自身、全覆盖
+  门禁                   -> 主卡 fix 后 unit 1410/0/402（19:31:44）；check 卡 fix 后 unit 1410/0/402（19:33:55）；两卡 verified
+  非声明                 -> r2 receipt 3 条 / addenda §6 / r3 历史非声明均保持；policy_scan 40 文件 0 命中
+
+[7] 观察（详见 README §7）
+  O1 §7 头「QA 独立核」在提交时 QA 尚未复核（现由本卡证实；建议以后写「待 QA 独立核」）
+  O2 同文件 §2 行4/§3.2 旧文与 §7 并存（append-only 要求；建议头注指向 §7）
+  O3 r2 README 文件清单未含后加的 manifest.txt（历史不改；下轮 addenda 点一句即可）
+  O4 QA 自我更正：A2-3 复核 O5 把未夹取候选当 floor（误）；§7 已更正为 10240，本卡确认并更正此前 O5
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 / 0 低 + 4 观察）。
+floor 口径：候选 10,376 / min 夹取 10,240 / 硬门 10,240 / 生效门槛按计划 10,240 MiB；§7 正确。
+非声明：不宣称缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。
