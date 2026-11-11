@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-a2-policy-addenda",
+  "title": {
+    "zh": "卡 A2-POL：A-2 政策违规 append-only 撤回（2 处「位级等价」+3 处「位级一致」）+ 禁词表补强 + 自检重跑（零 GPU）",
+    "en": "Card A2-POL: A-2 append-only policy withdrawal (2x bit-level-equivalence + 3x bit-level-consistency phrases) + forbidden-word list hardening + selfcheck rerun (zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 QA A-2 复核意见与 Chief 指令：①在 A-2 目录 append-only `addenda.md` 明确撤回 5 处正面位级表述（crb:rigid_mass_matrix:accumulation:2 的 why_engine_semantic、crb:rounding-note:1 的 label 与 product_anchor.expression、kinematics:rounding-note:1 的 label 与 product_anchor.expression），改写成「同一 f32 加法、次序不同；未做位级测试、不提供位级保证」，声明 63 站点分类不变、`bit_level_guarantee:false` 仍成立，evidence.json 字节不改、manifest 重算；②禁词表补强：新增 target 工具 policy_scan.py（位级等价/位级一致/bit-level equivalent/bit-level equality/位级相同/bitwise equal，带否定前缀豁免），并入 evidence_schema.py 校验；③自检重跑（扫描 A-2 evidence 的命中记为已撤回、扫描 addenda 与新证据目录必须 0 命中）并记录 logs/selfcheck.txt；④新增小证据目录 np5-01a-a2-policy-addenda/（README/receipt/manifest）。零 GPU、零窗；不改 src/tests/fixtures/scripts/判据/参考/容差。",
+    "en": "Per QA's A-2 review and Chief's instruction: append-only A-2 addenda withdrawing five affirmative bit-level statements (crb accumulation:2 why_engine_semantic, crb rounding-note:1 label and product_anchor.expression, kinematics rounding-note:1 label and product_anchor.expression), replaced with 'same f32 addition, different order; no bit-level test, no bit-level guarantee', 63-site classifications unchanged, bit_level_guarantee:false stands, evidence bytes unchanged, manifest recomputed; harden the forbidden-word list via a new target tool policy_scan.py (bit-level-equivalence/consistency variants, negation exempted) wired into evidence_schema validation; rerun the selfcheck (A-2 evidence hits recorded as withdrawn, addenda/new evidence dir must be 0-hit) and log it; add a small np5-01a-a2-policy-addenda evidence dir. Zero GPU/window; no src/tests/fixtures/scripts or criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/np-gate/np5-01a-a2/addenda.md`（append-only 新文件）：逐条撤回 5 处正面位级表述（引用原 entry id + 原措辞），改写为「同一 f32 加法、次序不同；未做位级测试、不提供位级保证」；声明 63 站点分类不变、`bit_level_guarantee:false` 仍成立；evidence.json/README/receipt 字节不改；A-2 manifest 重算并列入 addenda。",
+    "target 工具：`target/render-bvh/gl2-ptx-diff/np5-01a-tools/policy_scan.py`（禁词表 + 否定前缀豁免 + scan 函数）新增；`evidence_schema.py` 接入该扫描并默认拒绝正面位级表述；后续片 finalizer 统一使用。",
+    "`docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/`：README（撤回清单 + 工具/自检说明）、receipt（verdict=PASS、withdrawn_statements=5、classifications_unchanged=true、bit_level_guarantee_holds=true、policy_scan_hits_in_addenda=0、tree.head、gates、boundaries）、logs/selfcheck.txt（重跑记录：A-2 evidence 5 命中=已撤回；addenda/new files 0 命中）、manifest 自核；UTF-8/LF 无 BOM。",
+    "边界：写域仅 `docs/development-evidence/np-gate/**` + `.normify/**`；`unchanged src/`、`tests/`、`fixtures/`、`scripts/`；零 GPU、零窗。",
+    "四门禁 + `normify check`；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-a2/",
+      "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "QA A-2 复核一般项 G1（政策违规）+ 低 L1（禁词表缺失）；Chief 指令先补后继续 RE-2；零 GPU。",
+  "revision": {
+    "before": "28911fd9da9e80af2939aeaafc2e98055242ce73",
+    "after": null
+  },
+  "created_at": "2026-11-11T12:10:00.000Z",
+  "updated_at": "2026-11-11T12:07:04.065Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/receipt.json",
+      "pointer": "/withdrawn_statements",
+      "equals": 5
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/receipt.json",
+      "pointer": "/classifications_unchanged",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/receipt.json",
+      "pointer": "/policy_scan_hits_in_addenda",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-a2-policy-addenda/receipt.json",
+      "pointer": "/bit_level_guarantee_holds",
+      "equals": true
+    }
+  ]
+}
