@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-flex-z2vec-record-errata",
+  "title": {
+    "zh": "z2vec 片 2：记录面修正（镜像 oracle 注释 + L1 措辞 + PTX 双口径 + errata r2 复核回填；零 .cu/零行为变化）",
+    "en": "z2vec slice 2: record-side corrections (mirror oracle note, L1 wording, dual PTX-length accounting, errata-r2 review backfill; no .cu, no behavior change)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 12:00 派工卡 A：把 QA/Arch 对 z2vec 片 1（`19a68b49`）、errata r2（`84ed67d2`）复核留下的记录面项落仓，纯文档/测试注释、零 `.cu`、零行为变化、零 GPU。内容：①`tests/render_flex_z2vec.rs` 镜像 `warp_length3` 注明「与 `.cu` 数值对应、非位级 oracle（Rust 左结合 vs 显式 fmaf 链，1 ulp 级、容差 1e-6）」；②L1 措辞更正——`(0,1,0,0)` 字面在 `render_flex.cu`/全 `src/` 不存在，实际未动的是同向路径初值 `(0,0,0,1)`（`render_flex.cu:36-39`）；③PTX 长度含/不含尾 NUL 双口径（348,459 vs 348,460；sha 以去 NUL 为准，cudarc `Ptx::to_src()` 经 `CStr` 截止）；④backlog 记录：megakernel 身份已变 `cf356b72…`/`b63a51dd…` ⇒ 后续任何渲染 GPU 窗口必须重新冻结；⑤errata r2 复核回填——C1 `gpu_post_actual` 标「errata 时段复测（mtime 08:06:18），非 run 时采样」并删「post recorded in run-summary.txt」错误引用；`b-field-change.diff` 名不副实说明；`single-normalize/receipt.json` 结构重排+addenda 措辞；行数改物理 484/237；`task_id` 指向被 abandon 旧卡的 successor 说明。",
+    "en": "Per Chief's 2026-11-11 12:00 card A: land the record-side items from the QA/Arch reviews of z2vec slice 1 (19a68b49) and errata r2 (84ed67d2). Docs/test comments only, no .cu, no behavior change, zero GPU: mirror warp_length3 note (numeric correspondence, not a bit-level oracle); L1 wording correction (literal (0,1,0,0) absent from render_flex.cu and src/; what was left untouched is the same-direction initial value (0,0,0,1) at render_flex.cu:36-39); dual PTX-length accounting (348,459 vs 348,460 with the trailing NUL; sha over NUL-trimmed bytes); backlog entry that the megakernel identity changed so any future render GPU window must re-freeze; and the errata-r2 review backfill (C1 post-run GPU provenance, b-field-change.diff naming, single-normalize receipt wording, physical line counts 484/237, task_id successor note)."
+  },
+  "modules": {},
+  "acceptance": [
+    "`tests/render_flex_z2vec.rs` 只改注释：`warp_length3` 镜像注明「数值对应、非位级 oracle（Rust 左结合求和 vs `.cu` 显式 fmaf 链，1 ulp 级，测试容差 1e-6）」；近平行分支处措辞改为「同向路径保持初始 `(0,0,0,1)`（未改动）；`(0,1,0,0)` 非源码字面」；9 个断言与逻辑零改动。",
+    "证据 append-only：`perworld-l-v2-flex-z2vec-pin/README.md` 追加 §7 记录面 errata（L1/O1/O2 + backlog 重冻），`perworld-l-v2-gl2-errata-batch/README.md` 追加复核回填（C1 provenance、b-field-change.diff 名实、receipt 重排措辞、物理行数 484/237、task_id successor），原文字节不改，两目录 manifest 重算自核。",
+    "新证据目录 `perworld-l-v2-flex-z2vec-record-errata/`：README/receipt/manifest + artifacts（PTX 双口径留证、diag7 post provenance 更正前后、物理行数留证）；manifest 不自列、逐条 sha256+bytes、自核通过；UTF-8/LF/无 BOM。",
+    "PTX 双口径留证须给出可复核依据：`nvrtcGetPTXSize` 含终止 NUL（348,460）→ cudarc `Ptx` 经 `CStr`/`to_src` 截止后为 348,459，sha256 按去 NUL 字节计；身份值 `cf356b72…`/`b63a51dd…` 不变（本卡无 `.cu`）。",
+    "backlog：在证据 README 与本卡 note 记录「megakernel 身份已变 ⇒ 后续任何渲染 GPU 窗口必须重新冻结」，并说明本卡不重冻、不占窗。",
+    "四门禁 fmt/clippy/clippy-cuda/unit + `normify check`；`unchanged src/`、`unchanged fixtures/`、`unchanged scripts/`；零 GPU、不重跑窗口/诊断轮、不改判据/参考/容差；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_flex_z2vec.rs",
+      "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-gl2-errata-batch/",
+      "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata/"
+    ],
+    "resources": [],
+    "priority": 96
+  },
+  "note": "Chief 2026-11-11 12:00 派工：卡 A = z2vec 片 2 + 记录面修正（纯文档/测试注释，零 .cu、零行为变化），13:40 硬停干净点。依据：QA 复核 z2vec 片 1（ebc8e97e，1 低 L1 + 1 观察 O1 + O2）与 QA 复核 errata r2（fd72cf0b，1 一般 G1 + 4 低 + 1 观察）。backlog：megakernel 身份已变 cf356b72/b63a51dd ⇒ 后续任何渲染 GPU 窗口必须重新冻结（本卡不重冻、不占窗）。",
+  "revision": {
+    "before": "ec1acbe09ad112026d7a5d5fa02a62f7f3d28374",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:05:00.000Z",
+  "updated_at": "2026-11-11T04:02:33.442Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-flex-z2vec-record-errata"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
