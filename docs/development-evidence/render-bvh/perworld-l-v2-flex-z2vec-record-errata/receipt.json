@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-flex-z2vec-record-errata",
+  "status": "record_corrections_applied_zero_gpu",
+  "kind": "z2vec-record-errata",
+  "verdict": "PASS",
+  "authorization": {
+    "chief_assignment": "2026-11-11 12:00 window card A (z2vec slice 2 + record-side corrections)",
+    "sources": [
+      "QA review of z2vec slice 1: commit ebc8e97e (1 low L1 + observation O1 + O2)",
+      "QA review of errata batch r2: commit fd72cf0b (1 general G1 + 4 low + 1 observation)",
+      "Arch/QA observation: the host mirror is numeric correspondence only, not a bit-level oracle"
+    ]
+  },
+  "corrections": [
+    {
+      "id": "C1",
+      "source": "QA z2vec O1 (Arch same item)",
+      "change": "mirror warp_length3 annotated as numeric correspondence only, not a bit-level oracle (Rust left-assoc sum vs explicit fmaf chain, ~1 ulp, tolerance 1e-6)",
+      "landing": "tests/render_flex_z2vec.rs header + warp_length3 doc"
+    },
+    {
+      "id": "C2",
+      "source": "QA z2vec L1",
+      "change": "wording: literal (0,1,0,0) does not exist in render_flex.cu or anywhere in src/; what stayed untouched is the same-direction initial unit quaternion (0,0,0,1) at render_flex.cu:36-39",
+      "landing": "tests/render_flex_z2vec.rs flex_quat_z2vec doc; perworld-l-v2-flex-z2vec-pin/README.md section 7"
+    },
+    {
+      "id": "C3",
+      "source": "QA z2vec O2",
+      "change": "PTX length dual accounting: 348459 B NUL-trimmed (product/reported artifact.ptx().len()) vs 348460 B raw nvrtcGetPTXSize (includes terminator); sha256 is over the NUL-trimmed bytes",
+      "landing": "perworld-l-v2-flex-z2vec-pin/README.md section 7; artifacts/ptx-length-dual-accounting.txt"
+    },
+    {
+      "id": "C4",
+      "source": "QA errata r2 general G1",
+      "change": "diag7 gpu_post_actual is an errata-time re-query (file mtime 2026-11-11 08:06:18), not a run-time sample; removed the false 'post recorded in run-summary.txt' cross-reference (that file still holds the placeholder gpu_after=$gpu)",
+      "landing": "perworld-l-v2-gl2-errata-batch/README.md section G; artifacts/c1-diag7-post-provenance.txt; target-side snapshot annotated"
+    },
+    {
+      "id": "C5",
+      "source": "QA errata r2 low L1",
+      "change": "b-field-change.diff contains only the test-relocation hunks (3 tests moved diag.rs -> diag_ext.rs), not the B semantic change; its old blob index 25affdc8 is an intermediate edit state (84ed67d2^ is 02533c7d); the semantic change itself is in the commit diff",
+      "landing": "perworld-l-v2-gl2-errata-batch/README.md section G"
+    },
+    {
+      "id": "C6",
+      "source": "QA errata r2 low L2",
+      "change": "single-normalize/receipt.json is a structural rewrite + addenda, not append-only; all non-addenda keys are equal in value to the old ones",
+      "landing": "perworld-l-v2-gl2-errata-batch/README.md section G"
+    },
+    {
+      "id": "C7",
+      "source": "QA errata r2 low L3",
+      "change": "diag.rs / diag_ext.rs physical line counts are 484 / 237 (the 466 / 231 numbers came from PowerShell Get-Content encoding heuristics); both stay below the 500-line ratchet",
+      "landing": "perworld-l-v2-gl2-errata-batch/README.md section G; artifacts/physical-line-counts.txt"
+    },
+    {
+      "id": "C8",
+      "source": "QA errata r2 low L4",
+      "change": "evidence task_id points to the abandoned old card; successor card 2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2 now noted; historical task_id left unrewritten",
+      "landing": "perworld-l-v2-gl2-errata-batch/README.md section G"
+    }
+  ],
+  "backlog": [
+    {
+      "item": "render GPU window re-freeze",
+      "detail": "megakernel identity changed from 6b1ade37.../48f8e7f8... (348399 B) to cf356b72.../b63a51dd... (348459 B); any future render GPU window must re-freeze guards/artifacts. This card does not re-freeze and does not take a GPU window."
+    }
+  ],
+  "tests": {
+    "host_mirror": "cargo test --locked --test render_flex_z2vec -> 9 passed / 0 failed (comments-only change; assertions and mirror logic untouched)"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": {
+      "passed": 1403,
+      "failed": 0,
+      "ignored": 402
+    }
+  },
+  "kernel_identity": {
+    "changed_by_this_card": false,
+    "megakernel_source": "cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48",
+    "megakernel_source_bytes": 110879,
+    "megakernel_ptx": "b63a51ddcc41a5ec7520fdc38a5234a2d44a1874bc4b38b298f4338bfb11df14",
+    "ptx_bytes_trimmed": 348459,
+    "ptx_bytes_raw_nvrtc": 348460,
+    "depth_seg": "1e3f273c.../31912377.../138857 unchanged",
+    "aa_resolve": "0bf8af5a.../b28e155c.../27536 unchanged"
+  },
+  "manifests_recalculated": [
+    "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin",
+    "docs/development-evidence/render-bvh/perworld-l-v2-gl2-errata-batch",
+    "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-record-errata"
+  ],
+  "boundaries": {
+    "src_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "cu_unchanged": true,
+    "guards_unchanged": true,
+    "gpu_used": false,
+    "window_rerun": false,
+    "criteria_changed": false,
+    "history_bytes_rewritten": false
+  },
+  "non_claims": [
+    "does not claim any device-side render change, fix effect, or upstream equivalence",
+    "CPU mirror assertions are not device acceptance",
+    "does not re-freeze guards and does not take a GPU window",
+    "does not change any criterion/threshold/reference/camera/recipe",
+    "affected evidence directories are append-only: original text bytes are kept, new sections/artifacts are added, manifests recomputed"
+  ]
+}

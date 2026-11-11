@@ -68,3 +68,26 @@
 - **不静默回退**：宿主镜像仅 host 断言，产品路径始终使用 `render_flex.cu` 设备侧实现；镜像不进产品路径、
   不得作为运行时回退；`.cu` 与镜像不一致时测试必须失败（不允许 skip/fallback）。
 - 非声明：不宣称设备端渲染结果变化/修复生效（需后续诊断轮或 GPU 验证）；历史证据与提交说明不改写。
+
+## 7. 记录面 errata（2026-11-11 卡 A；append-only，原文字节不改）
+
+本段只更正记录面表述，不改变片 1 的任何结论（9 tests 全绿、内核身份、离线 PTX 分支证明与边界不变）。
+完整留证见 `perworld-l-v2-flex-z2vec-record-errata/README.md`。
+
+- **L1 措辞更正（QA 复核 `ebc8e97e`）**：§1 表与提交说明里的「**不**改 `(0,1,0,0)`」措辞不对——
+  `(0,1,0,0)` 四元组**字面**在产品 `render_flex.cu` 与全 `src/` 中都不存在（QA grep 仅命中
+  `src/physics/**` 的无关元组）。实际未改动的是**同向路径保存的初始单位四元数 `(0,0,0,1)`**
+  （`render_flex.cu:36-39` 入口初始化，`unit.z >= 0` 的近平行同向分支原样返回）。正确表述应为
+  「不改同向路径的 `(0,0,0,1)`」；`tests/render_flex_z2vec.rs` 文件头与函数注释已同步更正。
+- **O1 镜像 `warp_length3` 非位级 oracle（Arch/QA 采纳）**：镜像用 Rust 左结合求和，`.cu` 用显式
+  `fmaf(z,z,fmaf(y,y,x*x))` 收缩链，1 ulp 级差异；测试文件已注明「数值对应、非位级 oracle」，
+  该链相关断言只做 1e-6 容差（#1 的 `assert_eq!` 针对常量四元数，不经过该链）。
+- **O2 PTX 长度双口径**：§4 表内 348,459 B 为**去尾部 NUL** 口径（产品/测试路径
+  `artifact.ptx().len()`）；`nvrtcGetPTXSize` 原始值**含终止 NUL = 348,460 B**（旧 PTX
+  348,399 → 348,400 同理）。sha256 按**去 NUL** 字节计：`src/runtime/launcher/artifact/nvrtc.rs:104-105`
+  的 `compile_ptx_with_opts(...).map(|ptx| ptx.to_src())` 经 cudarc 0.18.2 `Ptx::to_src()`
+  （`src/nvrtc/safe.rs:41-46`，`CStr::from_ptr` 在 NUL 处截止）截断，缓冲区长度来自
+  `src/nvrtc/result.rs:114-122` 的 `nvrtcGetPTXSize`（含 NUL）。两口径差 1 B、内容同；身份值以 §4 为准。
+- **Backlog（不阻断）**：megakernel 身份已由 `6b1ade37…`/`48f8e7f8…`（348,399 B）变为
+  **`cf356b72…`/`b63a51dd…`**（348,459 B）⇒ **后续任何渲染 GPU 窗口都必须重新冻结** guards/制品；
+  本片不重冻、不占窗，冻结动作留给下一个渲染窗口执行。

@@ -10,6 +10,12 @@
 //!
 //! 期望矩阵来自 Arch 规格 `target/render-bvh/gl2-ptx-diff/z2vec-probe-expectations.md` §2
 //! （上游真值 `probe_quat.log`；#2–#7 容差 1e-6，其中 #3/#4/#6/#7 有 1 ulp CPU 三角函数库差）。
+//!
+//! 记录面更正（2026-11-11 卡 `2026-11-11-render-flex-z2vec-record-errata`）：镜像 `warp_length3` 与
+//! 产品 `.cu` 的显式 `fmaf` 收缩链是**数值对应、非位级 oracle**（1 ulp 级；只做 1e-6 容差断言，
+//! 不承载位级等价结论——见该函数注释与证据 README §7）；片 1 措辞里的 `(0,1,0,0)` 在
+//! `render_flex.cu`/全 `src/` 中**不存在字面**，实际未改动的是同向路径保存的初始单位四元数
+//! `(0,0,0,1)`（见 `flex_quat_z2vec` 镜像注释）。
 
 #![allow(clippy::excessive_precision)]
 // 说明：期望矩阵按 Arch 规格 `probe_quat.log` 的十进制直接内联（f32 有效位之外的位数是规格转录），
@@ -19,11 +25,20 @@
 const FLEX_MINVAL: f32 = 1.0e-15;
 
 /// 镜像 `render_flex.cu::warp_length3`（`sqrt(dot(v,v))`，f32）。
+///
+/// **数值对应、非位级 oracle**：本镜像用 Rust 左结合求和 `(x*x + y*y) + z*z`，产品 `.cu` 用显式
+/// `fmaf(z, z, fmaf(y, y, x * x))` 的收缩链——两者可能差 1 ulp（QA/Arch 观察 O1）。因此该链相关的
+/// 断言只用 1e-6 容差，**不能**据此宣称位级一致；#1 的精确 `assert_eq!` 只针对近平行分支写出的
+/// 常量四元数 `(1,0,0,0)`，不经过本求和链。
 fn warp_length3(v: [f32; 3]) -> f32 {
     (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
 }
 
 /// 镜像 `render_flex.cu::flex_quat_z2vec`（含 z2vec 修复后的近平行分支：显式四位 `(1,0,0,0)`）。
+///
+/// 记录面更正（L1）：修复**没有**改动 `(0,1,0,0)`——该四元组字面在产品 `render_flex.cu` 与全
+/// `src/` 中都不存在；实际**未改动**的是同向路径保存的初始单位四元数 `(0,0,0,1)`
+/// （`render_flex.cu` 函数入口初始化，`unit.z >= 0` 的近平行同向分支原样返回，不受本次修复影响）。
 fn flex_quat_z2vec(vec: [f32; 3]) -> [f32; 4] {
     let mut quat = [0.0f32, 0.0, 0.0, 1.0];
     let norm = warp_length3(vec);

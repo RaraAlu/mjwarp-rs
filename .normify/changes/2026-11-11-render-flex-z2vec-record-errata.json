@@ -5,7 +5,7 @@
     "zh": "z2vec 片 2：记录面修正（镜像 oracle 注释 + L1 措辞 + PTX 双口径 + errata r2 复核回填；零 .cu/零行为变化）",
     "en": "z2vec slice 2: record-side corrections (mirror oracle note, L1 wording, dual PTX-length accounting, errata-r2 review backfill; no .cu, no behavior change)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "按 Chief 2026-11-11 12:00 派工卡 A：把 QA/Arch 对 z2vec 片 1（`19a68b49`）、errata r2（`84ed67d2`）复核留下的记录面项落仓，纯文档/测试注释、零 `.cu`、零行为变化、零 GPU。内容：①`tests/render_flex_z2vec.rs` 镜像 `warp_length3` 注明「与 `.cu` 数值对应、非位级 oracle（Rust 左结合 vs 显式 fmaf 链，1 ulp 级、容差 1e-6）」；②L1 措辞更正——`(0,1,0,0)` 字面在 `render_flex.cu`/全 `src/` 不存在，实际未动的是同向路径初值 `(0,0,0,1)`（`render_flex.cu:36-39`）；③PTX 长度含/不含尾 NUL 双口径（348,459 vs 348,460；sha 以去 NUL 为准，cudarc `Ptx::to_src()` 经 `CStr` 截止）；④backlog 记录：megakernel 身份已变 `cf356b72…`/`b63a51dd…` ⇒ 后续任何渲染 GPU 窗口必须重新冻结；⑤errata r2 复核回填——C1 `gpu_post_actual` 标「errata 时段复测（mtime 08:06:18），非 run 时采样」并删「post recorded in run-summary.txt」错误引用；`b-field-change.diff` 名不副实说明；`single-normalize/receipt.json` 结构重排+addenda 措辞；行数改物理 484/237；`task_id` 指向被 abandon 旧卡的 successor 说明。",
     "en": "Per Chief's 2026-11-11 12:00 card A: land the record-side items from the QA/Arch reviews of z2vec slice 1 (19a68b49) and errata r2 (84ed67d2). Docs/test comments only, no .cu, no behavior change, zero GPU: mirror warp_length3 note (numeric correspondence, not a bit-level oracle); L1 wording correction (literal (0,1,0,0) absent from render_flex.cu and src/; what was left untouched is the same-direction initial value (0,0,0,1) at render_flex.cu:36-39); dual PTX-length accounting (348,459 vs 348,460 with the trailing NUL; sha over NUL-trimmed bytes); backlog entry that the megakernel identity changed so any future render GPU window must re-freeze; and the errata-r2 review backfill (C1 post-run GPU provenance, b-field-change.diff naming, single-normalize receipt wording, physical line counts 484/237, task_id successor note)."
@@ -38,7 +38,8 @@
     "after": null
   },
   "created_at": "2026-11-11T04:05:00.000Z",
-  "updated_at": "2026-11-11T04:02:33.442Z",
+  "updated_at": "2026-11-11T04:05:39.364Z",
+  "closed_at": "2026-11-11T04:05:39.364Z",
   "checks": [
     {
       "kind": "gate",

@@ -45,3 +45,34 @@ A7/A8 为 target/ 内 Arch 草案追加（`rca-errata-draft.md`、`site-conforma
 
 - **锁纪律**：2026-11-11 08:03 本卡登记/start 两条治理提交在 QA 持锁（`pid=77836`）期间完成（acquire 返回 `HELD` 后未停下即写），随后立即停手、等锁 FREE（08:04:07）后重新 acquire 继续；期间仅 `.normify` 卡 JSON 变更、无并发冲突/数据丢失。已按既有纪律记录并报 Chief。
 - **归档修复**：`attempt4/window/monitor-stdout.txt` 在生成派生副本时被同名写入覆盖，已从提交 `5f1d436d` 的 git blob 恢复原始字节（340 B / sha `c22ea746…`，与 blob 逐字节一致），派生副本改名为 `monitor-stdout.readable.txt`；证据无净损失。
+
+## G. 复核回填（QA 复核 `fd72cf0b` 的记录面勘误；2026-11-11 卡 A，append-only）
+
+本段只更正记录面/引用，不改变 A/B/C/E 任何内容结论与窗口有效性；原文字节不改。完整留证见
+`perworld-l-v2-flex-z2vec-record-errata/README.md` 与 `artifacts/`。
+
+- **G1（一般项；原 §C 第 1 条的 C1）provenance 更正**：
+  `target/render-bvh/perworld-l-v2-gl2/diag7/window/gpu-snapshot.txt` 的
+  `gpu_post_actual=2 %, 3,919 MiB used, 12,143 MiB free, 26 C` 是 **errata 时段复测**
+  （文件 mtime 2026-11-11 08:06:18），**不是 run 结束即时采样**。原文 `timestamps_actual=` 行
+  「post recorded in run-summary.txt (same diagnostic round)」的交叉引用**不实**：该轮
+  `run-summary.txt` 至今仍是未展开占位 `gpu_after=$gpu`。该错误引用已删除并改为 provenance 标注；
+  C1 的宣称从「补跑后快照」降级为「事后补测」。数值与任何判定不受影响（pre 值可由 `pre-state.txt`
+  复核）。更正前后文本见 `perworld-l-v2-flex-z2vec-record-errata/artifacts/c1-diag7-post-provenance.txt`。
+- **L1（原 §B 的 `b-field-change.diff` 名不副实）**：该 artifact 的两个 hunk **只含「3 个测试从
+  `diag.rs` 搬到 `diag_ext.rs`」**（`diag.rs` −49 / `diag_ext.rs` +51），**不含 B 的字段语义改动**；
+  其 `diag.rs` old blob index `25affdc8` 是编辑中间态（`84ed67d2^` 实际为 `02533c7d`）。字段语义
+  真身在提交 diff 本身（`diag.rs::segment_attribution` + `diag_ext.rs` 3 个静态单测）；artifact
+  保留不改写，仅在此说明其真实覆盖面与索引口径。
+- **L2（原 §A 的 A2 receipt 口径）**：`single-normalize/receipt.json` **不是** append-only——从字节
+  5,245 起整段重排（紧凑 inline 对象改多行）并在末尾追加 `addenda[]`；按 JSON 展平逐键比对，
+  非 addenda 键与旧值**完全相等**（语义等价）。正确表述：「README/logs 为**纯追加**；receipt 为
+  **结构重排 + addenda**，除 `addenda[]` 外逐键与原值相同」。
+- **L3（行数口径）**：§B 文内「`diag.rs` 466 行 / `diag_ext.rs` 231 行」是 PowerShell
+  `Get-Content` 默认编码的计数（含 CJK 行尾被吞并，少计 18/6 行）；**物理行数（LF 计数）为
+  484 / 237**，两者均 < 500 棘轮，判定不受影响。留证：
+  `perworld-l-v2-flex-z2vec-record-errata/artifacts/physical-line-counts.txt`。
+- **L4（task_id successor 关系）**：本文开头「任务：`2026-11-11-render-perworld-l-v2-gl2-errata-batch`」
+  与本目录 `receipt.json.task_id` 指向**已被 abandon 的旧卡**；实际交付提交 `84ed67d2` 由 successor
+  卡 **`2026-11-11-render-perworld-l-v2-gl2-errata-batch-r2`** 承载（旧卡 `82f5dd76` abandon；
+  r2 登记即最终 scope/checks）。历史 task_id 保留不改写，此处补 successor 关系说明。

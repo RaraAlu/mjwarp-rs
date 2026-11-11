@@ -1,0 +1,26 @@
+# PTX length dual accounting (z2vec slice-1 identity; QA observation O2 backfill, 2026-11-11 card A)
+# No recompilation in this card: no .cu / src changed, so the slice-1 identity logs stay authoritative.
+
+megakernel source (new, after slice 1) sha256 = cf356b728c563f7da89e33e1d06b0765028e4861bee990c4a1db54843395ab48
+  source bytes = 110879  (old 6b1ade37958facfd48f485a7433f93bcf7256a6b08a167c1ece078e0744de278 / 110509)
+
+megakernel PTX (new, after slice 1) sha256 = b63a51ddcc41a5ec7520fdc38a5234a2d44a1874bc4b38b298f4338bfb11df14
+  product/reported length = 348459 B   (NUL-trimmed; Rust `artifact.ptx().len()`, printed as ptx_bytes=348459)
+  nvrtcGetPTXSize raw     = 348460 B   (includes the terminating NUL; = reported + 1 B by mechanism)
+  sha256 is over the NUL-trimmed PTX text bytes (the bytes the product loads and records as identity)
+
+megakernel PTX (old, before slice 1) sha256 = 48f8e7f820f7a0a931a82e07efbebef07b831b3895bb7c6423dcd4975c31fa02
+  product/reported length = 348399 B ; nvrtcGetPTXSize raw = 348400 B
+  delta = +60 B product length (348459 - 348399), consistent with two extra register stores in one branch
+
+why the reported length is the NUL-trimmed one (verifiable chain):
+  src/runtime/launcher/artifact/nvrtc.rs:104-105   compile_ptx_with_opts(text, options).map(|ptx| ptx.to_src())
+  cudarc 0.18.2 src/nvrtc/result.rs:114-122        buffer sized by nvrtcGetPTXSize (size includes the NUL)
+  cudarc 0.18.2 src/nvrtc/safe.rs:41-46            Ptx::to_src() -> CStr::from_ptr(bytes.as_ptr()).to_str() stops at NUL
+
+primary logs: docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin/logs/
+  new-identity-flags.log -> "s7b3 megakernel: source_sha256=cf356b72... ptx_sha256=b63a51dd... ptx_bytes=348459"
+  old-identity-flags.log -> "s7b3 megakernel: source_sha256=6b1ade37... ptx_sha256=48f8e7f8... ptx_bytes=348399"
+
+note: both accounting modes are the same PTX content; the 1 B difference is only the terminator. Identity values to
+quote are the NUL-trimmed ones (348459 / 348399), which is the QA re-check convention.
