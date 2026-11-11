@@ -1,0 +1,41 @@
+# QA independent checks for W4-B0 dependency governance (commits cc43c2cd registration + 279db5c8 content, zero GPU)
+#
+## 1) entity cards (7) registered in cc43c2cd
+# 2026-11-11-render-p8-entry-admission            status=proposed checks=0 deps=[] files=[docs/development-evidence/render-bvh/]
+# 2026-11-11-render-m03-p8-asset-conversion       status=proposed checks=0 deps=[] files=[docs/.../render-bvh/;tests/]
+# 2026-11-11-render-r10-p8-batch-scheduling       status=proposed checks=0 deps=[] files=[src/render/;tests/;docs/.../render-bvh/]
+# 2026-11-11-render-r10-p10-batch-scheduling      status=proposed checks=0 deps=[] files=[src/render/;tests/;docs/.../render-bvh/]
+# 2026-11-11-render-m10-p10-rust-callback         status=proposed checks=0 deps=[] files=[src/render/;docs/.../render-bvh/]
+# 2026-11-11-render-p8-base-admission             status=proposed checks=0 deps=[] files=[docs/.../render-bvh/]
+# 2026-11-11-render-p8-admission                  status=proposed checks=0 deps=[] files=[docs/.../render-bvh/]
+# ids/priority/phase(P8-渲染与BVH)/owner(Backend) match the plan table rows E1-E7
+# acceptance of each card references the placeholder criteria, explicitly "不新增判据" and "checks=[], 禁止直接 start"
+#
+## 2) card G
+# status=verified ; 12 checks = 4 gates + unchanged(src/,tests/,fixtures/,scripts/) + 7 x json /status == proposed
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+# schedule.files = [.normify/changes/, docs/development-evidence/plan/]
+#
+## 3) plan document
+# docs/development-evidence/plan/W4-dependency-governance.md
+#   8561 B / fd91bc8fba89d38e691a973e8605a4b8b2f16efb208594122a8e326356b064c9  (matches Chief's dispatch value)
+#   83 lines, UTF-8/LF, git ls-files --eol = i/lf w/lf attr/-text ; no BOM/CR/NUL
+#   header: "# W4-B0 依赖治理与 W4 派工片拆分（草案；2026-11-11）" + "> **草案；裁决项未定，不构成结论。**"
+#   B0-1/B0-2/B0-4 status column = "待 Chief 裁决（本卡未执行）" ; B0-3 after B0-1/2
+#   section 5: "未执行 B0-1/2/4 ... 只列待裁点，不伪造解除、不写 waived 依据"
+#   conclusion-term grep: 已裁决0 已签0 已批0 已批准0 已执行0 已解除0 已waive0 发布通过0; "准入通过" only in the negation "不宣称 P8 准入通过"
+#
+## 4) LOW L1 - slice count mismatch
+# doc section 3 heading says "24 片 = B0 4 片 + 实体 20 片" (also in the commit message), but the table has 25 rows:
+#   B0 x4 + entity 7 cards x 3 slices (W4-01A..W4-07C) = 21  => total 25
+#   (counted with: Select-String '^\\| W4-' => 25 rows; per-card group 01..07 each 3)
+#
+## 5) boundaries / encoding / gates
+# git diff 875ae41d..279db5c8 = .normify/{changes,runs}/w4-b0* + 7 entity card JSONs + docs/plan/W4-dependency-governance.md only
+# no src/ tests/ fixtures/ scripts/ changes (in either commit) ; guards untouched ; no criteria/reference/tolerance change
+# zero GPU / zero windows
+#
+## 6) observations
+# O1 entity cards have empty depends_on by design (B0-1/2/4 pending Chief), note says "不伪造解除"; checks=[] blocks start.
+#    Suggest adding machine deps/checks immediately after the B0 decisions.
+# O2 positive: card G's 7 json /status==proposed checks make "registered cards must not be started/mutated" machine-checkable.

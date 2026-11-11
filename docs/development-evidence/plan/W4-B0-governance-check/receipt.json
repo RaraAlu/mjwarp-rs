@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-w4-b0-dependency-governance-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commits": [
+      "cc43c2cd (card G registration/start + 7 entity card registration)",
+      "279db5c8 (card G content: plan document + card checks)"
+    ],
+    "card": "2026-11-11-w4-b0-dependency-governance",
+    "card_alias": "card G of the 2026-11-11 12:00 window"
+  },
+  "summary": "PASS: 0 blocker, 1 low, 2 observations. Seven W4 entity cards registered correctly (status=proposed, checks=[], ids/deps/write-scopes matching plan rows E1-E7, owner Backend); card G itself has 12 checks including 7 json /status==proposed guards; plan document is 8561 B / fd91bc8f (matches dispatch), has the draft/no-conclusion header, lists B0-1/2/4 as pending Chief without executing them, contains no conclusion wording; both commits touch only .normify and docs/development-evidence/plan, no code/criteria change. Low: the document says '24 slices = B0 4 + entity 20' but the table has 25 rows (4 + 7x3=21).",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "片数口径不一致：标题写 24 片，表中实际 25 行",
+      "detail": "Section 3 heading (and the commit message) say '24 slices = B0 4 + entity 20', but the table has 25 rows: B0 x4 plus entity 7 cards x 3 slices (W4-01A..W4-07C) = 21, i.e. 25 total. Suggest fixing the heading/statistics, or stating which slice is not counted (merged windows still count as slices)."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "7 张实体卡 depends_on 为空/checks=[] 是刻意设计",
+      "detail": "Dependencies are intentionally empty while B0-1/2/4 await Chief decisions; the note says the card does not fake the removal and checks=[] blocks a direct start. Suggest adding machine deps/checks immediately after the B0 rulings so the cards do not look dispatchable."
+    },
+    {
+      "id": "O2",
+      "title": "（正向）用 7 条 json /status==proposed 守卫登记卡",
+      "detail": "Card G adds one json check per registered entity card asserting status stays 'proposed', making 'registered cards must not be started or mutated' machine-checkable. Worth reusing for card H."
+    }
+  ],
+  "verified": {
+    "entity_cards": "7 cards: p8-entry-admission, m03-p8-asset-conversion, r10-p8-batch-scheduling, r10-p10-batch-scheduling, m10-p10-rust-callback, p8-base-admission, p8-admission - all status=proposed, checks=0, owner Backend, ids/priority/phase/write scopes match plan rows E1-E7; acceptance references placeholder criteria and states 不新增判据 / 禁止直接 start",
+    "card_g": "status=verified; 12 checks = 4 gates + unchanged(src/,tests/,fixtures/,scripts/) + 7 json /status==proposed; gates fmt/clippy/clippy-cuda exit 0, unit 1406/0/402; schedule.files only .normify/changes + docs/development-evidence/plan",
+    "plan_doc": "8561 B / fd91bc8fba89d38e691a973e8605a4b8b2f16efb208594122a8e326356b064c9 (matches dispatch), 83 lines, UTF-8/LF no BOM/CR/NUL; header draft/no-conclusion; B0-1/2/4 marked 待 Chief 裁决（本卡未执行）; conclusion-term grep 0; 准入通过 only negated",
+    "boundaries": "git diff 875ae41d..279db5c8 = .normify w4-b0 entries + 7 entity card JSONs + docs/plan/W4-dependency-governance.md only; no src/tests/fixtures/scripts changes in either commit; guards untouched; no criteria/reference/tolerance change",
+    "slice_count": "table rows counted: 25 (B0 4 + entity 21); heading says 24 (low L1)",
+    "encoding": "plan doc i/lf w/lf attr/-text; no BOM/CR/NUL"
+  },
+  "non_claims": [
+    "does not claim P8 admission pass, all-render pass, equivalence or release; stage admission != release statement",
+    "does not execute B0-1/2/4 or fake dependency removals",
+    "zero GPU, zero windows; no criteria/reference/tolerance change"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}
