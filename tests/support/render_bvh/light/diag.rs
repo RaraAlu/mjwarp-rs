@@ -231,12 +231,29 @@ fn material_values(model: &Value, name: &str, mat: i32) -> Value {
 }
 
 /// seg `(id,type)` 对应的 geom / mat 归属 + 材质标量（模型数组只读；缺模型则给 null）。
+///
+/// 字段语义（errata 2026-11-11，QA #7 复核）：`geom_type` 现取**模型真实 geom 类型**
+/// `mjm.geom_type[geom_id]`（本场景 geom 3 = **7 MESH**）；`seg_objtype` 为 seg 的第二分量
+/// `seg[1]`（MuJoCo **object type**，本场景 `mjOBJ_GEOM = 5`）。旧版把 `seg[1]` 误标为
+/// `geom_type`（数值 5 与 `mjGEOM_CYLINDER` 只是巧合）。`seg_objtype` 为过渡键，
+/// dump 顶层 `schema` 保持 2。
 pub(crate) fn segment_attribution(model: Option<&Value>, seg: [i32; 2]) -> Value {
-    let (geom_id, geom_type) = (seg[0], seg[1]);
+    let (geom_id, seg_objtype) = (seg[0], seg[1]);
     let Some(model) = model else {
-        return json!({ "geom_id": geom_id, "geom_type": geom_type, "mat_id": Value::Null });
+        return json!({
+            "geom_id": geom_id,
+            "geom_type": Value::Null,
+            "seg_objtype": seg_objtype,
+            "mat_id": Value::Null,
+        });
     };
     let geom_matid = array_i32(model, "geom_matid");
+    let geom_types = array_i32(model, "geom_type");
+    let geom_type = if geom_id >= 0 && (geom_id as usize) < geom_types.len() {
+        json!(geom_types[geom_id as usize])
+    } else {
+        Value::Null
+    };
     let mat = if geom_id >= 0 && (geom_id as usize) < geom_matid.len() {
         geom_matid[geom_id as usize]
     } else {
@@ -246,6 +263,7 @@ pub(crate) fn segment_attribution(model: Option<&Value>, seg: [i32; 2]) -> Value
     json!({
         "geom_id": geom_id,
         "geom_type": geom_type,
+        "seg_objtype": seg_objtype,
         "mat_id": mat,
         "mat_texid_row": texid_row,
         "mat_shininess": material_values(model, "mat_shininess", mat),

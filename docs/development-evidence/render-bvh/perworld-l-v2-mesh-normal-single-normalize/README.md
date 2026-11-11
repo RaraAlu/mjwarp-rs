@@ -69,3 +69,10 @@
 
 - 边界：`unchanged fixtures/`、`unchanged scripts/`、`unchanged tests/`；其它证据目录只读（G-L2 窗口证据、诊断轮证据、Arch RCA 证据、criterion-spec 目录）；本卡只改 `render_math.cu` 与新增证据目录；**零 GPU、未采集、未重编译冻结 exe 证据、未改 guards/冻结 stash**。
 - 非声明：本卡不宣称修复生效（需 Chief 诊断轮 token：重建实体 exe 跑一次，验 5 px 是否归零、A/B/sha/隔离）；不改变 G-L2 判定（判据 A FAIL 维持）；不改判据/阈值/参考/相机/recipe；诊断轮、重冻与 G-L2 attempt 3 均由 Chief 另发 token。
+
+## 6. Addenda（2026-11-11，P10 errata）
+
+> **Addendum（2026-11-11，P10 errata）**：本卡原记「上游 mesh 法线链 = `cross` 未归一化 → `mat@n` → 归一化一次」**前提有误**。经参考侧 gated dump 与产品侧 64 字段 dump 逐站比对（`target/render-bvh/gl2-ptx-diff/ref-vs-product-station-diff.md`）与离线重放：上游用 warp 内建 `mesh_query_ray`，其在 `warp/native/mesh.h:1880` 返回前已做**局部归一化**，`mujoco_warp/_src/render.py:731-732` 再 `mat @ n` + `wp.normalize`，即上游为**两次**归一化；产品在 `f728b2d7` 删掉了第一次归一化，残余 4 px 由此而来，P10（`b0e372be`）已恢复（`render_math.cu` `normalize3_mesh(min_normal)` + `mat_vec_xpref` x-项先舍入）。原记录文字保留不改。
+
+- 本卡**结果**（把 5 px 降到 4 px、数值向参考方向移动）仍为实测事实；仅**归因文字**更正。
+- 后续落点：P10 修复卡 `perworld-l-v2-mesh-normal-chain-pin/`（提交 `b0e372be`，恢复局部归一化 + `mat_vec_xpref`）；逐站比对 `target/render-bvh/gl2-ptx-diff/ref-vs-product-station-diff.md` §4；W0 收口 brief `target/render-bvh/gl2-ptx-diff/w0-closure-brief.md`。

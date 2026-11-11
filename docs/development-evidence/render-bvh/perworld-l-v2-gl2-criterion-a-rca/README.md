@@ -85,3 +85,9 @@
 - 不宣称 G-L2 通过、不宣称判据 A/B/C 满足、不宣称与上游实现等价、不宣称任何渲染数值结论；本卡只是只读 RCA 记录。
 - 不改变任何判据、阈值、参考、spec、冻结件与窗口状态；证据内的"修复方向"仅为登记，不构成实施。
 - 上游其余相关头文件行为（`wp.normalize`/`dot` 的具体展开）以本仓库 `include/warp-headers` 与 pinned 源码为准；本卡不复制上游生成代码（warp 生成 `.cu` 缓存已在 `target/` 瘦身中丢失，未在本卡重建）。
+
+## 9. Addenda（2026-11-11，P10 errata）
+
+> **Addendum（2026-11-11，P10 errata）**：本卡原记「上游 mesh 法线链 = `cross` 未归一化 → `mat@n` → 归一化一次」**前提有误**。经参考侧 gated dump 与产品侧 64 字段 dump 逐站比对（`target/render-bvh/gl2-ptx-diff/ref-vs-product-station-diff.md`）与离线重放：上游用 warp 内建 `mesh_query_ray`，其在 `warp/native/mesh.h:1880` 返回前已做**局部归一化**，`mujoco_warp/_src/render.py:731-732` 再 `mat @ n` + `wp.normalize`，即上游为**两次**归一化；产品在 `f728b2d7` 删掉了第一次归一化，残余 4 px 由此而来，P10（`b0e372be`）已恢复（`render_math.cu` `normalize3_mesh(min_normal)` + `mat_vec_xpref` x-项先舍入）。原记录文字保留不改。
+
+- 本卡「唯一站点 = mesh 法线链」的方向**仍成立**；被证伪的是「上游只归一化一次」的表述。站点进一步细化为两处：**缺局部归一化** + **首个世界变换收缩次序（warp `mat.h:3180 mul(mat,vec)` 是 x-项先舍入）**，见 P10 卡 `perworld-l-v2-mesh-normal-chain-pin/`（`b0e372be`）与 `ref-vs-product-station-diff.md` §4。

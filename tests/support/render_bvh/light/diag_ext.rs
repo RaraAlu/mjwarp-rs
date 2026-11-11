@@ -184,3 +184,54 @@ fn distance_owner(mismatches: &[usize], pixel: usize) -> usize {
     }
     best.1
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::light_diag::{SCHEMA, segment_attribution};
+
+    fn attribution_model() -> Value {
+        json!({"arrays": {
+            "geom_matid": {"values": [0, 1, 2, 0]},
+            "geom_type": {"values": [0, 6, 2, 7]},
+            "mat_rgba": {"values": [0.9, 0.1, 0.1, 1.0, 0.2, 0.8, 0.2, 1.0, 0.1, 0.1, 0.9, 1.0]},
+        }})
+    }
+
+    #[test]
+    fn segment_attribution_uses_model_geom_type_and_keeps_seg_objtype() {
+        let model = attribution_model();
+        let attr = segment_attribution(Some(&model), [3, 5]);
+        assert_eq!(attr["geom_id"].as_i64(), Some(3));
+        assert_eq!(
+            attr["geom_type"].as_i64(),
+            Some(7),
+            "geom_type 必须是模型真实 geom 类型（本场景 geom 3 = MESH = 7）"
+        );
+        assert_eq!(
+            attr["seg_objtype"].as_i64(),
+            Some(5),
+            "seg_objtype 是 seg[1]（mjOBJ_GEOM = 5）"
+        );
+        assert_eq!(attr["mat_id"].as_i64(), Some(0));
+        assert_eq!(SCHEMA, 2, "字段语义修订不改 dump schema（仍为 2）");
+    }
+
+    #[test]
+    fn segment_attribution_without_model_keeps_seg_objtype_and_nulls_geom_type() {
+        let attr = segment_attribution(None, [3, 5]);
+        assert_eq!(attr["geom_id"].as_i64(), Some(3));
+        assert!(attr["geom_type"].is_null());
+        assert_eq!(attr["seg_objtype"].as_i64(), Some(5));
+        assert!(attr["mat_id"].is_null());
+    }
+
+    #[test]
+    fn segment_attribution_out_of_range_geom_type_is_null() {
+        let model = attribution_model();
+        let attr = segment_attribution(Some(&model), [99, 5]);
+        assert!(attr["geom_type"].is_null());
+        assert_eq!(attr["seg_objtype"].as_i64(), Some(5));
+        assert_eq!(attr["mat_id"].as_i64(), Some(-1));
+    }
+}

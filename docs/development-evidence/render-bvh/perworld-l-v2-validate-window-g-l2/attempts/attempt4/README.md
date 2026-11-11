@@ -86,3 +86,16 @@
 
 - 边界：本窗只新增本证据目录 + 冻结产物 `scripts/validate/render-bvh/guards-perworld-l2-light.json`；`src/`、`tests/`、`fixtures/` 零改动；旧 suite/旧 stash/guards 只读不改；不重跑、不挑选结果、不放宽判据。
 - 非声明：不宣称 G-L2 对外「上游等价 / 灯字段端到端验收 / 渲染数值等价」等结论（这些声明需 S-1 判据与签名流程另行裁定）；不改变任何判据/阈值/参考/容差/相机/recipe；历史失败轮次（attempt-3 及此前）不改写。
+
+## 11. QA 复核后 errata（2026-11-11，W0 收口）
+
+> **Addendum（2026-11-11，W0 收口；QA 复核 `5b586e77` / 收口卡 `6446c509`）**：
+> ①（一般项·证据卫生）`window/freeze-stdout.log`（3,740 B，NUL=1,867）与 `window/monitor-stdout.txt`（340 B，NUL=167）为二进制损坏（含 NUL、非 UTF-8）；窗口有效性由摘要文件（`freeze-exit-code.txt`、`monitor-exit-code.txt`）与 guards/aggregate/stash/输入的独立复算承载，**不构成阻断**，可读副本与差异说明见 `…-attempt4-check/README.md` §5 与 `artifacts/evidence-diff-encoding.txt`；本目录另补可读 UTF-8/LF 副本 `window/freeze-stdout.readable.txt`、`window/monitor-stdout.readable.txt`（非原始字节，头三行注明派生）；
+> ②（低 A）本卡 §1「build=0」仅指**最终 60/60 段**：monitor 早段 07:46:38/43/48 有 3 个样本 `build=2`（使 streak 重置），最终 60/60 段 `build=0`；
+> ③（低 B）§1 基线三点时间戳相同、未按样点记录时间；body 启动时刻未记录（由 body wall ≈55 s 与归档写入 07:55:54 推定基线后约 30 s）；
+> ④（低 C）`floor.txt` 的 `signed_stricter` 标注在严格 `max(S-2,S-3)` 口径下应为 **10,230 MiB**（S-3 签名 floor 为 9,956 MiB）；现场 free 12,143 MiB 同时 ≥ 两者，不影响判定；
+> ⑤（观察）guards JSON 为 CRLF（684 个 CRLF，PowerShell `ConvertTo-Json` 行为，JSON 合法、哈希与证据副本一致）；guards 仍无 `body_env` 键（G-L2 后置 errata backlog；body env 以 `body-env.txt`/checklist 记录）。
+> 以上均不改变 A/B/C 通过与窗口有效性结论。
+
+- 证据 log 口径（本 addenda 引用一次）：**一律 UTF-8/LF 写出**（PowerShell `[IO.File]::WriteAllText(..., [Text.UTF8Encoding]::new($false))` 或 `Out-File -Encoding utf8`），**禁止默认 `>` 重定向**。
+- 两跑 sha 具体值属 backlog（R1），不在本批改测试代码（避免动实体身份）。

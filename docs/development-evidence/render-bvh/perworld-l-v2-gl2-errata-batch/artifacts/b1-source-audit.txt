@@ -1,0 +1,13 @@
+# B1 source audit: where does tests/support/render_bvh/light/diag.rs segment_attribution.geom_type come from?
+repo=b84d5996..5b586e77 worktree (pre-edit)
+file=tests/support/render_bvh/light/diag.rs
+old_code (line 234-235):
+    pub(crate) fn segment_attribution(model: Option<&Value>, seg: [i32; 2]) -> Value {
+        let (geom_id, geom_type) = (seg[0], seg[1]);
+=> geom_type was ALWAYS seg[1] (the second component of the seg pair), never the model array mjm.geom_type[geom_id].
+model fixture tests/support/render_bvh/light/model-315.json arrays:
+    geom_type  = [0, 6, 2, 7, 3, 5, 4]   => geom 3 = 7 (MESH)
+    geom_matid = [2, 0, 1, 0, 2, 1, 2]
+diag7/diag8 evidence: seg.product = [3, 5] => geom_id 3, seg[1] 5 (mjOBJ_GEOM).
+=> B1 verdict: the value 5 is seg[1] (object type) mislabelled as geom_type; the errata STANDS (NOT retracted).
+   `mjGEOM_CYLINDER = 5` is only a numeric coincidence; geom 3 is a tri-mesh (mesh_id=0, face=2, vertex normal chain active).

@@ -79,3 +79,8 @@ old(HEAD `61dd32c6`) → new(工作树)：
 
 - 边界：只改 3 个 `.cu` + 新增本证据目录；`fixtures/`、`scripts/`、`tests/`、`src/render/bvh/`、`render_megakernel.cu`/`render_shade.cu`/`render_flex.cu`/`render_shadow.cu`/`aa_resolve.cu`、guards/冻结件、已签材料**零改动**；零 GPU、不采集、不跑诊断轮、不重冻；不新增 `.cu`（精度源面 42 文件不变）。
 - 非声明：**不宣称修复生效**（4 px 是否归零需诊断轮 #8 实测）；不改判据/阈值/参考/容差/相机/recipe；G-L2 判定维持未通过（判据 A FAIL）；不改写历史提交；不宣称渲染数值等价。
+
+## 8. Addenda（2026-11-11，H2 前提 errata 记录）
+
+- 职责边界：P10 是**恢复参考行为**（上游本就有的局部归一化），不是「新增一次归一化」；H2 前提（上游只归一化一次）已在 `perworld-l-v2-mesh-normal-single-normalize/` 与 `perworld-l-v2-gl2-criterion-a-rca/` 的 addenda 中按 append-only 记为作废，历史字节未改。
+- 参考：`target/render-bvh/gl2-ptx-diff/ref-vs-product-station-diff.md`、W0 收口 brief `target/render-bvh/gl2-ptx-diff/w0-closure-brief.md`。

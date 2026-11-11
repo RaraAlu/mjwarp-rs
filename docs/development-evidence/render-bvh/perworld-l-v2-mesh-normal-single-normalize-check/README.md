@@ -52,3 +52,7 @@
 ## 6. 非声明
 
 不宣称判据 A 已修复、不宣称 G-L2 通过/恢复、不宣称上游等价、不宣称任何渲染数值结论；不改判据/阈值/参考/相机/recipe；G-L2 判定维持未通过。
+
+## Addenda（2026-11-11，P10 errata）
+
+- 本卡复核的 H2 表述（「上游只归一化一次」）已按 append-only 记录作废；更正见 `perworld-l-v2-mesh-normal-single-normalize/README.md` §6、`perworld-l-v2-gl2-criterion-a-rca/README.md` §9、P10 卡 `perworld-l-v2-mesh-normal-chain-pin/README.md` §8。原复核文字保留不改。

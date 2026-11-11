@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-perworld-l-v2-gl2-errata-batch",
+  "status": "errata_batch_applied_zero_gpu",
+  "kind": "g-l2-errata-batch",
+  "authorization": {
+    "chief_assignment": "2026-11-11 08:0x (W0 closure waiting period; merge 5 QA items into this card)",
+    "spec": "target/render-bvh/gl2-ptx-diff/errata-batch-spec.md 9b5a1fe0.../8110 B (incl. section E)",
+    "closure_brief": "target/render-bvh/gl2-ptx-diff/w0-closure-brief.md eccd0b9f..."
+  },
+  "a_h2_addenda": {
+    "files": [
+      "perworld-l-v2-mesh-normal-single-normalize/README.md (+6)",
+      "perworld-l-v2-mesh-normal-single-normalize/receipt.json (addenda[])",
+      "perworld-l-v2-mesh-normal-single-normalize/logs/call-chain-audit.txt (append)",
+      "perworld-l-v2-gl2-criterion-a-rca/README.md (+9)",
+      "perworld-l-v2-mesh-normal-chain-pin/README.md (+8)",
+      "perworld-l-v2-mesh-normal-single-normalize-check/README.md (pointer)",
+      "perworld-l-v2-mesh-normal-chain-pin-check/README.md (pointer)"
+    ],
+    "append_only": true,
+    "history_bytes_unchanged": true
+  },
+  "b_dump_field_errata": {
+    "b1_source_audit": "artifacts/b1-source-audit.txt",
+    "b1_verdict": "errata stands: geom_type came from seg[1], not mjm.geom_type[geom_id]",
+    "implementation": "option A: geom_type = model geom_type[geom_id] (7 for geom 3; null if no model/out of range); new seg_objtype = seg[1]; other fields unchanged; dump schema stays 2",
+    "code_change": "tests/support/render_bvh/light/diag.rs (segment_attribution semantics) + tests/support/render_bvh/light/diag_ext.rs (3 static unit tests moved there to stay under the 500-line file ratchet: diag.rs 466 lines, diag_ext.rs 231 lines)",
+    "static_tests": "logs/static-tests.log: 5 passed / 0 failed",
+    "kernel_identity_changed": false,
+    "dynamic_verification": "deferred to a later diagnostic round (B4-2): regenerate dump expecting geom_type=7 / seg_objtype=5"
+  },
+  "c_record_residuals": {
+    "gpu_snapshot": "target/render-bvh/perworld-l-v2-gl2/diag7/window/gpu-snapshot.txt + artifacts/window-snapshot-template.txt",
+    "body_env_rewritten": "target/.../diag7/body-env.txt (file-write, UTF-8/LF)",
+    "gpu_numbers": "nvidia-smi actual authoritative; dispatch numbers reference only"
+  },
+  "attempt4_readme_errata": {
+    "section": "attempt4/README.md §11 (spec section E verbatim)",
+    "readable_copies": [
+      "attempt4/window/freeze-stdout.readable.txt",
+      "attempt4/window/monitor-stdout.readable.txt"
+    ],
+    "original_bytes_unchanged": true,
+    "original_monitor_restored_from": "git blob at commit 5f1d436d (340 B, sha c22ea74632060f7983ad9fa39b39f0f69fefcaa8ea8e3a1f8c49dc566ddf7bd3)"
+  },
+  "manifests_recalculated": [
+    "perworld-l-v2-mesh-normal-single-normalize",
+    "perworld-l-v2-mesh-normal-single-normalize-check",
+    "perworld-l-v2-gl2-criterion-a-rca",
+    "perworld-l-v2-mesh-normal-chain-pin",
+    "perworld-l-v2-mesh-normal-chain-pin-check",
+    "perworld-l-v2-gl2-diag7-check",
+    "perworld-l-v2-validate-window-g-l2/attempts/attempt4",
+    "perworld-l-v2-gl2-errata-batch"
+  ],
+  "process_events": [
+    {
+      "at": "2026-11-11 08:03:13-08:04:07 +08:00",
+      "what": "card registration/start commits (d82d5905, f9bc436e) were made while QA held the repo write lock; acquire had returned REPO_WRITE_LOCK_HELD but the script continued",
+      "state": "detected immediately after; stopped; waited for lock FREE (08:04:07); re-acquired and continued; only .normify card JSON was touched; no conflict or data loss",
+      "remedy": "acquire output is now explicitly verified against REPO_WRITE_LOCK_ACQUIRED before any write",
+      "cross_reference": "reported to Chief in the errata batch report"
+    },
+    {
+      "at": "2026-11-11 08:1x",
+      "what": "attempt4 monitor-stdout.txt was overwritten by a same-named derived copy during G1 fix",
+      "state": "restored byte-exactly from git blob at commit 5f1d436d (340 B / c22ea746...); derived copy renamed monitor-stdout.readable.txt",
+      "net_evidence_loss": "none"
+    }
+  ],
+  "boundaries": {
+    "src_unchanged": true,
+    "fixtures_unchanged": true,
+    "scripts_unchanged": true,
+    "guards_unchanged": true,
+    "signed_materials_unchanged": true,
+    "kernel_identity_unchanged": true,
+    "gpu_used": false,
+    "window_rerun": false
+  },
+  "non_claims": [
+    "does not change any criterion/threshold/reference/tolerance",
+    "does not claim a new G-L2 conclusion (W0 closure material remains authoritative)",
+    "does not rewrite history bytes or commit messages",
+    "dynamic re-generation of dumps (B4-2) is deferred to a later diagnostic round"
+  ]
+}

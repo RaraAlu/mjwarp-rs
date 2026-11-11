@@ -37,3 +37,8 @@ Arch RCA（H2）：上游 `cross(ab,ac)` 未归一化 → `mat@n` → `normalize
 - `render_shadow.cu`：**零改动**。
 - `intersect_tri`（`render_math.cu` 内）：本就返回未归一化 `cross`，未改。
 - 求交/深度/seg 输出、判据、阈值、参考、相机、recipe：零改动。
+
+# [Addendum 2026-11-11, P10 errata] 本盘点未包含上游 warp 内建 `mesh_query_ray` **内部**的一次归一化：
+#   - `warp/native/mesh.h:1880`（pinned upstream）在返回前执行 `normal = normalize(min_normal);`（局部帧归一化）；
+#   - `mujoco_warp/_src/render.py:731-732` 随后 `normal = mat @ n; normal = wp.normalize(normal);`。
+#   ⇒ 上游 mesh 法线链为**两次** normalize；本卡原「单次归一化」前提作废（原文字保留不改）。

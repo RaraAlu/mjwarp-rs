@@ -61,3 +61,7 @@
 
 - 本复核**不判定修复效果**：4 px 仍在、判据 A 仍 FAIL，G-L2 判定维持未通过；dump 仅诊断用途、未入库；未改代码、未重冻/重跑/采集，零 GPU。
 - 不改变任何判据/阈值/参考/容差/相机/recipe。
+
+## Addenda（2026-11-11，dump 字段 errata B）
+
+- 本卡引用的 `seg.attribution.geom_type = 5` 已确认是 **`seg[1]`（object type，`mjOBJ_GEOM = 5`）误标**，不是模型 geom 类型；真实 geom 3 = **7（MESH）**。旧 dump（diag7/diag8）字节不改、仍按旧语义读；新语义见 `perworld-l-v2-gl2-errata-batch/README.md` §B：`geom_type` 改为模型真实值、新增过渡键 `seg_objtype = seg[1]`，dump schema 保持 2。本卡原有数值结论不受影响（按 `seg.product[0]` + `mesh_id/face` 判几何）。
