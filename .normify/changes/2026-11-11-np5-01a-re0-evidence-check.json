@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-re0-evidence-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a RE-0 证据卡（`d8f5402d`）：**PASS（0 阻断，0 一般 + 2 低 + 3 观察）**——判级 `G1-partial PASS` 我独立复现（重跑入库 compare 脚本，双门 `NORMALIZED_EQUAL`）、计数独立复算 13,036/15,915 与 18,883/24,735 两侧相等、冻结件 sha 与 `ex2/lg2=0` 佐证 fast_math=False、G3 两次运行 sha 一致、manifest 10/10；低=receipt 差异类型 6 vs 5、脚本硬编码本机路径（均由 RE-1 修正）",
+    "en": "QA review of NP5-01a RE-0: PASS (0 blockers, 0 major + 2 lows + 3 observations); grade/dual-gate/counts independently reproduced, provenance and PTX-not-landed reproducibility verified, manifest 10/10"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 RE-0（`d8f5402d`）做独立只读复核（零 GPU）：①判级是否只写「归一化指令流等价」、两门计数口径、5 类残余差异、`fast_math=False` 前提修正与证据、interim 更正、provenance；②脚本入仓而 PTX 不入仓的可复现性说明；③manifest/边界/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of RE-0: grading wording/counts/residual types/premise correction/provenance, script-landed-PTX-not-landed reproducibility, manifest/boundaries."
+  },
+  "modules": {},
+  "acceptance": [
+    "**判级独立复现 ✅**：我用入库 `scripts/re0_compare.py` 重跑 G1/G2 均 `NORMALIZED_EQUAL`（entries 1=1/48=48、streams/multisets/counts 全等、`bytes_equal=false`），与提交 compare JSON/receipt 一致；`per_entry_diff:{}`",
+    "**计数独立复算 ✅**：自写 30 算子词表+wide 口径复算 G1 13,036/15,915、G2 18,883/24,735，两侧相等；interim 15,001/23,888 更正记录在位",
+    "**前提修正/provenance ✅**：冻结件实测 `reference_module.sm89.ptx` `ad21b93f`/637,336、`smooth.ptx` `4179acd0`/993,601；两份 `ex2=0/lg2=0` 且含 `rcp`(96/11)/`rsqrt`(3/11)，支持 fast_math=False；provenance 齐（warp 1.15.0/mujoco_warp 3.15.0/pin `71da24d9`/NVRTC 12.9/sm_89/fast_math=false/gpu_used=false/flags 无 `--use_fast_math`）",
+    "**可复现性/manifest ✅**：两份生成 PTX 只记 sha+bytes+命令、不入仓，我以 target 现存产物重跑 compare 成功；G3 两次运行 sha 一致（target `*_b.ptx` 实测）；manifest 10/10 全对、README §6 八个哈希 8/8、G2 `gen_cu` sha 对",
+    "**边界/门禁/措辞 ✅**：docs evidence+`.normify` only；UTF-8/LF 无 BOM/CR/NUL；门禁 1,406/0/402；「等价」只出现在「归一化指令流等价」与否定句，无正面字节/位级结论",
+    "**结论：复核通过（0 阻断，0 一般 + 2 低 + 3 观察）。** 低 L1 receipt `residual_diff_types` 6 条 vs README「5 类」；L2 `re0_g2_codegen.py`/`a1_*_codegen.py` 硬编码 `D:\\Rust\\mjwarp-rs`（含 venv 绝对路径），README §5 未说明；观察 3 条见 README"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-re0-evidence"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/re0-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 RE-0 复核；结论 PASS（0 阻断，2 低 + 3 观察）。低项由 RE-1 卡 append-only 处置。不宣称字节/位级等价、NP01 通过。",
+  "revision": {
+    "before": "ab98302944eecb370f5d76c1449014c68014d98e",
+    "after": null
+  },
+  "created_at": "2026-11-11T10:20:00.000Z",
+  "updated_at": "2026-11-11T10:16:05.188Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-re0-evidence-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/re0-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
