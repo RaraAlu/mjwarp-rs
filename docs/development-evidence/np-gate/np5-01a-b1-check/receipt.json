@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-b1-tendon-source-level-check",
+  "kind": "np5-01a-b1-tendon-source-level-check",
+  "reviewed": [
+    "bbd7c7cc",
+    "4e56fe1e"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 2,
+    "observation": 1
+  },
+  "checked": {
+    "section1_re2_fixes": {
+      "g1_addenda_versioned": "v1 restored 2,030B/0ba40a0b; addenda-v2 6,729B/e6bde50c with supersedes+reason; quote block marked+declared; A-2 manifest 6/6 (909B, v2 listed); RE-2 pointers additive (no removals)",
+      "g2_quote_exemption": "tool e28ddb89/8,013; self-test 20/20; 11 crafted cases behave as specified (marked+decl=0, unmarked=1, no-decl=1, unclosed=1, decl-outside=1, after-end=1, split-in-block exempt, two-blocks one declared=1)",
+      "rescan": "A-2 evidence 5, addenda.md v1 7, addenda-v2 0, README 1 (negated sentence false positive), receipt 0 - all match claims",
+      "l1": "landed_at=e5315d95 with landing_at_949bf18b supersede sub-object; receipt policy_tool_landed_at_949bf18b=false"
+    },
+    "section2_b1": {
+      "sites": 78,
+      "ids_match_sites_json_rows": "7 rows 7/20/10/9/7/12/13 union exact",
+      "histogram": {
+        "n/a": 50,
+        "identical": 22,
+        "engine-semantic": 6
+      },
+      "engine_semantic": "6/6 have why_engine_semantic (107-139 chars) + bit_level_guarantee:false; atomic-order vs deterministic-order differences, no numeric-equivalence conclusion",
+      "cumulative": "40+36+63+78 = 217, overlap-free",
+      "anchors": "57 file:line + 21 no-reference-expression (all n/a with reason); 0 resolution errors; samples line-content verified",
+      "required_fields": "78/78",
+      "policy_scan": "0 hits on B-1 evidence/README",
+      "manifest": "4/4",
+      "selfcheck": "15 PASS",
+      "gates": "1406/0/402",
+      "no_coverage_wording": true,
+      "hygiene": "clean"
+    }
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "scanner-edge",
+      "where": "scripts/np-gate/policy_scan.py quote declaration matching",
+      "summary": "declaration is matched as a bare substring: a block declaring \"未撤回\"/\"不作废\" (i.e. NOT withdrawn) is still exempted, because 撤回/作废 appears inside it",
+      "suggest": "reject negated declarations (check 未/不 immediately before 撤回/作废) or require a positive declarative pattern"
+    },
+    {
+      "id": "L2",
+      "severity": "low",
+      "type": "undocumented-status",
+      "where": "np5-01a-b1 evidence reference_anchor status",
+      "summary": "a new anchor status \"no-reference-expression\" is used for 21 n/a entries but is not documented in README or the vocabulary (A-1a/A-1b used no-reference-entry)"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "quote-block exemption is content-blind: any content (even a newly written assertion) inside marked+declared block is exempt; the \"verbatim\" rule is enforced only by QA manual review (documented in docstring)"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence; no bit-level test performed",
+    "review of B-1 source-level records and the RE-2 fixes only"
+  ]
+}
