@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-re2-r2-device-level-policy-addenda-check",
+  "kind": "np5-01a-re2-device-level-policy-check",
+  "reviewed": [
+    "949bf18b",
+    "09b4094a"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 2,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "policy_scan_normalization": "dot/space/hyphen/underscore/slash/period/plain/bit-level all HIT",
+    "policy_scan_self_test": "12/12 PASS (independent run)",
+    "negation_exemption": "不得写/不提供/不同 -> 0 hits (retained)",
+    "rescan": {
+      "a2_evidence_hits": 5,
+      "a2_addenda_hits": 0
+    },
+    "a2_addenda_append_only": "FAILED: old 2,030B is NOT a prefix of new 4,179B (title/table header/tail rewritten)",
+    "a2_addenda_sha": "da24375b/4179 (matches dispatch)",
+    "a2_manifest": "5/5, be9ffd46/717, addenda listed",
+    "a2_landing_bytes": "evidence/README/receipt/selfcheck unchanged from df5fc8aa",
+    "device_rows": {
+      "kinematics": "not-decidable (frozen-artifact-only,no-lineinfo)",
+      "crb": "engine-semantic (why + bit_level_guarantee false, no numeric-equivalence conclusion)",
+      "mass_multiply": "not-decidable (no-reference-entry) - but this is an A-3 row"
+    },
+    "product_ptx_identity": "kinematics 262e8330/46921 and mass_matrix 5e4fcd82/17007 match on disk",
+    "frozen_smooth_ptx": "4179acd0/993601, 48 entries, 0 .loc",
+    "ptx_landed": false,
+    "re2_manifest": "4/4",
+    "re2_gates": "1406/0/402",
+    "polscan": "tool landed scripts/np-gate/policy_scan.py 59765f71/4559; self-test 12/12; guards/freeze untouched; manifest 3/3; gates 1406/0/402",
+    "hygiene": "UTF-8/LF no BOM/CR/NUL"
+  },
+  "findings": [
+    {
+      "id": "G1",
+      "severity": "major",
+      "type": "append-only-violation",
+      "where": "docs/development-evidence/np-gate/np5-01a-a2/addenda.md",
+      "summary": "r2 addenda is a rewrite, not an append: old 2,030B is not a prefix of new 4,179B (title, table header column and tail section changed); says history is in commit df5fc8aa but there is no version file + supersedes",
+      "suggest": "use addenda-v2.md with supersedes (or restore old bytes and append only); keep old quoted originals in history"
+    },
+    {
+      "id": "G2",
+      "severity": "major",
+      "type": "scanner-evasion",
+      "where": "np5-01a-a2/addenda.md r2",
+      "summary": "new addenda explicitly says quotations are split (\"位级\"+\"等价\") so the normalized scanner cannot match them - the addenda is designed to avoid the very check just fixed; a later slice could use the same trick to hide a real claim",
+      "suggest": "add an explicit quoted-history exemption mechanism to the scanner (block marker + mandatory \"withdrawn/supersedes\" wording) or require human review, instead of character splitting"
+    },
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "timing",
+      "where": "np5-01a-re2 evidence/receipt policy_tool.landed=true",
+      "summary": "at 949bf18b the tool was not yet in the repo (landed in e5315d95/09b4094a); same sha/bytes in the end state"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "RE-2 section 2 includes the A-3 row mass_multiply 18 although A-2 is kinematics 33 + crb 30; scope vs title mismatch"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "device row-level classification \"crb -> engine-semantic\" differs in grain from per-site source classification (crb mostly identical); state the grain explicitly"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence; no bit-level test performed",
+    "review of the policy fix and device-level mapping only"
+  ]
+}
