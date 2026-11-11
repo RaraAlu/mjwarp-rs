@@ -1,0 +1,2697 @@
+{
+  "schema": 1,
+  "task": "np5-01a-d1-gjk-epa-host-source-level",
+  "scope": "gjk_host 45 + epa_host 43 = 88 sites host-path source-level type mapping + expression classification (six-class vocab)",
+  "split_source": "target/render-bvh/gl2-ptx-diff/np5-01a/sites.json (rows gjk_host/epa_host)",
+  "vocabulary_authority": {
+    "path": "target/render-bvh/gl2-ptx-diff/np5-01a-vocab-addendum.md",
+    "sha256": "453c5c9157341fa28ecb009c50f2ff560b6f43e15f593ed9b7a75f27dd5b1b26",
+    "bytes": 6771
+  },
+  "site_count": 88,
+  "pending_manual": 0,
+  "np5_01a_total_sites": 571,
+  "np5_01a_prior_sites": {
+    "total": 483,
+    "a1a": 40,
+    "a1b": 36,
+    "a2": 63,
+    "a3": 40,
+    "b1": 78,
+    "c1": 52,
+    "c2": 68,
+    "c3": 43,
+    "c4": 63
+  },
+  "group_totals": {
+    "gjk_host": 45,
+    "epa_host": 43
+  },
+  "kind_counts": {
+    "intermediate": 35,
+    "accumulation": 21,
+    "output": 24,
+    "rounding-note": 8
+  },
+  "classifications_histogram": {
+    "n/a": 51,
+    "identical": 37
+  },
+  "not_decidable_reasons_vocabulary": [
+    "no-reference-entry",
+    "mathdx-cusolver-unavailable",
+    "no-lineinfo",
+    "frozen-artifact-only",
+    "capture-scenario-miss",
+    "host-path-no-ptx"
+  ],
+  "device_level_note": "D 批为 host 路径：全部 88 站点均无 PTX（device 级映射整体记 not-decidable 原因 host-path-no-ptx，不逐站点重复登记）；本片只做 source 级对照，不声明 device/位级结论",
+  "host_recipe_note": "host 站点刻意非融合（dot3/length3/face_norm2 独立乘与独立加、两次舍入，不用 mul_add、不引 f64）；device 侧 pinned ccd PTX 为 fma.rn 融合语义 —— 两套 recipe，本片只做 source 级判定",
+  "non_claims": [
+    "does not claim NP01 pass or precision completion (E not finalized); no bit-level guarantee",
+    "host path has no PTX; source-level only, zero GPU/window",
+    "source-level identical means expression/type/order correspondence, not a bit-level result"
+  ],
+  "entries": [
+    {
+      "id": "gjk_host:gjk_core.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 79,
+        "expression": "let mut simplex/simplex1/simplex2 = [[0.0f32;3];4]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "simplex/simplex1/simplex2 局部缓冲"
+      },
+      "type_mapping": {
+        "product": "[f32;3] ×4 各",
+        "upstream": "wp.mat43 f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "局部缓冲声明（Minkowski 差与两侧 witness 顶点），非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:intermediate:0",
+      "why_not_applicable": "缓冲声明，运算在各站点对照"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 82,
+        "expression": "let mut simplex_index1/simplex_index2 = [0i32;4]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "整型索引缓存"
+      },
+      "type_mapping": {
+        "product": "[i32;4]",
+        "upstream": "int 数组",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型索引缓存，不参与浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:intermediate:1",
+      "why_not_applicable": "整型缓冲，非浮点算术"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 85,
+        "expression": "let mut lmbda = [1.0f32,0.0,0.0,0.0]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "lmbda 初值"
+      },
+      "type_mapping": {
+        "product": "[f32;4]",
+        "upstream": "f32[4]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "重心坐标初值，由 subdistance 重写",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:intermediate:2",
+      "why_not_applicable": "初值声明，运算在 subdistance 站点对照"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:intermediate:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 88,
+        "expression": "epsilon/min_norm: is_discrete ? (0,MINVAL) : (0.5*tol*tol, tol)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "epsilon = 0.5*tolerance*tolerance; min_norm = tolerance"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "标量阈值初值（离散几何分支），非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:intermediate:3",
+      "why_not_applicable": "标量初值/阈值，非表达式站点"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:intermediate:4",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 95,
+        "expression": "x_k=sub3(x1_0,x2_0); xnorm=(dot3(x_k,x_k)).sqrt(); xnorm_prev=0"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "x_k = x1_0 - x2_0; xnorm = length(x_k)"
+      },
+      "type_mapping": {
+        "product": "[f32;3] / f32 ×2",
+        "upstream": "wp.vec3 / float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "中间量（差向量与范数），表达式在 accumulation:2 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:intermediate:4",
+      "why_not_applicable": "中间量声明，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/math.rs",
+        "line": 15,
+        "expression": "dot3 = a0*b0 + a1*b1 + a2*b2（左结合，两次舍入）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "wp.dot / math 点积（warp CPU 后端非融合展开）"
+      },
+      "type_mapping": {
+        "product": "f32 两次舍入（非融合）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：同为 3 项左结合乘加、非融合（host recipe）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:accumulation:0",
+      "why_identical": "source 级表达式对应：同为 3 项左结合乘加、非融合（host recipe）"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 298,
+        "expression": "linear_combine：Σ lmbda[i]*matrix[i][j]，i 升序 n∈{1,2,3,4}"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 292,
+        "function": "_linear_combine",
+        "body_lines": [
+          292,
+          302
+        ],
+        "expression": "Σ lmbda[i]*matrix[i][j]（i 升序）"
+      },
+      "type_mapping": {
+        "product": "f32 顺序加，每项独立乘",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与累加次序对应（i 升序、每项独立乘）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:accumulation:1",
+      "why_identical": "source 级表达式与累加次序对应（i 升序、每项独立乘）"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:accumulation:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 100,
+        "expression": "xnorm 重算；终止判据 |xnorm_prev-xnorm|<MINVAL"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "xnorm/终止判据同式"
+      },
+      "type_mapping": {
+        "product": "f32 减法 + abs",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应（同一终止判据与范数重算）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:accumulation:2",
+      "why_identical": "source 级表达式对应（同一终止判据与范数重算）"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 205,
+        "expression": "result.dist = if n==4 && !separated {0.0} else {xnorm}"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "result.dist 输出"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 dist 对应（同一分支与取值）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:output:0",
+      "why_identical": "输出字段与上游 dist 对应（同一分支与取值）"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 193,
+        "expression": "result.x1=linear_combine(n,lmbda,simplex1); result.x2=...（n==0 取初始点）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "witness x1/x2 输出"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 witness 对应（n==0 回退与 linear_combine 同式）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:output:1",
+      "why_identical": "输出字段与上游 witness 对应（n==0 回退与 linear_combine 同式）"
+    },
+    {
+      "id": "gjk_host:gjk_core.rs:output:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 186,
+        "expression": "result.separated=false; result.dim=n; result.index1/index2"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "结构化字段"
+      },
+      "type_mapping": {
+        "product": "bool / usize / i32",
+        "upstream": "bool / int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构化字段（bool/dim/索引），无浮点转换",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_core.rs:output:2",
+      "why_not_applicable": "结构字段输出，非浮点算术"
+    },
+    {
+      "id": "gjk_host:gjk_support_core.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 19,
+        "expression": "dir_neg = x_k / x_norm（逐分量除法）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 618,
+        "function": "_gjk_support",
+        "body_lines": [
+          618,
+          656
+        ],
+        "expression": "dir_neg = x_k / x_norm"
+      },
+      "type_mapping": {
+        "product": "[f32;3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "方向缓冲（归一化结果），表达式在 accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_support_core.rs:intermediate:0",
+      "why_not_applicable": "中间量缓冲，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:gjk_support_core.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 25,
+        "expression": "edge_norm2=dot3(edge,edge); proj=dot3(dir_neg,edge)/edge_norm2; dir_norm=length3(dir_neg)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 618,
+        "function": "_gjk_support",
+        "body_lines": [
+          618,
+          656
+        ],
+        "expression": "边投影与范数同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：点积/除法/开方与非融合 recipe 一致",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_support_core.rs:intermediate:1",
+      "why_identical": "source 级表达式对应：点积/除法/开方与非融合 recipe 一致"
+    },
+    {
+      "id": "gjk_host:gjk_support_core.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 44,
+        "expression": "sign = dot3(dir_neg,normal)<0 ? -1 : 1"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 618,
+        "function": "_gjk_support",
+        "body_lines": [
+          618,
+          656
+        ],
+        "expression": "sign 选择同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：同一符号选择条件与取值",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_support_core.rs:intermediate:2",
+      "why_identical": "source 级表达式对应：同一符号选择条件与取值"
+    },
+    {
+      "id": "gjk_host:gjk_support_core.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 27,
+        "expression": "proj = dot3(dir_neg,edge)/edge_norm2; dir_neg = sub3(dir_neg, scale3(edge,proj))"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 618,
+        "function": "_gjk_support",
+        "body_lines": [
+          618,
+          656
+        ],
+        "expression": "投影扣除更新同式"
+      },
+      "type_mapping": {
+        "product": "f32 逐分量，先乘后减（两次舍入）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：先乘后减、逐分量，非融合",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_support_core.rs:accumulation:0",
+      "why_identical": "source 级表达式对应：先乘后减、逐分量，非融合"
+    },
+    {
+      "id": "gjk_host:gjk_support_core.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 58,
+        "expression": "support(geom1,type1,neg3(dir_neg)); support(geom2,type2,dir_neg)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 618,
+        "function": "_gjk_support",
+        "body_lines": [
+          618,
+          656
+        ],
+        "expression": "两侧 SupportPoint 输出"
+      },
+      "type_mapping": {
+        "product": "f32[3] + i32",
+        "upstream": "SupportPoint",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构输出（两只 SupportPoint），由 support 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:gjk_support_core.rs:output:0",
+      "why_not_applicable": "结构输出，支撑点计算在 support 站点对照"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 8,
+        "expression": "det3(v1,v2,v3) 与 s2d 内 m_14/m_24/m_34/c31/c32/c33/m_max"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 303,
+        "function": "_subdistance",
+        "body_lines": [
+          303,
+          368
+        ],
+        "expression": "det3/重心坐标分子"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "中间量（行列式与重心坐标分子），运算在 accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:0",
+      "why_not_applicable": "中间量声明，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 25,
+        "expression": "project_origin_line/project_origin_plane → p_o"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 303,
+        "function": "_subdistance",
+        "body_lines": [
+          303,
+          368
+        ],
+        "expression": "最近点投影同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "局部投影结果缓冲，退化回退在 accumulation 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:1",
+      "why_not_applicable": "中间量缓冲，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 78,
+        "expression": "dmin：s3d/s2d 候选最小距离平方，初值 FLOAT_MAX"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 369,
+        "function": "_S3D",
+        "body_lines": [
+          369,
+          444
+        ],
+        "expression": "dmin 初值与更新"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "中间量（候选最小距离），比较顺序在 accumulation:2 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:2",
+      "why_not_applicable": "中间量声明，比较在 accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 14,
+        "expression": "same_sign(a,b)：同正 1 / 同负 -1 / 否则 0"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 303,
+        "function": "_subdistance",
+        "body_lines": [
+          303,
+          368
+        ],
+        "expression": "same_sign 辅助判定"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "符号判定辅助（控制流），非浮点表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:intermediate:3",
+      "why_not_applicable": "符号辅助判定，非浮点算术"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 167,
+        "expression": "s2d 的 m_14/m_24/m_34 与 c31/c32/c33：6 项固定顺序乘减和"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 445,
+        "function": "_S2D",
+        "body_lines": [
+          445,
+          589
+        ],
+        "expression": "m_14/m_24/m_34 与 c31..c33 同式"
+      },
+      "type_mapping": {
+        "product": "f32 左结合，每项独立乘",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与求值顺序对应（固定 6 项乘减和）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:accumulation:0",
+      "why_identical": "source 级表达式与求值顺序对应（固定 6 项乘减和）"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 78,
+        "expression": "s3d：c41..c44 四个 det3 后 m_det=c41+c42+c43+c44"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 369,
+        "function": "_S3D",
+        "body_lines": [
+          369,
+          444
+        ],
+        "expression": "m_det 4 项顺序加同式"
+      },
+      "type_mapping": {
+        "product": "f32 顺序加（4 项）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与求值顺序对应（4 项顺序加）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:accumulation:1",
+      "why_identical": "source 级表达式与求值顺序对应（4 项顺序加）"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:accumulation:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 333,
+        "expression": "子单纯形候选比较：d=dot3(x,x) 逐个与 dmin 比较（严格 <），c1→c2→c3→c4"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 303,
+        "function": "_subdistance",
+        "body_lines": [
+          303,
+          368
+        ],
+        "expression": "候选比较顺序同式"
+      },
+      "type_mapping": {
+        "product": "f32 顺序比较，顺序固定",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与比较顺序对应（严格 <、c1→c4）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:accumulation:2",
+      "why_identical": "source 级表达式与比较顺序对应（严格 <、c1→c4）"
+    },
+    {
+      "id": "gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/simplex.rs",
+        "line": 333,
+        "expression": "lmbda[4] 输出（四面体 c4i/m_det 或补 0）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 303,
+        "function": "_subdistance",
+        "body_lines": [
+          303,
+          368
+        ],
+        "expression": "lmbda 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32[4]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 lmbda 对应（同一归一化/补零规则）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:subdistance_s1d_s2d_s3d_simplex.rslinear_combine_定义在_simplex.rs_298_由_gjk_内联调用_无独立段:output:0",
+      "why_identical": "输出字段与上游 lmbda 对应（同一归一化/补零规则）"
+    },
+    {
+      "id": "gjk_host:support_support.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 20,
+        "expression": "local_dir = transpose_mul_mat3_vec(rot, dir)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 120,
+        "function": "support",
+        "body_lines": [
+          120,
+          245
+        ],
+        "expression": "local_dir = transpose(rot) @ dir"
+      },
+      "type_mapping": {
+        "product": "[f32;3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "局部方向缓冲，表达式在各类型分支站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:intermediate:0",
+      "why_not_applicable": "中间量缓冲，运算在类型分支/accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:support_support.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 22,
+        "expression": "res / point.point：按类型（BOX/CAPSULE/ELLIPSOID/CYLINDER/…）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 120,
+        "function": "support",
+        "body_lines": [
+          120,
+          245
+        ],
+        "expression": "各类型 res/point 同式"
+      },
+      "type_mapping": {
+        "product": "[f32;3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "类型分支中间量/结果缓冲，表达式逐类型在 output:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:intermediate:1",
+      "why_not_applicable": "类型分支中间量，表达式在 output 站点对照"
+    },
+    {
+      "id": "gjk_host:support_support.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 116,
+        "expression": "max_dist / cached_index / vertex_index：MESH 穷举或 hillclimb 极值"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 159,
+        "function": "support",
+        "body_lines": [
+          159,
+          201
+        ],
+        "expression": "MESH 极值比较同式"
+      },
+      "type_mapping": {
+        "product": "f32 / i32",
+        "upstream": "float / int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "极值比较中间量，比较顺序在 accumulation:0/1 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:intermediate:2",
+      "why_not_applicable": "中间量，比较在 accumulation 站点对照"
+    },
+    {
+      "id": "gjk_host:support_support.rs:intermediate:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 109,
+        "expression": "margin>0 时 point = add3(point, scale3(dir, 0.5*margin))"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 243,
+        "function": "support",
+        "body_lines": [
+          243,
+          244
+        ],
+        "expression": "sp.point += dir * (0.5 * geom.margin)"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：0.5*margin 缩放后逐分量加",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:intermediate:3",
+      "why_identical": "source 级表达式对应：0.5*margin 缩放后逐分量加"
+    },
+    {
+      "id": "gjk_host:support_support.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 65,
+        "expression": "HFIELD/FLEX/TRIANGLE 逐顶点 dist=dot3(vert,dir) 与 max_dist 比较（严格 >）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 202,
+        "function": "support",
+        "body_lines": [
+          202,
+          241
+        ],
+        "expression": "极值点穷举同式"
+      },
+      "type_mapping": {
+        "product": "f32 顺序比较，顶点序固定",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与比较顺序对应（严格 >、固定顶点序）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:accumulation:0",
+      "why_identical": "source 级表达式与比较顺序对应（严格 >、固定顶点序）"
+    },
+    {
+      "id": "gjk_host:support_support.rs:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 141,
+        "expression": "MESH hillclimb：按邻接表局部顺序更新 imax 与 max_dist"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 159,
+        "function": "support",
+        "body_lines": [
+          159,
+          201
+        ],
+        "expression": "hillclimb 同构（prev/imax 循环 + 邻接内层）"
+      },
+      "type_mapping": {
+        "product": "f32 顺序比较，迭代到无变化",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级实现同构：同一 graph/hillclimb 循环与严格 > 更新",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:accumulation:1",
+      "why_identical": "source 级实现同构：同一 graph/hillclimb 循环与严格 > 更新"
+    },
+    {
+      "id": "gjk_host:support_support.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 25,
+        "expression": "point.point = add3(mul_mat3_vec(rot,res), geom.pos) 或直接顶点"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 120,
+        "function": "support",
+        "body_lines": [
+          120,
+          245
+        ],
+        "expression": "sp.point = rot @ res + pos / geom.vert"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游支持点对应（同式变换或直接顶点）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:output:0",
+      "why_identical": "输出字段与上游支持点对应（同式变换或直接顶点）"
+    },
+    {
+      "id": "gjk_host:support_support.rs:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/support.rs",
+        "line": 26,
+        "expression": "SupportPoint.vertex_index / cached_index"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 120,
+        "function": "support",
+        "body_lines": [
+          120,
+          245
+        ],
+        "expression": "索引字段"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "索引字段（BOX 位组合/MESH 图索引/HFIELD -2/-3），非浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:support_support.rs:output:1",
+      "why_not_applicable": "索引字段输出，非浮点算术"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 118,
+        "expression": "origin = geom1.pos; geom1.pos=0; geom2.pos-=origin"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "平移不变性（原点移至 geom1.pos）"
+      },
+      "type_mapping": {
+        "product": "[f32;3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "平移基准（视野变换，非算术表达式）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:intermediate:0",
+      "why_not_applicable": "平移基准/坐标变换，非算术表达式"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 186,
+        "expression": "witness1/witness2/dists：multicontact 裁剪结果"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 2216,
+        "function": "multicontact",
+        "body_lines": [
+          2216,
+          2454
+        ],
+        "expression": "witness/dists 结果缓冲"
+      },
+      "type_mapping": {
+        "product": "[f32;3]×4 / f32×4",
+        "upstream": "wp.vec3[4] / float[4]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "裁剪结果缓冲，回退逻辑在 output 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:intermediate:1",
+      "why_not_applicable": "结果缓冲，回退/输出在 output 站点对照"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 205,
+        "expression": "frame = make_frame(sub3(witness1[0],witness2[0]))（dist<=margin 定向）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "frame=make_frame(witness 差)"
+      },
+      "type_mapping": {
+        "product": "[f32;9]",
+        "upstream": "wp.mat33",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "中间矩阵（make_frame 结果），表达式在 output:2 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:intermediate:2",
+      "why_not_applicable": "中间矩阵，表达式在 output 站点对照"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 191,
+        "expression": "dist += options.margin; contact_dist < margin + gap 才写"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "margin 修正 + detected 判据同式"
+      },
+      "type_mapping": {
+        "product": "f32 加法与比较",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：margin 相加与 margin+gap 判据",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:accumulation:0",
+      "why_identical": "source 级表达式对应：margin 相加与 margin+gap 判据"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 215,
+        "expression": "sum=add3(witness1,witness2); pos=add3([0.5*sum],origin)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "中点 + 平移同式"
+      },
+      "type_mapping": {
+        "product": "f32 先加后乘 0.5 再平移",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：先加后乘 0.5 再平移",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:accumulation:1",
+      "why_identical": "source 级表达式对应：先加后乘 0.5 再平移"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 218,
+        "expression": "CcdContact.dist = contact_dist（ncollision>1 取 dists[i]）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "contact.dist 同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 contact.dist 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:output:0",
+      "why_identical": "输出字段与上游 contact.dist 对应"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 219,
+        "expression": "CcdContact.pos = pos（两 witness 中点 + origin）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "contact.pos 同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 contact.pos 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:output:1",
+      "why_identical": "输出字段与上游 contact.pos 对应"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:output:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 220,
+        "expression": "CcdContact.frame = frame（make_frame 结果）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "contact.frame 同式"
+      },
+      "type_mapping": {
+        "product": "f32[9]",
+        "upstream": "wp.mat33",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 contact.frame 对应（同 make_frame 规则）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:output:2",
+      "why_identical": "输出字段与上游 contact.frame 对应（同 make_frame 规则）"
+    },
+    {
+      "id": "gjk_host:ccd_pair_contact.rs_接触装配:output:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/contact.rs",
+        "line": 225,
+        "expression": "CcdOutput.ncontact / overflow"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 769,
+        "function": "eval_ccd_write_contact",
+        "body_lines": [
+          769,
+          1026
+        ],
+        "expression": "计数与 OverflowType 位"
+      },
+      "type_mapping": {
+        "product": "i32 / u32",
+        "upstream": "int / uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构化计数与溢出位，非浮点",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:ccd_pair_contact.rs_接触装配:output:3",
+      "why_not_applicable": "计数/状态位输出，非浮点算术"
+    },
+    {
+      "id": "gjk_host:rounding-note:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/math.rs",
+        "line": 15,
+        "expression": "host 站点刻意非融合：dot3/length3/normalize3 独立乘/加，两次舍入，不用 mul_add、不引 f64"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "warp CPU 后端非融合 recipe"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：host recipe 说明（非融合、两次舍入），非单一表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:rounding-note:0",
+      "why_not_applicable": "recipe 说明条目，不是可分类表达式"
+    },
+    {
+      "id": "gjk_host:rounding-note:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/core.rs",
+        "line": 96,
+        "expression": "device 侧对照：pinned ccd PTX fma.rn 1480 处、mul.rn/add.rn 0（NVVM 默认收缩）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "device PTX 融合语义（另一 recipe）"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：device/host recipe 差异说明（位级判据需声明前提）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:rounding-note:1",
+      "why_not_applicable": "recipe 说明条目，不是可分类表达式"
+    },
+    {
+      "id": "gjk_host:rounding-note:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/math.rs",
+        "line": 1,
+        "expression": "math.rs 头注释：曾试全 fused/仅 cross 非 fused，各 case 互有胜负 → 收缩顺序未完全对齐"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "收缩顺序未对齐记录"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：已知限制记录",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:rounding-note:2",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "gjk_host:rounding-note:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/math.rs",
+        "line": 133,
+        "expression": "make_frame 归一化在 length3(a)==0 时 b 置零向量（kEps=0）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 657,
+        "function": "gjk",
+        "body_lines": [
+          657,
+          867
+        ],
+        "expression": "warp kEps=0 同规则"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：零范数边界规则说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#gjk_host:rounding-note:3",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 62,
+        "expression": "upper/upper2=MAX; lower2=MAX; lower=lower2.sqrt()"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "穿透深度上/下界同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "上下界中间量，更新在 accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:intermediate:0",
+      "why_not_applicable": "中间量声明，运算在 accumulation 站点对照"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 99,
+        "expression": "dir = face_pr / lower（逐分量除法）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "dir 归一化同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "方向缓冲，非独立表达式",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:intermediate:1",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 102,
+        "expression": "w = sub3(vert[2wi], vert[2wi+1])"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "Minkowski 差 w 同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "Minkowski 差中间量，用于 accumulation:1 判定",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:intermediate:2",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:intermediate:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 108,
+        "expression": "upper_k = dot3(face_pr, w) / lower"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "upper_k 同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "上界候选中间量，更新在 accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:intermediate:3",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:intermediate:4",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 64,
+        "expression": "nvalid/nhorizon/idx/pidx：有效面计数与最近面选择（严格 <）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "最近面选择同式"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型计数/最近面选择，控制流辅助",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:intermediate:4",
+      "why_not_applicable": "整型控制流辅助，非浮点表达式"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 109,
+        "expression": "upper=min(upper,upper_k); upper2=upper*upper"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "上界更新同式"
+      },
+      "type_mapping": {
+        "product": "f32 单次比较 + 乘法",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：min 更新 + 平方",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:accumulation:0",
+      "why_identical": "source 级表达式对应：min 更新 + 平方"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 151,
+        "expression": "horizon 判定 dot3(face_pr[i], w) - face_norm2[i] > 1e-10"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "horizon 候选判定同式"
+      },
+      "type_mapping": {
+        "product": "f32 先点积后减，与常量精确比较",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：同一点积-减-常量比较",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:accumulation:1",
+      "why_identical": "source 级表达式对应：同一点积-减-常量比较"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:accumulation:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 179,
+        "expression": "attach_face 返回 dist2 与 [lower2, upper2] 区间比较决定 nvalid"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "区间比较同式"
+      },
+      "type_mapping": {
+        "product": "f32 区间比较",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：dist2 闭区间判定与 nvalid 更新",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:accumulation:2",
+      "why_identical": "source 级表达式对应：dist2 闭区间判定与 nvalid 更新"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 196,
+        "expression": "EpaResult.dist = epa_witness 返回的 dist"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "result.dist 同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 dist 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:output:0",
+      "why_identical": "输出字段与上游 dist 对应"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 196,
+        "expression": "EpaResult.x1/x2 = epa_witness 输出"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "witness 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 witness 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:output:1",
+      "why_identical": "输出字段与上游 witness 对应"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:output:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 200,
+        "expression": "EpaResult.face_idx（-1 表示失败）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "face_idx 输出"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型状态输出（-1 失败标记）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:output:2",
+      "why_not_applicable": "整型状态输出，非浮点"
+    },
+    {
+      "id": "epa_host:epa_epa.rs:output:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 141,
+        "expression": "EpaResult.overflow（horizon 缓冲用尽置 EPA_HORIZON）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "overflow 位输出"
+      },
+      "type_mapping": {
+        "product": "u32",
+        "upstream": "uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "溢出状态位输出",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_epa.rs:output:3",
+      "why_not_applicable": "状态位输出，非浮点"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 51,
+        "expression": "p1/p2/p3 = sub3(vert[2vi], vert[2vi+1])"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "Minkowski 差顶点同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×3",
+        "upstream": "wp.vec3 ×3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "Minkowski 差顶点中间量",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:intermediate:0",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 54,
+        "expression": "r = project_origin_plane(...)；退化返回 0；dot3(r,p1-center)<0 取反"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "投影与朝外取反同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "面投影中间量，取反在 accumulation:1 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:intermediate:1",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 65,
+        "expression": "head=r0*r0; tail=r1*r1+head; face_norm2=r2*r2+tail"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "face_norm2 显式两步舍入"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "face_norm2 中间量（三步），表达式在 accumulation:0 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:intermediate:2",
+      "why_not_applicable": "中间量，表达式在 accumulation 站点对照"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 65,
+        "expression": "face_norm2 = r2*r2 + (r1*r1 + r0*r0)（head→tail→norm2 固定顺序）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "同一固定顺序两步舍入"
+      },
+      "type_mapping": {
+        "product": "f32 每步一次舍入（刻意不写 mul_add）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与求值顺序对应（刻意非融合、每步一次舍入）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:accumulation:0",
+      "why_identical": "source 级表达式与求值顺序对应（刻意非融合、每步一次舍入）"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 59,
+        "expression": "dot3(r, sub3(p1, center)) < 0 决定取反"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "朝外判定同式"
+      },
+      "type_mapping": {
+        "product": "f32 两次舍入 + 符号比较",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：同一朝外判定",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:accumulation:1",
+      "why_identical": "source 级表达式对应：同一朝外判定"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 63,
+        "expression": "pt.face[idx] = v1 + (v2<<10) + (v3<<20)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "面顶点 10-bit 编码"
+      },
+      "type_mapping": {
+        "product": "u32",
+        "upstream": "uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型编码输出（每位 10 bit）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:output:0",
+      "why_not_applicable": "整型编码输出，非浮点"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 64,
+        "expression": "pt.face_pr[idx] = r（朝外原点投影点）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "face_pr 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 face_pr 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:output:1",
+      "why_identical": "输出字段与上游 face_pr 对应"
+    },
+    {
+      "id": "epa_host:attach_face_polytope.rs:output:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 68,
+        "expression": "pt.face_norm2[idx] = face_norm2（0 表示失败/退化）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "face_norm2 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 face_norm2 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:attach_face_polytope.rs:output:2",
+      "why_identical": "输出字段与上游 face_norm2 对应"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 189,
+        "expression": "coordinates = tri_affine_coord(v1,v2,v3,face_pr[face_idx])"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "重心坐标同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "重心坐标中间量，加权在 accumulation:0/1 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:intermediate:0",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 195,
+        "expression": "x2/x1：两侧顶点按重心坐标加权求和"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "x1/x2 中间量同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "加权结果中间量，表达式在 accumulation:0/1 对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:intermediate:1",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 203,
+        "expression": "HField 修正：offset=0.5*margin+radius、坐标外投影、dist=-length3(x1-x2)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "HField 分支同式"
+      },
+      "type_mapping": {
+        "product": "f32 / f32[3]",
+        "upstream": "float / wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "HField 分支中间量/修正，表达式在 accumulation 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:intermediate:2",
+      "why_not_applicable": "分支中间量，表达式在 accumulation/output 站点对照"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 195,
+        "expression": "x2 = Σ l_i * v_i（i=1..3，固定顺序）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "同一固定顺序三次乘加"
+      },
+      "type_mapping": {
+        "product": "f32 逐分量三次乘加",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与顺序对应（固定 i=1..3）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:accumulation:0",
+      "why_identical": "source 级表达式与顺序对应（固定 i=1..3）"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 230,
+        "expression": "x1 = Σ l_i * v_i；HField 分支 coordinates2 同式"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "x1 同式（HField coordinates2 同式）"
+      },
+      "type_mapping": {
+        "product": "f32 同上",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与顺序对应（同式、同顺序）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:accumulation:1",
+      "why_identical": "source 级表达式与顺序对应（同式、同顺序）"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:accumulation:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 240,
+        "expression": "dist = -sqrt(face_norm2[face_idx])（非 HField 分支）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "dist 同式"
+      },
+      "type_mapping": {
+        "product": "f32 sqrt + 取负",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应：sqrt 后取负",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:accumulation:2",
+      "why_identical": "source 级表达式对应：sqrt 后取负"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 195,
+        "expression": "witness x1/x2 输出"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "witness 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32[3] ×2",
+        "upstream": "wp.vec3 ×2",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 witness 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:output:0",
+      "why_identical": "输出字段与上游 witness 对应"
+    },
+    {
+      "id": "epa_host:epa_witness_polytope.rs:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 240,
+        "expression": "dist 输出（重叠为负）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 969,
+        "function": "_epa_witness",
+        "body_lines": [
+          969,
+          1042
+        ],
+        "expression": "dist 输出同式"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "输出字段与上游 dist 对应",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:epa_witness_polytope.rs:output:1",
+      "why_identical": "输出字段与上游 dist 对应"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 10,
+        "expression": "face/face_pr/face_norm2：由 attach_face 逐面填充"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1043,
+        "function": "_polytope2",
+        "body_lines": [
+          1043,
+          1135
+        ],
+        "expression": "面表填充同式"
+      },
+      "type_mapping": {
+        "product": "u32 / f32[3] / f32",
+        "upstream": "uint32 / wp.vec3 / float",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "面表缓冲，填充在 attach_face 站点对照",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:intermediate:0",
+      "why_not_applicable": "缓冲/结构中间量"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 10,
+        "expression": "center：面朝外判定参考中心"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1043,
+        "function": "_polytope2",
+        "body_lines": [
+          1043,
+          1135
+        ],
+        "expression": "center 同式"
+      },
+      "type_mapping": {
+        "product": "f32[3]",
+        "upstream": "wp.vec3",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "参考中心中间量",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:intermediate:1",
+      "why_not_applicable": "中间量缓冲"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:intermediate:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 10,
+        "expression": "status：-1 回退 3-单纯形"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1043,
+        "function": "_polytope2",
+        "body_lines": [
+          1043,
+          1135
+        ],
+        "expression": "status 回退标记"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型状态标记",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:intermediate:2",
+      "why_not_applicable": "整型状态，非浮点"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:accumulation:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 149,
+        "expression": "多面加权/重心重建沿用 simplex.rs 的 s2d/s1d 顺序"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1136,
+        "function": "_polytope3",
+        "body_lines": [
+          1136,
+          1228
+        ],
+        "expression": "同序 s2d/s1d 重建"
+      },
+      "type_mapping": {
+        "product": "f32 两次舍入",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式与顺序对应（复用 simplex 同序重建）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:accumulation:0",
+      "why_identical": "source 级表达式与顺序对应（复用 simplex 同序重建）"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:accumulation:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 250,
+        "expression": "det3 体积/朝向判定：dot(v1, cross(v2,v3))"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1229,
+        "function": "_polytope4",
+        "body_lines": [
+          1229,
+          1340
+        ],
+        "expression": "det3 同式"
+      },
+      "type_mapping": {
+        "product": "f32 逐项乘减",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source 级表达式对应（det3 逐项乘减）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:accumulation:1",
+      "why_identical": "source 级表达式对应（det3 逐项乘减）"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 10,
+        "expression": "pt（初始 polytope：面表 + 顶点对 + 索引）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1043,
+        "function": "_polytope2",
+        "body_lines": [
+          1043,
+          1135
+        ],
+        "expression": "polytope 结构输出"
+      },
+      "type_mapping": {
+        "product": "Polytope",
+        "upstream": "Polytope",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构输出（面表/顶点/索引）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:output:0",
+      "why_not_applicable": "结构输出，非浮点算术"
+    },
+    {
+      "id": "epa_host:polytope2_polytope3_polytope4_polytope_build.rs:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope_build.rs",
+        "line": 10,
+        "expression": "GjkResult（回退时，dim=3）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1043,
+        "function": "_polytope2",
+        "body_lines": [
+          1043,
+          1135
+        ],
+        "expression": "回退 GjkResult 输出"
+      },
+      "type_mapping": {
+        "product": "struct",
+        "upstream": "GJKResult",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "结构输出（回退结果），非浮点算术",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:polytope2_polytope3_polytope4_polytope_build.rs:output:1",
+      "why_not_applicable": "结构输出，非浮点算术"
+    },
+    {
+      "id": "epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:intermediate:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 34,
+        "expression": "edge = (min(e1,e2)<<10) | max(e1,e2)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 947,
+        "function": "_add_edge",
+        "body_lines": [
+          947,
+          968
+        ],
+        "expression": "边键编码同式"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型边键编码（非浮点）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:intermediate:0",
+      "why_not_applicable": "整型编码，非浮点算术"
+    },
+    {
+      "id": "epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:intermediate:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 23,
+        "expression": "FACE_DELETED_BIT / FACE_INVALID_BIT 状态位"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 947,
+        "function": "_add_edge",
+        "body_lines": [
+          947,
+          968
+        ],
+        "expression": "面状态位同式"
+      },
+      "type_mapping": {
+        "product": "u32",
+        "upstream": "uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型状态位（非浮点）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:intermediate:1",
+      "why_not_applicable": "整型状态位，非浮点算术"
+    },
+    {
+      "id": "epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:output:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 46,
+        "expression": "nhorizon（新计数；-1 表示缓冲用尽）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 947,
+        "function": "_add_edge",
+        "body_lines": [
+          947,
+          968
+        ],
+        "expression": "nhorizon 输出"
+      },
+      "type_mapping": {
+        "product": "i32",
+        "upstream": "int",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型计数输出",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:output:0",
+      "why_not_applicable": "整型计数输出，非浮点"
+    },
+    {
+      "id": "epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:output:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 23,
+        "expression": "face[i] 状态位（deleted/invalid）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 947,
+        "function": "_add_edge",
+        "body_lines": [
+          947,
+          968
+        ],
+        "expression": "face 状态位输出"
+      },
+      "type_mapping": {
+        "product": "u32",
+        "upstream": "uint32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "整型状态位输出",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:add_edge_get_edge_delete_face_invalidate_face_整型管理:output:1",
+      "why_not_applicable": "整型状态位输出，非浮点"
+    },
+    {
+      "id": "epa_host:rounding-note:0",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 65,
+        "expression": "host 口径：face_norm2 刻意显式两次舍入（head→tail→norm2），不用 FMA helper、不引 f64、不写 mul_add"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "CPU 后端 recipe 说明"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：host recipe 核心口径说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:rounding-note:0",
+      "why_not_applicable": "recipe 说明条目，不是可分类表达式"
+    },
+    {
+      "id": "epa_host:rounding-note:1",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 108,
+        "expression": "EPA 收敛判据用归一化前上界 dot3(face_pr,w)/lower 与 sqrt(face_norm2) 比较；离散几何 epsilon=MIN_EPATOL"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "收敛判据说明"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：收敛判据口径说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:rounding-note:1",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "epa_host:rounding-note:2",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/epa.rs",
+        "line": 151,
+        "expression": "horizon 候选判定 dot3(face_pr[i],w)-face_norm2[i] > 1e-10（一次点积+一次减+精确比较）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 1341,
+        "function": "_epa",
+        "body_lines": [
+          1341,
+          1952
+        ],
+        "expression": "同一判定说明"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：判定表达式口径说明",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:rounding-note:2",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    },
+    {
+      "id": "epa_host:rounding-note:3",
+      "product_anchor": {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 65,
+        "expression": "device 侧 pinned ccd PTX 为 fma.rn 融合语义（1480 处），与 host 两次舍入两套 recipe"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_gjk.py",
+        "line": 249,
+        "function": "_attach_face",
+        "body_lines": [
+          249,
+          274
+        ],
+        "expression": "device/host recipe 差异说明"
+      },
+      "type_mapping": {
+        "product": "f32",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "rounding-note：device/host recipe 差异说明（位级判据需声明前提）",
+      "confidence": "medium",
+      "premise": "source-level 对照；上游为 warp CPU 后端 recipe（非融合 mul/add 两次舍入），产品 host 同配方；host 路径无 PTX、不做设备级/位级结论；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-d1/evidence.json#epa_host:rounding-note:3",
+      "why_not_applicable": "说明条目，不是可分类表达式"
+    }
+  ]
+}
