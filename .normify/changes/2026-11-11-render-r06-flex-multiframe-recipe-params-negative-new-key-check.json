@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key-check",
+  "title": {
+    "zh": "QA 复核 R06 recipe-params 反例非空转补强（`8618e447`，卡 E）：卡 C 的 L2 按零偏差最小规格关闭——**保留既有键负例 `samples_per_pixel` + 新增键负例 `use_textures`**（21 项新增断言之一；bool 数据驱动循环同路径），两次 `catch_unwind` 必须 panic 且消息分别标注「既有键/新增键」，正例对照保留；改动 **+11/−11 全在负例块**、`assert_params_match_capture` 与 21 项比对逐行未动、文件仍 **188 行**；我独立重跑 **41 passed/0 failed/1 ignored**；卡 C 证据 README §7 **纯追加**（6,779→7,940、前缀=旧长）含规格 sha **`d7fcf156…`/7,608 B**（我实测一致）、manifest 卡 C 目录 **7/7** 与新目录 **6/6** 全对；exe 身份 `d226bb76…`/118,588,392 → **`0966bf4c…`/118,588,904（+512 B）** 与 on-disk 实测一致；边界仅 1 test 文件、`src/fixtures/scripts/*.cu` 零改动、`i/lf w/lf`、门禁 unit **1,406/0/402**；**剩余 4 组形态（nworld/flags/f64/splat-null=11 项）无定向负例已如实写成非声明** → **复核通过（0 阻断，0 低 + 3 观察）**；观察=剩余缺口部分关闭、顺带修正卡 C「use_shadows 新增」错标、身份 caveat 延续",
+    "en": "QA review of the recipe-params negative-new-key card (8618e447, card E): card C's L2 closed for the bool form (new-key negative use_textures + kept existing-key negative samples_per_pixel, 21-item comparison untouched), 41/0/1 tests rerun, append-only section 7 with spec sha, manifests 7/7 and 6/6, exe identity +512 B, boundaries and gates verified - PASS with 0 low + 3 observations; remaining 4 assertion forms are explicit non-claims"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对卡 E（R06 recipe-params 反例非空转补强，提交 **`8618e447`** + 卡 `2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key`）做独立只读复核（零 GPU）：新增键负例是否真实、既有键负例是否保留、21 项比对是否零改动、覆盖映射是否诚实、append-only/manifest/exe 身份/边界/门禁。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of card E: real new-key negative, kept existing-key negative, untouched 21-item comparison, honest coverage mapping, append-only/manifests/exe identity/boundaries/gates."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动/正确性 ✅**：`tests/support/render_bvh/multiframe_recipe.rs` **+11/−11 全部在 `recipe_param_mismatch_is_detected` 负例块**；负例 1（既有键）`samples_per_pixel` 保留、负例 2（新增键）翻转 `use_textures`（21 项断言之一，10 布尔数据驱动循环），两次 `catch_unwind` 必须 panic、消息分别标注「既有键」/「新增键」；正例对照保留；`assert_params_match_capture` 与 21 项比对逐行未动；文件仍 **188 行**（<500）",
+    "**独立执行 ✅**：`cargo test --locked --features cuda-probe --test render_flex_multiframe -- --test-threads=1` ⇒ **41 passed / 0 failed / 1 ignored**（含 `recipe_param_mismatch_is_detected` 与正例），与证据一致；用例数未变",
+    "**覆盖映射诚实 ✅**：21 = `nworld`(1)+flags(3)+10 布尔+`shadow_light_fraction`(1)+splat null(6)；直接负例只证 **bool 形态**（同数据驱动路径），其余 4 组 **11 项**在 README/receipt **明确写成非声明**，未宣称「21 项全被负例证明」——符合 Chief 最小规格（1 新增键 + 保留 1 既有项）；顺带修正卡 C 对 `use_shadows` 的「新增」错标",
+    "**append-only/证据 ✅**：卡 C 证据 README 追加 §7——我实测 **6,779→7,940 B、共同前缀 6,779 = 旧长度**（纯追加、原字节未动）；§7 规格 sha **`d7fcf156d7ce7f1fec0f30d13d96a53d88b2045dcfc7eef23aafa1f0a9656638`/7,608 B** 与我实测 target 规格文件逐位一致；卡 C 目录 manifest **7/7**、新目录 **6/6** 独立重算全对（不自列）",
+    "**身份/边界/门禁 ✅**：multiframe 测试 exe `d226bb76…`/118,588,392 → **`0966bf4c…`/118,588,904（+512 B）**，我实测 on-disk exe 逐位一致；证据引用「同源重建不可复现」caveat 并写明「R06 后续窗须重冻、本卡不重冻」；`git diff e4f1c71f..8618e447` 仅 1 个 test 文件 + 证据/`.normify`，`src/`/`fixtures/`/`scripts/` 零改动、`*.cu` 空、`i/lf w/lf`；门禁 fmt/clippy/clippy-cuda exit 0、unit **1,406/0/402**；零 GPU、未执行 `--ignored`",
+    "**结论：复核通过（0 阻断，0 低 + 3 观察）。** 不宣称渲染数值/等价/设备端变化；不宣称非 bool 形态被负例覆盖；不改判据/参考/容差；不重冻、不占窗",
+    "**观察**：O1 剩余 4 组形态 11 项无定向负例（已非声明，L2 部分关闭）；O2 顺带修正卡 C 的 `use_shadows` 错标；O3 exe 身份 caveat 延续（以冻结产物为准）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key",
+      "2026-11-11-render-r06-flex-multiframe-recipe-params-fill-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-negative-new-key-check/"
+    ],
+    "resources": [],
+    "priority": 78
+  },
+  "note": "Chief 2026-11-11 指令（卡 C 复核后）的卡 E 复核。结论：复核通过（0 阻断，0 低 + 3 观察）。已独立核：+11/−11 全在负例块、既有键 samples_per_pixel 保留 + 新增键 use_textures 新负例、消息标注既有/新增、正例保留、21 项比对零改动、文件 188 行；我重跑 41/0/1；覆盖映射 1+3+10+1+6=21 且仅 bool 形态直接覆盖、其余 11 项非声明（符合最小规格）；卡 C README §7 纯追加（6779→7940、前缀=旧长）含规格 sha d7fcf156/7608（实测一致）、manifest 7/7+6/6；exe d226bb76/118,588,392→0966bf4c/118,588,904（+512B）与 on-disk 一致；边界仅 1 test 文件、src/fixtures/scripts/*.cu 零改动、i/lf w/lf、门禁 unit 1406/0/402。观察：剩余 4 组形态无定向负例（非声明）、修正卡 C use_shadows 错标、身份 caveat 延续。不宣称渲染数值/等价、不改判据、不重冻。",
+  "revision": {
+    "before": "e0ed2d529abfe2ef7dd3102a3636cbb1ed6d5094",
+    "after": null
+  },
+  "created_at": "2026-11-11T04:40:00.000Z",
+  "updated_at": "2026-11-11T04:40:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-negative-new-key-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-r06-flex-multiframe-recipe-params-negative-new-key-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-flex-multiframe-recipe-params-negative-new-key-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "判据 A 已修复",
+        "G-L2 通过",
+        "上游等价"
+      ]
+    }
+  ]
+}
