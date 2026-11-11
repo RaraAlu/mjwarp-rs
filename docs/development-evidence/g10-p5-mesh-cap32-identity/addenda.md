@@ -74,3 +74,11 @@
 
 - 本 addenda 只记录勘误/裁决/窗口说明，不改 A2-2 任何历史字节（日志仅末尾 append）；identity manifest 11→12。
 - 不宣称 U7/U8 通过（窗口前）、mesh 容量缺口已清、与上游等价（over-32）、G10@P5 整族通过、NP01/NP02 门禁通过。
+
+## 补正（2026-11-12，QA L3；append-only）
+
+- 上节「不改 A2-2 任何历史字节」表述不准确：A2-3 §1 除日志末尾 append 外，还修改了本目录 `receipt.json`
+  （新增 `a2_3_section1_errata` 块）并重算 identity manifest（11→12）。
+- 精确表述：**log 为末尾 append；receipt/manifest 为簿记更新；其余 A2-2 历史窗口/回执字节未改**。
+- 对应 QA 复核：`docs/development-evidence/np-gate/w2-a2-3-window-check/`（3 低之一）；
+  收口记录见 `docs/development-evidence/g10-p5-mesh-cap32-window/addenda-qa-review.md`。
