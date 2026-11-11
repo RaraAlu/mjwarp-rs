@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-u7u8-full-condition-assert-check",
+  "title": {
+    "zh": "QA 复核 W2/U7U8 全条件断言窗 attempt 2 PASS（r3 冻结）+ 主卡收口（`4e3abe9c`）：**PASS（0 阻断，0 严重、0 一般 + 1 低 + 5 观察）**——r3 窗口 1/1 exit 0（41.25 s）、sha 守卫 **18/18** 我逐条重算、floor pre/post 13,440 ≥ 10,240、monitor 60/60（util_max=4）、窗内 0.25 s 采样 **138 样本**（间隔 290.6–361.3 ms、util_max=4/free_min=11,793）、零 Rust 编译（我扫窗口时段 target 无构建产物）、无残留；U7/U8 原始日志 `bit_equal=1/1`、`4/4`、两 case `max_*_ulp=0`、`contact.geom=[1,0]`、`failures=0`、`pos_order_equal=true` 逐字段独立核对；修正仅 tests（pair_meta 上游同构 + CPU 断言，我本地重跑 4 passed/2 ignored）、product `src/` 零改动、src digest `266bbf94…` 复算一致、comparator 495 行未改；r2 FAIL 记录 verdict=FAILED/attempt=1/21 条/两个 runner bug 如实且 append-only（13 文件 blob 未改）；主卡 18 检查 13 json 指针全满足、unit 1410/0/402；**镜像裁断=可接受**（README/receipt 明写非 r2 exe PASS、attempt1 FAILED 指针醒目、11 字段与 r3 receipt 相等），建议加 `mirrors_sha256`/`verdict_scope` 与中性目录名；低=主卡 acceptance 三处与终态不符；观察=镜像加固、r2 目录无 manifest、r3 readiness 勾表未填、采样统计隐含排除首行、baseline floor min/max 表述。仅支持该窗口径 pass_rule 全条件成立",
+    "en": "QA review of the U7/U8 full-condition window attempt 2 (r3 freeze) and main card closure: PASS (0 blockers, 0 major + 1 low + 5 observations). Independent re-measurement of guards 18/18, monitor 60/60, in-window 138 samples, zero-build checks, U7/U8 comparator rows (bit_equal 1/1 and 4/4, contact.geom [1,0], failures=0); fix scope tests-only with CPU assertion re-run; r2 FAIL record append-only and honest; main card checks 13/13; mirror judged acceptable with hardening suggestions."
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对 U7U8 全条件片（`c36458b6`→…→`4e3abe9c`，含 r2 FAIL→修正→r3 窗 attempt 2 PASS）做主链只读复核：r3 窗口执行事实与 U7/U8 全条件原始输出、修正范围/冻结一致性、r2 FAIL 记录、主卡检查与 r2 目录收据镜像裁断、§1 收口。只写本卡证据。",
+    "en": "Read-only review of the main chain: r3 window execution + U7/U8 full-condition raw output, fix scope/freeze consistency, r2 FAIL record, main-card checks and the r2 receipt mirror judgement, section-1 closure."
+  },
+  "modules": {},
+  "acceptance": [
+    "**r3 窗口执行 ✅**：1/1 exit 0（41.25 s）、实体日志 `2 passed/0 failed`、`.err` 0 B、`SUMMARY entities=1 failed=0 exit_codes=0`；sha 守卫 **18/18**（1 exe+15 fixture+2 参考）逐条重算 0 不符、`guards-r3.tsv` 同源；floor pre/post **13,440** ≥ 10,240；monitor 60/60（util_max=4、free_min=13,440、compute/build 全 0）；三点基线 raw 在位且时间序自洽",
+    "**窗内采样/零编译 ✅**：`window-samples.csv` **138 行**、间隔排除首行后 **290.6–361.3 ms**、util_max=4、free_min=11,793；PRECHECK/POST 零 Rust 编译 PASS，我扫窗口时段 `target/` 7 个改动文件全为 runner 输出、无构建产物；r3 branch exe mtime 03:07:57 早于窗口；POST 残留 0",
+    "**U7/U8 全条件 ✅**：原始日志 `cone-box bit_equal=1/1`、`prism-box bit_equal=4/4`、两 case `max_dist/pos/frame_ulp=0`、`contact.geom=[1,0]`、`failures=0`；`pos_order_equal=true`、`fail_lines=[]`、`both_cases_observed=true`；r2 的 `[0,1]`/frame 翻转/pos 轮换全部消失",
+    "**修正范围/冻结 ✅**：`75e296fb` 仅改 2 个 tests 文件（pair_meta 与上游 `_add_geom_pair` 同构 + CPU 断言），我本地重跑 **4 passed/2 ignored**（新断言 ok）；`git diff ef8da38f..HEAD -- src` 为空、`.cu` 零改动、src digest 复算 `266bbf94…`；comparator 495 行未改；r3 只重建 branch exe（`ac823b58…`/41,782,272），9 旧 exe 9/9 全等；r3 manifest 17/17 重算 0 错",
+    "**r2 FAIL 记录 ✅**：`verdict=FAILED`、`attempt=1`、`failures_total=21`（U7 4 + U8 17）、`exit_code_capture_bug`/`summary_count_bug` 如实、panic 行在位；18/18 守卫与 134 样本/失败 monitor CSV 记录在位；13 文件与 `63b95170` blob 逐个相同（append-only）、manifest 12/12",
+    "**主卡/镜像 ✅**：主卡 18 检查（4 gate + unchanged + 13 json）我逐条解析 **13/13 满足**；unit **1410/0/402**；gate run 介于 r3 证据提交与卡收口之间；**镜像可接受**（README + receipt 明写非 r2 exe PASS、attempt1.verdict=FAILED + 指针 + full_evidence_dir→r3，11 字段与 r3 receipt 逐字段相等），无需 abandon 主卡另开收口卡",
+    "**§1 收口 ✅**：A2-3 console 规范化副本 + diff log 落地且原损坏文件 blob 未改；r2/r3 runner 实装 0.25 s 采样并披露；identity addenda 末尾 append 精确表述（前缀保持）；A2-3 window 旧 19 条记录 sha 全未变、manifest 24/24；identity manifest 12/12",
+    "**结论：复核通过（0 阻断，0 严重、0 一般 + 1 低 + 5 观察）。** 低=主卡 acceptance 三处与终态不符（item 7 布局/item 9 CPU 计数/item 11 路径）；观察=镜像加固建议、r2 目录无 manifest、r3 readiness 勾表未填、窗内采样统计隐含排除首行、baseline floor min/max 表述。仅支持该窗口径 pass_rule 全条件成立"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-u7u8-full-condition-assert"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "Chief 2026-11-12 派工的 U7U8 全条件窗/主卡复核；结论 PASS（0 阻断，1 低 + 5 观察）。未重开窗、未跑 GPU 窗口；仅本地重跑 CPU 断言。镜像裁断：可接受，不需 abandon 主卡。仅支持该窗口径 U7/U8 pass_rule 全条件成立；不宣称缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。",
+  "revision": {
+    "before": "004f238f0c5d56daf8d5976dac71a9b6e1b39f0c",
+    "after": null
+  },
+  "created_at": "2026-11-12T03:30:00.000Z",
+  "updated_at": "2026-11-11T19:28:30.485Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-u7u8-full-condition-assert-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/reviewed_card",
+      "equals": "2026-11-12-w2-u7u8-full-condition-assert"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/window_r3/entities_exit_zero",
+      "equals": 1
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/window_r3/sha_guards_verified",
+      "equals": 18
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/u7_u8_full_condition/u7_failures",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/u7_u8_full_condition/u8_failures",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/u7_u8_full_condition/contact_geom",
+      "equals": "[1,0]"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/mirror/fields_equal_to_r3_receipt",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-full-condition-assert-check/receipt.json",
+      "pointer": "/checked/main_card/status",
+      "equals": "verified"
+    }
+  ]
+}
