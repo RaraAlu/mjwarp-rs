@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-d2-ccd-host-source-level-check",
+  "title": {
+    "zh": "QA 复核 NP5-01a D-2（`06811c89`）：**PASS（0 阻断，0 一般 + 0 低 + 2 观察）**——§1 D-1 L1 闭环：`rows-fields-v1` 88 行（kind/label 与 sites.json gjk_host/epa_host 并集 **88/88 逐字一致**、无需 redaction、0 问题）、原 evidence 字节未改（`2d509468`/115,577）、manifest 6/6；§2 D-2 37 站点 37/37 id 与 ccd_host 并集相等、**原生带 kind/label 37/37**、直方图 `identical16/n/a21`、**2 个附录单元已登记**（`src/math/fma.rs` n/a、`render_light_dir_normalize` identical+why_identical 且不声明位级）、`np5_01a_total_sites=608`/`unique_expressions=598` 双口径入 receipt+evidence、host 无 PTX 整体 `host-path-no-ptx`、锚点 0 错误、policy 0 命中、门禁 1,406/0/402",
+    "en": "QA review of D-2: PASS (0 blockers, 0 major + 0 low + 2 observations); D-1 L1 closed (88/88 kind/label, no redaction, manifest 6/6); D-2 37 ccd_host sites natively carry kind/label, 2 appendix units registered, totals 608/598 dual recorded, host-path-no-ptx, gates 1406/0/402"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 D-2（`06811c89`）做独立只读复核（零 GPU）：①D-1 rows-fields 88 行与「原生 kind/label」要求；②D-2 37 站点 + 2 附录单元（登记方式/分类/锚点）、608/598 双口径、`host-path-no-ptx`、锚点、policy 0 命中、无覆盖率；③边界/门禁/编码。只写本卡与本卡证据。",
+    "en": "Independent read-only review of D-2: D-1 field addendum, D-2 37 sites + 2 appendix units, dual totals, hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**§1 D-1 L1 闭环 ✅**：`np5-01a-d1/rows-fields-v1.json`（18,429 B、`row_count=88`）按 evidence 顺序补齐 `id/kind/label/classification`；我逐条与 `sites.json` gjk_host/epa_host 并集比对 **88/88 kind/label 逐字一致、0 问题**（无政策禁词条目、无需 redaction）；D-1 四个 landing 文件**字节未改**（evidence 仍 `2d509468…`/115,577）、manifest 重算 **6/6**（733 B）；addenda 说明补齐方式与原字节不变",
+    "**§2 D-2 ✅**：37/37 与 sites.json ccd_host 逐 id 相等；**条目原生带 `kind`/`label` 37/37**（与 sites.json 逐字一致）；直方图 `{identical 16, n/a 21}`；`kind_counts` 13/6/14/4；`np5_01a_total_sites=608`、`np5_01a_unique_expressions=598`、`prior=571` 与 `dual_count_note`（608=行×站点 A179+B78+C226+D125；598=608−10）在 evidence 与 receipt 在位",
+    "**§2 附录单元 ✅**：`appendix_units` 2 个已登记（`kind: appendix-unit`、各带 product/reference 锚点 + type_mapping + premise + evidence_pointer）：`src/math/fma.rs` → `n/a`（内部数学助手、无上游源码表达式、host 无 PTX，why_not_applicable 齐全）；`render_light_dir_normalize` → `identical`（显式复刻 warp normalize 的 `fma(z,z,fma(y,y,x*x))` + 逐分量除法，参照 `smooth.py:951 wp.normalize`，带 `why_identical`、明写不声明位级）",
+    "**§2 host 口径/锚点 ✅**：`host_path_note` 明确 37 站点全部无 PTX、device 级整体 `not-decidable` 原因 `host-path-no-ptx`；37 条站点锚点 + 2 附录锚点全解析、**0 错误**；policy_scan **0 命中**；manifest **4/4**（556 B）；selfcheck 31 项全 PASS；门禁 1,406/0/402；UTF-8/LF 无 BOM/CR/NUL；无覆盖率",
+    "**结论：复核通过（0 阻断，0 一般 + 0 低 + 2 观察）。** 观察 O1=D-1 的 88 行字段补齐与 D-2 原生 kind/label 均到位（两层补页方式一致）；观察 O2=附录单元登记方式合规（fma.rs 的 reference_anchor 为已声明的语义指针——无上游源码函数对应；render_light_dir_normalize 的 identical 仅 source 级且不声明位级）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-01a-d2-ccd-host-source-level"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-d2-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 D-2 复核（含 D-1 L1 闭环）；结论 PASS（0 阻断，2 观察）。不宣称位级保证/NP01 通过。",
+  "created_at": "2026-11-11T14:45:00.000Z",
+  "updated_at": "2026-11-11T14:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-d2-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-01a-d2-ccd-host-source-level-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-d2-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "9a4e4c413f3a6518c416224d60f8fb147c220253",
+    "after": null
+  }
+}
