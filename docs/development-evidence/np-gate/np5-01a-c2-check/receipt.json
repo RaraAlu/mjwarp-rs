@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-c2-force-energy-source-level-check",
+  "kind": "np5-01a-c2-force-energy-source-level-check",
+  "reviewed": [
+    "215693d3"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 0,
+    "observation": 2
+  },
+  "checked": {
+    "section1_c1_closing": {
+      "english_negators": "crafted: never supersede / no withdrawal / without withdrawal / none superseded / must not supersede / not withdrawn / no 作废 -> all stay invalid (hit=1); affirmative 撤回/supersedes/superseded/作废 exempt",
+      "self_test": "28/28 PASS (independent run)",
+      "tool": "13,482B / 9a63e720",
+      "reviewed_semantics": "documented in docstring (\"reviewed only means an in-block reviewed_by marker; false does not mean unreviewed\") and C-2 README",
+      "errata_recorded": "errata-0001 (field-table flex_hessian_validate ok/status vs i32 flags) recorded in README/evidence/receipt, status recorded, field-table history not modified"
+    },
+    "section2_c2": {
+      "sites": 68,
+      "ids_match_rows": "fluid_force 27 + kinetic_energy 13 + applied_force 12 + smooth_force 9 + passive_force 7 union exact",
+      "histogram": {
+        "identical": 37,
+        "n/a": 31
+      },
+      "engine_semantic": "0; README §2 explicitly states engine-semantic 0 / recipe-difference 0 / not-decidable 0 / pin-needed 0 and records fluid powf as implementation-dependent (no bit-level claim)",
+      "cumulative": "269 + 68 = 337 overlap-free",
+      "anchors": "53 file:line + 15 no-reference-expression; 0 resolution errors; samples verified (fluid_force/cuda.rs 47/48 <-> passive.py 409; validate cuda.rs 26/34)",
+      "required_fields": "68/68",
+      "policy_scan": "0 hits on C-2 evidence/README/receipt",
+      "manifest": "4/4 (539B)",
+      "selfcheck": "16 PASS",
+      "gates": "1406/0/402",
+      "hashes": "evidence 1d0aab16/98,071; README 619525b1/6,444; receipt 5a67d09b/4,903; manifest 391d1238/539; selfcheck 418826ad/1,092",
+      "no_coverage_wording": true,
+      "hygiene": "clean"
+    }
+  },
+  "findings": [
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "declaration vocabulary is 撤回/supersede/作废; the English participle \"withdrawn:\" is not a declaration token, so such a block stays flagged (conservative direction, not a defect) - consider adding withdraw/withdrawn for symmetry or document the vocabulary"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "C-2 has 0 engine-semantic; the fluid powf implementation-dependence is recorded as notes/rounding-note instead of a class - README states this explicitly; keep the errata-0001 consolidation in the closing addenda"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence; no bit-level test performed",
+    "review of C-2 source-level records and C-1 low closures only"
+  ]
+}
