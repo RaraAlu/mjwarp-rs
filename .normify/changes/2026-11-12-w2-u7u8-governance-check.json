@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-u7u8-governance-check",
+  "title": {
+    "zh": "QA 复核 W2/U7U8 治理片（`64fc0e41` 主卡补注+镜像加固 → `bde94ca8` addenda-qa-gov → `2c027d4c` floor 消歧）：**PASS（0 阻断，0 严重、0 一般、0 低 + 4 观察）**——此前 1 低 + 5 观察已全部闭环：主卡仅 append `addenda` 记录（acceptance/checks/note 未改、仍 verified），§1 对 item7（证据在 `...-window-r3/`）/item9（CPU 终态 4 passed/2 ignored）/item11（指向镜像）逐项准确、无过度表述；镜像 `mirrors_sha256` 与 r3 权威 receipt 当前 sha `365f15e9…` **逐字相等**、`verdict_scope=attempt2-window-only`、FAILED 指针与非声明保持、r2 manifest **7/7**；§2 四前提实测值与证据一致（src 零 diff/digest `266bbf94…`/r1 `9fe3192b…` 与 r2 `6d2b39fc…` 未动/9 旧 exe 9/9/guards 18/18/selftest PASS/monitor 60 行 util_max=4/baseline 03:18 三值/硬门 10,240）；§3.1 采样 **138 样本 137 间隔 290.6–361.3 ms** 口径自洽；**floor 裁断：候选 10,376 / `min(10,240,candidate)` 夹取 10,240 / 硬门 10,240 / 生效 10,240 MiB，§7 表述与计划原文一致且正确**；三提交各 7 文件、`git diff 4e3abe9c..HEAD` 仅治理片+复核卡、r2-fail/r3 历史/A2-3 证据零改动、addenda 旧版字节前缀保持、manifest r3 18/18；两卡 unit 1410/0/402、policy 40 文件 0 命中。观察=§7「QA 独立核」措辞时点、新旧 floor 口径并存需头注指向 §7、r2 README 未列后加 manifest、QA 自我更正（此前 O5 误读候选为 floor）",
+    "en": "QA review of the governance slice (main-card addendum + mirror hardening, r3 addenda, floor disambiguation): PASS (0 blockers, 0 major/low + 4 observations). All prior remediation items closed: mirror pins r3 receipt sha, scope field added, manifests 7/7 and 18/18, section-2 checklist values match evidence, section-7 floor four values match the plan formula and my adjudication (candidate 10376 / clamped 10240 / hard gate 10240 / effective 10240)."
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对治理片 `64fc0e41`+`bde94ca8`+`2c027d4c` 做只读复核：主卡 1 低闭环、镜像加固、r3 addenda §2 勾表实测值、§3 两处口径（采样/floor）、append-only 边界、两卡门禁与非声明。只写本卡证据。",
+    "en": "Read-only review of the governance slice: main-card low closure, mirror hardening, r3 addenda checklist values, sampling/floor wording, append-only boundaries, gates and non-claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**主卡 1 低闭环 ✅**：`64fc0e41` 仅新增 `addenda`（reason 覆盖三点）与 `updated_at`，acceptance/checks/note/title 字节未改、卡仍 verified、`closed_at` 不变；§1 对 item7/item9/item11 的补注与事实逐项一致（证据确在 `...-window-r3/`、CPU 终态 4/2、检查确指向镜像 receipt），无新的过度表述",
+    "**镜像加固 ✅**：`mirrors_sha256` = r3 权威 receipt 当前 sha256 **`365f15e9…01c952`**（逐字相等，receipt 未改）；`verdict_scope=attempt2-window-only`；仍 `kind=window-receipt-mirror`、`attempt=2`、FAILED 指针 + `full_evidence_dir`→r3 醒目、note 明写非 r2 exe PASS；receipt diff 仅追加三字段；r2 manifest **7/7** 重算 0 错",
+    "**§2 勾表 ✅**：fresh freeze（src 零 diff、digest `266bbf94…`、r3 branch `ac823b58…`/41,782,272、r1 `9fe3192b…` 与 r2 `6d2b39fc…` 未动、9 旧 exe 9/9、guards 18/18、selftest PASS）；monitor 60 行 util_max=4/free_min=13,440；baseline 03:17:59–03:18:02 三值；硬门 10,240",
+    "**floor 裁断 ✅**：计划 `floor=min(10,240, baseline_free−3,072)`；r3 候选 **10,376** → 夹取 floor **10,240** → 硬门 **10,240** → 生效 `max` = **10,240 MiB**；窗内 pre/post free 13,440 > 两者，有效性不受影响；A2-3 同式（9,909→10,240）与 receipt 一致；§7 四值与我裁断逐字一致、与计划原文一致，并已写入 target 计划附录 B；§2 行4/§3.2 旧文按 append-only 保留、冲突以 §7 为准",
+    "**采样口径 ✅**：`window-samples.csv` **138 样本 / 137 间隔**，我重算 137/137 全部 290.6–361.3 ms；util_max=4、free_min=11,793 取自 138 样本；receipt `samples=138` 与 interval 统计不矛盾（§3.1 已注明基数）",
+    "**边界/append-only ✅**：三提交各 **7 文件**（卡+run+证据）；`git diff 4e3abe9c..HEAD` 仅治理片+两张复核卡；r2-fail 13 文件零改动、r3 历史文件零改动（仅 addenda 新增与 manifest 重算）、A2-3 证据零改动；addenda 新版以旧版字节前缀开头（5,199→6,613 B）；manifest r3 **18/18**、r2 **7/7**；两卡 unit **1410/0/402**、两卡 verified；policy 40 文件 **0 命中**、非声明未弱化",
+    "**结论：复核通过（0 阻断，0 严重、0 一般、0 低 + 4 观察）。** 观察 O1=§7「QA 独立核」措辞时点（现由本卡证实，建议以后写「待 QA 独立核」）；O2=同文件新旧 floor 口径并存（append-only 要求，建议头注指向 §7）；O3=r2 README 未列后加的 manifest（历史不改，建议下轮 addenda 点一句）；O4=QA 自我更正（此前 A2-3 O5 把未夹取候选当 floor，§7 已更正，本卡确认）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-u7u8-full-condition-assert",
+      "2026-11-12-w2-u7u8-r3-evidence-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w2-u7u8-governance-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-12 派工的治理片复核；结论 PASS（0 低 + 4 观察）。按最终 HEAD 2c027d4c 核（复核期间 Backend 已追加 floor 消歧）。floor 口径裁断：候选 10,376 / 夹取 10,240 / 硬门 10,240 / 生效 10,240 MiB。不宣称缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。",
+  "revision": {
+    "before": "cb6cee51351adf94a872f5d4f03808ba205e9992",
+    "after": null
+  },
+  "created_at": "2026-11-12T03:40:00.000Z",
+  "updated_at": "2026-11-11T19:36:20.006Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-u7u8-governance-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/checked/mirror/mirrors_sha256_matches",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/checked/mirror/verdict_scope",
+      "equals": "attempt2-window-only"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/checked/manifests/r2_entries",
+      "equals": 7
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/checked/manifests/r3_entries",
+      "equals": 18
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/checked/main_card_fix/fix_addenda_present",
+      "equals": true
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-governance-check/receipt.json",
+      "pointer": "/checked/floor_adjudication/effective_mib",
+      "equals": 10240
+    }
+  ]
+}
