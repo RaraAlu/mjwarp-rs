@@ -1,0 +1,1138 @@
+{
+  "schema": 1,
+  "task": "np5-01a-a1a-mass-solve-factor-source-level",
+  "scope": "mass_solve factor half, 40 sites; source-level type mapping + expression classification",
+  "split_source": "target/render-bvh/gl2-ptx-diff/np5-01a/A-1-draft/A-1-split.json",
+  "vocabulary_authority": "target/render-bvh/gl2-ptx-diff/np5-01a-vocab-addendum.md (fcbec8f94162b82dbae3da555eac949bb5d842b81c3740cf096002de81ff936c / 4,560 B)",
+  "site_count": 40,
+  "pending_manual": 0,
+  "classifications_histogram": {
+    "n/a": 22,
+    "engine-semantic": 1,
+    "not-decidable": 2,
+    "identical": 12,
+    "pin-needed": 1,
+    "recipe-difference": 2
+  },
+  "not_decidable_reasons_vocabulary": [
+    "no-reference-entry",
+    "mathdx-cusolver-unavailable",
+    "no-lineinfo",
+    "frozen-artifact-only",
+    "capture-scenario-miss",
+    "host-path-no-ptx"
+  ],
+  "requires_decision": [
+    {
+      "id": "rigid_mass_solve:intermediate:3",
+      "question": "tile/scalar 路径选择（产品按块大小>6 vs 上游按 M_tiles/elemid）记为 engine-semantic 是否认可"
+    },
+    {
+      "id": "rigid_mass_solve:accumulation:3",
+      "question": "产品按自身冻结 MathDx PTX 用 reciprocal 乘、上游 _qLD_acc 用除法；记为 pin-needed（≈1 ULP）是否认可"
+    },
+    {
+      "id": "rigid_mass_solve:accumulation:0/1",
+      "question": "tile 路径 not-decidable（参考 unique 内核未 capture）是否接受，或等 A1 codegen 后升级"
+    }
+  ],
+  "non_claims": [
+    "does not claim NP01 pass or precision completion (E metric not finalized)",
+    "does not claim bit-level equivalence or coverage rate",
+    "source-level only; no GPU/window used"
+  ],
+  "entries": [
+    {
+      "id": "mass_solve:rigid_mass_solve:intermediate:0",
+      "kind": "intermediate",
+      "label": "status[0..2]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 18,
+        "expression": "status[0..2] 缓冲声明（output+4+…）"
+      },
+      "reference_anchor": {
+        "status": "no-reference-entry",
+        "reason": "status 码是产品 ABI 编码，非 f32 算术表达式；上游无对应 status 三元组输出"
+      },
+      "type_mapping": {
+        "product": "f32 状态码（0/1/2 编码）",
+        "upstream": "无对应（上游无 status 数组）",
+        "type_class": "int-encoded-f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:intermediate:0",
+      "why_not_applicable": "产品 ABI 状态码编码点（float(begin)/float(i)），非 f32 算术表达式；类型映射 f32 无 f64"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:intermediate:1",
+      "kind": "intermediate",
+      "label": "ld[n*n]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 19,
+        "expression": "float* ld=status+3;"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1218,
+        "expression": "L_out（_small_cholesky_factorize_block）/ L（_factor_i_sparse）"
+      },
+      "type_mapping": {
+        "product": "f32 下三角因子缓冲",
+        "upstream": "wp.array2d[float]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:intermediate:1",
+      "why_not_applicable": "缓冲声明/视图点位（无算术表达式）；类型映射 f32 一致"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:intermediate:2",
+      "kind": "intermediate",
+      "label": "inv[n]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 19,
+        "expression": "float* inv=ld+n*n;"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1217,
+        "expression": "D_out（对角逆）/ _qLDiag_div D_out"
+      },
+      "type_mapping": {
+        "product": "f32 对角逆缓冲",
+        "upstream": "wp.array2d[float]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:intermediate:2",
+      "why_not_applicable": "缓冲声明点（无算术表达式）；类型映射 f32 一致"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:intermediate:3",
+      "kind": "intermediate",
+      "label": "tile",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 38,
+        "expression": "bool tile=end-begin>6;"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1291,
+        "expression": "_factor_blocks: for tile in m.M_tiles: if tile.elemid.size==0 -> small else tile"
+      },
+      "type_mapping": {
+        "product": "bool 运行期判据（块大小>6）",
+        "upstream": "host 侧 tile 分类（elemid.size==0 → small path）",
+        "type_class": "bool/int",
+        "double_in_product": false
+      },
+      "classification": "engine-semantic",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:intermediate:3"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:intermediate:4",
+      "kind": "intermediate",
+      "label": "pivot / reciprocal / diagonal / value / u,v",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 48,
+        "expression": "float reciprocal, diagonal; / pivot/value/u/v 局部标量"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1229,
+        "expression": "_small_cholesky_factorize_block 标量局部量"
+      },
+      "type_mapping": {
+        "product": "f32 标量组",
+        "upstream": "wp float 标量",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:intermediate:4",
+      "why_not_applicable": "标量局部量声明组（具体表达式在 accumulation:0..3 站点逐条对照）；类型 f32 一致"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:accumulation:0",
+      "kind": "accumulation",
+      "label": "kind==1 tile：`pivot = tile_schur_update(pivot,u,u)`",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 43,
+        "expression": "pivot=tile ? tile_schur_update(pivot,u,u) : fmaf(-u,u,pivot);  // tile_schur_update@5-12: mul.f32;sub.f32 可收缩"
+      },
+      "reference_anchor": {
+        "file": "include/warp-headers/tile_cholesky.h",
+        "line": 482,
+        "symbol": "tile_cholesky_inplace（设备库内实现；参考构建 scalar 回退）"
+      },
+      "type_mapping": {
+        "product": "f32 mul.f32/sub.f32 可收缩",
+        "upstream": "f32 tile cholesky 设备函数",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "not-decidable",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:accumulation:0",
+      "not_decidable_reasons": [
+        "no-reference-entry",
+        "capture-scenario-miss"
+      ],
+      "missing_evidence": "参考侧 tile 因子内核（module=\"unique\" 工厂）在 capture 场景未 launch、2603 entries 无 entry；且冻结参考 PTX 无 lineinfo。需 A1 离线 codegen 该 unique 内核 PTX 或 A2 参考侧采集后才能升级"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:accumulation:1",
+      "kind": "accumulation",
+      "label": "kind==1 tile：`reciprocal = rsqrt.approx.f32(pivot)`、`diagonal = __fmul_rn(pivot,reciprocal)`、`ld[i*n+j] = __fmul_rn(value,reciprocal)`",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 51,
+        "expression": "rsqrt.approx.f32(reciprocal); diagonal=__fmul_rn(pivot,reciprocal); ld=__fmul_rn(value,reciprocal)"
+      },
+      "reference_anchor": {
+        "file": "include/warp-headers/tile_cholesky.h",
+        "line": 482,
+        "symbol": "tile_cholesky_inplace（scalar 回退用 sqrt/除）"
+      },
+      "type_mapping": {
+        "product": "f32 rsqrt.approx + 显式 rn 乘",
+        "upstream": "f32 设备库内实现",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "not-decidable",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:accumulation:1",
+      "not_decidable_reasons": [
+        "no-reference-entry",
+        "capture-scenario-miss"
+      ],
+      "missing_evidence": "产品按冻结 MathDx PTX 形态（rsqrt.approx）实现；参考侧 tile unique 内核未捕获、参考构建为 scalar 回退（sqrt/除），两侧值不保证等价且无参考 PTX/lineinfo。需 A1 生成参考 tile PTX 或 A2 采集后再判"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:accumulation:2",
+      "kind": "accumulation",
+      "label": "kind==1 scalar：`pivot = fmaf(-u,u,pivot)`、`diagonal = sqrtf(pivot)`、`reciprocal = 1.0f/diagonal`",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 53,
+        "expression": "scalar: pivot=fmaf(-u,u,pivot); diagonal=sqrtf(pivot); reciprocal=1.0f/diagonal; value*=reciprocal via __fmul_rn"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1229,
+        "expression": "_small_cholesky_factorize_block 标量分支：value -= factor*factor; diagonal_value=wp.sqrt(value); diagonal_inv=1.0/diagonal_value; value*diagonal_inv"
+      },
+      "type_mapping": {
+        "product": "f32 fma + sqrt.rn + div.rn + mul",
+        "upstream": "f32（wp.sqrt / 1.0/ / *，收缩由编译期 fmad=true 决定）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:accumulation:2",
+      "notes": "表达式顺序与舍入点一致：产品显式 fmaf 固定融合；上游 `-=` 允许收缩（fmad=true）。sqrt/div/mul 同为 RN。不声明位级等价。"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:accumulation:3",
+      "kind": "accumulation",
+      "label": "kind==2：`ld[i*n+j] -= ld[k*n+j]*tmp`、`ld[k*n+j] *= reciprocal`",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 80,
+        "expression": "kind2: tmp=ld[k*n+i]*reciprocal; ld[i*n+j]-=ld[k*n+j]*tmp; ld[k*n+j]*=reciprocal"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1171,
+        "expression": "_qLD_acc: tmp = L_out[Madr_ki] / L_out[diag_k]; atomic_sub(L_in[Madr_k+j] * tmp)"
+      },
+      "type_mapping": {
+        "product": "f32 预乘 reciprocal（2 次舍入）",
+        "upstream": "f32 除法 tmp=L/diag（1 次舍入）+ 乘",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "pin-needed",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:accumulation:3",
+      "pin_spec": "若需与上游 _qLD_acc 同形：tmp 用 __fdiv_rn(L[ki], diag) 取代预乘 reciprocal（产品当前按自身冻结 MathDx PTX 走 reciprocal 乘）",
+      "expected_magnitude": "≈1 ULP 级（tmp 一次舍入差，行更新按 j 累加）"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:accumulation:4",
+      "kind": "accumulation",
+      "label": "kind==2：`reciprocal = 1.0f/pivot`，检查 `isfinite` 且 `<= 3.4028234663852886e38f`",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 73,
+        "expression": "reciprocal=1.0f/pivot; inv[k]=reciprocal; isfinite + >3.4028234663852886e38f 哨兵"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1191,
+        "expression": "_qLDiag_div: D_out = 1.0 / L_in[diag_i]"
+      },
+      "type_mapping": {
+        "product": "f32 div.rn + f32 溢出哨兵比较",
+        "upstream": "f32 div",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:accumulation:4",
+      "notes": "除法形态一致（f32 RN）；产品额外 isfinite/溢出哨兵为错误处理、不改数值表达式"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:output:0",
+      "kind": "output",
+      "label": "status[0..2]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 28,
+        "expression": "status[0]=1.0f; status[1]=float(begin); status[2]=pivot"
+      },
+      "reference_anchor": {
+        "status": "no-reference-entry",
+        "reason": "上游无 status 三元组输出"
+      },
+      "type_mapping": {
+        "product": "f32 状态码 + int→float 编码",
+        "upstream": "无对应",
+        "type_class": "int→f32 编码",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:output:0",
+      "why_not_applicable": "产品 ABI 状态码写出点（编码用 int→float），非 f32 算术表达式；上游无对应输出"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:output:1",
+      "kind": "output",
+      "label": "ld[n*n]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 56,
+        "expression": "ld[i*n+i]=diagonal; ld[i*n+j]=__fmul_rn(value,reciprocal)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1237,
+        "expression": "L_out[factor_adr + i*size + i]=diagonal_value; L_out[...] = value*diagonal_inv"
+      },
+      "type_mapping": {
+        "product": "f32 直接写",
+        "upstream": "wp.array2d[float] 写",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:output:1",
+      "notes": "输出转换点：两侧均 f32 直写、无窄化/加宽；数值由上游 factor 站点决定"
+    },
+    {
+      "id": "mass_solve:rigid_mass_solve:output:2",
+      "kind": "output",
+      "label": "inv[n]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 30,
+        "expression": "inv[begin]=1.0f/pivot（kind0）/ inv[k]=reciprocal（kind2）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1191,
+        "expression": "D_out = 1.0 / L_in[diag]"
+      },
+      "type_mapping": {
+        "product": "f32 直接写",
+        "upstream": "wp.array2d[float] 写",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rigid_mass_solve:output:2",
+      "notes": "输出转换点：f32 直写；对应公式见 accumulation 站点"
+    },
+    {
+      "id": "mass_solve:resident_mass_factor_派生:intermediate:0",
+      "kind": "intermediate",
+      "label": "同 rigid_mass_solve 的 factor 半段",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/resident.rs",
+        "line": 64,
+        "expression": "split_sources(MASS_SOLVE_CUDA)：factor 半段（status/ld/inv/pivot/reciprocal/diagonal/tmp 同 rigid）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1218,
+        "expression": "L_out/D_out 缓冲"
+      },
+      "type_mapping": {
+        "product": "f32 派生缓冲（split_sources 文本切分）",
+        "upstream": "wp.array2d[float]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:resident_mass_factor_派生:intermediate:0",
+      "why_not_applicable": "派生变体的缓冲声明组；算术文本与 rigid_mass_solve factor 半段逐字相同（表内已登记），由 resident.rs split_sources 生成"
+    },
+    {
+      "id": "mass_solve:resident_mass_factor_派生:intermediate:1",
+      "kind": "intermediate",
+      "label": "x 清零",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/resident.rs",
+        "line": 70,
+        "expression": "const ENTRY:&str=\"void rigid_mass_solve(\"; x 零槽注入"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1218,
+        "expression": "L_out/D_out 缓冲"
+      },
+      "type_mapping": {
+        "product": "f32 零初值注入",
+        "upstream": "wp 零初始化（上游各函数内）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:resident_mass_factor_派生:intermediate:1",
+      "why_not_applicable": "x 零槽注入（split_sources 生成），非算术表达式；类型 f32"
+    },
+    {
+      "id": "mass_solve:resident_mass_factor_派生:accumulation:0",
+      "kind": "accumulation",
+      "label": "同 rigid_mass_solve 的 kind==0/1/2 factor 分支",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 43,
+        "expression": "同 rigid_mass_solve 的 kind==0/1/2 factor 分支（split_sources 派生，文本逐字相同）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1205,
+        "expression": "_small/_tile_cholesky_factorize_block + _qLD_acc"
+      },
+      "type_mapping": {
+        "product": "f32（同 rigid factor 半段）",
+        "upstream": "f32",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（派生文本逐字相同，无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:resident_mass_factor_派生:accumulation:0",
+      "notes": "派生片算术文本与 rigid_mass_solve factor 半段逐字相同（表 rounding_notes 已登记）；不等同于位级结论"
+    },
+    {
+      "id": "mass_solve:resident_mass_factor_派生:output:0",
+      "kind": "output",
+      "label": "status[0..2] / ld[n*n] / inv[n] / x 零槽",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 18,
+        "expression": "status/ld/inv/x 零槽写出（同 rigid）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1191,
+        "expression": "L_out/D_out 写出"
+      },
+      "type_mapping": {
+        "product": "f32 直写",
+        "upstream": "wp.array2d[float] 写",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:resident_mass_factor_派生:output:0",
+      "notes": "输出转换点：f32 直写；派生布局保留单 rhs 零槽"
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:intermediate:0",
+      "kind": "intermediate",
+      "label": "L",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 164,
+        "expression": "float* L=out+4+…（压缩视图）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1196,
+        "expression": "wp.copy(L, M)"
+      },
+      "type_mapping": {
+        "product": "f32 压缩视图",
+        "upstream": "wp.array2d[float]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:intermediate:0",
+      "why_not_applicable": "压缩布局视图（stride 映射），无算术表达式；类型 f32"
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:intermediate:1",
+      "kind": "intermediate",
+      "label": "tmp",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 175,
+        "expression": "tmp=__fdiv_rn(L[ki], L[rowadr[k]+rownnz[k]-1])"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1171,
+        "expression": "_qLD_acc: tmp = L_out[Madr_ki] / L_out[diag_k]"
+      },
+      "type_mapping": {
+        "product": "f32 div.rn",
+        "upstream": "f32 除法（RN）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:intermediate:1",
+      "notes": "除法形态一致；product 显式 __fdiv_rn、上游自然 `/` 在 fast_math=False 下同为 div.rn"
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:intermediate:2",
+      "kind": "intermediate",
+      "label": "value",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 177,
+        "expression": "value=__fmul_rn(L[rowadr[k]+j], tmp)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1174,
+        "expression": "L_in[Madr_k + j] * tmp（atomic_sub 实参）"
+      },
+      "type_mapping": {
+        "product": "f32 mul.rn",
+        "upstream": "f32 mul（RN，无 fma 机会）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:intermediate:2",
+      "notes": "乘法形态一致：两侧各一次 RN 舍入；乘积仅作为原子加操作数，无 fma 收缩机会"
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:0",
+      "kind": "accumulation",
+      "label": "`L[j] = matrix[...]`、`L[nc+i] = 0.0f`（copy）",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 165,
+        "expression": "for j<nc: L[j]=matrix[4+…]；for i<n: L[nc+i]=0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1196,
+        "expression": "wp.copy(L, M)"
+      },
+      "type_mapping": {
+        "product": "f32 直写 + 零初始化",
+        "upstream": "wp.copy",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:0",
+      "why_not_applicable": "拷贝/零初始化点位（无算术）；上游对应 wp.copy（纯传输）"
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:1",
+      "kind": "accumulation",
+      "label": "`atom.global.add.f32` 对 `L[rowadr[i]+j]` 原子加 `-value`（update）",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 179,
+        "expression": "atom.global.add.f32 L[rowadr[i]+j], -value"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1174,
+        "expression": "wp.atomic_sub(L_out[worldid], Madr_i + j, L_in[...] * tmp)"
+      },
+      "type_mapping": {
+        "product": "f32 原子加（内联 PTX，负操作数）",
+        "upstream": "f32 atomic_sub（PTX atom.global.add.f32，负值）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:1",
+      "notes": "原子加形态一致：产品内联 atom.global.add.f32 带 -value；上游 atomic_sub 同样落为 atom add 负值。顺序语义由 atomic 保证"
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:2",
+      "kind": "accumulation",
+      "label": "`L[nc+i] = __fdiv_rn(1.0f, L[rowadr[i]+rownnz[i]-1])`（diag）",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 189,
+        "expression": "L[nc+i]=__fdiv_rn(1.0f, L[rowadr[i]+rownnz[i]-1])"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1191,
+        "expression": "_qLDiag_div: D_out = 1.0 / L_in[diag_i]"
+      },
+      "type_mapping": {
+        "product": "f32 div.rn",
+        "upstream": "f32（快照 PTX 落为 rcp.rn，同为 RN 倒数）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "recipe-difference",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:accumulation:2",
+      "value_equivalent": true,
+      "value_equivalence_basis": "analytic, not bit-tested",
+      "product_form": "div.rn.f32",
+      "reference_form": "rcp.rn.f32",
+      "why_value_equivalent": "div.rn(1.0,x) 与 rcp.rn(x) 都是同一操作数的正确舍入倒数（f32 RN），值相同、仅指令形态不同；未做位级测试",
+      "bit_tested": false
+    },
+    {
+      "id": "mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:output:0",
+      "kind": "output",
+      "label": "out[...]（压缩因子/diag 段）",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse.rs",
+        "line": 165,
+        "expression": "out 写出：L 段（matrix 拷贝 / 原子加 / 对角倒数）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1196,
+        "expression": "L_out / D_out 写出"
+      },
+      "type_mapping": {
+        "product": "f32 直写",
+        "upstream": "wp.array2d[float] 写",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_mass_copy_sparse_mass_update_sparse_mass_diag:output:0",
+      "notes": "输出转换点：f32 直写，无窄化/加宽；数值由上游 accumulation 站点决定"
+    },
+    {
+      "id": "mass_solve:sparse_dense_validate_sparse_dense_gather:intermediate:0",
+      "kind": "intermediate",
+      "label": "valid",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense.rs",
+        "line": 136,
+        "expression": "bool valid=true; sentinel + isfinite"
+      },
+      "reference_anchor": {
+        "status": "no-reference-entry",
+        "reason": "上游无 validate 内核"
+      },
+      "type_mapping": {
+        "product": "bool 校验标志",
+        "upstream": "无对应",
+        "type_class": "bool",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_dense_validate_sparse_dense_gather:intermediate:0",
+      "why_not_applicable": "有效性判定（bool），非 f32 算术表达式；上游无对应"
+    },
+    {
+      "id": "mass_solve:sparse_dense_validate_sparse_dense_gather:output:0",
+      "kind": "output",
+      "label": "status[4+w]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense.rs",
+        "line": 140,
+        "expression": "status[4+w]=valid?1.0f:0.0f"
+      },
+      "reference_anchor": {
+        "status": "no-reference-entry",
+        "reason": "上游无 validate 内核"
+      },
+      "type_mapping": {
+        "product": "bool→f32 编码",
+        "upstream": "无对应",
+        "type_class": "bool→f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_dense_validate_sparse_dense_gather:output:0",
+      "why_not_applicable": "校验输出编码点，非算术表达式；上游无对应"
+    },
+    {
+      "id": "mass_solve:sparse_dense_validate_sparse_dense_gather:output:1",
+      "kind": "output",
+      "label": "output[4+tid]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense.rs",
+        "line": 146,
+        "expression": "output[4+tid]=source<nc?matrix[4+w*nc+source]:0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1274,
+        "expression": "_tile_cholesky_factorize_block: tile_load_indexed(M_in, idx) 直接按索引取块"
+      },
+      "type_mapping": {
+        "product": "f32 直取拷贝（缺失写 0）",
+        "upstream": "f32 tile_load_indexed（缺失按越界读 0）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:sparse_dense_validate_sparse_dense_gather:output:1",
+      "why_not_applicable": "稠密化搬运点（纯拷贝/零填充，无算术）；上游以 tile_load_indexed 直接取 CSR 块，属引擎策略差异，已在 rigid intermediate:3 记 engine-semantic"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:intermediate:0",
+      "kind": "intermediate",
+      "label": "valid",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 14,
+        "expression": "bool valid=true; … isfinite 判定"
+      },
+      "reference_anchor": {
+        "status": "no-reference-entry",
+        "reason": "上游无 validate 内核（参考侧由 host 校验）"
+      },
+      "type_mapping": {
+        "product": "bool 校验标志",
+        "upstream": "无对应",
+        "type_class": "bool",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:intermediate:0",
+      "why_not_applicable": "有效性判定（bool + sentinel/isfinite），非 f32 算术表达式；上游无对应 validate 内核"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:intermediate:1",
+      "kind": "intermediate",
+      "label": "pivot / diagonal / reciprocal / value",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 31,
+        "expression": "float diagonal,reciprocal; pivot/value 标量"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1231,
+        "expression": "_small_cholesky_factorize_block 标量局部量"
+      },
+      "type_mapping": {
+        "product": "f32 标量组",
+        "upstream": "wp float 标量",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:intermediate:1",
+      "why_not_applicable": "标量局部量声明组（表达式在 accumulation:0..2 站点对照）；类型 f32"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:intermediate:2",
+      "kind": "intermediate",
+      "label": "U[N*N]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 25,
+        "expression": "float* U=output+4+…；for j<N*N: U[j]=0.0f"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1218,
+        "expression": "L_out 因子块缓冲"
+      },
+      "type_mapping": {
+        "product": "f32 因子块缓冲 + 零初始化",
+        "upstream": "wp.array2d[float]",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:intermediate:2",
+      "why_not_applicable": "缓冲声明/零初始化点（无算术表达式）；类型 f32"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:0",
+      "kind": "accumulation",
+      "label": "`pivot = small_schur(pivot,U[k*N+i],U[k*N+i])`、`value = small_schur(value,U[k*N+i],U[k*N+j])`",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 29,
+        "expression": "pivot=small_schur(pivot,U[k*N+i],U[k*N+i])；value=small_schur(value,U[k*N+i],U[k*N+j])  // @5-9 mul.f32;sub.f32 可收缩"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1231,
+        "expression": "value -= factor*factor（两处 Schur 更新，允许收缩）"
+      },
+      "type_mapping": {
+        "product": "f32 mul.f32/sub.f32（可收缩）",
+        "upstream": "f32 `-=`（fmad=true 可收缩）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（两侧均允许收缩；无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:0",
+      "notes": "两侧均为「乘积后减」的可收缩形态、操作数顺序相同；收缩是否发生由编译期决定，不作位级声明"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:1",
+      "kind": "accumulation",
+      "label": "`sqrt.rn.f32` 取对角、`rcp.rn.f32` 取倒数、`mul.f32` 乘倒数",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 32,
+        "expression": "sqrt.rn.f32(diagonal)；rcp.rn.f32(reciprocal)；mul.f32(value,reciprocal)"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1236,
+        "expression": "diagonal_value=wp.sqrt(value)；diagonal_inv=1.0/diagonal_value；value*diagonal_inv"
+      },
+      "type_mapping": {
+        "product": "f32 sqrt.rn + rcp.rn + mul.f32（可收缩）",
+        "upstream": "f32 wp.sqrt + div（RN）+ mul",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "recipe-difference",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:1",
+      "value_equivalent": true,
+      "value_equivalence_basis": "analytic, not bit-tested",
+      "product_form": "rcp.rn.f32 + mul.f32",
+      "reference_form": "div.rn（PTX 落 rcp.rn） + mul",
+      "why_value_equivalent": "rcp.rn(diag) 与 1.0/diag 的 RN 值相同（正确舍入倒数）；随后同为一次 RN 乘，故值等价、指令形态不同；未做位级测试",
+      "bit_tested": false
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:2",
+      "kind": "accumulation",
+      "label": "非法时 `U[i*N+i]=pivot` 后 return（不写状态码）",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 30,
+        "expression": "非法 pivot：U[i*N+i]=pivot; return（不写状态码）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1230,
+        "expression": "上游无对应非法 pivot 分支（factor 假定 spd）"
+      },
+      "type_mapping": {
+        "product": "f32 直写（错误路径）",
+        "upstream": "无对应",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:accumulation:2",
+      "why_not_applicable": "错误路径的直写（无算术表达式、无上游对应分支）；不参与正常数值链"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:output:0",
+      "kind": "output",
+      "label": "status[4+w]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 18,
+        "expression": "status[4+w]=valid?1.0f:0.0f"
+      },
+      "reference_anchor": {
+        "status": "no-reference-entry",
+        "reason": "上游无 validate 内核"
+      },
+      "type_mapping": {
+        "product": "bool→f32 编码",
+        "upstream": "无对应",
+        "type_class": "bool→f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:output:0",
+      "why_not_applicable": "校验输出编码点（bool → 1.0f/0.0f），非算术表达式；上游无对应"
+    },
+    {
+      "id": "mass_solve:small_prefix_validate_small_prefix_factor_2..6:output:1",
+      "kind": "output",
+      "label": "output（2..6 阶因子块）",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 33,
+        "expression": "U[i*N+i]=diagonal; U[i*N+j]=result（mul.f32 结果）"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1237,
+        "expression": "L_out[...]=diagonal_value；L_out[...] = value*diagonal_inv"
+      },
+      "type_mapping": {
+        "product": "f32 直写",
+        "upstream": "wp.array2d[float] 写",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "identical",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:small_prefix_validate_small_prefix_factor_2..6:output:1",
+      "notes": "输出转换点：f32 直写；数值由上游 accumulation 站点决定"
+    },
+    {
+      "id": "mass_solve:mixed_factor_merge:intermediate:0",
+      "kind": "intermediate",
+      "label": "stride/w/i",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/mixed/cuda.rs",
+        "line": 8,
+        "expression": "unsigned stride=prefix+nc+nv,w=tid/stride,i=tid%stride"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1318,
+        "expression": "factor_m 的 host 段装配（qLD/qLD_block_total 布局）"
+      },
+      "type_mapping": {
+        "product": "unsigned 索引推导",
+        "upstream": "int/布局索引",
+        "type_class": "int",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:mixed_factor_merge:intermediate:0",
+      "why_not_applicable": "索引推导（整型），非 f32 算术表达式；布局装配语义由 factor_m host 段决定"
+    },
+    {
+      "id": "mass_solve:mixed_factor_merge:output:0",
+      "kind": "output",
+      "label": "output[4+tid]",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/mixed/cuda.rs",
+        "line": 9,
+        "expression": "output[4+tid]=i<prefix?small[...]:sparse[...]"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1318,
+        "expression": "factor_m：qLD 段按 block_total 拼装（host 侧段划分）"
+      },
+      "type_mapping": {
+        "product": "f32 直选拷贝",
+        "upstream": "段拼接（由不同 kernel 写各自段）",
+        "type_class": "f32",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:mixed_factor_merge:output:0",
+      "why_not_applicable": "纯交错/选择拷贝（无算术）；上游以段划分替代合并内核 → 非 PTX 可比点"
+    },
+    {
+      "id": "mass_solve:rounding-note:0",
+      "kind": "rounding-note",
+      "label": "同一 `rigid_mass_solve` 内核里 tile 与 scalar 两条路径舍入策略不同：tile 用 `rsqrt.approx.f32` + 可收缩 Schur（`mul.f32`/`sub.f32` 未加 .rn）+ `__fmul_rn`；scalar 走 `fmaf`/`sqrtf`/`1.0f/` —— 这是冻结上游 MathDx PTX 的差异，不是容差差异",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 35,
+        "expression": "注释：tile 用 rsqrt.approx+乘；scalar 保留 sqrt/divide/FMA"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1205,
+        "expression": "_small/_tile_cholesky_factorize_block 舍入策略"
+      },
+      "type_mapping": {
+        "product": "prose",
+        "upstream": "prose",
+        "type_class": "n/a",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rounding-note:0",
+      "why_not_applicable": "说明性 rounding note，非单一表达式；点名的具体站点见 accumulation:0..4"
+    },
+    {
+      "id": "mass_solve:rounding-note:2",
+      "kind": "rounding-note",
+      "label": "kind==2 的 LDL 式行更新是 `-`/`*` 自然 f32，无显式 fma；`1.0f/pivot` 用 f32 除法并带 3.4028234663852886e38f 溢出哨兵",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/cuda.rs",
+        "line": 73,
+        "expression": "注释：kind==2 行更新用 -/* 自然 f32；1/pivot 带溢出哨兵"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1171,
+        "expression": "_qLD_acc / _qLDiag_div 舍入形态"
+      },
+      "type_mapping": {
+        "product": "prose",
+        "upstream": "prose",
+        "type_class": "n/a",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rounding-note:2",
+      "why_not_applicable": "说明性 rounding note；具体站点见 accumulation:3/4"
+    },
+    {
+      "id": "mass_solve:rounding-note:3",
+      "kind": "rounding-note",
+      "label": "small/mixed 路径显式使用 `sqrt.rn.f32`、`rcp.rn.f32`、`__fdiv_rn`、`__fmul_rn`；Schur 更新用可收缩 mul/sub PTX",
+      "product_anchor": {
+        "file": "src/physics/mass_solve/sparse/dense/small/cuda.rs",
+        "line": 32,
+        "expression": "注释：small/mixed 路径显式 sqrt.rn/rcp.rn/__fdiv_rn/__fmul_rn；Schur 可收缩"
+      },
+      "reference_anchor": {
+        "file": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+        "line": 1236,
+        "expression": "_small_cholesky_factorize_block 标量分支"
+      },
+      "type_mapping": {
+        "product": "prose",
+        "upstream": "prose",
+        "type_class": "n/a",
+        "double_in_product": false
+      },
+      "classification": "n/a",
+      "basis": "source-level（无位级测试）",
+      "confidence": "medium",
+      "premise": "source-level 对照；参考构建 12.9 vs 产品 12.8.93，不做位级结论；frozen 参考 PTX 无 lineinfo；E 指标未定稿 → 不声明 NP01 精度完成",
+      "evidence_pointer": "np-gate/np5-01a-a1a/evidence.json#mass_solve:rounding-note:3",
+      "why_not_applicable": "说明性 rounding note；具体站点见 small/ sparse accumulation 站点"
+    }
+  ]
+}
