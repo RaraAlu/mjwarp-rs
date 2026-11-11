@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-w2-u7u8-r3-evidence-chain-check",
+  "title": {
+    "zh": "QA 复核 U7U8 配套片链（`...-r3-evidence` abandoned `ee02b40d` → 证据 `63b95170` → `...-r3-evidence-check` verified `2ccc182b` → `normify fix` 追加 r3 证据 `1bd85287`）：**PASS（0 阻断，0 严重、0 一般、0 低 + 2 观察）**——abandon 理由与 `unchanged tests` 冲突如实记录（提交仅改卡 JSON）、放弃前 6 条 json 检查 6/6 满足且只断言 FAILED 收据与重冻事实；`63b95170` 的 r2-fail 13 文件在 HEAD **blob 逐个未改**（append-only）、manifest 12/12、verdict=FAILED/attempt=1/21 条在位；check 卡 7 条 json 检查 7/7、fix addenda（`sha256:440572af…`）+ 13 个 r3 窗证据文件可审计、卡维持 verified、无历史改写；**无假 PASS**（该卡 checks 只断言 FAILED 收据，r3 窗 PASS 由主卡镜像与 r3 权威 receipt 支撑）；观察=证据托管卡错位（建议 mirrors_sha256/verdict_scope/中性目录名）与 attempt 1 放行 monitor CSV 未入证据",
+    "en": "QA review of the U7U8 companion chain: PASS (0 blockers, 0 major/low + 2 observations). Abandon reason recorded, evidence append-only, verification card checks 7/7 against the FAILED receipt, normify fix addenda auditable, no fake PASS."
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对配套片链做只读复核：abandoned 卡理由/状态、`63b95170` 证据的 append-only 与完整度、check 卡登记→verified→`normify fix` 追加 r3 证据的审计性、是否存在历史改写/假 PASS。只写本卡证据。",
+    "en": "Read-only review of the companion chain: abandoned card reason/state, append-only completeness of 63b95170, auditability of the check card + normify fix, and absence of history rewrites or fake PASS."
+  },
+  "modules": {},
+  "acceptance": [
+    "**abandoned 卡 ✅**：`...-r3-evidence` `status=abandoned`、`closed_at=19:11:11Z`；note 理由「unchanged tests 检查与主卡 tests 修正冲突（运行中不可改 checks/waive），证据已由 `63b95170` 落地，改由新验证卡复核」与 `ee02b40d`（仅改卡 JSON）一致；放弃前 6 条 json 检查我逐条解析 **6/6 满足**（FAILED 收据 + r3 重冻），acceptance 不宣称窗口结论",
+    "**证据 append-only ✅**：`63b95170` 的 r2-fail 目录 13 文件与 HEAD blob **逐个相同（0 改写）**、manifest 12/12 重算 0 错；r3 该提交已有 5 文件在 HEAD 逐字节未变（后续只新增）；证据含 r2-fail 全套 + r3 refreeze/guards/readiness/selftest",
+    "**验证卡 + fix ✅**：`adf52890` 仅登记卡；`2ccc182b` 卡 verified + 4 gate run；7 条 json 检查 **7/7 满足**（FAILED 收据 3 + refreeze 4，含 `supersession/new_branch_sha256=ac823b58…`）；`1bd85287` 的 fix 记录 `addenda`（reason「追加 r3 窗 PASS 证据（attempt 2）」、`hash=sha256:440572af…`）与新增 13 个 r3 窗文件可审计、卡维持 verified",
+    "**无历史改写/无假 PASS ✅**：本次 fix 只新增文件 + manifest 重算；r2-fail 与已提交文件字节未变；该卡 checks 只断言 FAILED 收据与重冻字段、acceptance 明写不宣称窗口结论；r3 窗 PASS 由主卡（经 r2 镜像）与 r3 权威 receipt 联合支撑",
+    "**结论：复核通过（0 阻断，0 严重、0 一般、0 低 + 2 观察）。** 观察 O1=证据托管卡错位（建议镜像加 `mirrors_sha256`+`verdict_scope`、未来用轮次无关目录名）；O2=attempt 1 放行的 60/60 monitor CSV 未入证据（仅失败那轮留档；影响为零）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-w2-u7u8-r3-evidence-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-12 派工的配套链复核；结论 PASS（0 低 + 2 观察）。0 窗、零 GPU。不宣称 U7/U8 全条件通过（由主卡窗口径证据支撑）、U8 已验收、缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。",
+  "revision": {
+    "before": "83343da00c693fb3b3430ea8fdc29e31d2af8364",
+    "after": null
+  },
+  "created_at": "2026-11-12T03:31:00.000Z",
+  "updated_at": "2026-11-11T19:30:32.187Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-w2-u7u8-r3-evidence-chain-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/reviewed_cards/0",
+      "equals": "2026-11-12-w2-u7u8-r3-evidence"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/checked/abandoned_card/status",
+      "equals": "abandoned"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/checked/append_only/r2_fail_files_rewritten",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/checked/check_card/json_checks_resolved_ok",
+      "equals": "7/7"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/w2-u7u8-r3-evidence-chain-check/receipt.json",
+      "pointer": "/checked/no_fake_pass/check_card_asserts_failed_receipt",
+      "equals": true
+    }
+  ]
+}
