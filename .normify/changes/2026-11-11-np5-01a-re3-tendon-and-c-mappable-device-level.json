@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-re3-tendon-and-c-mappable-device-level",
+  "title": {
+    "zh": "片 RE-3：NP5-01a B 批全量（78）+ C 批可映射子集（155/226）设备级行映射（零 GPU）",
+    "en": "Slice RE-3: NP5-01a B batch all 78 sites + C batch mappable subset 155/226 sites device-level row mapping (zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "把 B 批 7 行 78 站点与 C 批 17 行 226 站点按冻结参考 PTX（smooth.ptx 48 entry + module.ptx 15 entry）做行级设备级映射：产品侧按真实 launch unit 装配 CUDA 源（含 plan_kernels.rs/attached.rs 前导与 plan/*.rs 的 #define 尺寸前缀）用 pinned NVRTC 12.8.93/compute_70/fmad=true/-lineinfo 离线编译，参考侧按去 warp hash 的 entry 名精确匹配；逐行记录产品/参考 entry 集合、映射粒度、分类（engine-semantic / not-decidable + 六原因 / n/a）与依据；B-1 与 C-1..C-4 的逐站点 source 级分类不重判；PTX 实体不入仓（只记 sha/bytes/重生成脚本）。零 GPU、零窗。",
+    "en": "Row-level device mapping for B batch (7 rows / 78 sites) and C batch (17 rows / 226 sites) against frozen reference PTX (smooth.ptx 48 entries + module.ptx 15 entries): product side uses the real launch unit sources (resident/plan_kernels.rs + attached.rs prefixes and plan/*.rs #define size prefixes) compiled offline with pinned NVRTC 12.8.93 / compute_70 / fmad=true / -lineinfo; reference side matches entries after stripping the warp hash. Each row records product/reference entry sets, mapping granularity, classification (engine-semantic / not-decidable with six-cause reasons / n/a) and basis. Per-site source-level classes from B-1 and C-1..C-4 are not re-judged. PTX artifacts are not landed (sha/bytes/regeneration scripts only). Zero GPU / zero window."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/np-gate/np5-01a-re3/`：evidence.json（24 行：B 7/78 站点 + C 17/226 站点；逐行产品/参考 entry 集合、映射粒度、分类与依据；分类站点直方图 engine-semantic 204 / not-decidable 73 / n/a 27 = 304）、README.md（方法、逐行结果表、限制、非声明）、receipt.json（verdict=PASS、device_rows=24、device_sites=304、ptx_landed=false）、logs/selfcheck.txt、manifest 逐文件 sha256+bytes 自核；UTF-8/LF 无 BOM。",
+    "参考侧：smooth.ptx（48 entry、993,601 B、`4179acd0…`）与 module.ptx（15 entry、754,389 B、`d06154da…`）sha/bytes 与仓内文件一致；两件均无 .loc。",
+    "产品侧：24 个 launch unit 全部离线编译出 PTX（22 个有 entry；tendon_wrap/field_batch 各 202 B、0 entry 与源码一致），单元 sha/bytes 记入 evidence 且 selfcheck 与 target 件逐一对得上；PTX 实体不入仓。",
+    "分类口径：engine-semantic（entry 集合可语义对应但内核组织/数据流不同、bit_level_guarantee=false）15 行 204 站点；not-decidable（no-reference-entry 4 行、no-lineinfo+frozen-artifact-only 3 行）7 行 73 站点；n/a（搬运/打包）2 行 27 站点；不写覆盖率/通过率、不写位级结论。",
+    "自检：行/站点数与 `target/render-bvh/gl2-ptx-diff/np5-01a/sites.json` 同行一致；分类值合法；not-decidable 原因在六类内；receipt 计数等于 evidence；policy_scan 三文件 0 命中、--self-test 34/34；边界仅证据目录 + `.normify/**`；无 `__pycache__` 污染。",
+    "四门禁 + normify check；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/np-gate/np5-01a-re3/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "RE-3 为 B/C 设备级行映射片；C 的 applied_force/kinetic_energy/sleep_wake 与 field_batch、attached 亦逐行记录（合计覆盖 B+C 304 站点）。零 GPU、零窗；不改判据/参考/容差。",
+  "revision": {
+    "before": "6a89b7cb38d0023cc7e2cabb45ac27e6de86a871",
+    "after": null
+  },
+  "created_at": "2026-11-11T13:50:00.000Z",
+  "updated_at": "2026-11-11T13:36:05.490Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3/receipt.json",
+      "pointer": "/device_rows",
+      "equals": 24
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3/receipt.json",
+      "pointer": "/device_sites",
+      "equals": 304
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3/receipt.json",
+      "pointer": "/batch_aggregates/B/sites",
+      "equals": 78
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3/receipt.json",
+      "pointer": "/batch_aggregates/C/sites",
+      "equals": 226
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re3/receipt.json",
+      "pointer": "/ptx_landed",
+      "equals": false
+    }
+  ]
+}
