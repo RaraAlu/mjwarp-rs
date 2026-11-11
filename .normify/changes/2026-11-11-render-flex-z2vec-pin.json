@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-flex-z2vec-pin",
+  "title": {
+    "zh": "z2vec 片 1：flex 近平行分支显式四位四元数 + 宿主镜像 CPU 单测（零 GPU）",
+    "en": "z2vec slice 1: explicit 4-component quaternion in the flex near-parallel branch + host-mirror CPU tests (zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Arch z2vec 规格（target/render-bvh/gl2-ptx-diff/z2vec-probe-expectations.md）：修复 `src/render/kernel/cuda/render_flex.cu` 近平行分支只写 `quat[0]=1.0f` 而遗留 `quat[3]=1.0f` 的缺陷（上游 math.py::quat_z2vec 是整体替换 (1,0,0,0)）；新增 `tests/render_flex_z2vec.rs` 宿主镜像 CPU 单测（7 探针 + 阈值两侧 + -0.0 + ±z，容差 1e-6）；记录 megakernel 新内核身份（render_flex.cu 仅进入 MEGAKERNEL_SOURCE）与离线 NVRTC 分支证明（旧 [1,0,0,1] vs 新 [1,0,0,0]）；四门禁 + 证据。零 GPU；不改判据/参考/容差；宿主镜像为测试专用、不进入产品路径、不得作为运行时回退。",
+    "en": "Per Arch z2vec spec: fix render_flex.cu near-parallel branch (upstream quat_z2vec replaces the whole quaternion with (1,0,0,0), product only wrote quat[0]=1 leaving quat[3]=1); add host-mirror CPU test file (7 probes + thresholds + -0.0 + +-z, tol 1e-6); record new megakernel identity and offline NVRTC branch proof; four gates + evidence. Zero GPU; host mirror is test-only, not a runtime fallback."
+  },
+  "modules": {},
+  "acceptance": [
+    "render_flex.cu 近平行分支显式写全四位为 (1,0,0,0)（negative z branch）；不改成 (0,1,0,0)；其余代码不动",
+    "tests/render_flex_z2vec.rs（CPU-only 宿主镜像）：7 探针期望矩阵（#1 (0,0,-1) 修复后 = 单位阵；其余 <= 5.96e-08，容差 1e-6）+ 阈值两侧（1e-16 / 1e-20）+ 近平行两支（1e-30,0,-1 / 1e-30,0,1）+ -0.0 + ±z",
+    "megakernel 新内核身份：source 6b1ade37.../PTX 48f8e7f8.../348399 -> new（实测）；depth_seg/aa_resolve 不变（render_flex.cu 只在 MEGAKERNEL_SOURCE）",
+    "离线 NVRTC 证明：以 vec=(0,0,-1) 常量编译旧/新函数探针，旧 PTX 写出 [1,0,0,1]、新 PTX 写出 [1,0,0,0]",
+    "四门禁 + 证据目录 perworld-l-v2-flex-z2vec-pin（README/receipt/manifest + 镜像↔.cu 逐行对照 + 镜像不进入产品路径声明）+ 中文提交"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_flex.cu",
+      "tests/render_flex_z2vec.rs",
+      "docs/development-evidence/render-bvh/perworld-l-v2-flex-z2vec-pin/"
+    ],
+    "resources": [],
+    "priority": 97
+  },
+  "note": "Chief 2026-11-11 08:12 派工：z2vec 片 1（限 08:42 硬停）。宿主镜像方案已获批准（测试专用）。",
+  "revision": {
+    "before": "d80a1f7c1a5fff9d16ed2f3eeb59b2b30ee28d18",
+    "after": null
+  },
+  "created_at": "2026-11-11T00:13:21.147Z",
+  "updated_at": "2026-11-11T00:13:21.147Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/",
+        "scripts/"
+      ]
+    }
+  ]
+}
