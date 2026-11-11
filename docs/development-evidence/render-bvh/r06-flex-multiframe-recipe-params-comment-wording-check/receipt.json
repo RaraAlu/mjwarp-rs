@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-render-r06-flex-multiframe-recipe-params-comment-wording-check",
+  "status": "qa_review_completed_zero_gpu",
+  "kind": "qa-check",
+  "verdict": "PASS",
+  "review_object": {
+    "commit": "a20efe2ad2daec900f52c23a8e5ec6596625c0c7",
+    "card": "2026-11-11-render-r06-flex-multiframe-recipe-params-comment-wording",
+    "card_alias": "card L of the 2026-11-11 13:04 window"
+  },
+  "summary": "PASS: 0 blocker, 1 low, 2 observations. The change is comment-only (4 insertions / 4 deletions, QA programmatically confirmed every changed line starts with //! or ///), assertions/21-item comparison/guards untouched, file still 188 lines; test rerun 41/0/1; exe identity 0966bf4c -> cdd85988 at the same 118,588,904 B, matching QA's on-disk measurement, with refreeze requirement stated; evidence hashes match the dispatch; manifest actually lists 6 rows (6/6, not self-listed) while README/commit say 7/7 - a count wording low; boundaries only the test comment + docs + .normify; gates 1406/0/402. Card K's L1 (C-L1 test-side follow-up) is thereby closed.",
+  "low_findings": [
+    {
+      "id": "L1",
+      "title": "manifest 计数 7/7 与「不自列」矛盾，实为 6/6",
+      "detail": "The evidence manifest lists 6 rows (README + receipt + 4 logs) and excludes itself; QA recomputed 6/6 all matching. But README section 1, the commit message and the card say 'manifest 7/7 自核、不自列' - 7 is the directory file count including the manifest itself. Should be 6/6."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "title": "注释改动也改变 exe 字节",
+      "detail": "Same size but different sha (debug info changes), consistent with the card-D caveat that same-source rebuilds are not byte-reproducible; later R06 windows must use the frozen artifact. Card L states this."
+    },
+    {
+      "id": "O2",
+      "title": "（正向）follow-up 单独成小卡闭环",
+      "detail": "Rather than stuffing the test-side residual back into the verified card K, a separate tiny card closes it - correct flow; suggest registering such follow-ups explicitly so backlog counts stay unambiguous."
+    }
+  ],
+  "verified": {
+    "comment_only": "git diff +4/-4; QA checked every +/- line starts with //!/ /// => comments only; sites 8/51/131/168; assertions/RECIPE_PARAM_KEYS/21-item comparison/guards not in diff; file 188 lines (bytes 9812->10100)",
+    "new_wording": "multi-frame capture has no context.resolved section, so cam_res has no independent reference source => actual per-item assertions 27 (26 recorded + nworld), cam_res nominal 28th, no literal assertion; matches card C review L1 and card K C-L1 addendum",
+    "tests": "logs/test-log.txt: 41 passed / 0 failed / 1 ignored (42 tests, ignored = GPU render test)",
+    "identity": "QA on-disk: 118588904 B / cdd8598880b42ffffcd77adf9d70d15e6d7601d78757a8c81d0ed8041044e674 (mtime 13:02:42); old 0966bf4c/118588904; refreeze statement present; non-reproducible caveat restated",
+    "evidence": "README 3c4450a5/3095, receipt 122ededa/3336, manifest eb5720c9/738 match dispatch; receipt has comment_sites_fixed=4, assertions_unchanged/behaviour_unchanged true, k_l1_closed true, k_backlog_note",
+    "manifest": "QA recompute: 6 rows all matching, not self-listed => 6/6 (claimed 7/7 is a count wording issue)",
+    "k_l1_closure": "C-L1 fully closed: doc side by card K, test side by card L; K backlog=1 now unambiguously F-L1 (ledger field split + checker); K evidence bytes unchanged",
+    "boundaries": "commit = 1 test comment file + 7 evidence files + 5 .normify; no src/fixtures/scripts; guards/freeze script untouched; no criteria/reference/tolerance/behaviour change; zero GPU/window",
+    "encoding": "all changed docs/tests UTF-8/LF, no BOM/CR/NUL; test file eol i/lf w/lf",
+    "gates": "fmt/clippy/clippy-cuda exit 0; unit 1406 passed / 0 failed / 402 ignored"
+  },
+  "non_claims": [
+    "does not claim gate/NP01/NP02 pass or upstream equivalence/dual-platform/release",
+    "does not change assertions/behaviour/criteria/reference/tolerance",
+    "zero GPU, zero window, no refreeze; historical evidence not rewritten"
+  ],
+  "manifest_selfcheck": {
+    "file": "manifest.txt",
+    "excludes_manifest_itself": true,
+    "expected_files": 3,
+    "result": "PASS; sha256+bytes of every listed file recomputed"
+  }
+}

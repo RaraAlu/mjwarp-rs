@@ -1,0 +1,39 @@
+# QA independent checks for card L (comment-only wording, commit a20efe2a, zero GPU)
+#
+## 1) comment-only diff
+# git show a20efe2a -- tests/support/render_bvh/multiframe_recipe.rs => +4 / -4
+# QA programmatic check: every +/- line (excluding +++/---) starts with //! or /// => ALL CHANGED LINES ARE COMMENTS
+# touched sites: lines 8/51/131/168 (cam_res wording); no code/assertion lines touched
+# file line count unchanged 188 (<500 ratchet), bytes 9812 -> 10100 (comment text longer)
+# assertions untouched: assert_params_match_capture / RECIPE_PARAM_KEYS / 21-item comparison / anti-omission guards not in diff
+#
+## 2) test rerun
+# logs/test-log.txt: "test result: ok. 41 passed; 0 failed; 1 ignored" (42 tests; ignored = GPU render test)
+#
+## 3) exe identity (QA measured on disk)
+# target/debug/deps/render_flex_multiframe-7cc46ab495d10909.exe
+#   118588904 B / cdd8598880b42ffffcd77adf9d70d15e6d7601d78757a8c81d0ed8041044e674  mtime 13:02:42
+# old = card E point value 0966bf4cccc7312c.../118588904 (same size; comment affects debug info only)
+# refreeze statement present: later R06 windows must refreeze; card L does not refreeze / takes no window
+# same-source rebuild not byte-reproducible caveat repeated (consistent with card D)
+#
+## 4) evidence / manifest
+# README 3c4450a50f8c92e6225883b62b3f4a7f063d4d6c79f1f775957761cf7734ecb3 / 3095
+# receipt 122ededafbbb5292e02814fb4ac8e81bccc3fc0dbcfab4928d2814a4340d2a71 / 3336
+# manifest eb5720c965580dd40960382fc058001d435ea82ff4ea0586e21b690274ed1cdb / 738
+# QA recompute: manifest lists 6 rows (README + receipt + 4 logs), all sha/bytes match, not self-listed => 6/6
+#   BUT README/commit/card say "7/7": 7 is the directory file count including manifest itself -> LOW L1 wording/count fix
+# receipt fields: comment_sites_fixed=4, assertions_unchanged=true, behaviour_unchanged=true, k_l1_closed=true,
+#   k_backlog_note = K backlog=1 refers to F-L1; C-L1 test-side follow-up closed by card L; K bytes unchanged
+#
+## 5) boundaries / encoding / gates
+# commit = 1 test comment file + 7 evidence files + 5 .normify; no src/fixtures/scripts changes; guards/freeze script untouched
+# no criteria/reference/tolerance/behaviour change; zero GPU/zero window
+# all changed docs/tests UTF-8/LF, no BOM/CR/NUL; test file eol i/lf w/lf
+# gates: fmt exit0, clippy exit0, clippy-cuda exit0, unit passed=1406 failed=0 ignored=402
+#
+## 6) K L1 closure judgement
+# K review L1 said the K batch receipt's backlog=1 missed the C-L1 test-comment follow-up (and it was unregistered).
+# Card L fixes the test-side comments => C-L1 fully closed (doc side by K, test side by L);
+# K backlog=1 now unambiguously means F-L1 only (ledger field split + checker), stated in L README section 3 + receipt k_backlog_note.
+# K evidence bytes unchanged (K verified, no rewrite); L directory references it. => K L1 is closed by card L.
