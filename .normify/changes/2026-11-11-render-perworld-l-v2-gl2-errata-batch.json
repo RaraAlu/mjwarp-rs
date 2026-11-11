@@ -5,7 +5,7 @@
     "zh": "G-L2 errata 批（H2 前提 addenda A1–A6 + dump 字段 errata B + QA#7 记录面残留 C；纯文档/测试侧诊断；零 GPU）",
     "en": "G-L2 errata batch (H2 premise addenda A1-A6 + dump field errata B + QA#7 record-level residuals C; docs/test-side diagnostics only; zero GPU)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "依据 Arch 规格稿 `target/render-bvh/gl2-ptx-diff/errata-batch-spec.md`（`56fc8e2b…`）与 W0 收口 brief（`eccd0b9f…`）：A. 对 5 个证据目录追加 append-only addenda（A1–A6），统一口径为「上游 = 局部归一化 + mat@n + 再归一化（两次）；f728b2d7 删掉第一次归一化，P10 `b0e372be` 已恢复」，不改历史字节；B. 先核 `tests/support/render_bvh/light/diag.rs::segment_attribution` 的 `geom_type` 来源（已核 = `seg[1]`，errata 成立），按方案 A 把 `geom_type` 改为真实 `mjm.geom_type[geom_id]`、新增 `seg_objtype = seg[1]` 过渡、schema 保持 2，并补静态单测；C. 修 QA #7 三条记录面残留（GPU 现场快照模板、body-env 转义污染口径、GPU 数字以 nvidia-smi 为准）。边界：只动 `docs/development-evidence/**` 与诊断测试支持代码/静态单测；`src/`、`fixtures/`、`scripts/`、guards/冻结件、已签 S-1/S-2/S-3 正文零改动；不改判据/参考/容差；不改内核身份（无 `.cu` 改动）。",
     "en": "Per Arch spec errata-batch-spec.md: A. append-only addenda A1-A6 for the H2 premise errata across 5 evidence dirs; B. dump field errata: verified segment_attribution's geom_type comes from seg[1] (errata stands); adopt option A (geom_type = real mjm.geom_type[geom_id], new seg_objtype = seg[1] transitional key, schema stays 2, static unit tests); C. fix QA#7 three record-level residuals. Only docs/evidence and test-side diagnostics change; no src/fixtures/scripts/guards/.cu change; no kernel identity change; zero GPU."
@@ -39,12 +39,11 @@
   },
   "note": "依 Chief 2026-11-11 派工（W0 收口等待期）。建议拆 2 片，本卡以单提交交付但在 message/README 内分 A / B+C 两段。B 仅测试侧诊断 + 静态单测；无 .cu、无内核身份变化（调用方重编 test exe 属测试二进制变化，非内核身份）。",
   "revision": {
-    "before": "7cdf20308fa10731ac8d1dc9271b5c6ae8ef185c",
+    "before": "6d44edb15440246fc7d56f90634ecd9475d9b553",
     "after": null
   },
   "created_at": "2026-11-11T00:03:30.371Z",
-  "updated_at": "2026-11-11T00:03:30.371Z",
-  "closed_at": null,
+  "updated_at": "2026-11-11T00:03:32.584Z",
   "checks": [
     {
       "kind": "gate",
