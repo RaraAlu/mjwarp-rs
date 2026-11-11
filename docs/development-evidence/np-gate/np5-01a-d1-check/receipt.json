@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-d1-gjk-epa-host-source-level-check",
+  "kind": "np5-01a-d1-gjk-epa-host-source-level-check",
+  "reviewed": [
+    "32fd81b8"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "section1_a3": {
+      "rows_fields": "A-3 rows-fields-v1.json 8,169B sha 3cb3ba73, row_count=40; 39 kind/label exactly match sites.json; 1 entry policy-redacted (com_position:rigid_com_position:rounding-note:0) because the sites.json label carries historical positive wording - redaction points back to the original location, classification/kind preserved, no forbidden wording copied",
+      "original_bytes": "A-3 evidence/README/receipt/selfcheck unchanged (c9a9676f/53,532); A-3 manifest 6/6 (714B) recomputed",
+      "dual_count": "D-1 receipt section1.o1_dual_count: field_table_sites 608, unique_expressions 598, duplicate_tails 10, source kinematics(A-2,11)+com_position(A-3,14), method dedupe by (kernel,kind,index); README states both counts; closing addenda will repeat",
+      "o2": "A-3 engine-semantic wording precedent recorded in A-3 addenda"
+    },
+    "section2_d1": {
+      "sites": 88,
+      "ids_match_rows": "gjk_host 45 + epa_host 43 union exact",
+      "histogram": {
+        "identical": 37,
+        "n/a": 51
+      },
+      "host_path": "device_level_note: all 88 host sites have no PTX -> device-level overall not-decidable reason host-path-no-ptx (not repeated per site); source-level only",
+      "host_recipe": "host_recipe_note + README: host sites deliberately non-fused (independent mul/add, two roundings, no mul_add, no f64); device side pinned ccd PTX is fma.rn fused - two recipes, source-level judgment only",
+      "identical_semantics": "identical = same expression/type/evaluation order at source level (f32 chain, no upcast); samples verified (math.rs dot3 left-assoc <-> collision_gjk.py warp CPU non-fused; simplex linear_combine i-ascending)",
+      "n_a": "buffers/integer indices/status/structure outputs/migrate origin/8 rounding-notes with why_not_applicable",
+      "cumulative": "483 + 88 = 571",
+      "anchors": "88/88 resolve, 0 errors (product src/physics/collision/gjk/**; reference collision_gjk.py lines)",
+      "manifest": "4/4 (557B)",
+      "selfcheck": "30 PASS",
+      "gates": "1406/0/402",
+      "hashes": "README 10711306/5,769; evidence 2d509468/115,577; receipt 0588aed4/4,072; manifest 103a930b/557; selfcheck b03513d7/1,608",
+      "policy_scan": "0 hits",
+      "hygiene": "clean"
+    }
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "schema-consistency",
+      "where": "np5-01a-d1 evidence.json entries[]",
+      "summary": "D-1 entries (88) also omit `kind`/`label` (same gap A-3 had; D-1 selfcheck derives kind from the id). A-3 got rows-fields-v1; D-1 has no equivalent",
+      "suggest": "give D-1 the same rows-fields treatment (or an addendum) before the closing addenda so every slice has machine-readable kind/label"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "A-3 policy redaction handling verified compliant: the redacted label keeps classification/kind, points to the sites.json original location, original A-3 evidence bytes unchanged, and no forbidden wording is copied (policy_scan 0 hits on the new files)"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "D-1 host recipe declaration is complete (all 88 host sites no PTX -> host-path-no-ptx overall; host non-fused two-rounding recipe vs device fma.rn; source-level identical only, no device/bit-level claim); dual count 608/598/10 recorded with dedupe method"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence; no bit-level test performed",
+    "review of D-1 host source-level records and the A-3 field addendum only"
+  ]
+}
