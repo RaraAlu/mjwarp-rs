@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-w1-r06-z2vec-card-closure",
+  "closed_card": "2026-11-04-render-r06-s3b-flex-z2vec-parallel-branch",
+  "owner": "Backend",
+  "date": "2026-11-11",
+  "acceptance_checked": 5,
+  "acceptance_all_satisfied": true,
+  "items": [
+    {
+      "index": 1,
+      "requirement": "修复：近平行负方向分支改为 quat[0]=1.0f; quat[3]=0.0f;（或整体赋值 (1,0,0,0)），与上游 math.py:quat_z2vec 该分支逐位置一致；常规分支不动",
+      "satisfied": true,
+      "evidence": [
+        "commit 19a68b49（2026-11-11 08:18:29 +0800）",
+        "src/render/kernel/cuda/render_flex.cu:47-56（四行赋值 :52-55）",
+        "git show --numstat 19a68b49: render_flex.cu +6/-1"
+      ]
+    },
+    {
+      "index": 2,
+      "requirement": "可判口径用矩阵、不用字段序：① vec=(0,0,-1) → 单位阵；② vec=(0,0,1) → diag(-1,-1,1)；③ vec=(0,1,0) → [[1,0,0],[0,0,1],[0,-1,0]]；host 复刻、CPU-only",
+      "satisfied": true,
+      "evidence": [
+        "tests/render_flex_z2vec.rs: probe_1_negative_z_is_exactly_identity_after_fix（assert_eq! 单位阵）",
+        "tests/render_flex_z2vec.rs: probe_2_positive_z_keeps_unit_quaternion（DIAG_NEG_NEG_POS）",
+        "tests/render_flex_z2vec.rs: probe_3_y_axis（[[1,0,0],[0,0,1],[0,-1,0]]）",
+        "logs/test-output.txt: 9 passed / 0 failed"
+      ]
+    },
+    {
+      "index": 3,
+      "requirement": "证据：docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/ 收 README，并把 target/s3b-d8/probe_quat.log + check_z2vec_equivalence.py 入库（注明 pinned 1.15.0）",
+      "satisfied": true,
+      "evidence": [
+        "docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/README.md（9605 B，sha256 e28cbeb9…）",
+        "docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/artifacts/probe_quat.log（1934 B，sha256 1c57ed71…）",
+        "docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/artifacts/check_z2vec_equivalence.py（3358 B，sha256 3bbc4fb6…）",
+        "docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/receipt.json（task_id=2026-11-11-render-r06-flex-z2vec-diagnosis）"
+      ]
+    },
+    {
+      "index": 4,
+      "requirement": "边界：不改判据/容差/参考、不动 fixtures/、不改 scene-flex；零 GPU",
+      "satisfied": true,
+      "evidence": [
+        "commit 19a68b49 文件面：仅 render_flex.cu、tests/render_flex_z2vec.rs、perworld-l-v2-flex-z2vec-pin/ 证据、.normify/",
+        "fixtures/ scripts/ scene-flex 零改动（git show --numstat 19a68b49）"
+      ]
+    },
+    {
+      "index": 5,
+      "requirement": "门禁：fmt / clippy / clippy-cuda / unit 全过",
+      "satisfied": true,
+      "evidence": [
+        "logs/gate-z2vec.txt: fmt 1762ms / clippy 555ms / clippy-cuda 455ms 通过",
+        "unit 14484ms 1406 过 / 0 败",
+        ".normify/runs/2026-11-04-render-r06-s3b-flex-z2vec-parallel-branch/（4 个 gate run）"
+      ]
+    }
+  ],
+  "non_satisfied": [],
+  "notes": [
+    "acceptance 原文未改写（关闭动作只改 status/revision/closed_at/note 追加；acceptance 字段逐字未动）",
+    "本片未重做修复、未改 .cu；仅新增治理证据目录并关闭卡"
+  ]
+}
