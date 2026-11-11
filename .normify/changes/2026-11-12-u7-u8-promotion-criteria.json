@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-u7-u8-promotion-criteria",
+  "title": {
+    "zh": "U7/U8 提升后的机器可判定判据 + g10-p5「4 partial + 6 uncovered」口径表 + A2 三片范围（0 窗 CPU-only 文档证据）",
+    "en": "Machine-decidable criteria after U7/U8 promotion + g10-p5 partial/uncovered disposition table + A2 slice scope (0-window CPU-only docs evidence)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Chief 2026-11-11 派工（用户已签 U8/U7 选项 A：degree>10 与 polygon>16 提升为 pass/fail，A2 容量 20/10→32/32），把 Arch 的 0 窗文档证据落仓 `docs/development-evidence/plan/u7-u8-promotion/`：①U7/U8 机器可判定判据（case 集/分母、复用 M1/M2/M3 比较器的零放宽字段判据、U7 防偶合、in-range 走 clip 路径、over-32 走 host 容量门 + device 回退 record-only、数据源与边界口径）；②g10-p5「4 partial + 6 uncovered」10 行逐条口径（对象/现状/提升后如何判/还缺什么）；③A2-1（32/32 代码面 + 7 条边界单测）/A2-2（内核身份重采 + 10 exe/13 fixture/2 参考重冻 + NP02 6 行联调）/A2-3（M2/M3/S4 重放矩阵 + 1 个 fresh-freeze 验证窗）范围建议。纯文档、零 GPU、零窗口；不动卡、不改产品代码/判据/容差/参考/fixtures。",
+    "en": "Per Chief's 2026-11-11 assignment (user signed U8/U7 option A: promote degree>10 and polygon>16 to pass/fail; A2 capacity 20/10 -> 32/32), land Arch's 0-window docs evidence under docs/development-evidence/plan/u7-u8-promotion/: (1) machine-decidable criteria for U7/U8 (case set/denominator, zero-relaxation field rules reusing the M1/M2/M3 comparator, U7 anti-coincidence guard, in-range clip path, over-32 host capacity gate + device fallback record-only, data sources and boundary semantics); (2) g10-p5 4-partial + 6-uncovered 10-row disposition table (object/current/after-promotion judgment/missing evidence); (3) A2 slice scope: A2-1 (32/32 code surface + 7 boundary unit tests), A2-2 (kernel identity recapture + refreeze of 10 exes/13 fixtures/2 references + NP02 6 collision receipts), A2-3 (M2/M3/S4 replay matrix + one fresh-freeze validation window). Docs only, zero GPU/windows; no card changes, no product code/criteria/tolerance/reference/fixtures changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "目录 `docs/development-evidence/plan/u7-u8-promotion/` 存在 README.md + u7-u8-criteria.json + g10-p5-partial-uncovered.json + a2-slices.json + receipt.json + manifest.txt；全部 UTF-8 / LF / 无 BOM；manifest 5 行自核 0 mismatch（不列自身）。",
+    "`u7-u8-criteria.json`：case 集 = U7（mesh-limits-cone-box / fan-cone-24，max_degree 24）与 U8（mesh-limits-prism-box / prism-20，max_polygon 20）2 条，含 fixture sha 与上游参考 sha `b6abb8fa5820c103f6d880936d6ae95fa60035e5b9ce49a0364b15de1def19ad`；pass_rule 7 条（count 零容差、结构键配对、位级优先/4·ULP@scale 回退、零容差字段清单、overflow=0、efc_address=-1、contact.geom 顺序）；U7 防偶合（dist/pos 全等）；in-range 走 clip 路径；over-32 走 host 容量门 + device 回退 record-only；`not_claimed` 禁用「与上游一致 / 缺口已清 / 位级等价」。",
+    "`g10-p5-partial-uncovered.json`：10 行 = partial 4（G6-1.2/G6-1.7/G6-2.1/G6-2.4）+ uncovered 6（UNC-1/2/3/4/5/6）；计数口径 met 8 / partial 4 / unmet 0 + uncovered 6 不变；逐行有 对象/现状/提升后如何判/还缺什么；U7/U8 提升只影响 UNC-1、UNC-3 两条。",
+    "`a2-slices.json`：3 片（A2-1/A2-2/A2-3）均 0 窗实现 + 1 个 GPU 验证窗计划（未排）；A2-1 列到行（`multicontact_geom.cu:384-385` 10/20→32/32；`contact.cu:216-228` 全 scratch；宿主 `clip.rs` pn/pd[32]+容量前置检查；`runtime/collision_gpu/types.rs:141/143` 常量 32/32）+ 7 条边界单测；A2-2 列 10 exe/13 fixture（新增 33 边界→15）/2 参考 + NP02 6 行 CPU-only 重采 + A1 身份 supersession；A2-3 列 M2/M3/S4 branch 9/U7-U8 改判/A1 CPU 回归/A2 边界/NP02 七行矩阵 + 新冻结四前提。",
+    "写域：`git diff --name-only` 仅 `docs/development-evidence/plan/u7-u8-promotion/**` + `.normify/**`；`src/`、`tests/`、`fixtures/`、`scripts/` 零改动；不动卡、不排窗、零 GPU。",
+    "证据：`receipt.json`（task/date/inputs 14 项 sha/head/边界/non_claims/gpu_used=false）+ `manifest.txt` 自核；四门禁（fmt/clippy/clippy-cuda/unit）+ `normify check`；中文提交；非声明在文（非验收结论、U7/U8 待 A2 实现+新冻结验证窗、不宣称容量缺口已清、不宣称 G10@P5 整族通过、不宣称 NP01–NP04 放行）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/plan/u7-u8-promotion/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-11-11 派工（U7/U8 签名级提升 + A2 32/32）；本卡只落 Arch 的判据/口径/范围建议，0 窗 CPU-only、零 GPU、不改判据/参考/容差、不动其它卡。A2-1 已由 Chief 另派 Backend 按 a2-slices.json 开工；A2 验证窗等 A2-1/A2-2 收口后由 Chief 开，本卡不排窗。",
+  "revision": {
+    "before": "28ea173ca2b6f8dca565c3b607e4df2401684d27",
+    "after": null
+  },
+  "created_at": "2026-11-11T17:28:00.000Z",
+  "updated_at": "2026-11-11T17:28:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/u7-u8-promotion/receipt.json",
+      "pointer": "/task",
+      "equals": "u7-u8-promotion-criteria-and-a2-scope"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/u7-u8-promotion/receipt.json",
+      "pointer": "/gpu_used",
+      "equals": false
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "已裁决",
+        "已放行",
+        "等价通过",
+        "验收通过",
+        "对外发布通过"
+      ]
+    }
+  ]
+}
