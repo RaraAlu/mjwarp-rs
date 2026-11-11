@@ -1,0 +1,31 @@
+# card L diff (comment-only check)
+$ git diff --numstat -- tests/support/render_bvh/multiframe_recipe.rs
+4	4	tests/support/render_bvh/multiframe_recipe.rs
+warning: in the working copy of 'tests/support/render_bvh/multiframe_recipe.rs', LF will be replaced by CRLF the next time Git touches it
+
+$ git diff --stat -- tests/support/render_bvh/multiframe_recipe.rs
+tests/support/render_bvh/multiframe_recipe.rs | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+warning: in the working copy of 'tests/support/render_bvh/multiframe_recipe.rs', LF will be replaced by CRLF the next time Git touches it
+
+# every changed line starts with //, /// or //! (comments only)
+comment_only=true
+
+$ git diff -U0 -- tests/support/render_bvh/multiframe_recipe.rs
+diff --git a/tests/support/render_bvh/multiframe_recipe.rs b/tests/support/render_bvh/multiframe_recipe.rs
+index 9baa3baf..944fe4d5 100644
+--- a/tests/support/render_bvh/multiframe_recipe.rs
++++ b/tests/support/render_bvh/multiframe_recipe.rs
+@@ -8 +8 @@
+-//! 单 world）+ `cam_res`（由 model/camera 隐式推导；单帧验收亦为隐式比对，本模块不新增字面断言）。
++//! 单 world）+ `cam_res`（名义第 28 项；多帧 capture 无 `context.resolved` 段、无独立对照源，故不新增字面断言，实际逐项断言 27 项 = 26 recorded + nworld）。
+@@ -51 +51 @@ pub const RECIPE_PARAM_KEYS: [&str; 26] = [
+-/// `context_params()` 与 `capture.json.parameters` 逐参数比对（28 项口径；`cam_res` 隐式）。
++/// `context_params()` 与 `capture.json.parameters` 逐参数比对（28 项口径；实际逐项 27 项 = 26 recorded + nworld；`cam_res` 为名义第 28 项，多帧 capture 无 `context.resolved` 段故无字面断言）。
+@@ -131 +131 @@ pub fn assert_capture_key_set(parameters: &Value) {
+-/// 正例：`context_params()` 对 capture 26 recorded + nworld 全过（28 项口径；`cam_res` 隐式）。
++/// 正例：`context_params()` 对 capture 26 recorded + nworld 全过（实际逐项 27；28 项口径中 `cam_res` 为名义第 28 项）。
+@@ -168 +168 @@ fn recipe_param_mismatch_is_detected() {
+-/// 键集守卫：capture 侧 26 键 == `RECIPE_PARAM_KEYS`；28 项 = 26 recorded + nworld + cam_res(隐式)。
++/// 键集守卫：capture 侧 26 键 == `RECIPE_PARAM_KEYS`；28 项 = 26 recorded + nworld + cam_res（名义第 28；多帧 capture 无 `context.resolved` 段，无字面断言）。
+warning: in the working copy of 'tests/support/render_bvh/multiframe_recipe.rs', LF will be replaced by CRLF the next time Git touches it

@@ -5,7 +5,7 @@
 //! 单帧同口径：**纯测试断言，不改渲染/数值路径、不改 capture JSON、不改判据/参考/spec/相机/recipe**。
 //!
 //! **28 项口径** = capture `parameters` 的 26 个 recorded 键 + `nworld`（capture 未记录，多帧固定
-//! 单 world）+ `cam_res`（由 model/camera 隐式推导；单帧验收亦为隐式比对，本模块不新增字面断言）。
+//! 单 world）+ `cam_res`（名义第 28 项；多帧 capture 无 `context.resolved` 段、无独立对照源，故不新增字面断言，实际逐项断言 27 项 = 26 recorded + nworld）。
 //! 防漏守卫：断言内「已比对键集合」必须等于 [`RECIPE_PARAM_KEYS`]；
 //! `capture_parameter_keys_match_28_item_scope` 再守卫 capture 侧键集合不漂移。
 //!
@@ -48,7 +48,7 @@ pub const RECIPE_PARAM_KEYS: [&str; 26] = [
     "use_textures",
 ];
 
-/// `context_params()` 与 `capture.json.parameters` 逐参数比对（28 项口径；`cam_res` 隐式）。
+/// `context_params()` 与 `capture.json.parameters` 逐参数比对（28 项口径；实际逐项 27 项 = 26 recorded + nworld；`cam_res` 为名义第 28 项，多帧 capture 无 `context.resolved` 段故无字面断言）。
 ///
 /// `nworld` 不在 capture 里（多帧固定单 world），单独断言；其余 26 个 recorded 键逐项比对。
 /// 函数末尾断言「已比对键集合 == [`RECIPE_PARAM_KEYS`]」，漏比/多比都会失败（防再次回退到少项）。
@@ -128,7 +128,7 @@ pub fn assert_capture_key_set(parameters: &Value) {
 // ----------------------------------------------------------------------------------
 // CPU 自证（零 GPU）：正例 / 反例（非空转证明）/ 键集守卫。
 
-/// 正例：`context_params()` 对 capture 26 recorded + nworld 全过（28 项口径；`cam_res` 隐式）。
+/// 正例：`context_params()` 对 capture 26 recorded + nworld 全过（实际逐项 27；28 项口径中 `cam_res` 为名义第 28 项）。
 #[test]
 fn recipe_params_match_capture_28_item_cpu_self_check() {
     let params = crate::multiframe::context_params();
@@ -165,7 +165,7 @@ fn recipe_param_mismatch_is_detected() {
     assert_params_match_capture(&params, &base);
 }
 
-/// 键集守卫：capture 侧 26 键 == `RECIPE_PARAM_KEYS`；28 项 = 26 recorded + nworld + cam_res(隐式)。
+/// 键集守卫：capture 侧 26 键 == `RECIPE_PARAM_KEYS`；28 项 = 26 recorded + nworld + cam_res（名义第 28；多帧 capture 无 `context.resolved` 段，无字面断言）。
 #[test]
 fn capture_parameter_keys_match_28_item_scope() {
     assert_capture_key_set(&crate::multiframe::capture()["parameters"]);
