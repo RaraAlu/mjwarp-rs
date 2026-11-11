@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-review-low-findings-addenda-check",
+  "title": {
+    "zh": "QA 复核「复核低项 addenda 批」（`4353796d`，卡 K）：4 个历史文件**纯追加**（我逐文件验 `old_sha256 == sha256(new[:old_bytes])` 全成立：np-gate README 9,478→11,576 `4cc55394…`、np5-01b README 6,108→6,973 `94b39766…`、W0-W9.md 14,120→15,202 `749c1ceb…`、fill README 7,940→9,392 `143fa217…`）；JSON 结构变更走新版本文件 **`receipt-v2.json`**（`da81edf4…`/4,800，`tree.head=cead8bac…`=主提交 `316b28dd` 父、supersedes 旧 `c4856857…`/6,317，旧 receipt 字节不变）；账本/实现面 JSON/log 零 diff、历史语义未改；5 个派生 manifest 我独立重算 **8/8、6/6、2/2、2/2、7/7** 全对；8 低项分类 = **原证据闭环 2（C-L2←卡 E、G-L1←J §9）+ 本次补 5（F-L2/F-L3/J-L1/B-L1/C-L1）+ 留 backlog 1（F-L1）** 与批 README/receipt `8d15deea…` 一致；写域仅 docs+.normify、无 src/tests/fixtures/scripts 改动、编码干净、门禁 unit **1,406/0/402** → **复核通过（0 阻断，1 低 + 2 观察）**；低=backlog 计数未含 C-L1 留下的「tests 源注释旧措辞」follow-up（应 backlog=2 或登记小卡）；观察=F-L1 仅消误读、账本字段拆分留下一版；append-only 证明方法可复用",
+    "en": "QA review of the low-findings addenda batch (4353796d, card K): four historical files are pure appends verified byte-wise; the JSON change is a new receipt-v2.json (tree.head cead8bac, supersedes c4856857) with the old receipt unchanged; ledger/JSON/logs have no diff; five derived manifests recompute 8/8 6/6 2/2 2/2 7/7; the 8 lows split as closed 2 + fixed 5 + backlog 1 matching the batch receipt; scope only docs/.normify, encoding clean, gates 1406/0/402 - PASS with 1 low (backlog count misses the C-L1 test-comment follow-up) + 2 observations"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对卡 K（复核低项 addenda 批，提交 **`4353796d`** + 卡 `2026-11-11-review-low-findings-addenda`）做独立只读复核（零 GPU）：①append-only 前缀证明与旧字节未动；②8 低项分类与清单一致、receipt-v2 supersedes 与 manifest 重算正确；③边界（仅 docs evidence+.normify、账本/历史语义未改、零 GPU）；④编码/门禁/无通过类声明。**只写本卡与本卡证据。**",
+    "en": "Independent read-only review of card K: append-only prefix proofs and unchanged old bytes, 8-low classification and receipt-v2 supersession/manifests, boundaries/ledger untouched, encoding/gates/no pass claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**append-only ✅**：4 文件逐字节验证 `old_sha256 == sha256(new[:old_bytes])` 成立、旧字节未动：`np-gate/README` 9,478→**11,576/`4cc55394…`**、`np5-01b/README` 6,108→**6,973/`94b39766…`**、`W0-W9.md` 14,120→**15,202/`749c1ceb…`**、`fill/README` 7,940→**9,392/`143fa217…`**（新值均我实测与批 README/派工一致）",
+    "**receipt-v2/历史不变 ✅**：`np5-01b/receipt-v2.json` 新增（**`da81edf4…`/4,800**），含 `tree.head=cead8bac154a7dc4fa033a6738d96579202a4922`（主提交 `316b28dd` 的父；门禁与 existence-check 在该 HEAD 运行）、`main_commit`/`head_source`/`supersedes`（旧 receipt `c4856857…`/6,317）；旧 `receipt.json` 我实测 sha/bytes **未变**；账本、`implemented-subsystems.json`、`unregistered-units.json`、`existence-check.txt` **零 diff**",
+    "**8 低项分类 ✅**：批 README 清单/回执 `lows_total=8 / closed_in_original=2 / fixed_this_batch=5 / backlog=1`（8=2+5+1）；逐条核对：C-L2←卡 E、G-L1←J §9 为原证据闭环；F-L2（tree.head 归属）、F-L3（task 草稿）、J-L1（receipt-v2）、B-L1（§2.1 U8/U7 指代 + 合规改写说明）、C-L1（cam_res 单帧显式/多帧无 context→实际 27 项）为本次补；F-L1 为「说明 + 留 backlog」（字段拆分/checker）",
+    "**manifest ✅**：我独立重算 5 个派生清单：np-gate **8/8**（含 2 条 repo-relative `scripts/np-gate/*.py`）、np5-01b **6/6**（含 receipt-v2）、plan W0-W9 **2/2**、批目录 **2/2**（README+receipt）、fill **7/7**——全 bad=0、不自列、其余条目 sha 不变",
+    "**边界/编码/门禁 ✅**：提交 17 files = 4 append 文档 + 4 manifest + receipt-v2 + 批证据 3 + 卡 K + 4 门禁记录；无 `src/`/`tests/`/`fixtures/`/`scripts/` 改动、guards/freeze script 未动、不改判据/参考/容差；零 GPU、零窗；改动/新增文档全 UTF-8/LF 无 BOM/CR/NUL；门禁 fmt/clippy/clippy-cuda exit 0、unit **1,406/0/402**；批 README §4 与各 addendum 均无通过类声明",
+    "**结论：复核通过（0 阻断，1 低 + 2 观察）。** 低 L1：批 receipt `backlog=1` 未含 C-L1 addendum 留下的 follow-up——`tests/support/render_bvh/multiframe_recipe.rs` 仍含旧 cam_res 措辞（我实测第 8/51/131/168 行），K 说明留后续测试面小卡但未计数/未登记，建议记 backlog=2 或补登卡；观察 O1：F-L1 只消除误读，账本字段拆分/checker 断言仍需下一版账本；O2（正向）：append-only 证明 + 版本文件 + 派生 manifest 重算方法可复用",
+    "**口径**：不宣称门禁/NP01/NP02 通过、不宣称上游等价/双平台；不改判据/参考/容差；不改账本字节与历史语义；零 GPU"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-review-low-findings-addenda"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/plan/review-low-findings-addenda-check/"
+    ],
+    "resources": [],
+    "priority": 88
+  },
+  "note": "Chief 2026-11-11 12:56 指令的卡 K 复核。结论：复核通过（0 阻断，1 低 + 2 观察）。已独立核：4 文件纯追加（old_sha256==sha256(new[:old_bytes]) 全成立，新 sha 4cc55394/94b39766/749c1ceb/143fa217 与派工一致）；receipt-v2.json da81edf4/4800 含 tree.head=cead8bac（316b28dd 父）+supersedes c4856857/6317，旧 receipt 字节不变；账本/实现面 JSON/log 零 diff；5 manifest 独立重算 8/8、6/6、2/2、2/2、7/7 全对；8 低项 2 闭环+5 本次补+1 backlog 与批 receipt 8d15deea 一致；F/J/B/C 各 addendum 内容与我此前复核建议逐条对应；写域仅 docs+.normify、无 src/tests/fixtures/scripts、编码干净、门禁 unit 1406/0/402、无通过类声明。低：backlog 计数漏 C-L1 的 tests 源注释 follow-up（应 backlog=2 或登记小卡）。观察：F-L1 仅消误读、字段拆分留下一版；append-only 证明方法可复用。不宣称门禁通过、零 GPU。",
+  "revision": {
+    "before": "7fa080883e77076f4fbff9e415bf37a091ca0081",
+    "after": null
+  },
+  "created_at": "2026-11-11T05:10:00.000Z",
+  "updated_at": "2026-11-11T05:10:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/review-low-findings-addenda-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-review-low-findings-addenda-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/review-low-findings-addenda-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ]
+}
