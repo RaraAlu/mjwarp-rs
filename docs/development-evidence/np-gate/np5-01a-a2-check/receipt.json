@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-01a-a2-kinematics-crb-source-level-check",
+  "kind": "np5-01a-a2-source-level-check",
+  "reviewed": [
+    "2cede9b6"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 1,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "sites_total": 63,
+    "ids_match_sites_rows": true,
+    "pending_manual": 0,
+    "np5_01a_total_sites": 139,
+    "cumulative_union": "40+36+63 = 139, overlap-free",
+    "classification_histogram_recomputed": {
+      "n/a": 32,
+      "identical": 27,
+      "engine-semantic": 4
+    },
+    "required_fields_complete": true,
+    "engine_semantic": "4/4 have why_engine_semantic + bit_level_guarantee:false",
+    "anchors": "product 63/63 resolve in range; reference file:line anchors resolve; upstream ranges verified: _kinematics_branch 48-146, _compute_body_matrices 169-176, _crb_accumulate 1000-1015, _M 1019-1046, crb 1050-1068, inert_vec 121-130",
+    "input_hashes_recomputed": "kinematics dccba32d/11,278 and crb 184ae567/9,752 match",
+    "manifest_entries": 4,
+    "manifest_bad": 0,
+    "gates": {
+      "fmt": 0,
+      "clippy": 0,
+      "clippy-cuda": 0,
+      "unit": {
+        "passed": 1406,
+        "failed": 0,
+        "ignored": 402
+      }
+    },
+    "boundaries": "docs evidence + .normify only; src/tests/fixtures/scripts unchanged",
+    "hygiene": "UTF-8/LF no BOM/CR/TAB/NUL",
+    "positive_bit_level_claim_found": true
+  },
+  "findings": [
+    {
+      "id": "G1",
+      "severity": "major",
+      "type": "forbidden-positive-claim",
+      "where": "np5-01a-a2/evidence.json: crb:rigid_mass_matrix:accumulation:2 why_engine_semantic; crb:rounding-note:1 label",
+      "summary": "two places assert \"两边 f32 加法次序不同但结果位级等价\" (positive bit-level equivalence claim); contradicts bit_level_guarantee:false and README §2 \"不作数值等价结论\"; violates the slice-wide ban on positive bit-level-equivalence wording",
+      "suggest": "rewrite to \"同一 f32 加法、次序不同，未做位级测试/不提供位级保证\"; the selfcheck forbidden-word list should also include 位级等价"
+    },
+    {
+      "id": "L1",
+      "severity": "low",
+      "type": "selfcheck-gap",
+      "where": "np5-01a-a2/logs/selfcheck.txt",
+      "summary": "selfcheck reports forbidden_phrases_hit=[] while the evidence contains a positive 位级等价 claim -> the forbidden-word list is incomplete"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "histogram has only n/a/identical/engine-semantic (no not-decidable/recipe-difference/pin-needed); plausible for a source-level-only slice but worth stating explicitly in README"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "reference anchors use both single-line and body_lines ranges; consistency of anchor granularity could be unified in later slices"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP01 pass or precision completion",
+    "does not claim bit-level equivalence or coverage",
+    "review of source-level records only"
+  ]
+}
