@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "task_id": "2026-11-11-np5-03-np02-gap-disposition-check",
+  "kind": "np5-03-np02-gap-disposition-check",
+  "reviewed": [
+    "d46f435f91eb05fcf6b592a317e5a8763c55ab76"
+  ],
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "major": 0,
+    "low": 1,
+    "observation": 2
+  },
+  "checked": {
+    "gap_disposition": "32/32 items with disposition/reason/closed; unclassified=0; categories 9 archive + 2 archive-derived + 3 closed-implemented + 4 blocked-with-card + 6 n/a-with-reason + 2 recorded-undetermined + 2 recorded-not-restored + 4 deferred-w7 = 32",
+    "blocked_items": "flex collision/constraint/solver/island -> blocked-with-card (card H), counts_as_coverage=false, not written as pass; unimplemented_remaining=4",
+    "closed_implemented": "render/BVH, hfield/SDF, GJK/EPA closed by evidence (hfield/sdf/GJK captured 2026-11-04 verified; render 2 rows added in this slice)",
+    "new_rows": "inventory 100->102 rows, kernel_rows 96->98, evidence_verified 89->91, receipts 713->715, PTX entities 709->711, source identity 89->89.2, gap_items 32 unchanged",
+    "artifact_identity": "render_megakernel .cu 110,879B cf356b72 / .ptx 348,459B b63a51dd; render_depth_seg .cu 53,552B 1e3f273c / .ptx 138,857B 31912377; consistent with 27 (25+2) np02 receipt index; no artifact substitution",
+    "capture": "nvrtcVersion 12.8, cpuOnly=true, gpu=false, gateOk=true, recipe=render (zero GPU confirmed); PTX not landing in repo per existing receipt policy",
+    "ratchet": "tests/precision_evidence_gate.rs diff only snapshot numbers, NEW_ROWS 12->14 (two render kernels) and f32-render whitelist extension; no assertion weakening; independently re-ran cargo test --test precision_evidence_gate = 4 passed / 0 failed",
+    "counts_crosscheck": "np02 receipt index 27 entries, np01_internal_fields 20, gap_items 32 retained (original list not deleted) all verified in evidence",
+    "manifests_gates": "manifest 4/4 (561B); selfcheck all PASS; fmt/clippy/clippy-cuda exit 0; unit 1406/0/402",
+    "policy_scan": "0 hits",
+    "hygiene": "UTF-8/LF no BOM/CR/NUL; write scope matches card declaration (np02-evidence/**, np-gate/np5-03/**, precision gate test snapshot, capture tool)",
+    "hashes": "README ace95b15/4,427; evidence 8c513f54/19,150; receipt 8afbb1b2/5,103; manifest dddb1d53/561; selfcheck a22b38f4/2,118"
+  },
+  "findings": [
+    {
+      "id": "L1",
+      "severity": "low",
+      "summary": "inventory.counts.unimplemented=7 coexists with receipt unimplemented_remaining=4 (3 items closed-implemented by evidence in this slice); suggest a note near inventory (historical snapshot, remaining per unimplemented_remaining) or an append-only addendum; both numbers have provenance, no contradictory pass claim"
+    },
+    {
+      "id": "O1",
+      "severity": "observation",
+      "summary": "ratchet snapshot update (100->102 etc.) is an in-design sync for the two missing rows, not a gate relaxation; independently re-ran 4/4 and 14-row NEW_ROWS guard remains effective"
+    },
+    {
+      "id": "O2",
+      "severity": "observation",
+      "summary": "count derivations (102/98/102/91, 715/711, 27 receipt index, 20 np01 internal fields) all traceable; 32 gap items kept and dispositions appended"
+    }
+  ],
+  "boundaries": {
+    "gpu": false,
+    "window": false,
+    "criteria_changed": false,
+    "wrote_only_this_card_and_evidence": true
+  },
+  "non_claims": [
+    "does not claim NP02 pass or 100% coverage accepted",
+    "does not claim dual-platform; 4 unimplemented subsystems remain blocked",
+    "review of NP5-03 dispositions/rows/ratchet only; no criteria/reference/tolerance changes"
+  ]
+}
