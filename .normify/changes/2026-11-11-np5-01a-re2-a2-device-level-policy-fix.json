@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-re2-a2-device-level-policy-fix",
+  "title": {
+    "zh": "卡 RE-2：NP5-01a A-2 设备级对照 + policy_scan 漏洞修复入仓（含 A-2 归因更正；`mass_multiply` 记 no-reference-entry；零 GPU）",
+    "en": "Card RE-2: NP5-01a A-2 device-level comparison plus policy_scan loophole fix landed in-repo (with A-2 attribution correction; mass_multiply no-reference-entry; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 与 QA G1：第一节先修 policy_scan 真漏洞——分隔符绕过（位级[·/空格/-/_]等价 等 0 命中）改为「分隔符归一化 + 核心词匹配」，否定豁免保留并修正「不同/不仅/不但」误判，附 12 条构造用例；工具按 scripts/np-gate/** 写域落仓（可复核版本，target 副本同源），否定窗口 18 字符局限写入 docstring/README；A-2 addenda append-only 更正归因（0 命中是分隔符漏检，不是否定豁免）、对齐 forbidden 清单口径、修「append-orderr」笔误，A-2 landing 字节不改、manifest 重算；重扫 A-2 evidence/addenda 并报实际计数。第二节 A-2 设备级：产品 mod.rs/mass_matrix.rs 离线编译（NVRTC 12.8.93/compute_70/lineinfo）entry 与仓内冻结 smooth.ptx 相应 entry 做归一化指令形态对照，分类六类词表；mass_multiply 记 not-decidable + no-reference-entry；PTX 实体不入仓（sha/bytes/命令）。零 GPU、零窗；不改 src/tests/fixtures/脚本以外判据/参考/容差。",
+    "en": "Per Chief and QA G1: section 1 fixes the policy_scan loophole (separator bypass) with separator normalization plus core-word matching, negation exemption retained and the 不同/不仅/不但 false-negation fixed, 12 constructed cases; tool lands in scripts/np-gate/** as a reviewable version (target copy same source), 18-char negation window limitation documented; A-2 addenda corrects the attribution (0 hits were a separator leak, not negation exemption), aligns the forbidden list, fixes the append-orderr typo, without changing A-2 landing bytes, manifest recomputed; rescan A-2 evidence/addenda and report actual counts. Section 2 A-2 device-level: compile product mod.rs/mass_matrix.rs offline (NVRTC 12.8.93/compute_70/lineinfo) and compare entry-level normalized instruction forms with the corresponding frozen smooth.ptx entries, six-category vocabulary; mass_multiply not-decidable + no-reference-entry; PTX artifacts not landed. Zero GPU/window."
+  },
+  "modules": {},
+  "acceptance": [
+    "`scripts/np-gate/policy_scan.py` 入仓（与 RE-0 脚本同口径，头注「NOT in the 93 guards inputs; adding it to guards requires a user re-sign」）：分隔符归一化匹配（空白/·/-/_//.）、否定豁免（不得/未/不/无/非/禁止/not/no/never；不同/不仅/不但 不计）、`--self-test` 12 条构造用例（含点/空格/连字符/下划线变体必须命中；`不写位级等价`/`不提供位级保证` 豁免）、docstring 写明 18 字符否定窗口局限。",
+    "`docs/development-evidence/np-gate/np5-01a-a2/addenda.md` append r2 节：归因更正（原「0 命中（否定形式豁免）」错误，实为分隔符漏检）；工具修复与落仓说明；清单口径以代码 FORBIDDEN_CORES 为准（A2-POL receipt 历史字段不改、说明 supersede）；「append-orderr」笔误更正；重扫计数（evidence 5 处历史正面表述已撤回、addenda 修复后 0）；A-2 evidence/README/receipt 字节不改，manifest 重算。",
+    "`docs/development-evidence/np-gate/np5-01a-re2/`：evidence.json（第一节 policy 修复：工具 sha/自测结果/重扫计数；第二节 device-level：产品 PTX sha/bytes/命令、冻结 entry 映射表、每行/内核分类、`mass_multiply` not-decidable+no-reference-entry）、README（两节）、receipt（verdict=PASS、policy_fix_self_tests=12、rescan_evidence_hits=5、rescan_addenda_hits=0、device_device_rows 映射数、ptx_landed=false、tree.head、gates、boundaries）、logs/selfcheck.txt、manifest；UTF-8/LF 无 BOM。",
+    "分类合规：六类词表；`recipe-difference` 带 value_equivalent/analytic；`not-decidable` 带 6 类 reasons；**不写位级等价/位级一致等正面表述**（policy_scan 自检 0 命中）；不写覆盖率/通过率。",
+    "边界：写域 `scripts/np-gate/policy_scan.py` + `docs/development-evidence/np-gate/np5-01a-a2/**` + `docs/development-evidence/np-gate/np5-01a-re2/**` + `.normify/**`；`unchanged src/`、`tests/`、`fixtures/`、既有采集/guards/freeze script；零 GPU、零窗。",
+    "四门禁 + `normify check`；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/np-gate/",
+      "docs/development-evidence/np-gate/np5-01a-a2/",
+      "docs/development-evidence/np-gate/np5-01a-re2/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "Chief 2026-11-11 20:11 指令（QA G1 工具漏洞修复并入 RE-2 卡第一节）；scripts/np-gate 写域已批（Chief 卡 F 裁定④，仅生成器/校验器）；零 GPU。",
+  "revision": {
+    "before": "d5c6a2524da2357b429264b3efcf80604779d413",
+    "after": null
+  },
+  "created_at": "2026-11-11T12:15:00.000Z",
+  "updated_at": "2026-11-11T12:12:30.729Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2/receipt.json",
+      "pointer": "/policy_fix_self_tests",
+      "equals": 12
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2/receipt.json",
+      "pointer": "/rescan_evidence_hits",
+      "equals": 5
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2/receipt.json",
+      "pointer": "/rescan_addenda_hits",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-re2/receipt.json",
+      "pointer": "/ptx_landed",
+      "equals": false
+    }
+  ]
+}
