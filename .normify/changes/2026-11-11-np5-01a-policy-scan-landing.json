@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-01a-policy-scan-landing",
+  "title": {
+    "zh": "卡 POL-SCAN：NP5-01a policy_scan 修复版工具入仓（12/12 自测；零 GPU）",
+    "en": "Card POL-SCAN: land the fixed policy_scan tool for NP5-01a (12/12 self-tests; zero GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 QA G1/Chief 要求：把修复后的禁词扫描器落到 scripts/np-gate/policy_scan.py（可复核版本，头注 NOT in the 93 guards inputs），附 12 条构造自测与使用说明；不触碰 guards/freeze script/既有采集脚本；零 GPU、零窗。",
+    "en": "Land the fixed forbidden-phrase scanner at scripts/np-gate/policy_scan.py (reviewable version, header note NOT in the 93 guards inputs) with 12 constructed self-tests and usage notes; no guards/freeze-script/existing capture script changes; zero GPU/window."
+  },
+  "modules": {},
+  "acceptance": [
+    "`scripts/np-gate/policy_scan.py` 落库（头注 NOT in the 93 guards inputs；--self-test 12/12 PASS；分隔符归一化 + 否定豁免 + 18 字符窗口局限 docstring）。",
+    "`docs/development-evidence/np-gate/np5-01a-policy-scan/`：README + receipt（verdict=PASS、tool_sha256/bytes、self_test 12/12、guards_touched=false、tree.head、gates、boundaries）+ logs/selfcheck.txt + manifest 自核；UTF-8/LF 无 BOM。",
+    "边界：写域仅上述路径 + `.normify/**`；`unchanged src/`、`tests/`、`fixtures/`；guards/freeze script 未动；零 GPU、零窗。",
+    "四门禁 + normify check；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/np-gate/",
+      "docs/development-evidence/np-gate/np5-01a-policy-scan/"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "QA G1 工具入仓要求；修复版源 target/card-18/policy_scan_staged.py；零 GPU。",
+  "revision": {
+    "before": "71669caac97fa034b0dcf83baca6cf3065b95f18",
+    "after": null
+  },
+  "created_at": "2026-11-11T12:20:00.000Z",
+  "updated_at": "2026-11-11T12:19:06.706Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-policy-scan/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-policy-scan/receipt.json",
+      "pointer": "/self_test_passed",
+      "equals": 12
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-01a-policy-scan/receipt.json",
+      "pointer": "/guards_touched",
+      "equals": false
+    }
+  ]
+}
