@@ -81,3 +81,47 @@
   这些属 Chief 裁决项，本文件只列待裁点，**不伪造解除、不写 waived 依据**。
 - 不改任何占位卡 acceptance/依赖边；不改判据/参考/容差；零 GPU、零窗、不写 `src/`/`tests/`/`fixtures/`/`scripts/`。
 - 不宣称 P8 准入通过、不宣称全部渲染已通过/等价/发布；E6/E7 阶段准入 ≠ 发布声明。
+## 6. W4-B0 裁定执行记录（2026-11-11 卡 I；append-only，前文不改）
+
+依据：Chief 2026-11-11 12:3x 裁定 + Arch `w4-b0-rulings-addendum.md`（`0f484505…`/5,445 B，工作材料非证据）。
+本节只记录执行事实；**不改任何占位卡 acceptance、不改判据/参考/容差**；零 GPU、零窗。
+
+| 项 | 裁定 | 执行结果 |
+| --- | --- | --- |
+| **B0-1**（r07-p8 处置） | 走 (c)：只登记 `blocked-by-r07-p8` 事实，不 waive、不伪造解除 | ✅ `2026-10-11-roadmap-r10-p8` 与 `2026-10-11-roadmap-p8-base` 的 **note 已追加**事实句（r07-p8 当前 `proposed`、解除条件「R07 收口 verified 或用户明确 waive」、不 waive 不伪造解除）；两卡 `depends_on` 中的 `2026-10-11-roadmap-r07-p8` **未删除**；全仓无 waive 决策记录（仅说明性文字） |
+| **B0-2**（g10-p5 伞卡改指） | 批准执行：改指 verified 的 `2026-11-04-g10-p5-family-closeout`（只动依赖/note） | ✅ `2026-10-11-roadmap-g10-p5` 的 `schedule.depends_on` 由 `[g07-p5, g08-p5]` 改为 **`[2026-11-04-g10-p5-family-closeout]`**（verified）；note 记录裁定；**acceptance 逐字未动** |
+| **B0-4**（NP 门禁联动 note） | 批准执行：note 写「NP5-01/02/03 verified」前置，不提前标 NP 通过 | ✅ `2026-10-11-roadmap-p8-entry` / `-p8-base` / `-r10-p8` 三卡 note 已追加：「前置 = NP5-01/02/03 verified（不是整个 NP 伞卡）；NP5-00 只是清单冻结、不解除该前置；**不提前标 NP 通过**」 |
+| **观察 1**（7 张实体卡空依赖） | 按 §2 前置列补真实依赖边，note 标「登记态待补 checks」，不标可开工 | ✅ 见下表；依赖边全部指向真实存在的卡（NP 门禁用已 verified 的 NP5-00 代理卡作当前可解析边，NP5-01/02/03 登记后由 B0-3 复核改指） |
+
+**观察 1 执行明细（7 张实体卡 `schedule.depends_on`）**
+
+| 实体卡 | depends_on | 前置语义 |
+| --- | --- | --- |
+| `2026-11-11-render-p8-entry-admission` | `2026-11-11-np5-00-gate-ledger-freeze-r2` | NP 门禁代理（NP5-01/02/03 verified 为硬前置，卡待登记） |
+| `2026-11-11-render-m03-p8-asset-conversion` | `2026-10-11-roadmap-r01-p8` | r01-p8 verified |
+| `2026-11-11-render-r10-p8-batch-scheduling` | `r07-p8` + `np5-00-r2` + `r01–r05/r08/r09-p8` | 真前置含 B0-1 处置（r07-p8 未决 → 板面显示 blocked）+ NP 门禁 + 已 verified 家族 |
+| `2026-11-11-render-r10-p10-batch-scheduling` | `2026-11-11-render-r10-p8-batch-scheduling` | E3 verified |
+| `2026-11-11-render-m10-p10-rust-callback` | `2026-10-11-roadmap-m10-p7` | m10-p7 verified |
+| `2026-11-11-render-p8-base-admission` | `r07-p8` + E1–E5 + `np5-00-r2` | B0-1 处置 + E1–E5 对应 verified + NP 门禁 |
+| `2026-11-11-render-p8-admission` | `p8-base-admission` + `m03-p8-asset-conversion` + `2026-10-11-roadmap-g28-p8` + `2026-11-04-render-r06-flex-closeout` | E6 verified + E2 + g28-p8 + r06-flex-closeout（均按 §2 前置列） |
+
+> 说明：NP5-01/02/03 三卡当前**尚未登记**（NP5-00 只是清单冻结），故以已 verified 的 NP5-00 卡作**可解析代理边**并在 note 明示硬前置；待三卡登记后由 B0-3 复核改指——**不伪装成「NP 门禁已满足」**。
+
+## 7. B0-3 依赖图复核（2026-11-11 卡 I；前后快照）
+
+- **复核时点**：卡 I 内容提交前（依赖边/B0 note/改指落盘后）。
+- **`normify status` 前后快照**：错误 **0 → 0**、警告 **0 → 0**；冲突 133 → 133（既有存量，非本次引入）；
+  任务总数 1069 → 1070（新增卡 I）；阻塞 12 → **16**（新增真实阻塞：E3/E6 经 r07-p8、E1/E3/E6 经 NP 代理；
+  这是「前置只认 verified」的**诚实结果**，不是回归）；就绪 15 → 11（同上）。
+- **7 张 W4 卡 + p8 相关的 blocked_by 逐条解析**：r01/r02/r03/r04/r05/r08/r09-p8、m10-p7、g28-p8、
+  r06-flex-closeout、family-closeout、NP5-00 均 **verified**；r07-p8 为 **proposed**（真阻塞，符合 B0-1 (c)）；
+  **无新增死依赖**（所有 depends_on 目标卡均存在）。
+- **`checks=0` 占位卡不再作为可 start 的假阻塞来源**：7 张占位卡（p8-entry/p8-base/r10-p8/r10-p10/m03-p8/m10-p10/p8）
+  保持 `checks=0` 且未被 start；实体卡 `checks=[]` 为登记态，启动前须补机器检查项。
+- 结论：**B0-3 复核 0 错误 / 0 警告**；依赖图不再引用空壳 g10-p5 伞卡；B0-1 事实与 B0-4 前置口径已可复核。
+
+## 8. 本 addendum 的非声明
+
+- 只落实 Chief 裁定与复核：**不改占位卡 acceptance、不改判据/参考/容差、不改 r07-p8 依赖边（只登记事实）**、零 GPU、零窗。
+- 不宣称 NP 门禁通过、不宣称 P8/W4 准入通过、不宣称全部渲染已通过/等价/发布。
+- NP5-01/02/03 尚未登记；其 verified 仍是 W4 片 B 的硬前置，本文件不改写该事实。
