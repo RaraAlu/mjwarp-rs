@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-03-np02-gap-disposition-check",
+  "title": {
+    "zh": "QA 复核 NP5-03（NP02 缺口 32/32 处置 + 2 个真实渲染 `__global__` 行，`d46f435f`）：**PASS（0 阻断，0 一般 + 1 低 + 2 观察）**——32/32 每项有去向（9/2/3/4/6/2/2/4 合计 32）、`unclassified=0`、4 个未实现只记 blocked-with-card 不计覆盖、3 条 closed-implemented 按证据关闭；补 2 行 inventory 100→102/96→98/89→91/713→715/709→711/89.2 与我逐个核的 .cu/.ptx sha/bytes 一致（cf356b72/b63a51dd、1e3f273c/31912377）；棘轮 diff 仅快照+`NEW_ROWS` 12→14+f32-render 白名单，无断言削弱，我重跑 `precision_evidence_gate` **4/4 PASS**；manifest 4/4、门禁 1,406/0/402、policy 0 命中；低=inventory `unimplemented=7` 与 `unimplemented_remaining=4` 并存易误读",
+    "en": "QA review of NP5-03: PASS (0 blockers, 0 major + 1 low + 2 observations); 32/32 dispositions, 4 unimplemented blocked only, two new render rows with verified artifact identity, ratchet sync without assertion weakening (4/4 re-run), manifests/gates verified"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 NP5-03（`d46f435f`）做独立只读复核（零 GPU）：①32 缺口逐条去向/分类合计/未实现未写成通过；②补 2 行源身份、回执、inventory 计数与棘轮同步（含我重跑精证据门禁测试）；③manifest/门禁/编码/写域边界。只写本卡与本卡证据。",
+    "en": "Independent read-only review of NP5-03: gap dispositions, two new render rows and receipt identity, inventory/ratchet sync, manifests/gates/write-scope."
+  },
+  "modules": {},
+  "acceptance": [
+    "**32/32 处置 ✅**：每条 disposition/reason/closed 齐全、`unclassified=0`；8 类 9 archive + 2 archive-derived + 3 closed-implemented + 4 blocked-with-card + 6 n/a-with-reason + 2 recorded-undetermined + 2 recorded-not-restored + 4 deferred-w7 = 32；4 个真未实现（flex collision/constraint/solver/island）只记 blocked（卡 H）、`counts_as_coverage=false`，未写成通过",
+    "**2 行补登 ✅**：inventory 100→102/96→98/89→91/713→715/709→711/89→89.2、gap_items 32 不变；我逐个核 `render_megakernel` .cu 110,879 B `cf356b72…`/.ptx 348,459 B `b63a51dd…`、`render_depth_seg` .cu 53,552 B `1e3f273c…`/.ptx 138,857 B `31912377…`，与 27 条回执索引一致；capture-report `cpuOnly=true/gpu=false`（零 GPU）",
+    "**棘轮 ✅**：`tests/precision_evidence_gate.rs` diff 仅快照数字、`NEW_ROWS` 12→14、f32-render 白名单扩 2 行，逐 hunk 无断言削弱；我重跑 `cargo test --test precision_evidence_gate` = **4 passed / 0 failed**",
+    "**证据/门禁/边界 ✅**：manifest 4/4（561 B）；selfcheck 全 PASS；门禁 1,406/0/402；policy_scan 0 命中；UTF-8/LF 无 BOM/CR/NUL；写域与卡内声明一致（np02-evidence/**、np-gate/np5-03/**、快照测试、补采脚本）",
+    "**结论：复核通过（0 阻断，0 一般 + 1 低 + 2 观察）。** 低 L1=`inventory.counts.unimplemented=7`（历史快照）与 receipt `unimplemented_remaining=4` 并存易误读，建议加注或 append-only addendum；观察 O1=快照同步属设计内（非放宽门禁、4/4 复跑）；O2=102/98/91、715/711、27 回执索引、20 内部字段等派生计数可复算"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-03-np02-gap-disposition"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-03-np02-gap-disposition-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 NP5-03 复核；结论 PASS（0 阻断，1 低 + 2 观察）。不宣称 NP02 通过/覆盖 100% 已验收/双平台。",
+  "created_at": "2026-11-11T14:30:00.000Z",
+  "updated_at": "2026-11-11T14:30:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03-np02-gap-disposition-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-03-np02-gap-disposition-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-03-np02-gap-disposition-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "f19e5c6cc60666efd596f0d6a12f54b6fcf784cc",
+    "after": null
+  }
+}

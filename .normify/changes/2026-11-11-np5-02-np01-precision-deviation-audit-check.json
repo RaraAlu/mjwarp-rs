@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-np5-02-np01-precision-deviation-audit-check",
+  "title": {
+    "zh": "QA 复核 NP5-02（NP01 精度偏离审计，`ac840ff7`）：**PASS（0 阻断，0 一般 + 2 低 + 1 观察）**——608/598 双口径与 landing 直方图我独立复算一致（n/a320/identical262/engine-semantic20/recipe-difference2/pin-needed1/not-decidable3）、`type_class` 11 类合计 608、`double_in_product` 恰 1 条（parity 说明在位）、类型偏离 0 项只依类型表+两道 token 门禁+608 站点 type_mapping（`explicitly_not_inferred_from` 明写不从数值反推）、recipe 差与引擎语义差单列、`precision_deviation_zero_items_verified=false` 与「NP01 精度偏离 0 项未完成」强制句在 evidence+README、manifest 4/4、门禁 1,406/0/402、policy 0 命中；低=README §3「recipe-difference 3 站点」把同一站点两层分类并列且未列 A-1a 另 2 站点、§1 节号交叉引用指向 §4 应为 §3",
+    "en": "QA review of NP5-02: PASS (0 blockers, 0 major + 2 lows + 1 observation); 608/598, landing histogram, type_class, double_in_product, type-deviation basis, separated recipe/engine differences, required unfinished statement, manifests and gates verified; lows = site enumeration wording and a section cross-reference"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 NP5-02（`ac840ff7`）做独立只读复核（零 GPU）：①608/598 与 11 片 landing 直方图、`type_class` 逐类重算；②类型偏离 0 项的依据是否只依类型表/门禁而非数值反推；③recipe 差/引擎语义差/实现残差是否单列且未混入类型结论；④强制未完成句、manifest/门禁/编码/边界。只写本卡与本卡证据。",
+    "en": "Independent read-only review of NP5-02: counts/histogram/type_class recomputation, non-numeric type-deviation basis, separation of recipe/engine differences, unfinished statement, evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**审计数字 ✅**：608/598 与 landing 直方图我逐片复算一致（n/a320/identical262/engine-semantic20/recipe-difference2/pin-needed1/not-decidable3 = 608）；`type_class` 11 类合计 608（f32 510、int-encoded-f32 10、bool 20、int 41、n/a 16、n/a-view 7、f32 编码 2、int→f32 编码 1、f64-to-f32 1），无裸 f64/f16/tf32；`double_in_product` 恰 1 条（field_batch wrap-pulley）+ `double_precision_parity`",
+    "**类型偏离 0 项合规 ✅**：`count=0`，basis 4 项（608 站点 type_mapping、33 类型表、CUDA token 门禁、host source 门禁）；`explicitly_not_inferred_from` 明写不以数值相等/ULP 计数反推——与团队裁定一致，未把 recipe 差误判成类型问题",
+    "**分列/未完成句 ✅**：recipe 差（B1 12 表达式、B2 5 case×3 字段、A-1a 3 站点）与引擎语义差（source 20 站点分片 + RE-3 204 行级）、实现残差/1 known deviation 分列；`precision_deviation_zero_items_verified=false` 与「NP01 精度偏离 0 项未完成」在 evidence+README，README 明写不宣言 NP01 通过",
+    "**证据/门禁/边界 ✅**：manifest 4/4（555 B，sha/bytes 全对）；selfcheck 全 PASS；门禁 fmt/clippy/clippy-cuda exit 0、unit 1,406/0/402；policy_scan 0 命中；UTF-8/LF 无 BOM/CR/NUL；边界仅 np5-02 与 `.normify`；无覆盖率/通过率数字",
+    "**结论：复核通过（0 阻断，0 一般 + 2 低 + 1 观察）。** 低 L1=README §3「recipe-difference 3 站点」枚举中 A-1b acc:5 与 RE-1 acc:5 是同一站点的两层分类、A-1a 的 3 站点实为 accumulation:2/accumulation:1（landing）+ accumulation:3（R2 改判），建议分层并列出 id；低 L2=README §1「最终口径另见 §4」应为 §3；观察 O1=`type_class` 分组把 n/a-view/f64-to-f32 并入「其它 f32 派生」表述不精确（总数 608 正确）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-11-np5-02-np01-precision-deviation-audit"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/np5-02-np01-precision-deviation-audit-check/"
+    ],
+    "resources": [],
+    "priority": 85
+  },
+  "note": "Chief 2026-11-11 派工的 NP5-02 复核；结论 PASS（0 阻断，2 低 + 1 观察）。低项为 README 表述/交叉引用，evidence 数据本身正确。不宣称 NP01 通过/精度完成/位级等价。",
+  "created_at": "2026-11-11T14:30:00.000Z",
+  "updated_at": "2026-11-11T14:30:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02-np01-precision-deviation-audit-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-np5-02-np01-precision-deviation-audit-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/np5-02-np01-precision-deviation-audit-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    }
+  ],
+  "revision": {
+    "before": "f19e5c6cc60666efd596f0d6a12f54b6fcf784cc",
+    "after": null
+  }
+}
