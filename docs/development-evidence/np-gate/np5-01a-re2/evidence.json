@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "task": "np5-01a-re2-a2-device-level-policy-fix",
+  "scope": "section 1: policy_scan loophole fix landed in repo + A-2 attribution correction; section 2: A-2 device-level mapping (kinematics/crb) + mass_multiply no-reference-entry",
+  "policy_fix": {
+    "tool": {
+      "path": "scripts/np-gate/policy_scan.py",
+      "sha256": "59765f71f273e469d42923523fd405509ec22520b48b75f4348153dac8b527ee",
+      "bytes": 4559,
+      "landed": true,
+      "header_note": "NOT in the 93 guards inputs; adding it to guards requires a user re-sign"
+    },
+    "self_test": {
+      "total": 12,
+      "passed": 12
+    },
+    "separator_normalization": "separators (space/tab/newline/middle-dot/hyphen/underscore/slash/period) dropped before matching; core words normalized the same way",
+    "negation_exemption": "18-char lookback negators; 不同/不仅/不但 stripped first (false-negation fix); limitation documented in tool docstring",
+    "rescan": {
+      "a2_evidence_hits": 5,
+      "a2_addenda_hits": 0,
+      "a2_evidence_hit_cores": [
+        "位级+一致",
+        "位级+等价"
+      ],
+      "a2_addenda_hit_cores": [],
+      "note": "A-2 evidence hits are the 5 historical statements already withdrawn in A-2 addenda; addenda compliance rewrite now scans 0"
+    },
+    "a2_addenda": {
+      "path": "docs/development-evidence/np-gate/np5-01a-a2/addenda.md",
+      "sha256": "da24375b3207c9fc0bb82b7170ad673a85fe0008ff37775b9c546d4afb9e876c",
+      "bytes": 4179
+    },
+    "a2_manifest": {
+      "path": "docs/development-evidence/np-gate/np5-01a-a2/manifest.txt",
+      "sha256": "be9ffd46a53ea554255dc2ffb98d35f12f224d619be2ff845238609fd9b44c94",
+      "bytes": 717
+    },
+    "attribution_correction": "historical addenda said 0 hits due to negation exemption; actually a separator leak — corrected in A-2 addenda r2",
+    "typo_fix": "append-orderr -> append-only (documented in r2)",
+    "forbidden_list_authority": "scripts/np-gate/policy_scan.py FORBIDDEN_CORES"
+  },
+  "device_level": {
+    "frozen_ptx": {
+      "path": "fixtures/gravity-upstream-abi/independent-inputs/smooth.ptx",
+      "sha256": "4179acd01fe8e7064fa97566cfe4158dd9ad4b89761dcab0da88001d9b521f57",
+      "bytes": 993601,
+      "entries": 48,
+      "lineinfo": "absent (0 .loc)"
+    },
+    "product_ptx": {
+      "kinematics": {
+        "source": "src/physics/mod.rs",
+        "cu": "target/render-bvh/gl2-ptx-diff/np5-01a/RE-2-draft/kinematics.cu",
+        "ptx_sha256": "262e8330c88e5f3dd022526daa3b4fe5c8adf130b8e548d0a774753f474e0d02",
+        "ptx_bytes": 46921,
+        "entries": [
+          "rigid_kinematics"
+        ],
+        "command": "nvrtc_ptx.py --arch compute_70 --fmad true --extra=-lineinfo (12.8.93)"
+      },
+      "crb": {
+        "source": "src/physics/mass_matrix.rs",
+        "cu": "target/render-bvh/gl2-ptx-diff/np5-01a/RE-2-draft/mass_matrix.cu",
+        "ptx_sha256": "5e4fcd8282cab601d1f69baa6a1071b1cf58b7a0271d5449c24f3b09d5fc160c",
+        "ptx_bytes": 17007,
+        "entries": [
+          "rigid_mass_matrix"
+        ],
+        "command": "nvrtc_ptx.py --arch compute_70 --fmad true --extra=-lineinfo (12.8.93)"
+      }
+    },
+    "ptx_landed": false,
+    "rows": [
+      {
+        "row": "kinematics",
+        "sites": 33,
+        "product_entry": "rigid_kinematics / rigid_com_position (product PTX entries: rigid_kinematics)",
+        "frozen_entries": {},
+        "mapping": "partial: 参考 entry 与产品 entry 非一一对应（产品单 entry 内联 helpers；参考按函数拆分）",
+        "classification": "not-decidable",
+        "not_decidable_reasons": [
+          "frozen-artifact-only",
+          "no-lineinfo"
+        ],
+        "missing_evidence": "entry 级一对一映射不可行（产品单 entry 内联 vs 参考多 entry 拆分；arch compute_70 vs sm_89、NVRTC 12.8.93 vs 12.9）；需人工按表达式级对齐（A-2 source 级已完成）"
+      },
+      {
+        "row": "crb",
+        "sites": 30,
+        "product_entry": "rigid_mass_matrix (product PTX entries: rigid_mass_matrix)",
+        "frozen_entries": {},
+        "mapping": "partial: 产品 rigid_mass_matrix 单 entry 覆盖 参考 `_crb_accumulate`（树序累加）+ `_M`（矩阵）两 entry；resident_* 变体无冻结 entry",
+        "classification": "engine-semantic",
+        "why_engine_semantic": "产品把树序累加与矩阵组装合并在单 entry（resident 变体更以 atomic 汇聚）；参考拆成 `_crb_accumulate`（wp.atomic_add）+ `_M`（gather 式 dot + 矩阵写）两 entry → 实现路线/数据流不同，不作数值等价结论",
+        "bit_level_guarantee": false
+      },
+      {
+        "row": "mass_multiply",
+        "sites": 18,
+        "product_entry": "mass_multiply（未在 RE-2 编译；A-1a 草稿模板可复用）",
+        "frozen_entries": {},
+        "mapping": "none",
+        "classification": "not-decidable",
+        "not_decidable_reasons": [
+          "no-reference-entry"
+        ],
+        "missing_evidence": "冻结 smooth.ptx（48 entries）/module.ptx（15 entries）均无 mass_multiply entry；需参考侧采集或接受 source 级结论"
+      }
+    ],
+    "note": "entry 级映射为部分/语义级；逐站点 source 级证据见 np5-01a-a2；不写覆盖率"
+  },
+  "ptx_landed": false,
+  "non_claims": [
+    "no bit-level guarantee or bit-level test anywhere",
+    "no NP01 pass / precision completion / coverage-rate claim",
+    "device mapping is partial and semantic; source-level evidence lives in np5-01a-a2"
+  ]
+}
