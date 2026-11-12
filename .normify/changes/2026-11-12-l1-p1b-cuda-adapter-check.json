@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-l1-p1b-cuda-adapter-check",
+  "title": {
+    "zh": "L1 复核：P1-b CUDA 宿主面适配层（`e8ef68e89`+`65c662107`）：**PASS（0 阻断 / 0 严重 / 0 一般 + 2 低 + 4 观察）**——src 改动仅在 `src/runtime/kernel_exec/`、旧 transfer/launcher/cuda 零改、`kernel_exec` 仍只有 `pub mod` 一处；29 冻结 `.cu` 逐文件 sha **29/29 全等**；unit **1447/0/405**（口头 402 作废：+3 新增 `#[ignore]`）且 `kernel_exec` 独立复跑 **37 passed/3 ignored/934 filtered** 与日志逐字一致；cuda 7 文件 LF 实测 500/251/210/121/82/91/288 全 ≤500（buffer 恰 500）；12 flag 与 A0 逐字一致（6 true/6 false，true=原生）；四签名齐、`BufferError` 6 变体且 `DeviceLost` 仅 kernel_exec、零外溢；真实 `unsafe` 仅 `cuda/queue.rs` 2 处且均有 SAFETY，`cudarc` 只在 `cuda/**`，未接线面 B.11/K.1/K.5/C.4/D2-D3/offset≠0/别名/重复缓冲/F.1/F.5 全部显式 `Unsupported`；证据五个输入件 sha 独立复算全对、3 个 `#[ignore]` 只登记未运行；**E-011 已在 S1 更正可转 DONE**；低 L1=门禁两轮耗时未标注、低 L2=「显式 Unsupported/unsafe 一处」口径不准，**均已在 P1-c 首提交 e8ec1f2f1 修正并经本卡复核到位**（两轮标注/Unsupported 三分/unsafe 2 处），不阻塞",
+    "en": "L1 review of P1-b CUDA host adapter (e8ef68e89 + 65c662107): PASS (0 blockers/major + 2 low + 4 observations). Scope clean, zero behavior change, 29/29 frozen .cu sha, unit 1447/0/405, kernel_exec 37/3 reproduced, all cuda files <=500 lines (buffer exactly 500), 12 flags and signatures match A0, BufferError 6 variants with DeviceLost confined to kernel_exec, unsafe only 2 sites with SAFETY comments, cudarc only under cuda/**, unwired surface explicit Unsupported, evidence identities recomputed, 3 #[ignore] not run."
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 L1 流程对 P1-b（CUDA 宿主面适配层，先包不改）做一次复核：必查范围/零行为/行数/接口/unsafe 与 cudarc 收口/Unsupported 完整性/证据身份/ignore 登记；抽样覆盖 cuda 7 文件、7 个 trait 实现、错误三分类路径、12 flag 取值理由。低项与观察进 errata 台账，不返工。",
+    "en": "L1 review of the P1-b CUDA host adapter: must-check scope, zero behavior change, line limits, interfaces, unsafe/cudarc confinement, Unsupported completeness, evidence identities and #[ignore] registration; sampling covers cuda files, trait impls, error classes and flag rationale."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围 ✅**：S1+S2 的 src 改动只在 `src/runtime/kernel_exec/`；`git diff -- src ':(exclude)src/runtime/kernel_exec'` 空；零 `.cu`/`*.ptx`/abi/fixtures/scripts/Cargo 改动；S1 含 Chief 授权的 E-011 顺手更正；`65c662107` 之后两提交仅 `docs/architecture/`（L0）",
+    "**零行为 ✅**：`kernel_exec` 在 src 内仍仅 `src/runtime/mod.rs:7 pub mod kernel_exec;`、`cuda` 由 `cuda-probe` 门控；29 冻结 `.cu` 逐文件 sha 29/29 全等（0 失配/0 缺失）；全量 unit **1447/0/405**（405=旧 402+3 新增 ignore，口头 402 作废）；`cargo test --locked --lib kernel_exec` 独立复跑 **37 passed/0 failed/3 ignored/934 filtered** 与 `adapter-tests.log` 一致",
+    "**行数 ✅**：`git show <commit>:<path>`+LF 复算 buffer 500（恰边界）/mod 251/queue 210/module 121/diagnostics 82/errors 91/tests 288，全 ≤500 且与 README §1、artifacts 逐值一致",
+    "**接口 ✅**：12 flag 名称+能力映射+极性与 A0 L37-40 逐字一致，`cuda_fallbacks()` 6 true/6 false 与 README/artifacts/单测四方一致；`suggest_block_width`/`shared`/`CompileOptions.entry`/`record_event->Result` 四签名齐且 A0 已同步；`BufferError` 含 `Unsupported`/`ForeignBuffer`/`DeviceLost`，**DeviceLost 在 kernel_exec 外 0 引用**",
+    "**CUDA 适配层 ✅**：真实 `unsafe` 仅 `cuda/queue.rs` 2 处（`unsafe impl DeviceRepr`、`builder.launch`）均有 SAFETY 前提注释；`cudarc` 只在 `cuda/**`；`#[allow]` 0；B.11/K.1 replay/K.5/C.4 复合 7/D2-D3/offset≠0/别名/重复缓冲/F.1 Named/F.5 defines 全部显式 `Unsupported`；三分类不合并；`submit` 不等待、`wait_idle` 唯一排空",
+    "**证据 ✅**：A0@d9c863d45 `412743…`/26,274、A1 `554267…`/37,413、p1c 草案 `7b3cf6…`/12,030、p1b prep `4e0696…`/24,277、refreeze `36195c…`/8,955 逐项独立复算一致；`unit-summary.log` 求和与 `unit.json` 一致；`frozen-cu-digest.log` 29/29 与复算一致；L1 不建 manifest 不算缺项；3 个 `#[ignore]` 只登记未运行、明写不声明通过",
+    "**E-011 ✅**：P1-a README 与 artifacts 的 10 个行数值已更正为 200/159/168/266/456/212/36/86/151/125、max 456，与本卡 P1-a 复核实测一致 → 台账可标 DONE",
+    "**结论：PASS（0 阻断 / 0 严重 / 0 一般 + 2 低 + 4 观察）。** 低 L1=门禁两轮耗时未标注（README/artifacts 2,013/5,328/455/101,440 vs runs 1,979/456/455/16,845）；低 L2=「显式 Unsupported」对 L.3 printf（实为 no-op）/K.1 capture（未实现 trait）与「unsafe 一处」（实为 2 处）口径不准；**均已在 P1-c 首提交 e8ec1f2f1 修正并经本卡复核到位**（两轮标注/Unsupported 三分/unsafe 2 处），不阻塞。观察 O1=A0 仍写 BufferError 5 类（D1 扩展已追认，转 Arch）；O2=unit.json log_sha256 与 summary sha 不同（同 P1-a 惯例）；O3=unknown-handle 测试为手工构造、suggest_block_width 失败路径无 0 GPU 覆盖；O4=elapsed 吞驱动错误（签名无错误通道）"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-g10-p5-kernel-exec-p1b"
+    ],
+    "phase": "内核执行层",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/"
+    ],
+    "resources": [],
+    "priority": 83
+  },
+  "note": "Chief 2026-11-12 派工（第 4 张升级条款复核卡）。只读复核基线提交 `65c662107`，只读时 HEAD `fdd93cf9b`（其后两提交仅 docs/architecture L0）；复核期间 Backend 持锁做 P1-c，全部结论按提交取证、未碰在途文件、未写仓。零 GPU、零窗。低项/观察进 errata 台账；E-011 标 DONE。不宣称能力已实现/已验收、缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。",
+  "revision": {
+    "before": "465d341d2b7ea9c6330ddd2a03220d27ccf8e9ec",
+    "after": null
+  },
+  "created_at": "2026-11-13T00:20:00.000Z",
+  "updated_at": "2026-11-12T16:20:12.795Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-l1-p1b-cuda-adapter-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/checked/behavior/unit_tests/passed",
+      "equals": 1447
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/checked/behavior/unit_tests/ignored",
+      "equals": 405
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/checked/line_counts/max_file_lines_actual",
+      "equals": 500
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/checked/interface/flags_true",
+      "equals": 6
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/checked/behavior/kernel_exec_tests_independent_rerun/passed",
+      "equals": 37
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1b-cuda-adapter-check/receipt.json",
+      "pointer": "/checked/behavior/frozen_cu/mismatch",
+      "equals": 0
+    }
+  ]
+}
