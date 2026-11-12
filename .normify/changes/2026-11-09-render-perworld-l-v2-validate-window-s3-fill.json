@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-09-render-perworld-l-v2-validate-window-s3-fill",
+  "title": {
+    "zh": "S-3 验证窗材料 fill（G-L2）：填实 G-L1 锚点/参考 sha-bytes/§2.4 计数/guards 107 与可选 0/冻结器+CPU 自检/S-3b suggested 13,028-9,956（零 GPU，验证窗未开）",
+    "en": "S-3 validation window material fill (G-L2): fill G-L1 anchors, reference sha/bytes, section 2.4 counts, guards 107 with 0 optional, freezer script + CPU self-check, S-3b suggested 13,028 / 9,956 (GPU-free, window not started)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "G-L1 已收口（6951c3fe）：按 Chief 2026-11-09 派工对 S-3 材料做 fill。① 填实 6 组 PENDING-G-L1（G-L1 锚点、参考 5 文件 sha/bytes/总量 11,078,239 B、capture.json §2.4 计数、guards 107 条与可选 0、冻结器落库 + CPU 自检、S-3b suggested baseline 13,028/floor 9,956）；② 新落冻结器 scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1（默认 dry-run 不构建、-Execute 唯一构建点、aggregate 算法与旧 suite 96 条复算对齐、旧 suite/stash 只读校验、新 exe/10 输入校验、live==guard==stash、旧 stash 漂移只报不修且 -Execute 默认拒绝）；③ 保留 PENDING-FREEZE / PENDING-QA / PENDING-REFRESH 三类剩余占位；④ 双签摘要填入数值但保持 draft（QA 完整预审 PASS 后定稿）。零 GPU、零采集、未开窗、不 start 窗口卡；不改 src/fixtures/tests，scripts 只新增冻结器。",
+    "en": "G-L1 closed at 6951c3fe. Fill the S-3 material per the Chief 2026-11-09 task: fill the six G-L1-dependent groups (G-L1 anchors, five reference files sha/bytes/total 11,078,239 B, capture.json section 2.4 counts, guards 107 entries with optional 0, freezer script + CPU self-check, S-3b suggested baseline 13,028 / floor 9,956); land the freezer scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1 (default dry-run does not build; -Execute is the only build point; aggregate algorithm verified against the old 96-entry suite; old suite/stash read-only checks; new exe and 10 inputs checked; live == guard == stash; pre-existing old-stash drift reported only and -Execute refuses without a ruling); keep PENDING-FREEZE / PENDING-QA / PENDING-REFRESH; fill the dual-sign summary values but keep it a draft until the QA full pre-review passes. GPU-free, no capture, no window, window card not started; src/fixtures/tests untouched; scripts only adds the freezer."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围**：卡 id 2026-11-09-render-perworld-l-v2-validate-window-s3-fill，owner Arch，p80；写入 docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/ 与**新增** scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1；不碰 src//\fixtures//\tests/，不改既有脚本；不 start 任何窗口卡。",
+    "**六组 fill**：G-L1 锚点（窗卡 2026-11-09-…-g-l1、提交 6951c3fe、证据目录、README d7517c29…/11,360 B、receipt da780949…/10,952 B、manifest 43/43）；参考 5 文件 sha/bytes 与总量 **11,078,239 B**（注明 spec 估算 11,076,054 以实测为准）；capture.json §2.4 五组计数实测（C1 38,285/40,644 + bitwise 43,604/41,815；C2 depth 35,828/33,883、seg 16,041/16,754；诊断 0/0 与 50,363/52,329）；guards **107**（12 exe + 93 输入 + 2 清单、可选 0、新 guards JSON 路径）；冻结器落库 + **SELFCHECK PASS 13/13** 证据；S-3b suggested \baseline_free=13,028 / signed floor=9,956（不复用 S-2 的 13,302/10,230）。",
+    "**冻结器要求**：默认 dry-run 不跑 cargo/不构建/不 stash/不写 guards JSON；-Execute 是唯一构建点（cargo test --locked --no-run，留 cargo-artifacts.jsonl）；aggregate 算法用旧 suite 96 条独立复算验证一致；旧 suite sha 基准与冻结后复查；旧 stash 漂移**只报不修**且 -Execute 默认拒绝（需 Chief 裁定 + -AllowOldStashDrift）；新 exe/10 输入与 live==guard==stash 校验；条目数 107 自洽。",
+    "**剩余 PENDING 与定稿禁令**：仅保留 PENDING-FREEZE（12 exe sha/bytes + aggregate + guards JSON sha）、PENDING-QA（G-L1 采后复核锚点）、PENDING-REFRESH（实体最终 verified 锚点），落点明确；**双签摘要保持 draft**，QA 完整预审 PASS 后才定稿；不得宣称采集有效/灯验收/上游等价/渲染结论。",
+    "**卫生与门禁**：材料 manifest 自核（15 条，首行 # + # base dir:）、UTF-8/LF/无 BOM；四门禁 fmt/clippy/clippy-cuda/unit；unchanged src/、unchanged fixtures/、unchanged tests/；scripts/ 仅新增冻结器。",
+    "**非声明**：本 fill 不是 G-L2 启动；窗口仍需 QA 完整预审 + 用户 S-3 双签 + Chief token + 现场条件。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-08-render-perworld-l-v2-validate-window-s3-material"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/",
+      "scripts/validate/render-bvh/freeze-guards-perworld-l2-light.ps1"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "按原有任务声明重建进行态。此登记不新增验收结论。",
+  "revision": {
+    "before": "91d018cedf3e140a5f3a2f18cfcf2e817361afd6",
+    "after": null
+  },
+  "created_at": "2026-11-08T16:55:00.000Z",
+  "updated_at": "2026-11-08T16:55:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-l-v2-validate-window-s3/receipt.json",
+      "pointer": "/fill_round/task_id",
+      "equals": "2026-11-09-render-perworld-l-v2-validate-window-s3-fill"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "采集已有效",
+        "灯位姿已覆盖",
+        "上游等价"
+      ]
+    }
+  ]
+}
