@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-g10-p5-kernel-exec-p1a",
+  "title": {
+    "zh": "P1-a 设备层 trait 骨架（6 组接口 + mock backend + 单测；先包不改）",
+    "en": "P1-a device-layer trait skeleton (six groups + mock backend + unit tests; wrap-only, no behavior change)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 A0 设备层契约 §2 六组接口，新建 src/runtime/kernel_exec/ 放设备层 trait 骨架：Backend/DeviceCaps、Buffer+Allocator、Queue、Module+Launch、DeviceMath+Atomics+ThreadScope+ExecControl+Diagnostics、DeviceError 三分类；NumericPolicy 同批定义。只加新目录与 src/runtime/mod.rs 一行 mod 声明，不接现有调用点、不改既有 runtime 模块逻辑、不碰 .cu/*_CUDA/recipe/PTX/ABI/冻结集；trait 签名不出现 cudarc 类型，零 unsafe。mock backend + 单测验证对象安全取舍、错误三分类、容量/越界显式报错、queue/launch 显式同步语义。L1 两提交：S1 登记+骨架、S2 mock+单测+证据。",
+    "en": "Create src/runtime/kernel_exec/ with the six device-layer trait groups from A0 §2 plus NumericPolicy; only a new directory and one mod declaration in src/runtime/mod.rs; no call-site rewiring, no changes to existing runtime logic, no .cu/*_CUDA/recipe/PTX/ABI/frozen-set changes; no cudarc types in signatures; zero unsafe. Mock backend and unit tests cover object-safety tradeoffs, three error classes, explicit capacity/out-of-range errors, and explicit queue/launch synchronization. L1 with two commits: S1 registration+skeleton, S2 mock+tests+evidence."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "src/runtime/kernel_exec/ 含 mod.rs 与六组接口文件（backend/buffer/queue/module/device/error），每组 trait 名与 A0 §2 对齐；NumericPolicy 同批定义；每个新文件 ≤500 行。",
+    "trait 签名不出现 cudarc 类型、不新增 unsafe；src/runtime/mod.rs 只增加一行 pub mod 声明。",
+    "不接现有调用点、不改 src/runtime/ 既有模块逻辑、不碰 .cu/*_CUDA/recipe/PTX/ABI/冻结集；现有测试全过。",
+    "mock backend + 单测覆盖：对象安全取舍（dyn 可用/不可用清单）、DeviceError 三分类、Buffer 容量与越界显式报错、queue submit 非隐式同步而 wait_idle 显式同步、NumericPolicy 冻结默认。",
+    "证据 docs/development-evidence/plan/kernel-exec-layer/p1a-device-trait-skeleton/ 含 README + 测试日志 + 产物 JSON（L1，不建 manifest）。",
+    "门禁：S1 前 fmt+clippy；S2 收口 clippy-cuda+unit；git diff --stat 代码仅新目录 + src/runtime/mod.rs。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-运行时",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/kernel_exec/",
+      "src/runtime/mod.rs",
+      "docs/development-evidence/plan/kernel-exec-layer/p1a-device-trait-skeleton/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "A0 草案 §2（docs/architecture/device-layer-contract.md）为输入；A1 盘点（target/impl-plan-review/A1-cuda-coupling-inventory.md，sha 55426797…）为首批接口面依据。P1-a 仅声明与 mock，不接线；P1-b 才做 CUDA 适配。dead_code 优先用 pub 路径消除；若需豁免只允许模块级 allow 并注明 P1-b 移除。",
+  "revision": {
+    "before": "2200c8a62c48a2d2ee429136d1cb9e3f71616316",
+    "after": null
+  },
+  "created_at": "2026-11-12T15:11:50.000Z",
+  "updated_at": "2026-11-12T15:14:35.331Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/",
+        "fixtures/",
+        "src/physics/",
+        "src/render/",
+        "src/io/",
+        "src/model/"
+      ]
+    }
+  ]
+}

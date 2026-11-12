@@ -4,6 +4,7 @@
 use crate::diagnostics::ProbeError;
 pub mod backend;
 pub mod external;
+pub mod kernel_exec;
 pub mod launcher;
 pub mod tooling;
 mod transfer;

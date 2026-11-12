@@ -255,6 +255,27 @@ path = "src/runtime/launcher/warp.rs"
 
 [[source]]
 path = "src/runtime/presence.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/mod.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/backend.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/buffer.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/device.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/error.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/module.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/queue.rs"
 +++
 
 ## P1局部实现
