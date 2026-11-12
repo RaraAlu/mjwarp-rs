@@ -1,0 +1,57 @@
+QA L1 复核：P1-c 退路实现（只读；零 GPU、零窗）
+复核基线 e8f07706c（S1 e8ec1f2f1 + S2 e8f07706c）；仓库 D:\Rust\mjwarp-rs
+
+[1] 范围
+  src 改动只在 src/runtime/kernel_exec/（exclude 后 diff 空）
+  零 *.cu/*.ptx/abi/fixtures/scripts/Cargo 改动
+  非 src：.normify + P1-c 证据 4 文件 + P1-b 证据 README/artifacts 文案修正
+  kernel_exec 在 src 内仍只有 src/runtime/mod.rs:7 pub mod kernel_exec;
+
+[2] 12 flag 表
+  items.json 12 条、id 顺序与 A0 一致；10 now + 2 after_shim（D.4/D.10）
+  D.4/D.10 behavior 写「未实现」，README §1 写「不是 12/12」；卡 acceptance 同口径
+  代码：FallbackCapability::ALL 12 + impl_scope()；单测 registry_has_12_flags_with_10_now_and_2_after_shim
+  cuda_fallbacks() 极性与取值未在 P1-c 改动
+
+[3] 4096 组合（代码级）
+  fallback/tests.rs::any_combination_of_12_flags_has_no_unsupported_path
+  for mask in 0u16..(1<<12) 真枚举 4096；逐 bit 写 12 flag；对 12 能力各调 select_native
+  断言 is_native == capability.is_native(set)；trace.is_empty()==is_native；trace.len()==!is_native
+  → 4096 x 12 次断言；选择层无错误通道，Unsupported 结构性不可达
+
+[4] FallbackTrace
+  select_native 仅 !native 时 record；graph.rs 两处 record 在退路实现函数内
+  生产侧仅在 GraphMode::SequentialReplay 分支调用 capture_sequential
+  测试断言原生路径 trace 为空（4096 组合 + 各双路）
+
+[5] 10 项 CUDA 接线
+  产品接线 6：B.10 buffer.rs:305 / B.11 buffer.rs:340 / G.9 module.rs(P1-b) / K.1 queue.rs:115,230,277 /
+              K.5 queue.rs:120,250 / L.3 diagnostics.rs:87
+  仅选择冻结 4：K.2/K.3/C.1/H.1 的 loop_mode/branch_mode/int64_lowering/f32_atomic_mode 为 #[cfg(test)]
+  README §3/§6 已限定「只冻结选择、设备端执行 P2」
+
+[6] 测试/门禁
+  独立复跑 cargo test --locked --lib kernel_exec -> 51 passed / 0 failed / 4 ignored / 934 filtered（cargo exit 0）
+  与 fallback-tests.log 逐字一致；4 ignore = P1-b 3 + P1-c 1（gpu_cuda_fallback_paths_are_reachable，未运行）
+  全量 unit 1461 / 0 / 406（unit.json 与 unit-summary.log 146 target 求和一致）
+  新增测试 14 个（fallback 13 + cuda 1）
+
+[7] 行数/边界
+  git show e8f07706c + LF 复算：max mock_backend 468；fallback/tests 453、cuda/buffer 454、cuda/mod 294、
+  queue 294、cuda/tests 389、mod 44 等全部 <=500
+  29 .cu 冻结集/recipe/PTX/ABI 零改动；gpu_used=false
+
+[8] 观察（6）
+  O1 组合规则口径分层（选择层成立；适配层 flag=true 但原生未实现仍 Unsupported）
+  O2 K.1 退路重复留痕（graph_mode + capture_sequential → 一次 capture 记 2 条）
+  O3 B.11 退路含阻塞 DtoD 拷贝（memcpy_dtod_sync）；证据只写「无 wait_idle」
+  O4 B.10 CUDA 池取走不归还；返回缓冲 byte_len 用池槽容量而非请求值
+  O5 H.1「双路」同一 CAS 实现（仅入口区分）
+  O6 4/10 项为 cfg(test) 选择冻结（README 已限定，按字面「产品接线」标准需你采认）
+
+[9] 台账
+  无低/无阻断；6 观察待登记 errata；P1-b 证据低项 L1/L2 的修正已在 S1 核过
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 / 0 低 + 6 观察）。
+非声明：不宣称 12/12 完成、D.4/D.10 已实现、任何能力已实现或已验收、缺口已清、与上游等价（over-32）、
+整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证；4 个 GPU #[ignore] 未运行，零 GPU 零窗。

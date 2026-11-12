@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-13-l1-p1c-fallback-check",
+  "level": "L1",
+  "kind": "slice-review",
+  "reviewed_slice": {
+    "slice": "P1-c 退路实现与 DeviceCaps.fallbacks 双路",
+    "commits": ["e8ec1f2f1", "e8f07706c"],
+    "card": "2026-11-12-p1c-fallback-impl",
+    "evidence": "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/"
+  },
+  "reviewed_commit": "e8f07706c",
+  "registration_head": "7b11b718e8e5176b0b2610a072f9502811bdf76b",
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "critical": 0,
+    "major": 0,
+    "low": 0,
+    "observation": 6
+  },
+  "checked": {
+    "scope": {
+      "src_changes_only_in_kernel_exec": true,
+      "src_outside_kernel_exec_diff": "empty",
+      "cu_ptx_abi_fixtures_scripts_cargo_changed": 0,
+      "kernel_exec_only_module_decl": "src/runtime/mod.rs:7 pub mod kernel_exec;",
+      "p1b_evidence_text_fix_included": true
+    },
+    "flags": {
+      "total": 12,
+      "now": 10,
+      "after_shim": 2,
+      "after_shim_flags": ["generic_device_fn", "native_source_injection"],
+      "card_items_consistency": true,
+      "d4_d10_not_claimed_implemented": true,
+      "cuda_fallbacks_values_unchanged_since_p1b": true
+    },
+    "combination": {
+      "enumerated": 4096,
+      "capabilities_per_mask": 12,
+      "layer": "selection (select_native returns bool, no error channel)",
+      "asserts_trace_only_on_fallback": true
+    },
+    "trace": {
+      "select_native_records_only_when_fallback": true,
+      "production_record_sites": [
+        "fallback/graph.rs::capture_sequential",
+        "fallback/graph.rs::replay_sequential"
+      ],
+      "native_path_never_writes": true
+    },
+    "wiring": {
+      "product_wired": ["B.10", "B.11", "G.9", "K.1", "K.5", "L.3"],
+      "selection_only_cfg_test": ["K.2", "K.3", "C.1", "H.1"],
+      "selection_only_disclosed_in_evidence": true
+    },
+    "behavior": {
+      "unit_tests": { "passed": 1461, "failed": 0, "ignored": 406, "targets": 146 },
+      "kernel_exec_tests_independent_rerun": {
+        "passed": 51,
+        "failed": 0,
+        "ignored": 4,
+        "filtered": 934,
+        "cargo_exit": 0,
+        "matches_evidence_log": true
+      },
+      "new_tests": 14,
+      "ignored_gpu_tests": 4,
+      "ignored_tests_registered_not_run": true
+    },
+    "line_counts": {
+      "method": "git show <commit>:<path> + LF split",
+      "max_file_lines_actual": 468,
+      "max_file": "src/runtime/kernel_exec/mock_backend.rs",
+      "all_at_most_500": true,
+      "fallback_tests_rs": 453,
+      "cuda_buffer_rs": 454,
+      "cuda_mod_rs": 294,
+      "cuda_queue_rs": 294,
+      "cuda_tests_rs": 389,
+      "kernel_exec_mod_rs": 44
+    },
+    "panic_paths": {
+      "unwrap_expect_panic_in_fallback_production_files": 0
+    },
+    "evidence": {
+      "policy_scan_files": 4,
+      "policy_scan_hits": 0,
+      "gpu_used": false,
+      "no_manifest_ok_for_l1": true,
+      "unit_summary_sums_match_runs_json": true
+    },
+    "card": {
+      "p1c_card_status": "verified",
+      "p1c_card_checks": 10,
+      "p1c_card_revision_before": "fdd93cf9b662b31b45c2d6b8af9bfd016e192ac6"
+    }
+  },
+  "findings": {
+    "observation": [
+      {
+        "id": "O1",
+        "title": "combination rule wording mixes two layers",
+        "detail": "README §4 'any combination of the 12 flags never returns DeviceError::Unsupported' holds at the selection layer (select_native returns bool, no error channel); the CUDA adapter still returns Unsupported when a flag is true but the native path is unimplemented (K.1 native-capture, B.11 native-zero-copy). Defaults are false so the default device does not hit it. Suggest splitting selection-layer rule vs adapter-layer unsupported.",
+        "remediation": "errata: wording split"
+      },
+      {
+        "id": "O2",
+        "title": "K.1 fallback double-records the trace",
+        "detail": "CudaQueue::capture calls graph_mode() (records 1) then capture_sequential() (records 1 more) -> 2 GraphCapture entries per capture; trace-count-based judgments would over-count.",
+        "remediation": "errata: note; consider recording once"
+      },
+      {
+        "id": "O3",
+        "title": "B.11 fallback performs a blocking DtoD copy",
+        "detail": "CUDA borrow_external Copy path uses memcpy_dtod_sync (blocking) and usize::try_from(bytes).unwrap_or(usize::MAX); evidence only says 'no wait_idle', does not mention the blocking copy.",
+        "remediation": "errata: state synchronous DtoD in fallback semantics"
+      },
+      {
+        "id": "O4",
+        "title": "B.10 CUDA pool is take-only and byte_len uses slot capacity",
+        "detail": "transient fallback swap_removes a slot and never returns it (no release API); returned buffer byte_len = pooled capacity (>= requested), inconsistent with alloc semantics.",
+        "remediation": "errata: note P1-c simplification, pooling in P2"
+      },
+      {
+        "id": "O5",
+        "title": "H.1 'dual path' shares one implementation",
+        "detail": "native_add and cas_loop_add both run the same CAS loop; retry_loop only documents the distinction. Device-side native belongs to P2.",
+        "remediation": "errata: state 'entry distinction'"
+      },
+      {
+        "id": "O6",
+        "title": "4 of 10 items are selection-only (cfg(test)) in the CUDA adapter",
+        "detail": "K.2/K.3/C.1/H.1 CUDA selection helpers are #[cfg(test)]; product builds have no wiring for them. README §3/§6 disclose 'selection frozen only, device-side execution is P2', so if the acceptance bar is 'all 10 reachable in product code' these 4 do not meet it.",
+        "remediation": "Chief ruling: unify wording as '10/12 = selection-layer implementation; 6 product-wired (B.10/B.11/G.9/K.1/K.5/L.3), 4 (K.2/K.3/C.1/H.1) selection-only in tests with device-side execution deferred to P2'; no rework; P1-c evidence wording to be adjusted by Backend in P2-b first commit; P2-b scope extended to D.4/D.10 + K.2/K.3/C.1/H.1 device-side execution"
+      }
+    ]
+  },
+  "non_claims": [
+    "12/12 completion not claimed",
+    "D.4/D.10 not claimed as implemented",
+    "no capability implementation or acceptance claim",
+    "mesh capacity gap not claimed as cleared",
+    "no upstream equivalence claim (over-32), no whole-family pass claim",
+    "NP01/NP02 gate not claimed",
+    "no bit-level equivalence claim, no bit-level equivalence guarantee",
+    "4 GPU #[ignore] tests not run; zero GPU, zero window",
+    "no criteria/reference/tolerance/fixture/source change"
+  ]
+}
