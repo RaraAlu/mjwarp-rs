@@ -1,0 +1,69 @@
+QA L1 批量复核（P0-b + P1-a）独立记录（只读；0 窗、零 GPU）
+复核基线 HEAD 522f8661；仓库 D:\Rust\mjwarp-rs
+
+[1] 仓库/锁（复核开始时）
+  git rev-parse HEAD       -> 522f8661
+  git status --porcelain   -> 仅外部 Codex 两项 untracked
+  repo-write-lock status   -> REPO_WRITE_LOCK_FREE（复核期间被 owner=claude 取走，见 [9]）
+
+[2] 两片范围
+  P0-b 17de20895           -> 仅 .normify + docs/development-evidence/plan/kernel-exec-index/{README.md,capability-index.json}
+  P1-a a6649a80^..522f8661 -> src/runtime/kernel_exec/ 9 新文件 + src/runtime/mod.rs 1 行 + .normify + 4 证据文件
+  frozen/recipe/PTX/ABI/fixture 改动 -> git diff 空
+  src/runtime/mod.rs diff  -> 恰 1 行（+pub mod kernel_exec;）
+
+[3] 行为/接口
+  src 内 kernel_exec 外部引用 -> 1（仅 src/runtime/mod.rs:7 模块声明）
+  29 .cu digest            -> 266bbf94fd92cce3202159df196d84824dacbaa6d22f4b848eddd83ac57fcb44
+  unit run json            -> 1435 passed / 0 failed / 402 ignored
+  kernel_exec cudarc       -> 0
+  kernel_exec allow(dead_code) -> 0
+  unsafe 块/unsafe fn      -> 0（文本 3 处均为注释）
+  lint/Cargo 改动          -> 0
+  NumericPolicy::FROZEN_F32 -> f32_only=true / fma=Enabled / fast_math=false（与 A0 §2 F.6、plan F.6 一致）
+
+[4] 行数（LF split 去尾空，ReadAllLines 等价；未用 Get-Content）
+  backend 200 / buffer 159 / device 168 / error 266 / mock_backend 456 / mock_tests 212 / mod 36 / module 86 / queue 151 / runtime_mod 125
+  全部 <=500；README/artifacts 的 10 个值均 +1（L1）
+
+[5] P1-a 测试抽样
+  total 25；抽 8（sha256(name) 升序前 8）+ 必查类别补 3
+  断言核验：错误三分类/Unsupported 不合并、容量越界显式（含 u64 溢出）、submit 不隐式同步 vs wait_idle 唯一排空、
+             launch/capture/replay 计数显式；其余抽样项为具体值/枚举断言
+
+[6] P0-b 数据
+  row_count 85；unique ids 85；required fields 空值 0；done_criteria 四键齐
+  counts done43/part25/none14/n-a3=85
+  part+none 39/39 有 owner；词表 PU-xx（待批）/backlog（…未建卡）合规（含 PU-18a/b）
+  n/a 3 项（H.7/H.8 不适用、D.10 待并入）
+  A1 pin 4/4 sha+bytes 一致；A0 §3 抽查 E.1/F.6/K.1/L.1 一致；设备层 44 行 = A0 §3 44 项
+  禁词 0；JSON 可解析；README 自检与实测一致
+  物理行 2172（README「85 行」指 85 条，O1）
+
+[7] 证据真实性
+  test.log 25 passed；unit-summary 1435/0/402；artifacts.json 与 runs 一致
+  证据 6 文件 UTF-8/无 BOM/0 NUL/0 CR
+  L1 不建 manifest（不算缺项）
+  gen/check 脚本仅在 target；两片提交无 .py；仓内无对应脚本；构建/测试链无引用
+
+[8] 卡
+  P0-b verified，10 checks（4 gate + unchanged + 4 json + forbid_claim），4 json 指针 4/4 满足
+  P1-a verified，5 checks（4 gate + unchanged）
+
+[9] 外部 agent 事实（不处置）
+  复核期间 repo-write-lock 变为 HELD pid=38312 owner=claude reason="plan doc: physics layer summary"
+  HEAD 522f8661 -> ca7d8fc92（2026-11-12-physics-layer-summary-doc 登记 in_progress，纯文档）
+  暂存区含 docs/implementation-plan.md 等改动；我未碰其文件、未取锁、未写仓
+
+[10] 写卡阶段（Chief go 后，短锁一次做完）
+  repo-write-lock status   -> REPO_WRITE_LOCK_FREE（写前快照）
+  git rev-parse HEAD       -> d9c863d453e0484f9eccd7352341b8b18469bb76
+  git status --porcelain   -> 仅外部 Codex 两项 untracked；.normify/locks 空
+  git log --oneline 522f8661..HEAD -> d9c863d45 / 15901d403 / ca7d8fc92（均 L0 文档/治理，未触两片）
+  acquire -Owner qa        -> REPO_WRITE_LOCK_ACQUIRED pid=81384 owner=qa ttl_min=90
+  卡 revision.before 取登记时 HEAD d9c863d45（复核基线 522f8661 与登记 HEAD 差异如实注明）
+  L1 交付：1 张批量卡 + 1 登记提交（仅卡 JSON）+ 1 证据提交（证据目录 + 卡 + runs）
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 + 1 低 + 3 观察）；L1 低项与 3 观察待 errata-ledger 批量收口。
+非声明：不宣称能力已实现/已验收、缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、
+不提供位级等价保证。零 GPU、零窗。
