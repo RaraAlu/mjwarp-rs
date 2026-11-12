@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-12-l1-p1b-cuda-adapter-check",
+  "level": "L1",
+  "kind": "slice-review",
+  "reviewed_slice": {
+    "slice": "P1-b CUDA 宿主面适配层",
+    "commits": [
+      "e8ef68e89",
+      "65c662107"
+    ],
+    "card": "2026-11-12-g10-p5-kernel-exec-p1b",
+    "evidence": "docs/development-evidence/plan/kernel-exec-layer/p1b-cuda-adapter/"
+  },
+  "reviewed_commit": "65c662107",
+  "review_head": "fdd93cf9b",
+  "registration_head": "b6f732be507dd3e11f13061b30179a78872b089f",
+  "review_basis_note": "只读复核时 HEAD=fdd93cf9b；其后两提交仅 docs/architecture（L0）。复核期间工作树被 P1-c 在途占用（其后 P1-c 继续改 cuda/**），故全部结论按提交 65c662107 取证（git show / git grep <commit>）；P1-c 改动不属本卡范围。",
+  "verdict": "PASS",
+  "severity": {
+    "blocker": 0,
+    "critical": 0,
+    "major": 0,
+    "low": 2,
+    "observation": 4
+  },
+  "checked": {
+    "scope": {
+      "src_changes_only_in_kernel_exec": true,
+      "src_outside_kernel_exec_diff": "empty",
+      "cu_ptx_abi_fixtures_scripts_cargo_changed": 0,
+      "p1a_evidence_errata_e011_included_in_s1": true
+    },
+    "behavior": {
+      "kernel_exec_refs_outside_dir_in_src": 1,
+      "kernel_exec_only_module_decl": "src/runtime/mod.rs:7 pub mod kernel_exec;",
+      "cuda_gated_by_feature": "cuda-probe",
+      "call_sites_wired": false,
+      "existing_runtime_logic_changed": false,
+      "frozen_cu": {
+        "declared": 29,
+        "recomputed_match": 29,
+        "mismatch": 0,
+        "missing": 0
+      },
+      "unit_tests": {
+        "passed": 1447,
+        "failed": 0,
+        "ignored": 405,
+        "targets": 146,
+        "note": "ignored 405 = 旧 402 + 新增 3 个 #[ignore]；口头 402 作废",
+        "at_commit": "65c662107"
+      },
+      "kernel_exec_tests_independent_rerun": {
+        "passed": 37,
+        "failed": 0,
+        "ignored": 3,
+        "filtered": 934,
+        "matches_evidence_log": true
+      }
+    },
+    "line_counts": {
+      "method": "git show <commit>:<path> + LF split",
+      "buffer_rs": 500,
+      "cuda_mod_rs": 251,
+      "queue_rs": 210,
+      "module_rs": 121,
+      "diagnostics_rs": 82,
+      "errors_rs": 91,
+      "tests_rs": 288,
+      "max_file_lines_actual": 500,
+      "all_at_most_500": true
+    },
+    "interface": {
+      "flags_total": 12,
+      "flags_true": 6,
+      "flags_false": 6,
+      "polarity": "true=原生可用 / false=走退路",
+      "flags_match_a0": true,
+      "signatures_ok": [
+        "Module::suggest_block_width(&Kernel, u64) -> Result<BlockSuggestion, DeviceError>",
+        "ThreadScope::shared(u64) -> Result<SharedBuf, DeviceError>",
+        "CompileOptions.entry: Option<&'static str>",
+        "Diagnostics::record_event() -> Result<Event, DeviceError>"
+      ],
+      "buffer_error_variants": [
+        "CapacityExceeded",
+        "OutOfRange",
+        "Unaligned",
+        "Unsupported",
+        "ForeignBuffer",
+        "DeviceLost"
+      ],
+      "device_lost_refs_outside_kernel_exec": 0,
+      "device_lost_construction_sites": 1
+    },
+    "cuda_adapter": {
+      "unsafe_real_sites": 2,
+      "unsafe_sites": [
+        "cuda/queue.rs:33 unsafe impl DeviceRepr for DevicePtrArg (SAFETY 注释)",
+        "cuda/queue.rs:180 unsafe { builder.launch(config) } (SAFETY 注释)"
+      ],
+      "unsafe_all_in_cuda_queue_insert_both_with_safety_comment": true,
+      "cudarc_only_in_cuda_dir": true,
+      "allow_attributes": 0,
+      "unsupported_branches_verified": [
+        "B.11 borrow_external",
+        "K.1 replay",
+        "K.5 capture_alloc",
+        "C.4 composite dtypes (7)",
+        "G.1 D2/D3",
+        "G.3 buffer offset != 0",
+        "G.5 alias declaration",
+        "G.5 duplicate buffer address",
+        "F.1 named source",
+        "F.5 defines non-empty"
+      ],
+      "error_mapping_three_class_no_merge": true
+    },
+    "evidence": {
+      "input_identities_verified": {
+        "a0_contract_sha256": "41274302032330ef1a99d741cbcdd324078a2f1315d33311086fbcab63127370",
+        "a1_inventory_sha256": "554267971fe2dc69a0359d6aabba40a7fc18083003132229cd39e9582fd4d3c6",
+        "p1c_draft_sha256": "7b3cf6035d1e103e9b90b367250a6394c737c725eda3c492acbdae065e5be997",
+        "p1b_prep_sha256": "4e06960a2c78828cefed947c080647161071e222eed005a2d28ee929a47c2349",
+        "refreeze_10_exe_sha256": "36195c24d942a389e7a5f26e97b9e4b2bd730e1a1ed63a241c60cdb567a65ed0"
+      },
+      "unit_summary_sums_match_runs_json": true,
+      "frozen_log_matches_recompute": true,
+      "no_manifest_ok_for_l1": true,
+      "ignored_gpu_tests": 3,
+      "ignored_tests_registered_not_run": true,
+      "ignored_tests_not_claimed_pass": true
+    },
+    "card": {
+      "p1b_card_status": "verified",
+      "p1b_card_checks": 5,
+      "p1b_card_revision_before": "e45b68e7dbaa553a55438a156dce3ee885e2fe73",
+      "unchanged_covers_old_paths": true
+    },
+    "errata": {
+      "e011_fixed_in_s1": true,
+      "e011_verified_values": [
+        200,
+        159,
+        168,
+        266,
+        456,
+        212,
+        36,
+        86,
+        151,
+        125
+      ]
+    }
+  },
+  "findings": {
+    "low": [
+      {
+        "id": "L1",
+        "title": "gate timings in README/artifacts differ from .normify/runs wall_ms",
+        "detail": "README §6 + artifacts.gates claim fmt 2013 / clippy 5328 / clippy-cuda 455 / unit 101440 ms; runs json wall_ms are 1979 / 456 / 455 / 16845 (at 15:57:5x-15:58:13). Likely first cold run vs closing warm run, unlabeled. Does not affect PASS/FAIL.",
+        "remediation": "fixed by Backend in e8ec1f2f1 (P1-c first commit)",
+        "fix_verified": true,
+        "fix_detail": "README §6 gained a 'two independent runs' blockquote (cold vs hot); artifacts.gates restructured into rounds.cold / rounds.hot + note"
+      },
+      {
+        "id": "L2",
+        "title": "explicit-Unsupported wording not exact for L.3 printf / K.1 capture / unsafe site count",
+        "detail": "README §7 and artifacts.unsupported_surface list L.3 printf as explicit Unsupported but it is a documented no-op (signature returns no error); QueueCapture::capture is simply not implemented (only replay returns Unsupported); unsafe is 2 sites in cuda/queue.rs, not 'one site'.",
+        "remediation": "to be fixed by Backend in P1-c first commit (wording) per Chief"
+      }
+    ],
+    "observation": [
+      {
+        "id": "O1",
+        "title": "A0 still says BufferError has 5 frozen variants (DeviceLost is a 6th, D1 extension)",
+        "detail": "docs/architecture/device-layer-contract.md L73 says P1-b freezes 5 classes; implementation adds BufferError::DeviceLost approved by Chief. A0 wording to be synced by Arch.",
+        "remediation": "Arch A0 sync"
+      },
+      {
+        "id": "O2",
+        "title": "unit.json log_sha256 does not equal sha256(unit-summary.log)",
+        "detail": "unit.json log_sha256=4007ad54... vs unit-summary.log sha256=9e752c8a...; same pattern as P1-a (gate raw log vs filtered summary). Not a rewrite; relation undocumented.",
+        "remediation": "errata: one-line note in evidence"
+      },
+      {
+        "id": "O3",
+        "title": "unknown-kernel-handle test is tautological; suggest_block_width failure paths uncovered (0 GPU)",
+        "detail": "unknown_kernel_handle_is_launch_error builds a DeviceError manually and asserts class(), not exercising submit/suggest_block_width. Unknown-handle and occupancy-failure (DeviceLost) paths have no 0-GPU coverage.",
+        "remediation": "recorded as 0-GPU coverage gap; rename or behavioral test later"
+      },
+      {
+        "id": "O4",
+        "title": "Diagnostics::elapsed swallows driver errors / non-finite into Duration::ZERO",
+        "detail": "documented tradeoff because P1-a signature has no error channel; still means event-timing errors are unobservable.",
+        "remediation": "Arch A0 / later slice note"
+      }
+    ]
+  },
+  "non_claims": [
+    "no capability implementation or acceptance claim",
+    "mesh capacity gap not claimed as cleared",
+    "no upstream equivalence claim (over-32), no whole-family pass claim",
+    "NP01/NP02 gate not claimed",
+    "no bit-level equivalence claim, no bit-level equivalence guarantee",
+    "3 GPU #[ignore] tests not run; zero GPU, zero window",
+    "no criteria/reference/tolerance/fixture/source change"
+  ],
+  "gate_unit_at_registration_head": {
+    "passed": 1461,
+    "failed": 0,
+    "ignored": 406,
+    "note": "registration HEAD 已含 P1-c 的 14 个新测试；1447/0/405 为复核基线 65c662107 的值"
+  }
+}

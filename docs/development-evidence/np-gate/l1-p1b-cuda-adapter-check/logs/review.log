@@ -1,0 +1,67 @@
+QA L1 复核：P1-b CUDA 宿主面适配层（只读；零 GPU、零窗）
+复核基线提交 65c662107（S1 e8ef68e89 + S2 65c662107）；只读开始 HEAD fdd93cf9b；仓库 D:\Rust\mjwarp-rs
+
+[1] 仓库/范围（按提交取证）
+  git diff --name-only 65c662107~2 65c662107 -- src ':(exclude)src/runtime/kernel_exec'  -> 空
+  git diff --name-only ... -- '*.cu' '*.ptx' '*.cubin' '*.mjb' abi fixtures scripts Cargo.toml Cargo.lock -> 空
+  非 src 改动：.normify + P1-b 证据 5 文件 + P1-a 证据 2 文件（E-011 行数更正）
+  65c662107..fdd93cf9b -> 仅 docs/architecture/device-layer-contract.md、kernel-execution-layer-program.md（L0）
+
+[2] 零行为
+  kernel_exec 在 src 内引用 -> 仅 src/runtime/mod.rs:7 pub mod kernel_exec;
+  cuda 子模块门 -> #[cfg(feature = "cuda-probe")] pub mod cuda;
+  29 .cu 逐文件 sha256 复算 -> 29/29 全等，0 失配，0 缺失（树内另 13 个 render/rne .cu 不在冻结集）
+  unit -> 1447 passed / 0 failed / 405 ignored（unit.json 与 unit-summary.log 146 target 求和一致）
+  独立复跑 cargo test --locked --lib kernel_exec -> 37 passed / 0 failed / 3 ignored / 934 filtered
+    （与 adapter-tests.log 逐字一致；在 Backend 取锁前、工作树=P1-b 提交态执行）
+
+[3] 行数（git show <commit>:<path> + LF 切分；未用 Get-Content）
+  buffer 500 / mod 251 / queue 210 / module 121 / diagnostics 82 / errors 91 / tests 288 -> 全部 <=500
+
+[4] 接口
+  12 flag 名称+能力映射+极性 与 A0 L37-40 逐字一致（true=原生可用 / false=走退路）
+  cuda_fallbacks: 6 true / 6 false（与 README §3、artifacts、单测四方一致）
+  签名：suggest_block_width / shared / CompileOptions.entry / record_event->Result 均齐且 A0 已同步
+  BufferError: CapacityExceeded/OutOfRange/Unaligned/Unsupported/ForeignBuffer/DeviceLost
+  DeviceLost 在 kernel_exec 外 0 引用；构造点 1（cuda/errors.rs:50）、匹配点 1（:88）
+
+[5] CUDA 适配层
+  unsafe 实点 2，均在 cuda/queue.rs（:33 unsafe impl DeviceRepr、:180 builder.launch），均有 SAFETY 注释
+  kernel_exec 内其余 unsafe 字样均注释；#[allow] 0；cudarc 仅在 cuda/**
+  Unsupported 逐条核到：B.11 / K.1 replay / K.5 / C.4 复合 7 / G.1 D2-D3 / G.3 offset!=0 /
+    G.5 alias / G.5 duplicate-buffer / F.1 named-source / F.5 defines
+  错误映射：驱动类->DeviceLost、NVRTC/装载/F.6->Compile、配置参数->Launch、能力缺失->Unsupported、
+    缓冲面驱动失败->BufferError::DeviceLost（三分类不合并）
+  submit 不等待、wait_idle 唯一排空；Init::Uninit 清零；copy_range 同设备同 dtype、自拷贝等范围 no-op、
+    重叠显式失败；双缓冲加锁按地址升序固定顺序
+
+[6] 证据身份（独立复算）
+  A0@d9c863d45 41274302032330ef1a99d741cbcdd324078a2f1315d33311086fbcab63127370 / 26274  OK
+  A1           554267971fe2dc69a0359d6aabba40a7fc18083003132229cd39e9582fd4d3c6 / 37413  OK
+  p1c 草案     7b3cf6035d1e103e9b90b367250a6394c737c725eda3c492acbdae065e5be997 / 12030  OK
+  p1b prep     4e06960a2c78828cefed947c080647161071e222eed005a2d28ee929a47c2349 / 24277  OK
+  refreeze     36195c24d942a389e7a5f26e97b9e4b2bd730e1a1ed63a241c60cdb567a65ed0 / 8955   OK
+  frozen-cu-digest.log 29/29 match=true -> 复算一致
+  3 个 #[ignore]（cuda/tests.rs:203/217/278）只登记未运行，证据明写不声明通过
+
+[7] 发现
+  低 L1：README §6/artifacts 门禁耗时与 runs wall_ms 不一致（2013/5328/455/101440 vs 1979/456/455/16845）
+  低 L2：L.3 printf 实为显式 no-op、K.1 capture 未实现 trait、unsafe 实为 2 处 —— 文档口径需精化
+  观察 O1：A0 仍写 BufferError 5 类（D1 扩展 DeviceLost 已获 Chief 追认）-> Arch 同步
+  观察 O2：unit.json log_sha256 与 unit-summary.log sha 不同（与 P1-a 同型，非篡改，关系未注明）
+  观察 O3：unknown_kernel_handle_is_launch_error 为手工构造断言；suggest_block_width 失败路径无 0 GPU 覆盖
+  观察 O4：elapsed 把驱动错误/非有限值吞成 ZERO（签名无错误通道的既定取舍，建议列风险）
+
+[8] 台账
+  E-011（P1-a 证据行数 +1）已在 S1 更正：10 值 200/159/168/266/456/212/36/86/151/125、max 456 -> DONE
+  本片 2 低 + 4 观察待登记 errata（低项由 Backend 在 P1-c 首提交顺手更正）
+
+[9] 过程事实（不处置）
+  复核期间 Backend 持锁做 P1-c：fallback/ 新文件 + mock_backend/mock_tests/mod.rs 未提交；
+    其后 HEAD 推进到 e8ec1f2f1 并继续改 cuda/buffer.rs 等（属 P1-c，不在本卡范围）
+  我未碰在途文件、未写仓；全部结论按提交 65c662107 取证
+  落卡时锁与 HEAD 见卡 JSON revision.before
+
+结论：PASS（0 阻断 / 0 严重 / 0 一般 + 2 低 + 4 观察）。
+非声明：不宣称任何能力已实现或已验收、不宣称缺口已清、不作与上游等价（over-32）或整族通过声明、
+不宣称 NP01/NP02 通过、不作位级等价声明、不提供位级等价保证；GPU 等价测试未运行，零 GPU、零窗。
