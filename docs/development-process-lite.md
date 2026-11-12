@@ -16,7 +16,7 @@
 
 L0 提交说明必须写清「改了什么、为什么、影响面」；不需要卡、不需要证据目录。
 
-> **L0 提交引用**：L0 docs 提交统一引用常驻卡 **`2026-11-12-process-lite-standing`**（`schedule.files: ["docs/"]`，不建证据、不排期、不占窗口）作为 `Normify-Task` 尾部字段；**禁止 `--no-verify`**。历史两次一次性 `--no-verify` 提交（`5f9c1bb9`、`117d2299`）保留、不重写。长期工具白名单方案见 errata E-009（需用户批）。
+> **L0 提交引用**：L0 docs 提交统一引用常驻卡 **`2026-11-12-process-lite-standing-v2`**（`schedule.files` 为显式 L0 文档路径，不建证据、不排期、不占窗口）作为 `Normify-Task` 尾部字段；**禁止 `--no-verify`**。v1（`2026-11-12-process-lite-standing`）因 `unchanged src/...` 检查与 P1 代码片冲突、且运行中冻结无法收窄，已 abandon（`93d9a033b`）。历史两次一次性 `--no-verify` 提交（`5f9c1bb9`、`117d2299`）保留、不重写。长期工具白名单方案见 errata E-009（需用户批）。
 
 ## 2. 复核一次 + errata 台账
 
@@ -43,7 +43,7 @@ L0 提交说明必须写清「改了什么、为什么、影响面」；不需�
 
 | 级别 | 提交形态 |
 | --- | --- |
-| L0 | 1 个提交，显式 pathspec，只加本次文件；`Normify-Task` 引用常驻卡 `2026-11-12-process-lite-standing` |
+| L0 | 1 个提交，显式 pathspec，只加本次文件；`Normify-Task` 引用常驻卡 `2026-11-12-process-lite-standing-v2` |
 | L1 | 1 卡 = 登记提交（卡 JSON，proposed→start）+ 工作/收口提交（内容 + 证据），共 2 个 |
 | L2 | 沿用现有（登记 / 内容 / fix 等），两段式 |
 

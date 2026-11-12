@@ -17,7 +17,8 @@
 | E-006 | 2026-11-12 | QA 追加复核 L4（提交 `27f81d7b1` 记录） | README 头部「累计 diff +33/-2」为陈旧值（实际 +37/-2） | 低 | OPEN | 下一批 |
 | E-007 | 2026-11-12 | U7/U8 判据 addenda §3 O1 | `UNC-1` 术语 partial/uncovered 混用；引用时按 `id`+`status`+`group` 合读（当时记录不改内容） | 观察 | OPEN | 文档统一批 |
 | E-008 | 2026-11-12 | U7/U8 判据 addenda §3 O2 | `a2-slices.json` L55「见 criteria §1.3」应指 `README.md §1.3`（当时记录不改内容） | 观察 | OPEN | 文档统一批 |
-| E-009 | 2026-11-12 | 本流程落地（A0/L0 提交实践） | `normify` commit-msg 钩子无 L0 豁免：要求 `Normify-Task:` 且按卡 `schedule.files` 校验范围。**已用常驻卡解决**：L0 docs 提交统一引用 `2026-11-12-process-lite-standing`；`5f9c1bb9`、`117d2299` 两次历史 L0 提交为一次性 `--no-verify`，保留不重写。长期可考虑工具白名单（`docs/**` 免任务或 `Normify-Task: L0`），需用户批 | 低 | DONE（常驻卡） | 工具批（长期项） |
+| E-009 | 2026-11-12 | 本流程落地（A0/L0 提交实践） | `normify` commit-msg 钩子无 L0 豁免：要求 `Normify-Task:` 且按卡 `schedule.files` 校验范围。**已用常驻卡解决**：L0 docs 提交统一引用 `2026-11-12-process-lite-standing-v2`（v1 因 `unchanged src/...` 检查与 P1 片冲突且运行中冻结无法收窄，已 abandon，提交 `93d9a033b`）；`5f9c1bb9`、`117d2299` 两次历史 L0 提交为一次性 `--no-verify`，保留不重写。长期可考虑工具白名单（`docs/**` 免任务或 `Normify-Task: L0`），需用户批 | 低 | DONE（常驻卡 v2） | 工具批（长期项） |
+| E-010 | 2026-11-12 | P0-b 登记（锁纪律） | P0-b 卡登记提交 `78038ca9f` 在 `repo-write-lock=owner=backend` 期间完成（锁检查滞后于提交）；此后零写入并已向 Chief/Backend 披露。改进：提交前第一步先跑锁检查，未 FREE 立即停 | 低 | OPEN（流程改进） | 流程批 |
 
 ## 维护
 
