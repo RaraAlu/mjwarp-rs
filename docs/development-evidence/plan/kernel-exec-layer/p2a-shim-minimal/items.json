@@ -1,0 +1,423 @@
+{
+  "task_id": "2026-11-13-p2a-shim-minimal-api",
+  "gpu_used": false,
+  "kind": "definition",
+  "items_count": 25,
+  "items": [
+    {
+      "capability_id": "H.7",
+      "group": "原子语义",
+      "behavior": "数组元素 `arr[i] += v` 必须由 emitter 生成为 `Atomics::add_*`（i32→add_i32、f32→add_f32；复合元素按分量逐项）；`arr[i] -= v` 生成为 `sub_*`；规则只对数组元素生效，对局部变量不生效；`+=`/`-=` 语句不产生返回值，需要旧值时只能显式 `Atomics::add_*`/`sub_*`；复合分量顺序冻结为 vec3=(x,y,z)、spatial=(ang,lin)、mat33=行主逐行（其余 dtype 按 A1 头文件定义，P2-b 复核）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "合成用例 A：f32 数组 `+=` 生成源必须命中 `atom.*.add*.f32` 形态（1 条文本断言）",
+          "合成用例 B：vec3 数组 `+=` 生成源按 (x,y,z) 顺序出现 3 条逐分量原子加",
+          "合成用例 C：`-=` 生成源命中 `atom.*.sub*` 或 `add_*` 取负，二选一在 P2-b 冻结并写死",
+          "语句层面：`+=` 出现在表达式位置属编译期错误（不返回旧值）"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 + 上游 71da24d（Warp 1.18 语义）；H.7 注记以 Warp 1.18 核对，上游调用点计数见 A1 盘点（f32 29 / vec3 5 / i32 2）",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "H.8",
+      "group": "原子语义",
+      "behavior": "数组元素 `arr[i] *= v`、`arr[i] /= v` 生成为普通 load-modify-store（读改写），**禁止**隐式原子化；需要原子语义时必须显式调用 `Atomics::cas_*` 系列；复合元素逐分量读改写，不做逐分量原子。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "合成用例 D：f32 数组 `*=` 生成源**不得**出现 `atom.` 指令（1 条文本断言）",
+          "合成用例 E：`/=` 生成源为 div 读改写，不插入原子",
+          "显式路径：调用 `Atomics::cas_i32` 时生成源命中 `atom.*.cas`"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 + 上游 71da24d（Warp 1.18 语义）；H.8 上游 9 处非原子赋值",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "G.8",
+      "group": "索引模式",
+      "behavior": "索引模式是内核声明的一部分：`#[device_kernel(index = ThreadPerItem | GridStride)]`；默认 ThreadPerItem，不隐式切换。ThreadPerItem emitter 生成 `unsigned i = blockIdx.x*blockDim.x+threadIdx.x; if (i>=n) return;`，发射期校验 `blocks*block_width >= n`；GridStride emitter 生成 `unsigned stride = blockDim.x*gridDim.x; for (unsigned i = gtid; i < n; i += stride) {…}`，不要求 blocks*block_width >= n；两种模式下 `tid()/block_dim()` 语义相同（I.1），模式只决定外层索引生成。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "文本断言 G1：ThreadPerItem 生成源含越界 guard（`if (i>=n) return;` / 等价形态）",
+          "文本断言 G2：GridStride 生成源含 stride 循环且无单次 guard 返回",
+          "发射期：ThreadPerItem 且 blocks*block_width < n 时必须显式报错（Launch 错误），不静默截断"
+        ]
+      },
+      "upstream_anchor": "A0 §5（G.4/G.8 两模式必须都支持）；上游 wp.launch 索引模式；P2 草案 §2",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.dot",
+      "group": "E.3 向量",
+      "behavior": "`dot(a: Vec3, b: Vec3) -> f32`：三项乘积左结合求和；乘加形态随 NumericPolicy（FMA 开时按 fma 链，具体链序在 P2-b 与冻结 recipe 对照后写死，本片只要求记录链序）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "零向量 → 0.0",
+          "正交基 → 0.0",
+          "NaN 输入 → NaN 传播",
+          "极大值不进位到 Inf 的边界用例"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.cross",
+      "group": "E.3 向量",
+      "behavior": "`cross(a: Vec3, b: Vec3) -> Vec3`：右手叉积，分量序 (x,y,z)，公式与 A1 `vec.h` 一致。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "a×a → 零向量（±0 按 IEEE）",
+          "标准基叉积 → 第三基向量",
+          "含 Inf/NaN 传播"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.length",
+      "group": "E.3 向量",
+      "behavior": "`length(a: Vec3) -> f32`：`sqrt(dot(a,a))`；fma 链须与冻结 recipe 一致（记录链序）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "零向量 → 0.0",
+          "单位向量 → 1.0",
+          "次正规输入 → 非零或 0（记录）",
+          "Inf 输入 → Inf"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.length_sq",
+      "group": "E.3 向量",
+      "behavior": "`length_sq(a: Vec3) -> f32`：`dot(a,a)`，不做开方；与 length 的平方关系在容差内由 P2-b 断言。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "零向量 → 0.0",
+          "单位向量 → 1.0",
+          "大值平方 → Inf（不饱和）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.normalize",
+      "group": "E.3 向量",
+      "behavior": "`normalize(a: Vec3) -> Vec3`：零向量返回零向量（与现 `build_rays.cu` 手写一致），其余为 `a / length(a)`（非零长度）；不检查有限值。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "normalize(0) → 0 向量（不产生 NaN）",
+          "单位向量不变",
+          "非归一化输入 → 长度为 1（容差内）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.norm_l2",
+      "group": "E.3 向量",
+      "behavior": "`norm_l2(a: Vec3) -> f32`：与 length 同语义（同一构造），保留上游两个入口名。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "与 length 对同一输入返回值相同（同构断言）",
+          "零向量 → 0.0",
+          "次正规输入记录"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.cw_mul",
+      "group": "E.3 向量",
+      "behavior": "`cw_mul(a: Vec3, b: Vec3) -> Vec3`：逐分量乘，(x*y, y*z, z*x) 之外按上游 `cw_mul` 定义（P2-b 复核分量序）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "基向量用例",
+          "全 1 输入 → 全 1",
+          "含 0 输入 → 0 分量"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.cw_div",
+      "group": "E.3 向量",
+      "behavior": "`cw_div(a: Vec3, b: Vec3) -> Vec3`：逐分量除，除零按 IEEE（±Inf/NaN），不特判。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "除以 0 → ±Inf 或 NaN（按 IEEE，记录）",
+          "0/0 → NaN",
+          "正常分量精确除法"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.outer",
+      "group": "E.3 向量",
+      "behavior": "`outer(a: Vec3, b: Vec3) -> Mat33`：行主外积 a⊗b，`M[i][j] = a[i]*b[j]`。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "基向量外积 → 单 1 矩阵",
+          "零向量 → 零矩阵",
+          "对称性之外的转置关系断言"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.3.skew",
+      "group": "E.3 向量",
+      "behavior": "`skew(a: Vec3) -> Mat33`：反对称矩阵，`skew(a)*b == cross(a,b)`（容差内）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "skew(a) 转置 = -skew(a)",
+          "skew × 基向量 = 对应叉积",
+          "零向量 → 零矩阵"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/vec.h`（行号以 A1 头树为准，P2-b 复核）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.4.transpose",
+      "group": "E.4 矩阵",
+      "behavior": "`transpose(m: Mat33) -> Mat33`：行主转置，`out[i][j]=m[j][i]`。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "两次转置回到原矩阵",
+          "非对称矩阵逐元素断言",
+          "零矩阵"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/mat.h`；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.4.diag",
+      "group": "E.4 矩阵",
+      "behavior": "`diag(v: Vec3) -> Mat33`：对角矩阵，对角为 v，其余为 +0。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "diag 的对角读出等于输入",
+          "非对角全 +0",
+          "零向量 → 零矩阵"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/mat.h`；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.4.identity",
+      "group": "E.4 矩阵",
+      "behavior": "`identity() -> Mat33`：单位矩阵。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "对角全 1",
+          "非对角全 0",
+          "identity×v = v（逐元素位级）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/mat.h`；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.4.determinant",
+      "group": "E.4 矩阵",
+      "behavior": "`determinant(m: Mat33) -> f32`：按上游公式展开；奇异矩阵**不特判**（返回 0/±0 按 IEEE）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "单位矩阵 → 1",
+          "奇异矩阵 → 0（不特判、不报错）",
+          "含 NaN 传播"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/mat.h`；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.4.matrix_from_rows",
+      "group": "E.4 矩阵",
+      "behavior": "`matrix_from_rows(r0,r1,r2: Vec3) -> Mat33`：行主组装，顺序即参数顺序。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "identity 由三个基向量组装相等",
+          "行序不可交换（置换用例）",
+          "零行写入对应位置"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/mat.h`；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.5.quat_rotate",
+      "group": "E.5 四元数",
+      "behavior": "`quat_rotate(q: Quat, v: Vec3) -> Vec3`：四元数旋转向量；**非归一化 q 不自动归一化**（保持上游行为），不做有限值检查。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "单位四元数 → 向量不变",
+          "非归一化 q 不归一化（放大用例仍按原式）",
+          "零四元数 → 零或记录（按上游公式）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/quat.h`；上游 quat 语义（分量序 x,y,z,w）",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.5.quat_to_matrix",
+      "group": "E.5 四元数",
+      "behavior": "`quat_to_matrix(q: Quat) -> Mat33`：四元数转旋转矩阵，**分量序 (x,y,z,w)**，非归一化不归一。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "单位四元数 → identity",
+          "与 quat_rotate 一致：M*v == quat_rotate(q,v)（容差内）",
+          "非归一化 q 不归一（记录）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/quat.h`；上游 quat 语义（分量序 x,y,z,w）",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.6.spatial_top",
+      "group": "E.6 空间向量",
+      "behavior": "`spatial_top(s: SpatialVector) -> Vec3`：取空间向量前 3 分量（角部），分量序 (ang, lin)。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "取 (ang) 三分量",
+          "长度 6 输入不越界",
+          "零向量 → 零"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/spatial.h:60/65`（分量序 (ang, lin)，已由 A1 盘点核对）",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.6.spatial_bottom",
+      "group": "E.6 空间向量",
+      "behavior": "`spatial_bottom(s: SpatialVector) -> Vec3`：取后 3 分量（线性部），分量序 (ang, lin)。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "取 (lin) 三分量",
+          "与 spatial_top 互补覆盖 6 分量",
+          "零向量 → 零"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/spatial.h:60/65`（分量序 (ang, lin)，已由 A1 盘点核对）",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.7.where",
+      "group": "E.7 选择与常量",
+      "behavior": "`where(c: bool, a: T, b: T) -> T`：选择表达式，T 由调用点单态化（至少覆盖 f32 与 Vec3）；**不求值未选分支的副作用**（表达式级惰性）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "c=true → a；c=false → b（f32 用例）",
+          "Vec3 用例逐分量选择",
+          "副作用用例：未选分支的副作用不出现（文本/结构断言）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/builtin.h`（where/常量）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.7.pi",
+      "group": "E.7 选择与常量",
+      "behavior": "`pi() -> f32`：冻结常量（f32 圆周率，位型在 P2-b 写死并与冻结 recipe 常量对照）。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "返回值位型与冻结常量一致（记录位型）",
+          "两次调用结果相同",
+          "参与运算不升精度（f32_only）"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/builtin.h`（where/常量）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    },
+    {
+      "capability_id": "E.7.inf",
+      "group": "E.7 选择与常量",
+      "behavior": "`inf() -> f32`：正无穷；用于上界哨兵。",
+      "judgement": {
+        "kind": "语义/文本断言",
+        "cases": [
+          "返回 `f32::INFINITY`",
+          "取负为 -Inf",
+          "与有限值比较语义正常"
+        ]
+      },
+      "upstream_anchor": "A1 头树 `include/warp-headers/builtin.h`（where/常量）；A0 §5 E.3–E.7",
+      "frozen_delta": "无：P1-a 不含 shim 面（A0 §5 标 P2 范围）；本片只冻结声明/语义/判据，不改内核源、不动冻结集",
+      "evidence": "items.json 本条；P2-b 生成源与单测断言（本片只冻结判据）"
+    }
+  ],
+  "counts": {
+    "H.7": 1,
+    "H.8": 1,
+    "G.8": 1,
+    "E.3": 10,
+    "E.4": 5,
+    "E.5": 2,
+    "E.6": 2,
+    "E.7": 3,
+    "total": 25
+  },
+  "note": "定义片证据：只冻结声明面/语义/判据；emitter 与生成物断言在 P2-b。0 窗 0 GPU。"
+}
