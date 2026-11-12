@@ -22,7 +22,9 @@ use crate::runtime::kernel_exec::buffer::{
 };
 use crate::runtime::kernel_exec::error::BufferError;
 
+use super::buffer_codec::{copy_typed, readback_typed, upload_typed};
 use super::errors;
+use super::fallback_plan::{ExternalBorrowMode, TransientMode};
 use super::{CudaDeviceInner, lock};
 
 /// `DType` → CUDA 存储类别（C.1 标量 7 种；复合 7 种 P1-b 显式 `Unsupported`）。
@@ -211,7 +213,7 @@ impl Drop for CudaBuffer {
     }
 }
 
-/// 分配器（B.1/B.10/B.11）。
+/// 分配器（B.1/B.10/B.11）。退路池/外部登记挂在 `CudaDeviceInner`（设备级共享）。
 pub(crate) struct CudaAllocator {
     dev: Arc<CudaDeviceInner>,
 }
@@ -221,7 +223,15 @@ impl CudaAllocator {
         Self { dev }
     }
 
-    fn make(&self, storage: CudaStorage, dtype: DType, bytes: u64) -> Box<dyn Buffer> {
+    /// 原始存储分配（K.5 预分配池用）：按字节分配零初始化存储，不包装成缓冲。
+    pub(crate) fn alloc_raw(&self, bytes: u64) -> Result<CudaStorage, BufferError> {
+        let count = usize::try_from(bytes).map_err(|_| BufferError::CapacityExceeded {
+            requested: bytes,
+            capacity: self.dev.caps.max_buffer_bytes,
+        })?;
+        self.alloc_storage(StorageKind::Bytes, count, Init::Zeroed)
+    }
+    pub(crate) fn wrap(&self, storage: CudaStorage, dtype: DType, bytes: u64) -> Box<dyn Buffer> {
         let addr = storage.addr(&self.dev.stream);
         Box::new(CudaBuffer::new(Arc::new(CudaBufferInner {
             dev: Arc::clone(&self.dev),
@@ -285,25 +295,78 @@ impl Allocator for CudaAllocator {
             capacity: self.dev.caps.max_buffer_bytes,
         })?;
         let storage = self.alloc_storage(kind, count, init)?;
-        Ok(self.make(storage, dtype, bytes))
+        Ok(self.wrap(storage, dtype, bytes))
     }
 
     fn transient(&self, bytes: u64) -> Result<Box<dyn Buffer>, BufferError> {
-        // B.10 退路语义：P1-b 无池化，直接给一次性分配（不隐式同步；池化属 P1-c）。
-        let count = usize::try_from(bytes).map_err(|_| BufferError::CapacityExceeded {
-            requested: bytes,
-            capacity: self.dev.caps.max_buffer_bytes,
-        })?;
-        let storage = self.alloc_storage(StorageKind::Bytes, count, Init::Uninit)?;
-        Ok(self.make(storage, DType::U8, bytes))
+        // B.10 双路：true=一次性异步分配；false=复用预分配池（池空显式报错；两条路径都不隐式同步）。
+        let mode = {
+            let mut trace = super::lock(&self.dev.fallback_trace);
+            super::fallback_plan::transient_mode(&self.dev.caps.fallbacks, &mut trace)
+        };
+        match mode {
+            TransientMode::NativeAsync => {
+                let count = usize::try_from(bytes).map_err(|_| BufferError::CapacityExceeded {
+                    requested: bytes,
+                    capacity: self.dev.caps.max_buffer_bytes,
+                })?;
+                let storage = self.alloc_storage(StorageKind::Bytes, count, Init::Uninit)?;
+                Ok(self.wrap(storage, DType::U8, bytes))
+            }
+            TransientMode::PreallocatedPool => {
+                let mut pool = super::lock(&self.dev.transient_pool);
+                let Some(position) = pool
+                    .iter()
+                    .position(|(_, pooled_bytes)| *pooled_bytes >= bytes)
+                else {
+                    return Err(BufferError::CapacityExceeded {
+                        requested: bytes,
+                        capacity: 0,
+                    });
+                };
+                let (slice, pooled_bytes) = pool.swap_remove(position);
+                Ok(self.wrap(CudaStorage::Bytes(slice), DType::U8, pooled_bytes))
+            }
+        }
     }
 
     fn borrow_external(
         &self,
-        _handle: crate::runtime::kernel_exec::buffer::ExternalHandle,
+        handle: crate::runtime::kernel_exec::buffer::ExternalHandle,
     ) -> Result<Box<dyn Buffer>, BufferError> {
-        // B.11：外部句柄导入不在 P1-b 接线（现有 zero-copy 视图在 runtime::external）。
-        Err(errors::buffer_unsupported("B.11 external-handle"))
+        // B.11 双路：true=零拷贝借用；false=拷贝到独立所有权缓冲（退路）。
+        let mode = {
+            let mut trace = super::lock(&self.dev.fallback_trace);
+            super::fallback_plan::external_borrow_mode(&self.dev.caps.fallbacks, &mut trace)
+        };
+        match mode {
+            ExternalBorrowMode::NativeZeroCopy => {
+                // 零拷贝借用需要外部所有者注册/驱动导入，属 P3；P1-c 只保证退路可用。
+                Err(errors::buffer_unsupported("B.11 native-zero-copy"))
+            }
+            ExternalBorrowMode::Copy => {
+                let Some(bytes) = super::lock(&self.dev.external).get(&handle.0).copied() else {
+                    return Err(errors::buffer_unsupported("B.11 unregistered-extent"));
+                };
+                let count = usize::try_from(bytes).map_err(|_| BufferError::CapacityExceeded {
+                    requested: bytes,
+                    capacity: self.dev.caps.max_buffer_bytes,
+                })?;
+                let storage = self.alloc_storage(StorageKind::Bytes, count, Init::Zeroed)?;
+                let owned = storage.addr(&self.dev.stream);
+                // SAFETY: 外部所有者通过 `register_external` 承诺 [handle, handle+bytes) 是有效的
+                // 设备内存；目标缓冲由本分配器持有且容量足够；同步 dtod 拷贝只在退路路径使用。
+                unsafe {
+                    cudarc::driver::result::memcpy_dtod_sync(
+                        owned.0,
+                        handle.0,
+                        usize::try_from(bytes).unwrap_or(usize::MAX),
+                    )
+                }
+                .map_err(|error| errors::buffer_device_lost("cuda-external-copy", error))?;
+                Ok(self.wrap(storage, DType::U8, bytes))
+            }
+        }
     }
 }
 
@@ -387,114 +450,5 @@ impl Buffer for CudaBuffer {
         Ok(Pinned {
             address: self.inner.addr,
         })
-    }
-}
-
-fn copy_slice_typed<T: DeviceRepr>(
-    stream: &Arc<CudaStream>,
-    src: &CudaSlice<T>,
-    src_range: Range<usize>,
-    dst: &mut CudaSlice<T>,
-    dst_range: Range<usize>,
-) -> Result<(), BufferError> {
-    let src_view = src.slice(src_range);
-    let mut dst_view = dst.slice_mut(dst_range);
-    stream
-        .memcpy_dtod(&src_view, &mut dst_view)
-        .map_err(|error| errors::buffer_device_lost("cuda-copy", error))
-}
-
-fn copy_typed(
-    stream: &Arc<CudaStream>,
-    src: &CudaStorage,
-    src_range: Range<usize>,
-    dst: &mut CudaStorage,
-    dst_range: Range<usize>,
-) -> Result<(), BufferError> {
-    match (src, dst) {
-        (CudaStorage::Bytes(src), CudaStorage::Bytes(dst)) => {
-            copy_slice_typed(stream, src, src_range, dst, dst_range)
-        }
-        (CudaStorage::F32(src), CudaStorage::F32(dst)) => {
-            copy_slice_typed(stream, src, src_range, dst, dst_range)
-        }
-        (CudaStorage::I32(src), CudaStorage::I32(dst)) => {
-            copy_slice_typed(stream, src, src_range, dst, dst_range)
-        }
-        (CudaStorage::U32(src), CudaStorage::U32(dst)) => {
-            copy_slice_typed(stream, src, src_range, dst, dst_range)
-        }
-        (CudaStorage::I64(src), CudaStorage::I64(dst)) => {
-            copy_slice_typed(stream, src, src_range, dst, dst_range)
-        }
-        (CudaStorage::U64(src), CudaStorage::U64(dst)) => {
-            copy_slice_typed(stream, src, src_range, dst, dst_range)
-        }
-        _ => Err(errors::buffer_unsupported("B.5 dtype")),
-    }
-}
-
-fn upload_typed(
-    stream: &Arc<CudaStream>,
-    storage: &mut CudaStorage,
-    range: Range<usize>,
-    host: &[u8],
-) -> Result<(), BufferError> {
-    macro_rules! htod {
-        ($slice:expr, $ty:ty) => {{
-            let width = std::mem::size_of::<$ty>();
-            let values: Vec<$ty> = host
-                .chunks_exact(width)
-                .map(|chunk| <$ty>::from_le_bytes(chunk.try_into().expect("chunk width")))
-                .collect();
-            let mut view = $slice.slice_mut(range);
-            stream
-                .memcpy_htod(&values, &mut view)
-                .map_err(|error| errors::buffer_device_lost("cuda-upload", error))
-        }};
-    }
-    match storage {
-        CudaStorage::Bytes(slice) => {
-            let mut view = slice.slice_mut(range);
-            stream
-                .memcpy_htod(host, &mut view)
-                .map_err(|error| errors::buffer_device_lost("cuda-upload", error))
-        }
-        CudaStorage::F32(slice) => htod!(slice, f32),
-        CudaStorage::I32(slice) => htod!(slice, i32),
-        CudaStorage::U32(slice) => htod!(slice, u32),
-        CudaStorage::I64(slice) => htod!(slice, i64),
-        CudaStorage::U64(slice) => htod!(slice, u64),
-    }
-}
-
-fn readback_typed(
-    stream: &Arc<CudaStream>,
-    storage: &CudaStorage,
-    range: Range<usize>,
-    host: &mut [u8],
-) -> Result<(), BufferError> {
-    macro_rules! dtoh {
-        ($slice:expr, $ty:ty) => {{
-            let mut values: Vec<$ty> = vec![<$ty>::default(); range.len()];
-            stream
-                .memcpy_dtoh(&$slice.slice(range), &mut values)
-                .map_err(|error| errors::buffer_device_lost("cuda-readback", error))?;
-            let width = std::mem::size_of::<$ty>();
-            for (chunk, value) in host.chunks_exact_mut(width).zip(values.iter()) {
-                chunk.copy_from_slice(&value.to_le_bytes());
-            }
-            Ok(())
-        }};
-    }
-    match storage {
-        CudaStorage::Bytes(slice) => stream
-            .memcpy_dtoh(&slice.slice(range), host)
-            .map_err(|error| errors::buffer_device_lost("cuda-readback", error)),
-        CudaStorage::F32(slice) => dtoh!(slice, f32),
-        CudaStorage::I32(slice) => dtoh!(slice, i32),
-        CudaStorage::U32(slice) => dtoh!(slice, u32),
-        CudaStorage::I64(slice) => dtoh!(slice, i64),
-        CudaStorage::U64(slice) => dtoh!(slice, u64),
     }
 }

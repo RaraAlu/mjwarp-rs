@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "000d086fa5e90a64a1698fa549b1f0e5e76032122c3c63e882db7f1e96ff6f72"
+fingerprint = "f31501b7d2494708c284208a468f95164e752857bdf56dd3121569b70330029f"
 
 [name]
 zh = "GPU运行时"
@@ -288,6 +288,7 @@ path = "src/runtime/kernel_exec/mock_tests.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/cuda/mod.rs"
+
 [[source]]
 path = "src/runtime/kernel_exec/fallback/mod.rs"
 
@@ -313,10 +314,16 @@ path = "src/runtime/kernel_exec/fallback/tests.rs"
 path = "src/runtime/kernel_exec/cuda/buffer.rs"
 
 [[source]]
+path = "src/runtime/kernel_exec/cuda/buffer_codec.rs"
+
+[[source]]
 path = "src/runtime/kernel_exec/cuda/diagnostics.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/cuda/errors.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/fallback_plan.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/cuda/module.rs"

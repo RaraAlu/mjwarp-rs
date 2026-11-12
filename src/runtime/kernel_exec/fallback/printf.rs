@@ -38,6 +38,11 @@ impl PrintfStatusBuffer {
         self.records.is_empty()
     }
 
+    /// 追加一条记录（后端适配层写入状态缓冲）。
+    pub fn push(&mut self, record: String) {
+        self.records.push(record);
+    }
+
     /// 读走全部记录（宿主打印用）。
     pub fn drain(&mut self) -> Vec<String> {
         std::mem::take(&mut self.records)

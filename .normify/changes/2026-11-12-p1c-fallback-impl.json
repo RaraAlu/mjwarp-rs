@@ -1,114 +1,113 @@
 {
-    "schema_version":  1,
-    "id":  "2026-11-12-p1c-fallback-impl",
-    "title":  {
-                  "zh":  "P1-c 退路实现与 DeviceCaps.fallbacks 双路（12 flag：10 项实现 + D.4/D.10 shim 后补；L1、0 窗）",
-                  "en":  "P1-c fallback paths and DeviceCaps.fallbacks double-path tests (12 flags: 10 now, D.4/D.10 after shim; L1, zero window)"
-              },
-    "status":  "in_progress",
-    "intent":  {
-                   "zh":  "按 P1-c 退项定义草案（target/impl-plan-review/p1c-fallback-definitions.md，已 pin）在 src/runtime/kernel_exec/ 落 FallbackSet 的退路实现与双路测试：10 个「退」项 + 2 个「必带退」（C.1/H.1）共 12 个 flag，极性 true=原生 / false=走退路。每 flag ≥3 断言（true 路 / false 路 / 不隐式同步），退项任何组合不返回 Unsupported，降级必须留痕。D.4（泛型设备函数）与 D.10（注入原生片段）依赖 P2 shim，本卡只登记语义与触发点、不实现不出结论。不改 P1-b 冻结的 trait 签名、不接产品调用点、不碰 src/render|physics|io|model、0 窗 0 GPU；L1 两段式 ≤2 提交。",
-                   "en":  "Land the FallbackSet fallback paths and double-path tests in src/runtime/kernel_exec/: 10 \u0027fallback\u0027 capabilities plus 2 mandatory-with-fallback (C.1/H.1) = 12 flags, polarity true=native / false=fallback; each flag gets a true-path, false-path and no-implicit-sync assertion, no Unsupported for the 12, degradations recorded. D.4/D.10 depend on the P2 shim and are recorded only. No trait-signature change, no product call sites, zero GPU window; L1 with at most two commits."
-               },
-    "modules":  {
-                    "modify":  [
-                                   "mjwarp.runtime"
-                               ]
-                },
-    "acceptance":  [
-                       "目录 docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/ 存在 items.json（12 条）、README.md、测试日志；UTF-8 / LF / 无 BOM；L1 不建 manifest。",
-                       "items.json 12 条逐项对应 §1 表：transient_alloc(B.10)、zero_copy_external(B.11)、generic_device_fn(D.4)、occupancy_hint(G.9)、graph_capture(K.1)、device_loop(K.2)、device_branch(K.3)、capture_alloc(K.5)、kernel_printf(L.3)、native_source_injection(D.10)、int64(C.1)、f32_atomic(H.1)；每条含 capability_id / behavior / judgement / upstream_anchor / frozen_delta / evidence 六要素，另标 impl_scope = now | after_shim。",
-                       "10 项 now：每 flag 至少 1 条 true 路 + 1 条 false 路 + 1 条「不隐式同步」断言（mock backend，合计 ≥30 断言）；退项任意组合均不返回 DeviceError::Unsupported；降级留 Degraded 标记或 trace 行，不静默改变语义。",
-                       "口径写死：12 个 flag 定义齐、10/12 实现、D.4/D.10 = after_shim 未实现；D.4/D.10 只登记退路语义、触发点与 P2 依赖，不实现 shim、不出双路结论，本卡结论不得表述为「12/12 完成」。",
-                       "写域：git diff --name-only 仅 src/runtime/kernel_exec/**、src/runtime/mod.rs（仅 mod 声明行）、取证目录与 .normify/**；src/physics/、src/render/、src/io/、src/model/、tests/、fixtures/、scripts/ 零改动；不改 A0 判据/容差，不动 A1 冻结集身份。",
-                       "门禁与流程：四门禁（fmt/clippy/clippy-cuda/unit）+ normify check；L1 两段式 ≤2 提交；证据禁「已验收/与上游一致/等价通过/验收通过」类声明；0 窗 0 GPU（gpu_used=false）。"
-                   ],
-    "schedule":  {
-                     "depends_on":  [
-                                        "2026-11-12-g10-p5-kernel-exec-p1b"
-                                    ],
-                     "phase":  "P1-内核执行层",
-                     "owner":  "Backend",
-                     "files":  [
-                                   "src/runtime/kernel_exec/",
-                                   "src/runtime/mod.rs",
-                                   "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/",
-                                   "docs/development-evidence/plan/kernel-exec-layer/p1b-cuda-adapter/"
-                               ],
-                     "resources":  [
-
-                                   ],
-                     "priority":  55
-                 },
-    "note":  "未登记：ready-to-register 草案。落卡前置 = P1-b S1 提交后：①depends_on 填 P1-b 卡 id；②按 P1-b 最终 FallbackSet 复核 12 flag 命名（transient_alloc/int64/f32_atomic 已定，极性 true=原生）；③确认 mock backend 已具备 12 flag 注入点。D.4/D.10 不在本卡实现，P2 收口后另开 P1-c2（或并入 P2 卡）补 D.4/D.10 双路测试。本卡是 L1 实现片：草案 id 后缀 `-definitions` 已改为 `-impl`。依据：p1c-fallback-definitions.md §1/§2/§3、A0 §3、P1-a FallbackSet。",
-    "revision":  {
-                     "before":  "5147d6bd777874d45aaa772001cfa61990e916b4",
-                     "after":  null
-                 },
-    "created_at":  "2026-11-12T15:45:00.000Z",
-    "updated_at":  "2026-11-12T16:00:41.938Z",
-    "checks":  [
-                   {
-                       "kind":  "gate",
-                       "gate":  "fmt"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "clippy"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "clippy-cuda"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "unit"
-                   },
-                   {
-                       "kind":  "unchanged",
-                       "paths":  [
-                                     "src/physics/",
-                                     "src/render/",
-                                     "src/io/",
-                                     "src/model/",
-                                     "tests/",
-                                     "fixtures/",
-                                     "scripts/"
-                                 ]
-                   },
-                   {
-                       "kind":  "json",
-                       "path":  "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
-                       "pointer":  "/task_id",
-                       "equals":  "2026-11-12-p1c-fallback-impl"
-                   },
-                   {
-                       "kind":  "json",
-                       "path":  "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
-                       "pointer":  "/gpu_used",
-                       "equals":  false
-                   },
-                   {
-                       "kind":  "json",
-                       "path":  "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
-                       "pointer":  "/kind",
-                       "equals":  "fallback"
-                   },
-                   {
-                       "kind":  "json",
-                       "path":  "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
-                       "pointer":  "/items_count",
-                       "equals":  12
-                   },
-                   {
-                       "kind":  "forbid_claim",
-                       "terms":  [
-                                     "已验收",
-                                     "与上游一致",
-                                     "等价通过",
-                                     "验收通过",
-                                     "12/12 完成"
-                                 ]
-                   }
-               ]
+  "schema_version": 1,
+  "id": "2026-11-12-p1c-fallback-impl",
+  "title": {
+    "zh": "P1-c 退路实现与 DeviceCaps.fallbacks 双路（12 flag：10 项实现 + D.4/D.10 shim 后补；L1、0 窗）",
+    "en": "P1-c fallback paths and DeviceCaps.fallbacks double-path tests (12 flags: 10 now, D.4/D.10 after shim; L1, zero window)"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "按 P1-c 退项定义草案（target/impl-plan-review/p1c-fallback-definitions.md，已 pin）在 src/runtime/kernel_exec/ 落 FallbackSet 的退路实现与双路测试：10 个「退」项 + 2 个「必带退」（C.1/H.1）共 12 个 flag，极性 true=原生 / false=走退路。每 flag ≥3 断言（true 路 / false 路 / 不隐式同步），退项任何组合不返回 Unsupported，降级必须留痕。D.4（泛型设备函数）与 D.10（注入原生片段）依赖 P2 shim，本卡只登记语义与触发点、不实现不出结论。不改 P1-b 冻结的 trait 签名、不接产品调用点、不碰 src/render|physics|io|model、0 窗 0 GPU；L1 两段式 ≤2 提交。",
+    "en": "Land the FallbackSet fallback paths and double-path tests in src/runtime/kernel_exec/: 10 'fallback' capabilities plus 2 mandatory-with-fallback (C.1/H.1) = 12 flags, polarity true=native / false=fallback; each flag gets a true-path, false-path and no-implicit-sync assertion, no Unsupported for the 12, degradations recorded. D.4/D.10 depend on the P2 shim and are recorded only. No trait-signature change, no product call sites, zero GPU window; L1 with at most two commits."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "目录 docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/ 存在 items.json（12 条）、README.md、测试日志；UTF-8 / LF / 无 BOM；L1 不建 manifest。",
+    "items.json 12 条逐项对应 §1 表：transient_alloc(B.10)、zero_copy_external(B.11)、generic_device_fn(D.4)、occupancy_hint(G.9)、graph_capture(K.1)、device_loop(K.2)、device_branch(K.3)、capture_alloc(K.5)、kernel_printf(L.3)、native_source_injection(D.10)、int64(C.1)、f32_atomic(H.1)；每条含 capability_id / behavior / judgement / upstream_anchor / frozen_delta / evidence 六要素，另标 impl_scope = now | after_shim。",
+    "10 项 now：每 flag 至少 1 条 true 路 + 1 条 false 路 + 1 条「不隐式同步」断言（mock backend，合计 ≥30 断言）；退项任意组合均不返回 DeviceError::Unsupported；降级留 Degraded 标记或 trace 行，不静默改变语义。",
+    "口径写死：12 个 flag 定义齐、10/12 实现、D.4/D.10 = after_shim 未实现；D.4/D.10 只登记退路语义、触发点与 P2 依赖，不实现 shim、不出双路结论，本卡结论不得表述为「12/12 完成」。",
+    "写域：git diff --name-only 仅 src/runtime/kernel_exec/**、src/runtime/mod.rs（仅 mod 声明行）、取证目录与 .normify/**；src/physics/、src/render/、src/io/、src/model/、tests/、fixtures/、scripts/ 零改动；不改 A0 判据/容差，不动 A1 冻结集身份。",
+    "门禁与流程：四门禁（fmt/clippy/clippy-cuda/unit）+ normify check；L1 两段式 ≤2 提交；证据禁「已验收/与上游一致/等价通过/验收通过」类声明；0 窗 0 GPU（gpu_used=false）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-g10-p5-kernel-exec-p1b"
+    ],
+    "phase": "P1-内核执行层",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/kernel_exec/",
+      "src/runtime/mod.rs",
+      "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/",
+      "docs/development-evidence/plan/kernel-exec-layer/p1b-cuda-adapter/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "未登记：ready-to-register 草案。落卡前置 = P1-b S1 提交后：①depends_on 填 P1-b 卡 id；②按 P1-b 最终 FallbackSet 复核 12 flag 命名（transient_alloc/int64/f32_atomic 已定，极性 true=原生）；③确认 mock backend 已具备 12 flag 注入点。D.4/D.10 不在本卡实现，P2 收口后另开 P1-c2（或并入 P2 卡）补 D.4/D.10 双路测试。本卡是 L1 实现片：草案 id 后缀 `-definitions` 已改为 `-impl`。依据：p1c-fallback-definitions.md §1/§2/§3、A0 §3、P1-a FallbackSet。",
+  "revision": {
+    "before": "5147d6bd777874d45aaa772001cfa61990e916b4",
+    "after": null
+  },
+  "created_at": "2026-11-12T15:45:00.000Z",
+  "updated_at": "2026-11-12T16:15:29.422Z",
+  "closed_at": "2026-11-12T16:15:29.422Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics/",
+        "src/render/",
+        "src/io/",
+        "src/model/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-12-p1c-fallback-impl"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
+      "pointer": "/gpu_used",
+      "equals": false
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
+      "pointer": "/kind",
+      "equals": "fallback"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p1c-fallback-impl/items.json",
+      "pointer": "/items_count",
+      "equals": 12
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "已验收",
+        "与上游一致",
+        "等价通过",
+        "验收通过",
+        "12/12 完成"
+      ]
+    }
+  ]
 }

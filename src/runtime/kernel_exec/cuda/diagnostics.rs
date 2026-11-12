@@ -17,9 +17,11 @@ use cudarc::driver::sys;
 
 use crate::runtime::kernel_exec::device::{Diagnostics, Event};
 use crate::runtime::kernel_exec::error::DeviceError;
+use crate::runtime::kernel_exec::fallback::{PrintfStatusBuffer, format_record};
 use crate::runtime::kernel_exec::queue::Arg;
 
 use super::errors;
+use super::fallback_plan::PrintfMode;
 use super::{CudaDeviceInner, lock};
 
 /// 诊断句柄：持有本设备的事件表。
@@ -27,6 +29,8 @@ pub struct CudaDiagnostics {
     dev: Arc<CudaDeviceInner>,
     next: AtomicU64,
     events: Mutex<HashMap<u64, Arc<CudaEvent>>>,
+    /// L.3 退路：状态缓冲（宿主侧记录）。
+    status: Mutex<PrintfStatusBuffer>,
 }
 
 impl CudaDiagnostics {
@@ -35,6 +39,7 @@ impl CudaDiagnostics {
             dev,
             next: AtomicU64::new(1),
             events: Mutex::new(HashMap::new()),
+            status: Mutex::new(PrintfStatusBuffer::new()),
         }
     }
 
@@ -76,7 +81,23 @@ impl Diagnostics for CudaDiagnostics {
     }
 
     fn printf(&self, fmt: &str, args: &[Arg]) {
-        // L3：P1-b 未接线（状态缓冲回写属 P1-c）。此处显式 no-op：不分配、不打印、不等待。
-        let _ = (fmt, args);
+        // L.3 双路：true=设备 printf（P1-c 未接设备通道，显式 no-op）；false=状态缓冲回写 + 宿主打印。
+        let native = {
+            let mut trace = lock(&self.dev.fallback_trace);
+            super::fallback_plan::printf_mode(&self.dev.caps.fallbacks, &mut trace)
+                == PrintfMode::NativeDevicePrintf
+        };
+        let record = format_record(fmt, args);
+        if native {
+            return;
+        }
+        lock(&self.status).push(record);
+    }
+}
+
+impl CudaDiagnostics {
+    /// L.3 退路：读走状态缓冲里的全部记录（宿主打印用）。
+    pub fn drain_status_buffer(&self) -> Vec<String> {
+        lock(&self.status).drain()
     }
 }

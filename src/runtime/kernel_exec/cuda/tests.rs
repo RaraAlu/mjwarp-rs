@@ -4,7 +4,7 @@
 //! 校验、错误映射）与契约错误路径；需要驱动/NVRTC 的等价测试一律 `#[ignore]`，只在既有
 //! GPU 窗口按需运行，**不在本卡声明通过**。
 
-use crate::runtime::kernel_exec::backend::NumericPolicy;
+use crate::runtime::kernel_exec::backend::{FallbackSet, NumericPolicy};
 use crate::runtime::kernel_exec::buffer::DType;
 use crate::runtime::kernel_exec::error::{DeviceError, ErrorClass};
 use crate::runtime::kernel_exec::module::Kernel;
@@ -285,4 +285,105 @@ fn gpu_event_elapsed_is_observed() {
     let end = diagnostics.record_event().expect("end event");
     let elapsed = diagnostics.elapsed(&start, &end);
     assert!(elapsed.as_secs_f64() < 1.0);
+}
+
+// ---------------------------------------------------------------------------
+// P1-c：10 个 now 项的"原生/退路"选择双路（0 GPU，纯逻辑）
+// ---------------------------------------------------------------------------
+
+#[test]
+fn fallback_plan_dual_paths_for_all_10_now_items() {
+    use super::fallback_plan::{
+        BranchMode, CaptureAllocMode, ExternalBorrowMode, F32AtomicMode, GraphMode, LoopMode,
+        OccupancyMode, PrintfMode, TransientMode, branch_mode, capture_alloc_mode,
+        external_borrow_mode, f32_atomic_mode, graph_mode, int64_lowering, loop_mode,
+        occupancy_mode, printf_mode, transient_mode,
+    };
+    use crate::runtime::kernel_exec::fallback::{FallbackTrace, Int64Mode};
+
+    let mut trace = FallbackTrace::new();
+    let all = FallbackSet::all();
+    // true = 原生路径。
+    assert_eq!(transient_mode(&all, &mut trace), TransientMode::NativeAsync);
+    assert_eq!(
+        external_borrow_mode(&all, &mut trace),
+        ExternalBorrowMode::NativeZeroCopy
+    );
+    assert_eq!(occupancy_mode(&all, &mut trace), OccupancyMode::NativeQuery);
+    assert_eq!(graph_mode(&all, &mut trace), GraphMode::NativeCapture);
+    assert_eq!(loop_mode(&all, &mut trace), LoopMode::NativeConditional);
+    assert_eq!(branch_mode(&all, &mut trace), BranchMode::NativeConditional);
+    assert_eq!(
+        capture_alloc_mode(&all, &mut trace),
+        CaptureAllocMode::NativeDuringCapture
+    );
+    assert_eq!(
+        printf_mode(&all, &mut trace),
+        PrintfMode::NativeDevicePrintf
+    );
+    assert_eq!(int64_lowering(&all, &mut trace), Int64Mode::Native);
+    assert_eq!(f32_atomic_mode(&all, &mut trace), F32AtomicMode::Native);
+    assert!(trace.is_empty(), "原生路径不得产生降级记录");
+
+    // false = 退路，且 10 项各留一条降级记录。
+    let none = FallbackSet::none();
+    assert_eq!(
+        transient_mode(&none, &mut trace),
+        TransientMode::PreallocatedPool
+    );
+    assert_eq!(
+        external_borrow_mode(&none, &mut trace),
+        ExternalBorrowMode::Copy
+    );
+    assert_eq!(occupancy_mode(&none, &mut trace), OccupancyMode::FixedValue);
+    assert_eq!(graph_mode(&none, &mut trace), GraphMode::SequentialReplay);
+    assert_eq!(loop_mode(&none, &mut trace), LoopMode::FixedIterations);
+    assert_eq!(
+        branch_mode(&none, &mut trace),
+        BranchMode::UnconditionalBoth
+    );
+    assert_eq!(
+        capture_alloc_mode(&none, &mut trace),
+        CaptureAllocMode::Preallocated
+    );
+    assert_eq!(printf_mode(&none, &mut trace), PrintfMode::StatusBuffer);
+    assert_eq!(int64_lowering(&none, &mut trace), Int64Mode::TwoI32);
+    assert_eq!(f32_atomic_mode(&none, &mut trace), F32AtomicMode::CasLoop);
+    assert_eq!(trace.len(), 10);
+}
+
+#[test]
+#[ignore = "requires an NVIDIA GPU and NVRTC"]
+fn gpu_cuda_fallback_paths_are_reachable() {
+    use crate::runtime::kernel_exec::buffer::{Allocator, DType, ExternalHandle, Init};
+    use crate::runtime::kernel_exec::device::Diagnostics;
+    use crate::runtime::kernel_exec::error::ErrorClass;
+    use crate::runtime::kernel_exec::queue::{Arg, Graph, Queue};
+
+    let inner = super::open_device_inner(0).expect("CUDA device 0");
+    let device = super::CudaDevice {
+        inner: std::sync::Arc::clone(&inner),
+    };
+    // L.3 退路：kernel_printf=false → 状态缓冲回写（P1-b 冻结值即 false）。
+    let diagnostics = device.diagnostics();
+    diagnostics.printf("value={}", &[Arg::I32(1)]);
+    assert_eq!(
+        diagnostics.drain_status_buffer(),
+        vec!["value=1".to_owned()]
+    );
+    // K.5 退路：预分配后 capture_alloc 可取（capture_alloc=false 冻结值）。
+    device.preallocate_capture(16).expect("preallocate capture");
+    let queue = super::CudaQueue::new(std::sync::Arc::clone(&inner));
+    let _buffer = queue.capture_alloc().expect("capture_alloc fallback");
+    // K.1 退路：未知图句柄必须显式 Launch 错误（不是 Unsupported）。
+    let error = queue.replay(&Graph(999)).unwrap_err();
+    assert_eq!(error.class(), Some(ErrorClass::Launch));
+    // B.11 退路：登记外部范围后，拷贝借用成功且所有权独立。
+    let allocator = super::CudaAllocator::new(std::sync::Arc::clone(&inner));
+    let host = allocator.alloc(DType::U8, 16, Init::Zeroed).expect("alloc");
+    device.register_external(ExternalHandle(host.addr().0), 16);
+    let borrowed = allocator
+        .borrow_external(ExternalHandle(host.addr().0))
+        .expect("copy fallback");
+    assert_ne!(borrowed.addr(), host.addr());
 }

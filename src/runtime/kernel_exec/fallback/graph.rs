@@ -146,6 +146,11 @@ impl CapturePool {
     pub fn is_empty(&self) -> bool {
         self.preallocated.is_empty()
     }
+
+    /// 取走池中任意一个预分配缓冲（无参 `Queue::capture_alloc` 退路用）。
+    pub fn take_any(&mut self) -> Option<Box<dyn Buffer>> {
+        self.preallocated.pop()
+    }
 }
 
 /// K.5 选择：`true` → 录制期直接分配；`false` → 取录制前预分配缓冲（池空显式报错）。

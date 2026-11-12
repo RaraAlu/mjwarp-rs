@@ -10,17 +10,24 @@
 //! 解引用设备指针，也不依赖 `cudarc` 的 `CudaSlice` 借用。缓冲存活由注册表 `Arc` 保证到
 //! `launch` 返回（CUDA 只捕获指针值，真正执行异步发生）。同流有序由 `CudaStream` 保证。
 
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use cudarc::driver::{DeviceRepr, LaunchConfig, PushKernelArg};
 
 use crate::runtime::kernel_exec::backend::DeviceCaps;
+use crate::runtime::kernel_exec::buffer::{Allocator, DType, Init};
 use crate::runtime::kernel_exec::error::{DeviceError, LaunchError};
-use crate::runtime::kernel_exec::queue::{Arg, Graph, IndexSpace, Launch, Queue, Submission};
+use crate::runtime::kernel_exec::fallback::capture_sequential;
+use crate::runtime::kernel_exec::queue::{
+    Arg, Graph, IndexSpace, Launch, Queue, QueueCapture, Submission,
+};
 
-use super::buffer::CudaBufferInner;
+use super::buffer::{CudaAllocator, CudaBufferInner};
 use super::errors;
+use super::fallback_plan::{CaptureAllocMode, GraphMode};
 use super::{CudaDeviceInner, require_frozen_policy};
 
 /// 内核实参里的设备指针（CUDA ABI：8 字节无符号指针值）。
@@ -84,6 +91,9 @@ pub(crate) fn validate_launch(launch: &Launch, caps: &DeviceCaps) -> Result<(), 
 pub(crate) struct CudaQueue {
     dev: Arc<CudaDeviceInner>,
     next: AtomicU64,
+    /// K.1 退路：已录制的逐次提交序列（Graph 句柄 → launches）。
+    graphs: Mutex<HashMap<u64, Vec<Launch>>>,
+    next_graph: AtomicU64,
 }
 
 impl CudaQueue {
@@ -91,7 +101,25 @@ impl CudaQueue {
         Self {
             dev,
             next: AtomicU64::new(1),
+            graphs: Mutex::new(HashMap::new()),
+            next_graph: AtomicU64::new(1),
         }
+    }
+
+    fn buffer_error(message: impl std::fmt::Display) -> DeviceError {
+        DeviceError::Launch(LaunchError::InvalidConfig(format!(
+            "buffer error: {message}"
+        )))
+    }
+
+    fn graph_mode(&self) -> GraphMode {
+        let mut trace = super::lock(&self.dev.fallback_trace);
+        super::fallback_plan::graph_mode(&self.dev.caps.fallbacks, &mut trace)
+    }
+
+    fn capture_alloc_mode(&self) -> CaptureAllocMode {
+        let mut trace = super::lock(&self.dev.fallback_trace);
+        super::fallback_plan::capture_alloc_mode(&self.dev.caps.fallbacks, &mut trace)
     }
 
     /// 校验缓冲地址属于本设备，并返回保活句柄（按实参顺序）。
@@ -198,13 +226,69 @@ impl Queue for CudaQueue {
             .map_err(|error| errors::device_lost("cuda-status", error))
     }
 
-    fn replay(&self, _graph: &Graph) -> Result<(), DeviceError> {
-        Err(errors::unsupported("K.1 replay"))
+    fn replay(&self, graph: &Graph) -> Result<(), DeviceError> {
+        match self.graph_mode() {
+            GraphMode::NativeCapture => Err(errors::unsupported("K.1 native-capture")),
+            GraphMode::SequentialReplay => {
+                let launches = super::lock(&self.graphs)
+                    .get(&graph.0)
+                    .cloned()
+                    .ok_or_else(|| {
+                        invalid_argument(format!("unknown fallback graph {}", graph.0))
+                    })?;
+                for launch in launches {
+                    self.submit(launch)?;
+                }
+                Ok(())
+            }
+        }
     }
 
     fn capture_alloc(
         &self,
     ) -> Result<Box<dyn crate::runtime::kernel_exec::buffer::Buffer>, DeviceError> {
-        Err(errors::unsupported("K.5 capture-alloc"))
+        match self.capture_alloc_mode() {
+            CaptureAllocMode::NativeDuringCapture => {
+                // 无参 API：原生路径分配 0 字节占位缓冲（调用方随后自行加容量）。
+                let allocator = CudaAllocator::new(Arc::clone(&self.dev));
+                allocator
+                    .alloc(DType::U8, 0, Init::Zeroed)
+                    .map_err(Self::buffer_error)
+            }
+            CaptureAllocMode::Preallocated => {
+                let popped = super::lock(&self.dev.capture_pool).pop().ok_or_else(|| {
+                    DeviceError::Launch(LaunchError::InvalidConfig(
+                        "capture_alloc fallback pool is empty; preallocate before capture"
+                            .to_owned(),
+                    ))
+                })?;
+                let allocator = CudaAllocator::new(Arc::clone(&self.dev));
+                Ok(allocator.wrap(popped.0, DType::U8, popped.1))
+            }
+        }
+    }
+}
+
+impl QueueCapture for CudaQueue {
+    fn capture<F>(&self, body: F) -> Result<Graph, DeviceError>
+    where
+        F: FnOnce(&dyn Queue),
+    {
+        match self.graph_mode() {
+            GraphMode::NativeCapture => Err(errors::unsupported("K.1 native-capture")),
+            GraphMode::SequentialReplay => {
+                // K.1 退路：录制闭包内提交并逐次执行，返回可重放句柄。
+                let mut trace = super::lock(&self.dev.fallback_trace);
+                let recorded = capture_sequential(body, &mut trace);
+                drop(trace);
+                let launches = recorded.launches().to_vec();
+                let id = self.next_graph.fetch_add(1, Ordering::Relaxed);
+                super::lock(&self.graphs).insert(id, launches.clone());
+                for launch in launches {
+                    self.submit(launch)?;
+                }
+                Ok(Graph(id))
+            }
+        }
     }
 }

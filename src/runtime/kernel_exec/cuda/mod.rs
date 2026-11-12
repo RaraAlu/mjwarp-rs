@@ -13,8 +13,10 @@
 //! 设备域内可解析；注册表用 `Mutex`，不做跨线程无锁优化。
 
 mod buffer;
+mod buffer_codec;
 mod diagnostics;
 mod errors;
+mod fallback_plan;
 mod module;
 mod queue;
 #[cfg(test)]
@@ -26,17 +28,18 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use cudarc::driver::sys;
-use cudarc::driver::{CudaContext, CudaFunction, CudaStream};
+use cudarc::driver::{CudaContext, CudaFunction, CudaSlice, CudaStream};
 
 use crate::runtime::presence;
 
 use super::backend::{Backend, Device, DeviceCaps, DeviceId, FallbackSet, NumericPolicy};
-use super::buffer::Allocator;
-use super::error::DeviceError;
+use super::buffer::{Allocator, ExternalHandle};
+use super::error::{BufferError, DeviceError};
+use super::fallback::FallbackTrace;
 use super::module::Module;
 use super::queue::Queue;
 
-use self::buffer::{BufferRegistry, CudaAllocator};
+use self::buffer::{BufferRegistry, CudaAllocator, CudaStorage};
 use self::diagnostics::CudaDiagnostics;
 use self::module::CudaModule;
 use self::queue::CudaQueue;
@@ -74,6 +77,14 @@ pub(crate) struct CudaDeviceInner {
     pub(crate) caps: DeviceCaps,
     pub(crate) buffers: BufferRegistry,
     pub(crate) kernels: KernelRegistry,
+    /// P1-c：退路选择/降级留痕（适配层调用点写入）。
+    pub(crate) fallback_trace: Mutex<FallbackTrace>,
+    /// B.10 退路池：`transient_alloc=false` 时复用（设备级共享）。
+    pub(crate) transient_pool: Mutex<Vec<(CudaSlice<u8>, u64)>>,
+    /// B.11 退路：外部句柄登记（地址 → 字节数）。
+    pub(crate) external: Mutex<HashMap<u64, u64>>,
+    /// K.5 退路：录制前预分配池（设备级共享；存原始存储，取出时包装成缓冲）。
+    pub(crate) capture_pool: Mutex<Vec<(CudaStorage, u64)>>,
 }
 
 /// CUDA 后端（A.1 载体）。
@@ -148,6 +159,10 @@ pub(crate) fn open_device_inner(ordinal: u32) -> Result<Arc<CudaDeviceInner>, De
         caps,
         buffers: BufferRegistry::default(),
         kernels: KernelRegistry::default(),
+        fallback_trace: Mutex::new(FallbackTrace::new()),
+        transient_pool: Mutex::new(Vec::new()),
+        external: Mutex::new(HashMap::new()),
+        capture_pool: Mutex::new(Vec::new()),
     }))
 }
 
@@ -229,6 +244,34 @@ impl CudaDevice {
     /// 诊断句柄（L.2/L.3；`Device` trait 面不含 Diagnostics，故由后端显式提供）。
     pub fn diagnostics(&self) -> CudaDiagnostics {
         CudaDiagnostics::new(Arc::clone(&self.inner))
+    }
+
+    /// B.10 退路前置：预分配一个临时缓冲放入设备池（`transient_alloc=false` 时必需）。
+    pub fn preallocate_transient(&self, bytes: u64) -> Result<(), BufferError> {
+        let count = usize::try_from(bytes).map_err(|_| BufferError::CapacityExceeded {
+            requested: bytes,
+            capacity: self.inner.caps.max_buffer_bytes,
+        })?;
+        let slice = self
+            .inner
+            .stream
+            .alloc_zeros::<u8>(count)
+            .map_err(|error| errors::buffer_device_lost("cuda-transient-prealloc", error))?;
+        lock(&self.inner.transient_pool).push((slice, bytes));
+        Ok(())
+    }
+
+    /// B.11 退路前置：登记外部句柄的字节范围（所有者契约；`zero_copy_external=false` 时必需）。
+    pub fn register_external(&self, handle: ExternalHandle, bytes: u64) {
+        lock(&self.inner.external).insert(handle.0, bytes);
+    }
+
+    /// K.5 退路前置：录制前预分配一个缓冲放入设备池（`capture_alloc=false` 时必需）。
+    pub fn preallocate_capture(&self, bytes: u64) -> Result<(), BufferError> {
+        let allocator = CudaAllocator::new(Arc::clone(&self.inner));
+        let storage = allocator.alloc_raw(bytes)?;
+        lock(&self.inner.capture_pool).push((storage, bytes));
+        Ok(())
     }
 }
 
