@@ -1,6 +1,6 @@
-# 设备层契约（A0，草案 v0.1）
+# 设备层契约（A0，草案 v0.2）
 
-- 状态：草案，L0 轻量产出（未登记卡、未开窗、未改实现）。目标提交：`docs/architecture/device-layer-contract.md`。
+- 状态：草案 v0.2（2026-11-12 同步 P1-b S1 `e8ef68e89` 的实际签名与当日裁定措辞；L0 文档，未登记卡、未开窗、未改实现）。目标提交：`docs/architecture/device-layer-contract.md`。
 - 依据：`docs/implementation-plan.md` §并行计算单元能力定义（`efadf21c`，13 域 85 项，其中设备层 44 项）；映射与口径见 `target/impl-plan-review/`（工作材料，不入仓）。
 - 目的：把**设备通用**的内核执行层所需能力收敛成一份可实现的接口契约，使「接新设备只需重做设备层（44）」成为可执行目标，而不是口号。
 
@@ -17,14 +17,16 @@
 以下只定方法与语义，不定 ABI；实现可以内部替换（cudarc/NVRTC/预编译 PTX/其他）。
 
 ```rust
+// ── 与 P1-a/P1-b 实际签名对齐（2026-11-12；trait object 一律 `Box<dyn …>`，缓冲面错误走 `BufferError`）──
+
 // 1) 发现与能力
 pub trait Backend {
-    fn devices(&self) -> Result<Vec<DeviceId>, DeviceError>;          // A.1
-    fn open(&self, id: &DeviceId) -> Result<Device, DeviceError>;
+    fn devices(&self) -> Result<Vec<DeviceId>, DeviceError>;            // A.1
+    fn open(&self, id: &DeviceId) -> Result<Box<dyn Device>, DeviceError>;
 }
 
 pub struct DeviceCaps {
-    pub fallbacks: FallbackSet,        // 退项：是否有原生实现（A.2）
+    pub fallbacks: FallbackSet,        // A.2：退项是否有原生实现（**true=原生 / false=走退路**）
     pub max_index_dims: u8,            // 1..=3（G 域容量）
     pub max_block_threads: u32,        // G 域容量
     pub max_blocks: u32,               // G 域容量
@@ -32,37 +34,59 @@ pub struct DeviceCaps {
     pub max_buffer_bytes: u64,         // B 域容量
     pub numeric: NumericPolicy,        // F.6：f32 / FMA / fast-math 关闭
 }
+// FallbackSet（P1-b 冻结 12 flag；极性 **true=原生可用 / false=走退路**，与直觉相反）：
+//   transient_alloc(B.10)  zero_copy_external(B.11)  generic_device_fn(D.4)
+//   native_source_injection(D.10)  occupancy_hint(G.9)  graph_capture(K.1)
+//   device_loop(K.2)  device_branch(K.3)  capture_alloc(K.5)  kernel_printf(L.3)
+//   int64(C.1，必带退)  f32_atomic(H.1，必带退)
+// 「必带退」= 能力必级、退法常备（int64=false → 双 32 位；f32_atomic=false → CAS 循环）。
 
 pub trait Device {
     fn caps(&self) -> DeviceCaps;                                       // A.2
-    fn queue(&self) -> Result<Queue, DeviceError>;                      // A.3 载体
+    fn queue(&self) -> Result<Box<dyn Queue>, DeviceError>;             // A.3 载体
+    fn allocator(&self) -> Box<dyn Allocator>;                          // B 域
+    fn module(&self) -> Box<dyn Module>;                                // F 域
 }
 
-// 2) 缓冲（B 域）
+// 2) 缓冲（B 域）：句柄面对象安全；参数错误用 `BufferError`（不是 `DeviceError`）
 pub enum Init { Uninit, Zeroed, Fill(u64) }
+pub struct Address64(pub u64);   // B.3/B.9：64 位字节地址
+pub enum DType { /* P1-a 定稿 14 种：标量 7 + 宿主缓冲可见复合 7 */ }
 
 pub trait Buffer {
     fn addr(&self) -> Address64;                                        // B.3/B.9
     fn byte_len(&self) -> u64;
-    fn copy_range(&self, dst: &Buffer, dst_off: u64,
-                  src_off: u64, len: u64) -> Result<(), DeviceError>;   // B.5
-    fn upload(&self, host: &[u8], off: u64) -> Result<(), DeviceError>; // B.6
-    fn readback(&self, host: &mut [u8], off: u64) -> Result<(), DeviceError>; // B.6
-    fn pin(&self) -> Result<Pinned, DeviceError>;                       // B.9
+    fn copy_range(&self, dst: &dyn Buffer, dst_off: u64,
+                  src_off: u64, len: u64) -> Result<(), BufferError>;   // B.5
+    fn upload(&self, host: &[u8], off: u64) -> Result<(), BufferError>; // B.6
+    fn readback(&self, host: &mut [u8], off: u64) -> Result<(), BufferError>; // B.6
+    fn pin(&self) -> Result<Pinned, BufferError>;                       // B.9
 }
 
 pub trait Allocator {
-    fn alloc(&self, dtype: DType, len: u64, init: Init) -> Result<Buffer, DeviceError>; // B.1
-    fn transient(&self, bytes: u64) -> Result<Buffer, DeviceError>;     // B.10 退：预分配
-    fn borrow_external(&self, h: ExternalHandle) -> Result<Buffer, DeviceError>; // B.11 退：拷贝
+    fn alloc(&self, dtype: DType, len: u64, init: Init) -> Result<Box<dyn Buffer>, BufferError>; // B.1
+    fn transient(&self, bytes: u64) -> Result<Box<dyn Buffer>, BufferError>;     // B.10 退：预分配
+    fn borrow_external(&self, h: ExternalHandle) -> Result<Box<dyn Buffer>, BufferError>; // B.11 退：拷贝
 }
 // `DType`（P1-a 定稿，14 种）：标量 7 = f32/i32/u32/u64/i64/u8/bool；
 // 宿主缓冲可见复合 7 = Vec2/Vec3/Vec4/Vec6/Vec10/Mat33/Quat。
+// `BufferError`（P1-b 冻结 5 类）：`CapacityExceeded` / `OutOfRange` / `Unaligned` /
+// **`Unsupported(CapabilityId)`** / **`ForeignBuffer { backend }`**。
 
 // 3) 编译与发射（F/G 域）
 pub trait Module {
-    fn compile(src: KernelSource, opts: CompileOptions) -> Result<Kernel, DeviceError>; // F.1/F.5
+    fn compile(&self, src: KernelSource, opts: CompileOptions) -> Result<Kernel, DeviceError>; // F.1/F.5
+    // G.9：原生查询需要已编译函数句柄，故挂在本 trait（不是纯描述符 `Launch`）
+    fn suggest_block_width(&self, kernel: &Kernel, work_items: u64)
+        -> Result<BlockSuggestion, DeviceError>;
 }
+pub struct CompileOptions {
+    pub numeric: NumericPolicy,
+    pub entry: Option<&'static str>,                 // F.5：`Inline` 必填；`Named` 由后端按名解析
+    pub defines: Vec<(&'static str, &'static str)>,  // F.5：**集合由后端声明，超集 → `Unsupported`**
+}
+pub struct BlockSuggestion { pub block_width: u32, pub min_blocks: u32 }
+// 退路固定值：`BlockSuggestion::FALLBACK = { block_width: 256, min_blocks: 1 }`
 
 pub struct Launch {
     pub kernel: Kernel,
@@ -80,7 +104,7 @@ pub trait Queue {
     fn submit(&self, l: Launch) -> Result<Submission, DeviceError>;     // A.3/G.10
     fn wait_idle(&self) -> Result<(), DeviceError>;                     // L.1
     fn replay(&self, g: &Graph) -> Result<(), DeviceError>;             // K.1
-    fn capture_alloc(&self) -> Result<Buffer, DeviceError>;             // K.5 退：预分配
+    fn capture_alloc(&self) -> Result<Box<dyn Buffer>, DeviceError>;    // K.5 退：预分配
 }
 // K.1 的 capture 需要闭包，按 P1-a 定稿拆为独立 trait：仅单态化调用、不作 `dyn` 面，
 // `Queue` 保持对象安全。A0 定稿采纳该形态，不改回放进 `Queue`。
@@ -105,6 +129,9 @@ pub trait Atomics {             // H.1/H.3/H.4/H.5/H.6（P1-a 定稿：用 Addre
 }
 pub trait ThreadScope {         // I.1/I.2/I.3
     fn tid(&self) -> Dim3; fn block_dim(&self) -> Dim3;
+    // I.2（P1-b 冻结）：超 `shared_bytes_per_block` → `Launch(InvalidConfig)`；
+    // 后端无块共享 → `Unsupported("I.2")`
+    fn shared(&self, bytes: u64) -> Result<SharedBuf, DeviceError>;
     fn barrier(&self);
 }
 
@@ -114,7 +141,7 @@ pub trait ExecControl {         // K.2/K.3（K.4 属库层：探测与降级）
     fn branch_on_device(&self, c: &Counter, then: impl FnOnce(), els: impl FnOnce()) -> Result<(), DeviceError>;
 }
 pub trait Diagnostics {         // L.2/L.3
-    fn record_event(&self) -> Event;
+    fn record_event(&self) -> Result<Event, DeviceError>;  // 冻结：驱动失败显式返回，不用哨兵句柄
     fn elapsed(&self, a: &Event, b: &Event) -> Duration;
     fn printf(&self, fmt: &str, args: &[Arg]);   // 退：状态缓冲 + 宿主打印
 }
@@ -122,8 +149,9 @@ pub trait Diagnostics {         // L.2/L.3
 // 6) 错误模型（A.4）
 pub enum DeviceError {
     Compile(CompileError), Launch(LaunchError), DeviceLost(DeviceLost),
-    Unsupported(CapabilityId),   // 能力缺失且无退路
+    Unsupported(CapabilityId),   // 能力缺失且无退路（不属于三分类）
 }
+// 后端可声明「不产生 DeviceLost」（如 CPU 后端）；三分类不得合并。
 ```
 
 设计约束（契约层）：
@@ -132,6 +160,9 @@ pub enum DeviceError {
 2. **不可隐式同步**：`transient()`、`upload/readback` 默认异步；需要同步必须显式 `wait_idle()`。
 3. **数值策略随发射传递**：`NumericPolicy` 是 `Launch`/`compile` 的必填项，后端不得自行改 rounding/FMA/fast-math。
 4. **错误三分类**：编译/发射/设备丢失不合并（A.4）。
+5. **F.1 语义（2026-11-12 裁）**：把内核源变成可执行物——**JIT 或 AOT 均可**；CUDA 仍走 NVRTC（零行为变化），AOT 后端只支持编译期可知的 `defines` 组合（P5 记录）。
+6. **F.5 后端受限（2026-11-12 裁）**：`defines` 集合由后端声明，超集 → `Unsupported`；不得静默忽略。
+7. **A.4（2026-11-12 裁）**：后端可声明不产生 `DeviceLost`（如 CPU），但三分类仍不得合并。
 
 ## 3. 44 项逐项映射
 
@@ -142,23 +173,23 @@ pub enum DeviceError {
 | `A.1` | 枚举并选择设备 | 必 | `Backend::devices()` | 枚举并选择设备；返回稳定 id + 名称 |
 | `A.2` | 能力查询：返回各“退”项有无与B、G、I域容量 | 必 | `Device::caps() -> DeviceCaps` | 退项有无 + B/G/I 容量；退路必须显式声明 |
 | `A.3` | 执行队列：同一队列按提交顺序执行 | 必 | `Queue::submit()` 语义 | 同一队列按提交顺序执行 |
-| `A.4` | 错误模型：区分编译失败、发射失败与设备丢失 | 必 | `DeviceError`（三分类） | 编译失败 / 发射失败 / 设备丢失，不得合并 |
+| `A.4` | 错误模型：区分编译失败、发射失败与设备丢失 | 必 | `DeviceError`（三分类 + `Unsupported`） | 编译失败 / 发射失败 / 设备丢失，不得合并；后端可声明不产生 `DeviceLost` |
 | `B.1` | 按元素类型与个数分配：未初始化、清零、填值 | 必 | `Buffer::alloc(dtype,len,Init)` | Init = Uninit | Zeroed | Fill(value) |
 | `B.2` | 生命期保持到最后一次使用完成 | 必 | `Buffer` 生命期（RAII） | 持有到最后一次使用完成（Drop/lease 维护） |
 | `B.3` | 缓冲内字节偏移采用64位 | 必 | `Buffer::addr() -> Address64` | 字节偏移一律 64 位；元素步长可 32 位 |
 | `B.5` | 设备内拷贝，带源偏移、目标偏移与长度 | 必 | `Buffer::copy_range(dst,dst_off,src_off,len)` | 设备内拷贝，带源/目标偏移与长度 |
 | `B.6` | 宿主上传与范围回读 | 必 | `Buffer::upload(&[u8]) / readback(&mut [u8])` | 宿主上传与范围回读 |
 | `B.9` | 地址稳定：生命期内不搬移 | 必 | `Buffer::pin()` / 地址稳定契约 | 生命期内不搬移；pin 后可把地址交给外部 |
-| `B.10` | 临时分配不触发同步 | 退：预分配 | `Scratch::alloc_transient(bytes)` | 退：预分配；不得在分配时隐式同步 |
-| `B.11` | 把缓冲零拷贝借给外部框架 | 退：拷贝 | `Buffer::borrow_external(ExternalHandle)` | 退：拷贝；零拷贝借用需能力位 |
-| `C.1` | 标量7种：f32、i32、i64、u8、u32、u64、bool | 必；64位整数可退：双32位 | `DType`（P1-a 定稿 14 种） | 标量 7 + 宿主缓冲可见复合 7（Vec2/3/4/6/10、Mat33、Quat）；64 位整数可退双 32 位 |
+| `B.10` | 临时分配不触发同步 | 退：预分配 | `Allocator::transient(bytes)`（flag `transient_alloc`） | 退：预分配；不得在分配时隐式同步 |
+| `B.11` | 把缓冲零拷贝借给外部框架 | 退：拷贝 | `Allocator::borrow_external(ExternalHandle)`（flag `zero_copy_external`） | 退：拷贝；未注册外部句柄 → `BufferError::ForeignBuffer` |
+| `C.1` | 标量7种：f32、i32、i64、u8、u32、u64、bool | 必；64位整数可退：双32位 | `DType`（P1-a 定稿 14 种） | 标量 7 + 宿主缓冲可见复合 7（Vec2/3/4/6/10、Mat33、Quat）；64 位整数可退双 32 位（flag `int64`） |
 | `D.1` | 控制流：动态上界循环、while、break、continue、提前返回 | 必 | `shim::device_flow`（设备侧 shim，P2） | 落点=设备侧 shim（P2），不塞宿主 trait |
-| `D.2` | 设备函数，可互相调用 | 必 | `shim::device_fn`（设备侧 shim，P2） | 落点=设备侧 shim（P2）；设备函数可互相调用、单函数参数上限 |
+| `D.2` | 设备函数，可互相调用 | 必 | `shim::device_fn`（设备侧 shim，P2） | 落点=设备侧 shim（P2）；设备函数可互相调用、单函数参数上限；flag `generic_device_fn` |
 | `D.5` | 整数运算：取模、整除、位与、位或、异或、左移、右移 | 必 | `shim::int_ops`（设备侧 shim，P2） | 落点=设备侧 shim（P2），不塞宿主 trait |
 | `E.1` | 标量13个：max、min、abs、clamp、sqrt、sign、pow、exp、log、floor、ceil、round、isnan | 必 | `DeviceMath`（标量 13） | max/min/abs/clamp/sqrt/sign/pow/exp/log/floor/ceil/round/isnan |
 | `E.2` | 三角6个：sin、cos、tan、asin、acos、atan2 | 必 | `DeviceMath`（三角 6） | sin/cos/tan/asin/acos/atan2；行为随 NumericPolicy |
-| `F.1` | 运行时把内核源编成设备可执行物 | 必 | `Kernel::compile(source, recipe)` | 运行时把内核源编成设备可执行物（NVRTC/预编译 PTX） |
-| `F.5` | 每内核可设编译选项 | 必 | `CompileOptions` | 每内核可设选项（arch/std/defines/launch_bounds） |
+| `F.1` | 把内核源变成设备可执行物 | 必 | `Module::compile(KernelSource, CompileOptions)` | **源 → 可执行物（JIT 或 AOT 均可）**；CUDA 走 NVRTC，AOT 后端受 defines 限制（2026-11-12 裁） |
+| `F.5` | 每内核可设编译选项 | 必 | `CompileOptions { numeric, entry, defines }` | 每内核可设选项；`defines` 集合由后端声明、超集 → `Unsupported`（2026-11-12 裁） |
 | `F.6` | 数值选项：全程f32、乘加融合开、不开fast-math | 必 | `NumericPolicy` | 固定 f32、FMA 开、fast-math 关；随证据冻结 |
 | `G.1` | 1、2、3维索引空间，线程可取自身多维索引 | 必 | `Launch::dims(IndexSpace1|2|3)` | 1/2/3 维索引空间，线程可取多维索引 |
 | `G.2` | 总索引数等于世界数乘元素数 | 必 | `Launch::elements_per_world / worlds` | 总索引数 = 世界数 × 元素数 |
@@ -166,23 +197,23 @@ pub enum DeviceError {
 | `G.5` | 同一缓冲可同时作输入与输出 | 必 | `Launch::alias(inout, out)` | 同缓冲可同时作输入与输出（显式声明） |
 | `G.6` | 按块发射：指定块数，每块多线程 | 必 | `Launch::blocks(u32)` | 按块发射：指定块数，每块多线程 |
 | `G.7` | 每次发射指定块宽 | 必 | `Launch::block_width(32|64|128|256)` | 每次发射指定块宽 |
-| `G.9` | 建议块宽查询与最小驻留块数提示 | 退：固定值 | `Launch::suggest_block_width() -> u32`（**P1-b 补**） | 退：固定值；最小驻留块数提示 |
+| `G.9` | 建议块宽查询与最小驻留块数提示 | 退：固定值 | `Module::suggest_block_width(kernel, work_items) -> Result<BlockSuggestion, DeviceError>`（P1-b 已落） | 退：`BlockSuggestion::FALLBACK = {256,1}`（flag `occupancy_hint`） |
 | `G.10` | 非阻塞提交，队列内有序 | 必 | `Queue::submit()`（非阻塞） | 提交不等待完成，队列内有序 |
-| `H.1` | 原子加，返回旧值 | 必；f32可退：比较交换循环 | `Atomics::add(ptr,val) -> old` | i32/f32；f32 退：比较交换循环 |
+| `H.1` | 原子加，返回旧值 | 必；f32可退：比较交换循环 | `Atomics::add_i32/add_f32(Address64, val)` | i32/f32；f32 退：比较交换循环（flag `f32_atomic`，必带退） |
 | `H.3` | 原子减 | 必 | `Atomics::sub(ptr,val)` | i32/f32 |
 | `H.4` | 原子或 | 必 | `Atomics::or(ptr,val)` | i32/u32 |
 | `H.5` | 原子极小与极大 | 必 | `Atomics::min/max(ptr,val)` | i32 |
 | `H.6` | 比较交换 | 必 | `Atomics::cas(ptr,old,new)` | i32；f32 回退基石 |
 | `I.1` | 取块内线程号与块宽 | 必 | `ThreadScope::tid() -> Dim3 / block_dim()` | 块内线程号与块宽 |
-| `I.2` | 块共享存储 | 必 | `ThreadScope::shared(bytes) -> SharedBuf`（**P1-b 补**） | 块共享存储；容量随模型而定 |
+| `I.2` | 块共享存储 | 必 | `ThreadScope::shared(bytes) -> Result<SharedBuf, DeviceError>`（P1-b 已落） | 超容量 → `Launch(InvalidConfig)`；后端无块共享 → `Unsupported("I.2")` |
 | `I.3` | 块内同步栅栏 | 必 | `ThreadScope::barrier()` | 块内同步栅栏（显式） |
-| `K.1` | 录制一段发射序列并重放 | 退：逐次提交 | `Graph::capture(fn)` / `Graph::replay()` | 录制一段发射序列并重放 |
-| `K.2` | 设备端条件循环，条件为设备上一个i32 | 退：固定次数 | `ExecControl::loop_while_device(counter, body)` | 退：固定次数；设备端条件循环 |
-| `K.3` | 设备端条件分支 | 退：无条件执行 | `ExecControl::branch_on_device(counter, then, else)` | 退：无条件执行 |
-| `K.5` | 录制期间允许分配，缓冲随录制物存活 | 退：录制前预分配 | `Queue::capture_alloc()` | 退：录制前预分配 |
+| `K.1` | 录制一段发射序列并重放 | 退：逐次提交 | `QueueCapture::capture(fn)` / `Queue::replay(&Graph)`（flag `graph_capture`） | 录制一段发射序列并重放 |
+| `K.2` | 设备端条件循环，条件为设备上一个i32 | 退：固定次数 | `ExecControl::loop_while_device(counter, body)` | 退：固定次数；设备端条件循环（flag `device_loop`） |
+| `K.3` | 设备端条件分支 | 退：无条件执行（flag `device_branch`） | `ExecControl::branch_on_device(counter, then, else)` | 退：无条件执行 |
+| `K.5` | 录制期间允许分配，缓冲随录制物存活 | 退：录制前预分配 | `Queue::capture_alloc()`（flag `capture_alloc`） | 退：录制前预分配 |
 | `L.1` | 显式等待队列排空 | 必 | `Queue::wait_idle()` | 显式等待队列排空 |
-| `L.2` | 设备端事件与耗时 | 必 | `Event::record/elapsed` | 设备端事件与耗时 |
-| `L.3` | 内核内格式化打印 | 退：状态缓冲 | `Diagnostics::printf(fmt,args)` | 退：状态缓冲回写，由宿主打印 |
+| `L.2` | 设备端事件与耗时 | 必 | `Diagnostics::record_event/elapsed` | 事件句柄 opaque；`record_event` 失败显式返回 `DeviceError` |
+| `L.3` | 内核内格式化打印 | 退：状态缓冲 | `Diagnostics::printf(fmt, args)`（flag `kernel_printf`） | 退：状态缓冲回写，由宿主打印 |
 
 ## 4. 两个实现的适配说明
 
@@ -205,7 +236,7 @@ pub enum DeviceError {
 | --- | --- | --- |
 | A/G/K | 单线程或线程池模拟队列/块；`K.1` 用函数序列重放；`K.2/K.3` 软件条件执行 | 依赖目标 API（HIP 同构→抽象几乎不动，检验力弱；WebGPU/Metal 异构→立刻暴露退路） |
 | B | Vec/HostBuffer；`B.11` 零拷贝天然支持 | 设备内存/统一内存差异决定 `B.11` 退路 |
-| F | 无 NVRTC：内核书写面向 Rust 生成（见 §5） | 各自编译器/SPIR-V；数值策略需逐项对齐 |
+| F | 无 NVRTC：**AOT**（build 期生成 Rust + 运行期注册表），F.1 已允许 AOT（见 §5）；defines 受编译期枚举限制 | 各自编译器/SPIR-V；数值策略需逐项对齐 |
 | 数值 | 同上；标量数学需与冻结公式逐项核对（E 域） | 逐位一致困难，只能先做容差/统计判据 |
 | 窗口 | **0 GPU 窗**，可先验证抽象完整性 | 需 GPU 窗口与冻结集重冻，成本高 |
 
@@ -253,12 +284,14 @@ device_kernel! {
 5. **错误三分类**（编译/发射/设备丢失）不得合并、不得吞掉。
 6. **不宣称跨设备等价**：位级/容差判据只在「同后端 + 同编译形态」内成立；跨设备只做功能/统计对照，措辞遵守禁用表。
 
-## 7. 待用户/Chief 决策（只列不裁）
+## 7. 已裁与暂定决策（状态列；2026-11-12 更新）
 
-| # | 决策 | 影响 |
-| --- | --- | --- |
-| D1 | 是否暂停按旧写法新增手写 CUDA 内核（容量/缺陷修正豁免？） | 决定 §6.2 的执行强度与 A0 落地节奏；不暂停则迁移面随内核数增长（产品命名入口 95） |
-| D2 | 第二后端先选 **CPU** 还是**第二 GPU** | CPU：0 GPU 窗、先验证抽象完整性，但 SIMD/标量差异大；第二 GPU：检验设备层更真，但需窗口 + 冻结集重冻 + 跨设备判据（签名级） |
+| # | 决策 | 状态 | 影响 |
+| --- | --- | --- | --- |
+| D1 | 是否暂停按旧写法新增手写 CUDA 内核（容量/缺陷修正豁免？） | **已裁（工作口径，用户可改）**：新内核一律走书写面；容量/缺陷修正豁免 | 决定 §6.2 执行强度与并行节奏 |
+| D2 | 第二后端先选 **CPU** 还是**第二 GPU** | **已裁（工作口径，仍暂定）**：先 CPU 验证抽象完整性；**用户签待** | CPU：0 GPU 窗；P4 只出可行性稿，真多线程块（`I.3`）归 P4' 另评 |
+| D3 | `F.1` 是否允许 AOT | **已裁（2026-11-12）**：允许——「源 → 可执行物（JIT 或 AOT 均可）」，见 §2 设计约束 5 | 第二后端不必假装运行时编译 |
+| D4 | `F.5` defines 是否必须运行期任意 | **已裁（2026-11-12）**：不必须——集合由后端声明、超集 → `Unsupported` | 见 §2 设计约束 6 |
 
 ## 8. 与现有证据的关系
 
