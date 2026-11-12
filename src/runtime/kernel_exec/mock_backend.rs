@@ -7,15 +7,15 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
 
-use super::backend::{Backend, Device, DeviceCaps, DeviceId, FallbackSet};
+use super::backend::{Backend, CapabilityId, Device, DeviceCaps, DeviceId, FallbackSet};
 use super::buffer::{
     Address64, Allocator, Buffer, DType, ExternalHandle, Init, Pinned, check_range,
 };
 use super::device::{
-    Atomics, Counter, DeviceMath, Diagnostics, Dim3, Event, ExecControl, ThreadScope,
+    Atomics, Counter, DeviceMath, Diagnostics, Dim3, Event, ExecControl, SharedBuf, ThreadScope,
 };
-use super::error::{BufferError, CompileError, DeviceError, DeviceLost};
-use super::module::{CompileOptions, Kernel, KernelSource, Module};
+use super::error::{BufferError, CompileError, DeviceError, DeviceLost, LaunchError};
+use super::module::{BlockSuggestion, CompileOptions, Kernel, KernelSource, Module};
 use super::queue::{Graph, Launch, Queue, QueueCapture, Submission};
 
 const MOCK_MAX_BUFFER_BYTES: u64 = 1024;
@@ -271,11 +271,27 @@ impl Module for MockModule {
             KernelSource::Inline("") => Err(DeviceError::Compile(CompileError::new(
                 "empty inline kernel source",
             ))),
-            _ => {
-                let _ = opts.numeric;
+            KernelSource::Inline(_) => {
+                if opts.entry.is_none() {
+                    return Err(DeviceError::Compile(CompileError::new(
+                        "inline kernel source requires an entry name",
+                    )));
+                }
+                Ok(Kernel::from_handle(42))
+            }
+            KernelSource::Named(name) => {
+                let _ = name;
                 Ok(Kernel::from_handle(42))
             }
         }
+    }
+
+    fn suggest_block_width(
+        &self,
+        _kernel: &Kernel,
+        _work_items: u64,
+    ) -> Result<BlockSuggestion, DeviceError> {
+        Ok(BlockSuggestion::FALLBACK)
     }
 }
 
@@ -294,11 +310,11 @@ impl MockDiagnostics {
 }
 
 impl Diagnostics for MockDiagnostics {
-    fn record_event(&self) -> Event {
+    fn record_event(&self) -> Result<Event, DeviceError> {
         self.events.set(self.events.get() + 1);
-        Event {
+        Ok(Event {
             handle: self.events.get(),
-        }
+        })
     }
 
     fn elapsed(&self, a: &Event, b: &Event) -> Duration {
@@ -406,12 +422,19 @@ impl Atomics for MockAtomics {
 
 pub(crate) struct MockThreadScope {
     pub(crate) barriers: Cell<u32>,
+    /// 块共享存储容量（0 = 不提供块共享存储）。
+    pub(crate) shared_bytes: u64,
 }
 
 impl MockThreadScope {
     pub(crate) fn new() -> Self {
+        Self::with_shared_bytes(48 * 1024)
+    }
+
+    pub(crate) fn with_shared_bytes(shared_bytes: u64) -> Self {
         Self {
             barriers: Cell::new(0),
+            shared_bytes,
         }
     }
 }
@@ -422,6 +445,20 @@ impl ThreadScope for MockThreadScope {
     }
     fn block_dim(&self) -> Dim3 {
         Dim3::new(1, 1, 1)
+    }
+    fn shared(&self, bytes: u64) -> Result<SharedBuf, DeviceError> {
+        if self.shared_bytes == 0 {
+            return Err(DeviceError::Unsupported(CapabilityId("I.2")));
+        }
+        if bytes > self.shared_bytes {
+            return Err(DeviceError::Launch(LaunchError::InvalidConfig(format!(
+                "shared bytes {bytes} exceed capacity {}",
+                self.shared_bytes
+            ))));
+        }
+        Ok(SharedBuf {
+            address: Address64(0x5A00_0000 + bytes),
+        })
     }
     fn barrier(&self) {
         self.barriers.set(self.barriers.get() + 1);

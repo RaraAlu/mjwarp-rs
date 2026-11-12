@@ -7,20 +7,24 @@
 
 ## 1. 文件与行数（每文件 ≤500 行）
 
+> 行数口径：**LF 计数**（与 `git show --stat` 一致），下表为 P1-a 收口提交 `522f8661` 时点。
+> 初版表格误用 `split('\n')` 物理行计数（含尾部空段，每项 +1）；P1-b 首个提交（`2026-11-12-g10-p5-kernel-exec-p1b`）
+> 更正此表与 `artifacts.json`，不改原提交。
+
 | 文件 | 行数 | 内容 |
 | --- | ---: | --- |
-| `src/runtime/kernel_exec/backend.rs` | 201 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/buffer.rs` | 160 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/device.rs` | 169 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/error.rs` | 267 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/mock_backend.rs` | 457 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/mock_tests.rs` | 213 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/mod.rs` | 37 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/module.rs` | 87 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/kernel_exec/queue.rs` | 152 | 设备层接口/值与 mock（见模块文档） |
-| `src/runtime/mod.rs` | 126 | 仅新增一行 `pub mod kernel_exec;` |
+| `src/runtime/kernel_exec/backend.rs` | 200 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/buffer.rs` | 159 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/device.rs` | 168 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/error.rs` | 266 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/mock_backend.rs` | 456 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/mock_tests.rs` | 212 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/mod.rs` | 36 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/module.rs` | 86 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/kernel_exec/queue.rs` | 151 | 设备层接口/值与 mock（见模块文档） |
+| `src/runtime/mod.rs` | 125 | 仅新增一行 `pub mod kernel_exec;` |
 
-`mock.rs` 初版 669 行超 500 棘轮，已拆为 `mock_backend.rs`（457 行）+ `mock_tests.rs`（213 行）；语义与测试不变。
+`mock.rs` 初版 669 行超 500 棘轮，已拆为 `mock_backend.rs`（456 行）+ `mock_tests.rs`（212 行）；语义与测试不变。
 
 ## 2. 设计决策（P1-a）
 
@@ -48,6 +52,7 @@
 | unit | 88.34 s | PASS（1435/0/402） |
 
 `normify gate` 结果存于 `.normify/runs/2026-11-12-g10-p5-kernel-exec-p1a/`（fmt/clippy/clippy-cuda/unit 四份 JSON）。
+上表为**手动首跑**耗时；`.normify/runs` 是 `normify gate` 的**另一轮独立测量**，两者不是同一轮数据（缓存命中/失效状态不同）。
 
 ## 5. 复跑
 

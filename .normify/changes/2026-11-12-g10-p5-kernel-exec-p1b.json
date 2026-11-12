@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-12-g10-p5-kernel-exec-p1b",
+  "title": {
+    "zh": "P1-b CUDA 适配层（12 退项名单冻结 + G.9/I.2 接口 + 宿主面 trait 实现；先包不改）",
+    "en": "P1-b CUDA adapter (freeze 12 fallback flags, G.9/I.2 interfaces, host-side trait impls; wrap-only, no behavior change)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 A0 定稿 §2/§3 与 Chief P1-b 裁定，在 src/runtime/kernel_exec/ 内：(1) S1 冻结 12 个 fallback flag（3 个改名：transient_alloc/int64/f32_atomic；极性 true=原生可用/false=走退路）并补 G.9 Module::suggest_block_width、I.2 ThreadScope::shared、CompileOptions.entry、BufferError::{Unsupported,ForeignBuffer}、Diagnostics::record_event -> Result，同步 mock 双路单测与 P1-a 证据行数更正；(2) S2 新建 cuda/** 适配层（7 文件，每个 ≤500 行）实现 Backend/Device/Allocator/Buffer/Queue/Module/Diagnostics 宿主面，仍不接任何现有调用点、不改既有 runtime 逻辑、不碰 .cu/*_CUDA/recipe/PTX/ABI/冻结集，行为零变化。L1 两提交：S1 登记+接口冻结，S2 适配+证据收口。",
+    "en": "Within src/runtime/kernel_exec/: (1) S1 freezes the 12 fallback flags (three renames transient_alloc/int64/f32_atomic; polarity true=native, false=fallback), adds G.9 Module::suggest_block_width, I.2 ThreadScope::shared, CompileOptions.entry, BufferError::{Unsupported,ForeignBuffer}, Diagnostics::record_event -> Result, plus mock dual-path unit tests and the P1-a evidence line-count correction; (2) S2 adds a cuda/** adapter (7 files, <=500 lines each) implementing the host-side traits Backend/Device/Allocator/Buffer/Queue/Module/Diagnostics while leaving all existing call sites, runtime logic, .cu/*_CUDA/recipe/PTX/ABI and frozen sets untouched (zero behavior change). L1 with two commits: S1 registration+interface freeze, S2 adapter+evidence closure."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "S1 接口冻结：FallbackSet 12 flag 改名与极性注释写死（transient_alloc←uninit_alloc、int64←i64_as_two_i32、f32_atomic←f32_atomic_via_cas；true=原生可用/false=走退路；必带退语义写文档）；新增 ThreadScope::shared(&self, bytes: u64) -> Result<SharedBuf, DeviceError>、Module::suggest_block_width(&self, kernel: &Kernel, work_items: u64) -> Result<BlockSuggestion, DeviceError>（退路 BlockSuggestion::FALLBACK={256,1}）、CompileOptions.entry: Option<&'static str>（Inline 必填、Named P1-b 仍 Unsupported）、BufferError::{Unsupported(CapabilityId), ForeignBuffer{backend}}、Diagnostics::record_event -> Result<Event, DeviceError>；mock 双路单测覆盖 flag 极性/共享存储两条失败路径/compile entry 规则/suggest 退路。",
+    "12 flag 名单与 P1-b CUDA 取值写进证据 artifacts.json.fallback_flags（name/capability/level/p1b_value/reason）：transient_alloc(B.10)=true、zero_copy_external(B.11)=false、generic_device_fn(D.4)=true、native_source_injection(D.10)=true、occupancy_hint(G.9)=true、graph_capture(K.1)=false、device_loop(K.2)=false、device_branch(K.3)=false、capture_alloc(K.5)=false、kernel_printf(L.3)=false、int64(C.1)=true、f32_atomic(H.1)=true。",
+    "S2 新建 src/runtime/kernel_exec/cuda/{mod,buffer,queue,module,diagnostics,errors,tests}.rs（每文件 ≤500 行），实现宿主面 trait：Backend::devices/open、Device::{caps,queue,allocator,module}、Allocator::{alloc,transient,borrow_external}、Buffer::{addr,byte_len,copy_range,upload,readback,pin}、Queue::{submit,wait_idle,replay,capture_alloc}、Module::{compile,suggest_block_width}、Diagnostics::{record_event,elapsed,printf}；C.1 标量 7 种 DType 接线，复合 7 种与未接线面（B.11/K.1/K.5/L.3/D2/D3/offset≠0/纹理数组描述符）显式 DeviceError::Unsupported 或 BufferError::Unsupported，不静默降级。",
+    "零行为变化：不接现有调用点、不改 src/runtime/ 既有模块逻辑；`git diff --name-only -- src ':(exclude)src/runtime/kernel_exec'` 为空；kernel_exec 在 src/ 内仍无外部引用；29 个 .cu 逐文件 sha256 与 refreeze-10-exe.json 全等（S2 重算日志入证据）；现有测试不回归（基线 1435/0/402，S2 记录新总数）。",
+    "证据 docs/development-evidence/plan/kernel-exec-layer/p1b-cuda-adapter/：README.md（映射表/边界/门禁/不宣称）+ adapter-tests.log + unit-summary.log + frozen-cu-digest.log + artifacts.json（含 fallback_flags 12 条与 cuda 文件行数）；L1 不建 manifest。",
+    "P1-a 证据行数更正：docs/development-evidence/plan/kernel-exec-layer/p1a-device-trait-skeleton/README.md 表与 artifacts.json::files[].lines 改为 LF 计数（200/159/168/266/456/212/36/86/151；src/runtime/mod.rs 125），max_file_lines=456，并注明为 P1-a 收口提交 522f8661 时点、初版按行拆分物理行计数（每项 +1）、P1-b 首个提交更正；README §4 补「手动首跑与 normify gate 为两轮独立测量」。",
+    "门禁：S1 提交前 fmt+clippy；S2 收口 clippy-cuda+unit（并复跑 fmt+clippy）；`#[ignore]` GPU 等价测试只登记、不声明通过、不开窗；1 卡 ≤2 提交、每文件 ≤500 行、显式 pathspec、不 --no-verify。",
+    "不宣称：不宣称任何能力已实现/已验收、不宣称跨设备等价、不宣称位级等价；mock 不是后端实现证据；P1-b 只交付契约冻结 + CUDA 宿主面适配层 + 零行为变化证据。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-运行时",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/kernel_exec/",
+      "docs/development-evidence/plan/kernel-exec-layer/p1a-device-trait-skeleton/",
+      "docs/development-evidence/plan/kernel-exec-layer/p1b-cuda-adapter/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "输入（只读）：A0 定稿 d9c863d45（device-layer-contract.md sha256 41274302032330ef…）；program 722f29df422a9d8b…；A1 盘点 554267971fe2dc69…；Arch P1-c 退项草案 7b3cf6035d1e103e…；P1-b prep 4e06960a2c78828c…（target/impl-plan-review/p1b-cuda-adapter-prep.md）。Chief 裁定：D1 BufferError 两变体、D2 CompileOptions.entry、D3 Module::suggest_block_width、D4 三改名（不保留旧名）、D5 record_event -> Result。冻结口径：flag=true 只给 P1-b 适配层已实现原生路径的项，其余 false 待 P1-c 复核翻转；A0 措辞由 Arch 在 S1 落地后同步，本卡不改 A0。",
+  "revision": {
+    "before": "f373482a48dd6cda90c7e67de73cac9ff73b8d8a",
+    "after": null
+  },
+  "created_at": "2026-11-12T15:56:00.000Z",
+  "updated_at": "2026-11-12T15:44:21.913Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/",
+        "fixtures/",
+        "src/physics/",
+        "src/render/",
+        "src/io/",
+        "src/model/",
+        "src/runtime/transfer/",
+        "src/runtime/launcher/",
+        "src/runtime/cuda/"
+      ]
+    }
+  ]
+}

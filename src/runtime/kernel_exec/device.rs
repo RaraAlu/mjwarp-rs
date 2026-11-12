@@ -59,6 +59,16 @@ pub struct Event {
     pub handle: u64,
 }
 
+/// 块共享存储视图（I.2；P1-b 冻结）。
+///
+/// 地址为 opaque 设备地址，指针语义由适配层承担；容量由
+/// [`super::backend::DeviceCaps::shared_bytes_per_block`] 界定。
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct SharedBuf {
+    /// 设备地址（opaque）。
+    pub address: Address64,
+}
+
 /// 数学内建（E.1/E.2）：设备端按具体后端单态化，静态方法不进入 `dyn` 面。
 pub trait DeviceMath {
     /// 绝对值。
@@ -128,6 +138,13 @@ pub trait ThreadScope {
     fn tid(&self) -> Dim3;
     /// 块尺寸（I.1）。
     fn block_dim(&self) -> Dim3;
+    /// 块共享存储（I.2）：声明 `bytes` 字节块内共享区并返回视图。
+    ///
+    /// 超出 [`super::backend::DeviceCaps::shared_bytes_per_block`] →
+    /// `DeviceError::Launch(LaunchError::InvalidConfig(..))`；
+    /// 后端无块共享存储 → `DeviceError::Unsupported(CapabilityId("I.2"))`。
+    /// 本层只给 opaque 地址；真正的块内符号绑定由各后端书写面承担。
+    fn shared(&self, bytes: u64) -> Result<SharedBuf, DeviceError>;
     /// 块内屏障（I.3；I.2 的共享存储由实现层按块声明）。
     fn barrier(&self);
 }
@@ -148,7 +165,10 @@ pub trait ExecControl {
 /// 诊断（L.2/L.3）：事件计时；打印在无 printf 后端退化为状态缓冲 + 宿主打印。
 pub trait Diagnostics {
     /// 记录事件（L.2）。
-    fn record_event(&self) -> Event;
+    ///
+    /// P1-b 冻结：驱动失败必须显式返回 `DeviceError`，不使用哨兵句柄；
+    /// 调用方只能把本诊断对象产生的事件交给 [`Diagnostics::elapsed`]。
+    fn record_event(&self) -> Result<Event, DeviceError>;
     /// 两事件间耗时（L.2）。
     fn elapsed(&self, a: &Event, b: &Event) -> Duration;
     /// 内核内格式化打印（L.3 退：状态缓冲）。

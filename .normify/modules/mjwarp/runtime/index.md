@@ -282,6 +282,9 @@ path = "src/runtime/kernel_exec/mock_backend.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/mock_tests.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/mod.rs"
 +++
 
 ## P1局部实现

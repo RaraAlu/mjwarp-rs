@@ -59,51 +59,85 @@ impl Default for NumericPolicy {
     }
 }
 
-/// 退项集合（A.2）：每项声明后端是否有原生实现；缺失且无退路 → `Unsupported`。
+/// 退项集合（A.2；P1-b 冻结 12 flag 名单与极性）。
+///
+/// **极性（与直觉相反，必须按此读）**：`true` = 该能力有原生实现（走原生路径）；
+/// `false` = 走退路（退路语义见每个字段的文档）。
+///
+/// 12 flag = 10 个「退」项（`transient_alloc` / `zero_copy_external` /
+/// `generic_device_fn` / `native_source_injection` / `occupancy_hint` /
+/// `graph_capture` / `device_loop` / `device_branch` / `capture_alloc` /
+/// `kernel_printf`）+ 2 个「必带退」项（`int64` / `f32_atomic`）。
+///
+/// 「必带退」的含义：能力本身是必级，但退法常备、不能在缺原生实现时静默失败——
+/// `int64=false` 时退法=双 32 位表示；`f32_atomic=false` 时退法=比较交换循环。
+/// 字段名一律用**能力名**，不退项机制名，避免与极性冲突。缺失且无退路 → `Unsupported`。
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct FallbackSet {
-    /// B.10：临时分配不触发同步（退：预分配）。
-    pub uninit_alloc: bool,
-    /// B.11：零拷贝借给外部框架（退：拷贝）。
+    /// B.10：临时分配不触发同步。`false` → 退路=预分配池。
+    pub transient_alloc: bool,
+    /// B.11：零拷贝借给外部框架。`false` → 退路=拷贝。
     pub zero_copy_external: bool,
-    /// D.4：泛型设备函数（退：按类型展开）。
+    /// D.4：泛型设备函数。`false` → 退路=按类型单态化展开。
     pub generic_device_fn: bool,
-    /// G.9：块宽/驻留查询（退：固定值）。
-    pub occupancy_hint: bool,
-    /// K.1：录制/重放（退：逐次提交）。
-    pub graph_capture: bool,
-    /// K.2：设备端条件循环（退：固定次数）。
-    pub device_loop: bool,
-    /// K.3：设备端条件分支（退：无条件执行）。
-    pub device_branch: bool,
-    /// K.5：录制期分配（退：录制前预分配）。
-    pub capture_alloc: bool,
-    /// L.3：内核内格式化打印（退：状态缓冲）。
-    pub kernel_printf: bool,
-    /// D.10：注入设备原生片段（退：改用 I.3）。
+    /// D.10：注入设备原生片段。`false` → 退路=改用 I.3（barrier）。
     pub native_source_injection: bool,
-    /// C.1 的 64 位整数退路：双 32 位表示。
-    pub i64_as_two_i32: bool,
-    /// H.1 的 f32 原子退路：比较交换循环。
-    pub f32_atomic_via_cas: bool,
+    /// G.9：建议块宽/最小驻留块数查询。`false` → 退路=固定值。
+    pub occupancy_hint: bool,
+    /// K.1：录制/重放。`false` → 退路=逐次提交。
+    pub graph_capture: bool,
+    /// K.2：设备端条件循环。`false` → 退路=固定次数。
+    pub device_loop: bool,
+    /// K.3：设备端条件分支。`false` → 退路=无条件执行。
+    pub device_branch: bool,
+    /// K.5：录制期分配。`false` → 退路=录制前预分配。
+    pub capture_alloc: bool,
+    /// L.3：内核内格式化打印。`false` → 退路=状态缓冲 + 宿主打印。
+    pub kernel_printf: bool,
+    /// C.1：64 位整数原生。`false` → 退路=双 32 位表示（必带退）。
+    pub int64: bool,
+    /// H.1：f32 原子加原生。`false` → 退路=比较交换循环（必带退）。
+    pub f32_atomic: bool,
 }
 
 impl FallbackSet {
-    /// 全部退项均有实现（全功能后端）。
+    /// 全部退项均有原生实现（全功能后端）。
     pub const fn all() -> Self {
         Self {
-            uninit_alloc: true,
+            transient_alloc: true,
             zero_copy_external: true,
             generic_device_fn: true,
+            native_source_injection: true,
             occupancy_hint: true,
             graph_capture: true,
             device_loop: true,
             device_branch: true,
             capture_alloc: true,
             kernel_printf: true,
-            native_source_injection: true,
-            i64_as_two_i32: true,
-            f32_atomic_via_cas: true,
+            int64: true,
+            f32_atomic: true,
+        }
+    }
+
+    /// 全部退项走退路（最小后端；`false` 语义见类型文档）。
+    pub const fn none() -> Self {
+        Self::minimal_set()
+    }
+
+    const fn minimal_set() -> Self {
+        Self {
+            transient_alloc: false,
+            zero_copy_external: false,
+            generic_device_fn: false,
+            native_source_injection: false,
+            occupancy_hint: false,
+            graph_capture: false,
+            device_loop: false,
+            device_branch: false,
+            capture_alloc: false,
+            kernel_printf: false,
+            int64: false,
+            f32_atomic: false,
         }
     }
 }
@@ -131,20 +165,7 @@ impl DeviceCaps {
     /// 保守的能力表：1 维、单线程块上限很小——用于 mock/未知后端。
     pub const fn minimal() -> Self {
         Self {
-            fallbacks: FallbackSet {
-                uninit_alloc: false,
-                zero_copy_external: false,
-                generic_device_fn: false,
-                occupancy_hint: false,
-                graph_capture: false,
-                device_loop: false,
-                device_branch: false,
-                capture_alloc: false,
-                kernel_printf: false,
-                native_source_injection: false,
-                i64_as_two_i32: false,
-                f32_atomic_via_cas: false,
-            },
+            fallbacks: FallbackSet::minimal_set(),
             max_index_dims: 1,
             max_block_threads: 1,
             max_blocks: 1,
@@ -191,7 +212,22 @@ mod tests {
     #[test]
     fn fallback_set_all_and_minimal_caps() {
         let all = FallbackSet::all();
-        assert!(all.graph_capture && all.kernel_printf && all.f32_atomic_via_cas);
+        // 12 flag 逐项：all() 必须全 true（true=原生可用）。
+        assert!(all.transient_alloc);
+        assert!(all.zero_copy_external);
+        assert!(all.generic_device_fn);
+        assert!(all.native_source_injection);
+        assert!(all.occupancy_hint);
+        assert!(all.graph_capture);
+        assert!(all.device_loop);
+        assert!(all.device_branch);
+        assert!(all.capture_alloc);
+        assert!(all.kernel_printf);
+        assert!(all.int64);
+        assert!(all.f32_atomic);
+        let none = FallbackSet::none();
+        assert_eq!(none, FallbackSet::default());
+        assert!(!none.transient_alloc && !none.int64 && !none.f32_atomic);
         let caps = DeviceCaps::minimal();
         assert_eq!(caps.max_index_dims, 1);
         assert!(!caps.fallbacks.capture_alloc);

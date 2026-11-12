@@ -143,6 +143,34 @@ fn module_compile_returns_kernel_and_rejects_empty_source() {
         .compile(KernelSource::Inline(""), CompileOptions::default())
         .unwrap_err();
     assert_eq!(err.class(), Some(super::error::ErrorClass::Compile));
+    // Inline 必须带入口名（P1-b 冻结）；Named 仍由后端按名解析。
+    let missing_entry = module
+        .compile(
+            KernelSource::Inline("extern \"C\" void f() {}"),
+            CompileOptions::default(),
+        )
+        .unwrap_err();
+    assert_eq!(
+        missing_entry.class(),
+        Some(super::error::ErrorClass::Compile)
+    );
+    let with_entry = module
+        .compile(
+            KernelSource::Inline("extern \"C\" void f() {}"),
+            CompileOptions::default().with_entry("f"),
+        )
+        .unwrap();
+    assert_eq!(with_entry.handle(), 42);
+}
+
+#[test]
+fn module_suggest_block_width_uses_frozen_fallback() {
+    let module = MockModule;
+    let suggestion = module
+        .suggest_block_width(&Kernel::from_handle(42), 4096)
+        .unwrap();
+    assert_eq!(suggestion.block_width, 256);
+    assert_eq!(suggestion.min_blocks, 1);
 }
 
 #[test]
@@ -171,6 +199,18 @@ fn device_side_traits_are_usable_via_generic_bounds() {
     assert!((assert_math::<MockDeviceMath>(4.0) - 4.0).abs() < f32::EPSILON);
     let scope = MockThreadScope::new();
     assert_eq!(scope.tid(), Dim3::ZERO);
+    assert_eq!(scope.block_dim(), Dim3::new(1, 1, 1));
+    let shared = scope.shared(1024).unwrap();
+    assert_eq!(shared.address, Address64(0x5A00_0000 + 1024));
+    assert!(matches!(
+        scope.shared(48 * 1024 + 1),
+        Err(DeviceError::Launch(LaunchError::InvalidConfig(_)))
+    ));
+    let no_shared = MockThreadScope::with_shared_bytes(0);
+    assert!(matches!(
+        no_shared.shared(1),
+        Err(DeviceError::Unsupported(CapabilityId("I.2")))
+    ));
     scope.barrier();
     assert_eq!(scope.barriers.get(), 1);
     let control = MockExecControl;
@@ -190,8 +230,8 @@ fn device_side_traits_are_usable_via_generic_bounds() {
 #[test]
 fn diagnostics_events_elapsed_and_printf() {
     let diag = MockDiagnostics::new();
-    let a = diag.record_event();
-    let b = diag.record_event();
+    let a = diag.record_event().unwrap();
+    let b = diag.record_event().unwrap();
     assert_eq!(diag.elapsed(&a, &b), Duration::from_micros(1));
     diag.printf("value=%d", &[super::queue::Arg::I32(7)]);
     assert_eq!(diag.logs.borrow().len(), 1);

@@ -1,8 +1,10 @@
-//! 设备无关的内核执行层接口（P1-a 骨架；**只声明，不接线**）。
+//! 设备无关的内核执行层接口（P1-a 骨架 + P1-b CUDA 适配；**不接调用点**）。
 //!
-//! 依据：`docs/architecture/device-layer-contract.md`（A0 草案 §2）。
-//! 本模块只定义 trait、值类型与（`cfg(test)`）mock backend；**不接现有调用点**：
-//! 既有 `runtime` 模块的路径、recipe、PTX/ABI 与行为保持不变，CUDA 适配在 P1-b 才接线。
+//! 依据：`docs/architecture/device-layer-contract.md`（A0 定稿 §2）。
+//! 本模块定义 trait、值类型与（`cfg(test)`）mock backend；**不接现有调用点**：
+//! 既有 `runtime` 模块的路径、recipe、PTX/ABI 与行为保持不变。
+//! `cuda` 子模块（P1-b）只在 `cuda-probe` 特性下编译，是宿主面 trait 的 CUDA 适配层；
+//! 旧 cudarc/NVRTC/launcher 路径保持原样（双轨），迁移属 P2。
 //!
 //! 设计取舍（P1-a）：
 //! - 消费方可见的句柄面（[`Backend`]/[`Device`]/[`Allocator`]/[`Buffer`]/[`Queue`]/[`Module`]/
@@ -14,6 +16,8 @@
 
 pub mod backend;
 pub mod buffer;
+#[cfg(feature = "cuda-probe")]
+pub mod cuda;
 pub mod device;
 pub mod error;
 pub mod module;
@@ -24,10 +28,11 @@ pub use backend::{
 };
 pub use buffer::{Address64, Allocator, Buffer, DType, ExternalHandle, Init, Pinned};
 pub use device::{
-    Atomics, Counter, DeviceMath, Diagnostics, Dim3, Duration, Event, ExecControl, ThreadScope,
+    Atomics, Counter, DeviceMath, Diagnostics, Dim3, Duration, Event, ExecControl, SharedBuf,
+    ThreadScope,
 };
 pub use error::{BufferError, CompileError, DeviceError, DeviceLost, ErrorClass, LaunchError};
-pub use module::{CompileOptions, Kernel, KernelSource, Module};
+pub use module::{BlockSuggestion, CompileOptions, Kernel, KernelSource, Module};
 pub use queue::{Alias, Arg, Graph, IndexSpace, Launch, Queue, QueueCapture, Submission};
 
 #[cfg(test)]

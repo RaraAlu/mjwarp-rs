@@ -191,6 +191,15 @@ pub enum BufferError {
         /// 要求对齐字节数。
         alignment: u64,
     },
+    /// 能力缺失且无退路（如 B.11 零拷贝借用、不支持的 `DType`）。
+    ///
+    /// 与 [`DeviceError::Unsupported`] 同语义，只是出口在缓冲面（P1-b 冻结）。
+    Unsupported(CapabilityId),
+    /// 缓冲属于其他后端/上下文（跨设备/跨上下文范围拷贝）。
+    ForeignBuffer {
+        /// 目标后端标识（诊断用，固定小写短名）。
+        backend: &'static str,
+    },
 }
 
 impl fmt::Display for BufferError {
@@ -213,6 +222,12 @@ impl fmt::Display for BufferError {
             ),
             Self::Unaligned { offset, alignment } => {
                 write!(f, "buffer offset {offset} not aligned to {alignment}")
+            }
+            Self::Unsupported(capability) => {
+                write!(f, "unsupported buffer capability: {}", capability.0)
+            }
+            Self::ForeignBuffer { backend } => {
+                write!(f, "foreign buffer (not owned by backend {backend})")
             }
         }
     }
@@ -261,6 +276,24 @@ mod tests {
         assert_eq!(
             range.to_string(),
             "buffer range out of bounds: offset 8, len 16, byte_len 16"
+        );
+    }
+
+    #[test]
+    fn buffer_capability_and_foreign_variants_are_explicit() {
+        let unsupported = BufferError::Unsupported(CapabilityId("B.11"));
+        assert_eq!(
+            unsupported.to_string(),
+            "unsupported buffer capability: B.11"
+        );
+        let foreign = BufferError::ForeignBuffer { backend: "cuda" };
+        assert_eq!(
+            foreign.to_string(),
+            "foreign buffer (not owned by backend cuda)"
+        );
+        assert_ne!(
+            BufferError::Unsupported(CapabilityId("B.11")),
+            BufferError::ForeignBuffer { backend: "cuda" }
         );
     }
 }
