@@ -1,0 +1,2172 @@
+{
+ "generated_at": "2026-11-12T23:59:00+08:00",
+ "upstream_rev": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+ "task_id": "2026-11-12-p0b-capability-index",
+ "gpu_used": false,
+ "a0_doc": {
+  "path": "docs/architecture/device-layer-contract.md",
+  "ref": "A0 §3/§10（提交 4a2a953ec 后的工作区版本）"
+ },
+ "a1_coupling_source": {
+  "inventory": {
+   "path": "target/impl-plan-review/A1-cuda-coupling-inventory.md",
+   "sha256": "554267971fe2dc69a0359d6aabba40a7fc18083003132229cd39e9582fd4d3c6",
+   "bytes": 37413
+  },
+  "host_json": {
+   "path": "target/impl-plan-review/a1-coupling/a1-host-coupling.json",
+   "sha256": "c4e0d0f95aecc030edfb5d43921151f9fb34fccbfa8b019135c2e78345f786aa",
+   "bytes": 140411
+  },
+  "kernel_json": {
+   "path": "target/impl-plan-review/a1-coupling/a1-kernel-coupling.json",
+   "sha256": "909f5e756f6d9af58856bb5ff37231048e31621c53b7bc14c8baf59d14668282",
+   "bytes": 146631
+  },
+  "hotspots_json": {
+   "path": "target/impl-plan-review/a1-coupling/a1-hotspots.json",
+   "sha256": "ed0c9c7c549bfe46a123bd72ffbaee125e673cd556248017c797ba5760bfb6b6",
+   "bytes": 8067
+  }
+ },
+ "row_count": 85,
+ "counts": {
+  "done": 43,
+  "part": 25,
+  "none": 14,
+  "n/a": 3
+ },
+ "status_vocabulary": {
+  "done": "产品路径可用（A0 评审口径）",
+  "part": "存在但不完整/未进产品路径",
+  "none": "未见实现",
+  "n/a": "不适用或待并入"
+ },
+ "rows": [
+  {
+   "capability_id": "A.1",
+   "layer": "设备层",
+   "domain": "设备",
+   "level": "必",
+   "name": "枚举并选择设备",
+   "contract": "Backend::devices()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "cudarc 0.18.2 driver（Cargo.toml，default=cuda）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-09（待批，设备层全量）",
+   "done_criteria": {
+    "contract": "A0 §3：Backend::devices()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-09（待批，设备层全量）"
+   }
+  },
+  {
+   "capability_id": "A.2",
+   "layer": "设备层",
+   "domain": "设备",
+   "level": "必",
+   "name": "能力查询：返回各“退”项有无与B、G、I域容量",
+   "contract": "Device::caps() -> DeviceCaps",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "src/runtime/cuda/resources/probe.rs 有设备探测；无统一能力表/退项声明；缺 A.2 要求的退项清单与 B/G/I 容量查询接口",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-08（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Device::caps() -> DeviceCaps",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-08（待批）"
+   }
+  },
+  {
+   "capability_id": "A.3",
+   "layer": "设备层",
+   "domain": "设备",
+   "level": "必",
+   "name": "执行队列：同一队列按提交顺序执行",
+   "contract": "Queue::submit() 语义",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "单 stream 提交（src/runtime/launcher/submit.rs）",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-04（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Queue::submit() 语义",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-04（待批）"
+   }
+  },
+  {
+   "capability_id": "A.4",
+   "layer": "设备层",
+   "domain": "设备",
+   "level": "必",
+   "name": "错误模型：区分编译失败、发射失败与设备丢失",
+   "contract": "DeviceError（编译/发射/设备丢失）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "LauncherError 区分编译/发射；设备丢失未单列分类；缺 device-lost 分类与重试策略",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P1-d，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceError（编译/发射/设备丢失）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P1-d，未建卡）"
+   }
+  },
+  {
+   "capability_id": "B.1",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "按元素类型与个数分配：未初始化、清零、填值",
+   "contract": "Buffer::alloc(dtype,len,Init)",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "cudarc 分配 + CudaSlice 清零；未初始化/清零/填值未统一成一条 API；缺未初始化分配入口（PU-05）",
+   "a1": {
+    "host_calls": 865,
+    "host_basis": "buffer=865",
+    "kernel_occurrences": 8,
+    "kernel_product": 8,
+    "kernel_basis": "__constant__=8（产品 8）"
+   },
+   "owner": "PU-05（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer::alloc(dtype,len,Init)",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-05（待批）"
+   }
+  },
+  {
+   "capability_id": "B.2",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "生命期保持到最后一次使用完成",
+   "contract": "Buffer 生命期（RAII）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "Rust RAII/lease（src/runtime/lease.rs）",
+   "a1": {
+    "host_calls": 865,
+    "host_basis": "buffer=865",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer 生命期（RAII）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "B.3",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "缓冲内字节偏移采用64位",
+   "contract": "Buffer::addr() -> Address64",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "ABI 数组 data 为 u64（launcher/abi/array.rs），stride 为 i32；缺 64 位字节偏移的显式契约（现为指针+元素步长）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-07（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer::addr() -> Address64",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-07（待批）"
+   }
+  },
+  {
+   "capability_id": "B.5",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "设备内拷贝，带源偏移、目标偏移与长度",
+   "contract": "Buffer::copy_range(dst,dst_off,src_off,len)",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "cudarc copy_dtod 可用；带源/目标偏移与长度的封装未统一；缺带偏移设备拷贝 API",
+   "a1": {
+    "host_calls": 526,
+    "host_basis": "transfer_session=516；copy_range=10",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P1-a，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer::copy_range(dst,dst_off,src_off,len)",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P1-a，未建卡）"
+   }
+  },
+  {
+   "capability_id": "B.6",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "宿主上传与范围回读",
+   "contract": "Buffer::upload/readback",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "src/runtime/transfer/*（buffer/session/kernel）",
+   "a1": {
+    "host_calls": 1127,
+    "host_basis": "transfer_session=516；upload_readback=611",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer::upload/readback",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "B.9",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "地址稳定：生命期内不搬移",
+   "contract": "Buffer::pin()/地址稳定",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "resident/lease 固定缓冲；无显式地址稳定性契约；缺地址稳定声明",
+   "a1": {
+    "host_calls": 865,
+    "host_basis": "buffer=865",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-07（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer::pin()/地址稳定",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-07（待批）"
+   }
+  },
+  {
+   "capability_id": "B.10",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "退：预分配",
+   "name": "临时分配不触发同步",
+   "contract": "Scratch::alloc_transient(bytes)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无内存池/异步分配（cudarc 分配默认同步）；缺低成本临时分配",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-05（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Scratch::alloc_transient(bytes)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-05（待批）"
+   }
+  },
+  {
+   "capability_id": "B.11",
+   "layer": "设备层",
+   "domain": "缓冲",
+   "level": "退：拷贝",
+   "name": "把缓冲零拷贝借给外部框架",
+   "contract": "Buffer::borrow_external(ExternalHandle)",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "src/runtime/external/view.rs 外部缓冲借用（含拷贝退路）；缺 CUDA IPC/DLPack 形态零拷贝",
+   "a1": {
+    "host_calls": 25,
+    "host_basis": "zero_copy=25",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P1-a，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：Buffer::borrow_external(ExternalHandle)",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P1-a，未建卡）"
+   }
+  },
+  {
+   "capability_id": "C.1",
+   "layer": "设备层",
+   "domain": "类型",
+   "level": "必；64位整数可退：双32位",
+   "name": "标量7种：f32、i32、i64、u8、u32、u64、bool",
+   "contract": "DType 标量类型集",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "ElemType::{F32,I32,U32,U8}（launcher/abi.rs:10）；缺 i64/u64/bool（PU-11 明列）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-11（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DType 标量类型集",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-11（待批）"
+   }
+  },
+  {
+   "capability_id": "D.1",
+   "layer": "设备层",
+   "domain": "语言",
+   "level": "必",
+   "name": "控制流：动态上界循环、while、break、continue、提前返回",
+   "contract": "DeviceOps::control_flow()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "内核为 CUDA C++，控制流由语言提供",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P2 书写面，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceOps::control_flow()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "backlog（P2 书写面，未建卡）"
+   }
+  },
+  {
+   "capability_id": "D.2",
+   "layer": "设备层",
+   "domain": "语言",
+   "level": "必",
+   "name": "设备函数，可互相调用",
+   "contract": "DeviceOps::device_fn()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "C++ __device__ 函数可互调",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 659,
+    "kernel_product": 659,
+    "kernel_basis": "__device__=378（产品 378）；__forceinline__=281（产品 281）"
+   },
+   "owner": "PU-13（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceOps::device_fn()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-13（待批）"
+   }
+  },
+  {
+   "capability_id": "D.5",
+   "layer": "设备层",
+   "domain": "语言",
+   "level": "必",
+   "name": "整数运算：取模、整除、位与、位或、异或、左移、右移",
+   "contract": "DeviceOps::int_ops()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "C++ 整数运算",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P2 书写面，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceOps::int_ops()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "backlog（P2 书写面，未建卡）"
+   }
+  },
+  {
+   "capability_id": "E.1",
+   "layer": "设备层",
+   "domain": "数学",
+   "level": "必",
+   "name": "标量13个：max、min、abs、clamp、sqrt、sign、pow、exp、log、floor、ceil、round、isnan",
+   "contract": "DeviceMath（标量 13）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "include/warp-headers/builtin.h（Warp 1.15 原样）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 319,
+    "kernel_product": 319,
+    "kernel_basis": "fma_family=153（产品 153）；sqrt_family=51（产品 51）；div_family=3（产品 3）；min_max_fabs=112（产品 112）"
+   },
+   "owner": "PU-02（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceMath（标量 13）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-02（待批）"
+   }
+  },
+  {
+   "capability_id": "E.2",
+   "layer": "设备层",
+   "domain": "数学",
+   "level": "必",
+   "name": "三角6个：sin、cos、tan、asin、acos、atan2",
+   "contract": "DeviceMath（三角 6）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "同上（sin/cos/tan/asin/acos/atan2）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-02（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceMath（三角 6）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-02（待批）"
+   }
+  },
+  {
+   "capability_id": "F.1",
+   "layer": "设备层",
+   "domain": "编译",
+   "level": "必",
+   "name": "运行时把内核源编成设备可执行物",
+   "contract": "Kernel::compile(source,recipe)",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "src/runtime/launcher/artifact/nvrtc.rs（NVRTC 运行时编译）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 51,
+    "kernel_product": 46,
+    "kernel_basis": "#include=51（产品 46）"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：Kernel::compile(source,recipe)",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "F.5",
+   "layer": "设备层",
+   "domain": "编译",
+   "level": "必",
+   "name": "每内核可设编译选项",
+   "contract": "CompileOptions",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "CompileRecipe 固定四种（physics/diagnostic/render/probe），可加 defines（recipe.rs）；非任意每内核选项",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P1-a，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：CompileOptions",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P1-a，未建卡）"
+   }
+  },
+  {
+   "capability_id": "F.6",
+   "layer": "设备层",
+   "domain": "编译",
+   "level": "必",
+   "name": "数值选项：全程f32、乘加融合开、不开fast-math",
+   "contract": "NumericPolicy",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "recipe：fast_math=false、fmad、arch=compute_70（recipe.rs:89-136）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 258,
+    "kernel_product": 258,
+    "kernel_basis": "fma_family=153（产品 153）；sqrt_family=51（产品 51）；div_family=3（产品 3）；bitcast=30（产品 30）；inline_asm=21（产品 21）"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：NumericPolicy",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "G.1",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "1、2、3维索引空间，线程可取自身多维索引",
+   "contract": "Launch::dims(IndexSpace1|2|3)",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "launcher 支持 1–3 维 dim；产品路径实际使用 1D/2D；3 维索引空间无产品用例",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 117,
+    "kernel_product": 106,
+    "kernel_basis": "__global__=117（产品 106）"
+   },
+   "owner": "PU-03（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::dims(IndexSpace1|2|3)",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-03（待批）"
+   }
+  },
+  {
+   "capability_id": "G.2",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "总索引数等于世界数乘元素数",
+   "contract": "Launch::elements_per_world/worlds",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "per-world 内核与 worldid 分解（render/kernel/per_world.rs）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-01（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::elements_per_world/worlds",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-01（待批）"
+   }
+  },
+  {
+   "capability_id": "G.3",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "单内核参数个数",
+   "contract": "Launch::args(&[Arg])",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "81 槽内核参数 ABI（launcher/abi.rs）",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-03（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::args(&[Arg])",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-03（待批）"
+   }
+  },
+  {
+   "capability_id": "G.5",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "同一缓冲可同时作输入与输出",
+   "contract": "Launch::alias(inout,out)",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "launcher/alias.rs（输入输出同缓冲）",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-03（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::alias(inout,out)",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-03（待批）"
+   }
+  },
+  {
+   "capability_id": "G.6",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "按块发射：指定块数，每块多线程",
+   "contract": "Launch::blocks(u32)",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "block 发射（launcher/abi.rs BlockRule）",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-03（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::blocks(u32)",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-03（待批）"
+   }
+  },
+  {
+   "capability_id": "G.7",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "每次发射指定块宽",
+   "contract": "Launch::block_width(32|64|128|256)",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "block_dim/launch_bounds（.cu 中 wp::launch_bounds_t）",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 7,
+    "kernel_product": 7,
+    "kernel_basis": "wp::launch_bounds_t=7（产品 7）"
+   },
+   "owner": "PU-03（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::block_width(32|64|128|256)",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-03（待批）"
+   }
+  },
+  {
+   "capability_id": "G.9",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "退：固定值",
+   "name": "建议块宽查询与最小驻留块数提示",
+   "contract": "Launch::suggest_block_width()",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "src 内 min_blocks/occupancy/cudaOccupancy 命中 0",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-26（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch::suggest_block_width()",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-26（待批）"
+   }
+  },
+  {
+   "capability_id": "G.10",
+   "layer": "设备层",
+   "domain": "发射",
+   "level": "必",
+   "name": "非阻塞提交，队列内有序",
+   "contract": "Queue::submit()（非阻塞）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "src/runtime/launcher/submit.rs",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-04（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Queue::submit()（非阻塞）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-04（待批）"
+   }
+  },
+  {
+   "capability_id": "H.1",
+   "layer": "设备层",
+   "domain": "并发",
+   "level": "必；f32可退：比较交换循环",
+   "name": "原子加，返回旧值",
+   "contract": "Atomics::add(ptr,val)->old",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "atomicAdd 11 处（6 个文件，.cu 3 + 内嵌源 8；含内联 PTX atom.global.add.f32）；无通用原子封装与 f32 比较交换回退",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 15,
+    "kernel_product": 15,
+    "kernel_basis": "atomicAdd=10（产品 10）；inline_ptx_atom=5（产品 5）"
+   },
+   "owner": "PU-24（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Atomics::add(ptr,val)->old",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-24（待批）"
+   }
+  },
+  {
+   "capability_id": "H.3",
+   "layer": "设备层",
+   "domain": "并发",
+   "level": "必",
+   "name": "原子减",
+   "contract": "Atomics::sub(ptr,val)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "atomicSub 命中 0",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-24（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Atomics::sub(ptr,val)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-24（待批）"
+   }
+  },
+  {
+   "capability_id": "H.4",
+   "layer": "设备层",
+   "domain": "并发",
+   "level": "必",
+   "name": "原子或",
+   "contract": "Atomics::or(ptr,val)",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "atomicOr 3 处",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 3,
+    "kernel_product": 3,
+    "kernel_basis": "atomicOr=3（产品 3）"
+   },
+   "owner": "PU-24（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Atomics::or(ptr,val)",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-24（待批）"
+   }
+  },
+  {
+   "capability_id": "H.5",
+   "layer": "设备层",
+   "domain": "并发",
+   "level": "必",
+   "name": "原子极小与极大",
+   "contract": "Atomics::min/max(ptr,val)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "atomicMin/atomicMax 命中 0",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-24（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Atomics::min/max(ptr,val)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-24（待批）"
+   }
+  },
+  {
+   "capability_id": "H.6",
+   "layer": "设备层",
+   "domain": "并发",
+   "level": "必",
+   "name": "比较交换",
+   "contract": "Atomics::cas(ptr,old,new)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "atomicCAS 命中 0",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-24（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Atomics::cas(ptr,old,new)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-24（待批）"
+   }
+  },
+  {
+   "capability_id": "I.1",
+   "layer": "设备层",
+   "domain": "块内",
+   "level": "必",
+   "name": "取块内线程号与块宽",
+   "contract": "ThreadScope::tid()/block_dim()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "wp::tid（aa_resolve.cu:35 等）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 313,
+    "kernel_product": 287,
+    "kernel_basis": "threadIdx=106（产品 94）；blockIdx=106（产品 97）；blockDim=91（产品 86）；wp::launch_bounds_t=7（产品 7）；wp::tid=3（产品 3）"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：ThreadScope::tid()/block_dim()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "I.2",
+   "layer": "设备层",
+   "domain": "块内",
+   "level": "必",
+   "name": "块共享存储",
+   "contract": "ThreadScope::shared(bytes)",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "launcher/abi.rs 支持静态 __shared__ 字节记账（shared_bytes）；产品内核未声明 __shared__，仅 MathDx SMEM 路径；块共享存储未走产品内核路径",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 3,
+    "kernel_product": 0,
+    "kernel_basis": "__shared__=3（产品 0）"
+   },
+   "owner": "PU-01（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：ThreadScope::shared(bytes)",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-01（待批）"
+   }
+  },
+  {
+   "capability_id": "I.3",
+   "layer": "设备层",
+   "domain": "块内",
+   "level": "必",
+   "name": "块内同步栅栏",
+   "contract": "ThreadScope::barrier()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "mass_solve/sparse/{mixed,resident}/solve/cuda.rs 各 4 处 __syncthreads",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 11,
+    "kernel_product": 8,
+    "kernel_basis": "__syncthreads=11（产品 8）"
+   },
+   "owner": "PU-14（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：ThreadScope::barrier()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-14（待批）"
+   }
+  },
+  {
+   "capability_id": "K.1",
+   "layer": "设备层",
+   "domain": "执行",
+   "level": "退：逐次提交",
+   "name": "录制一段发射序列并重放",
+   "contract": "Graph::capture(fn)/replay()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "launcher/graph.rs、cuda/graph.rs（capture/instantiate）",
+   "a1": {
+    "host_calls": 23,
+    "host_basis": "graph=13；completion=10",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-04（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Graph::capture(fn)/replay()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-04（待批）"
+   }
+  },
+  {
+   "capability_id": "K.2",
+   "layer": "设备层",
+   "domain": "执行",
+   "level": "退：固定次数",
+   "name": "设备端条件循环，条件为设备上一个i32",
+   "contract": "ExecControl::loop_while_device(...)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无设备端条件循环路径",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-06（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：ExecControl::loop_while_device(...)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-06（待批）"
+   }
+  },
+  {
+   "capability_id": "K.3",
+   "layer": "设备层",
+   "domain": "执行",
+   "level": "退：无条件执行",
+   "name": "设备端条件分支",
+   "contract": "ExecControl::branch_on_device(...)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无设备端条件分支路径",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-06（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：ExecControl::branch_on_device(...)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-06（待批）"
+   }
+  },
+  {
+   "capability_id": "K.5",
+   "layer": "设备层",
+   "domain": "执行",
+   "level": "退：录制前预分配",
+   "name": "录制期间允许分配，缓冲随录制物存活",
+   "contract": "Queue::capture_alloc()",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "录制期分配未支持（capture 前置分配）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-04（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Queue::capture_alloc()",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-04（待批）"
+   }
+  },
+  {
+   "capability_id": "L.1",
+   "layer": "设备层",
+   "domain": "诊断",
+   "level": "必",
+   "name": "显式等待队列排空",
+   "contract": "Queue::wait_idle()",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "src/runtime/completion.rs（等待/排空）",
+   "a1": {
+    "host_calls": 65,
+    "host_basis": "sync_wait=55；completion=10",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-04（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Queue::wait_idle()",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-04（待批）"
+   }
+  },
+  {
+   "capability_id": "L.2",
+   "layer": "设备层",
+   "domain": "诊断",
+   "level": "必",
+   "name": "设备端事件与耗时",
+   "contract": "Event::record/elapsed",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "perf.rs 以 cudaEvent 计时",
+   "a1": {
+    "host_calls": 11,
+    "host_basis": "event=11",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：Event::record/elapsed",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "L.3",
+   "layer": "设备层",
+   "domain": "诊断",
+   "level": "退：状态缓冲",
+   "name": "内核内格式化打印",
+   "contract": "Diagnostics::printf(fmt,args)",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "printf 命中 0",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-26（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Diagnostics::printf(fmt,args)",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-26（待批）"
+   }
+  },
+  {
+   "capability_id": "C.2",
+   "layer": "语言层",
+   "domain": "类型",
+   "level": "必",
+   "name": "内建复合10种：vec2/3/4、vec2i/3i/4i、mat33、quat、空间向量、空间矩阵",
+   "contract": "DeviceType（vec/mat/quat 等）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "warp-headers vec/quat/mat/spatial；宿主 ABI 参数面窄于 10 种复合类型；宿主 ABI 不能直接传递全部复合类型",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 459,
+    "kernel_product": 459,
+    "kernel_basis": "wp_namespace=459（产品 459）"
+   },
+   "owner": "PU-11（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceType（vec/mat/quat 等）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-11（待批）"
+   }
+  },
+  {
+   "capability_id": "C.3",
+   "layer": "语言层",
+   "domain": "类型",
+   "level": "必",
+   "name": "任意定长向量与矩阵",
+   "contract": "DeviceType（任意定长）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "matnn.h/vec_t 模板在头树中；产品未使用长向量路径；128 长向量等未验证",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 459,
+    "kernel_product": 459,
+    "kernel_basis": "wp_namespace=459（产品 459）"
+   },
+   "owner": "PU-11（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceType（任意定长）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-11（待批）"
+   }
+  },
+  {
+   "capability_id": "C.4",
+   "layer": "语言层",
+   "domain": "类型",
+   "level": "必",
+   "name": "1至4维数组，元素紧凑排列无填充",
+   "contract": "DeviceType（数组）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "array.h + ABI WarpArrayData{ndim}；1–4 维紧凑布局未做全组合验证",
+   "a1": {
+    "host_calls": 865,
+    "host_basis": "buffer=865",
+    "kernel_occurrences": 648,
+    "kernel_product": 648,
+    "kernel_basis": "wp_namespace=459（产品 459）；wp::array=189（产品 189）"
+   },
+   "owner": "backlog（P2 书写面，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceType（数组）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P2 书写面，未建卡）"
+   }
+  },
+  {
+   "capability_id": "C.5",
+   "layer": "语言层",
+   "domain": "类型",
+   "level": "必",
+   "name": "结构体，可含数组成员，可作参数与返回值",
+   "contract": "DeviceType（结构体）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "C++ 结构体可用；内核参数结构体传递未统一；结构体参数/返回值缺 ABI 位",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-11（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceType（结构体）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-11（待批）"
+   }
+  },
+  {
+   "capability_id": "C.7",
+   "layer": "语言层",
+   "domain": "类型",
+   "level": "必",
+   "name": "显式类型转换",
+   "contract": "DeviceType（显式转换）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "C++ 显式转换",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：DeviceType（显式转换）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "D.3",
+   "layer": "语言层",
+   "domain": "语言",
+   "level": "必",
+   "name": "多值返回与结构体返回",
+   "contract": "表达式层（多值返回）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "C++ 结构体/tuple.h 多值返回",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：表达式层（多值返回）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "D.4",
+   "layer": "语言层",
+   "domain": "语言",
+   "level": "退：按类型展开",
+   "name": "泛型设备函数",
+   "contract": "表达式层（泛型）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "C++ 模板（工具链提供）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：表达式层（泛型）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "D.6",
+   "layer": "语言层",
+   "domain": "语言",
+   "level": "必",
+   "name": "矩阵乘运算符",
+   "contract": "表达式层（矩阵乘）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "mat.h operator*",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：表达式层（矩阵乘）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "D.7",
+   "layer": "语言层",
+   "domain": "语言",
+   "level": "必",
+   "name": "局部复合变量的分量读写",
+   "contract": "表达式层（分量读写）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "vec/mat 分量读写",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：表达式层（分量读写）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "D.8",
+   "layer": "语言层",
+   "domain": "语言",
+   "level": "必",
+   "name": "数组元素1至4维下标读写；内核内读形状与大小",
+   "contract": "表达式层（下标/形状）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "array.h 下标与形状",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：表达式层（下标/形状）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "D.9",
+   "layer": "语言层",
+   "domain": "语言",
+   "level": "必",
+   "name": "行子视图：取出低一维数组并传给函数",
+   "contract": "表达式层（行子视图）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "array.h 具备视图能力；产品无行子视图用例；缺用例与验证",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P2 书写面，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：表达式层（行子视图）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P2 书写面，未建卡）"
+   }
+  },
+  {
+   "capability_id": "E.3",
+   "layer": "语言层",
+   "domain": "数学",
+   "level": "必",
+   "name": "向量10个：dot、cross、length、length_sq、normalize、norm_l2、cw_mul、cw_div、outer、skew",
+   "contract": "Math（向量 10）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "vec.h（dot/cross/length/... 齐全）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-12（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Math（向量 10）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-12（待批）"
+   }
+  },
+  {
+   "capability_id": "E.4",
+   "layer": "语言层",
+   "domain": "数学",
+   "level": "必",
+   "name": "矩阵5个：transpose、diag、identity、determinant、matrix_from_rows",
+   "contract": "Math（矩阵 5）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "mat.h（transpose/diag/identity/determinant）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-12（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Math（矩阵 5）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-12（待批）"
+   }
+  },
+  {
+   "capability_id": "E.5",
+   "layer": "语言层",
+   "domain": "数学",
+   "level": "必",
+   "name": "四元数2个：quat_rotate、quat_to_matrix",
+   "contract": "Math（四元数 2）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "quat.h:300 quat_rotate、:332 quat_to_matrix",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-12（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Math（四元数 2）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-12（待批）"
+   }
+  },
+  {
+   "capability_id": "E.6",
+   "layer": "语言层",
+   "domain": "数学",
+   "level": "必",
+   "name": "空间向量2个：spatial_top、spatial_bottom",
+   "contract": "Math（空间 2）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "spatial.h:60/65 spatial_top/spatial_bottom",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-12（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Math（空间 2）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-12（待批）"
+   }
+  },
+  {
+   "capability_id": "E.7",
+   "layer": "语言层",
+   "domain": "数学",
+   "level": "必",
+   "name": "选择与常量3个：where、pi、inf",
+   "contract": "Math（选择/常量 3）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "builtin.h where/pi/inf",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-12（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Math（选择/常量 3）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-12（待批）"
+   }
+  },
+  {
+   "capability_id": "F.2",
+   "layer": "语言层",
+   "domain": "编译",
+   "level": "必",
+   "name": "编译期常量折叠，裁掉不走的分支",
+   "contract": "编译期（常量折叠）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "NVRTC/C++ 常量折叠",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 130,
+    "kernel_product": 130,
+    "kernel_basis": "#define=123（产品 123）；pragma_unroll=7（产品 7）"
+   },
+   "owner": "PU-15（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：编译期（常量折叠）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-15（待批）"
+   }
+  },
+  {
+   "capability_id": "F.3",
+   "layer": "语言层",
+   "domain": "编译",
+   "level": "必",
+   "name": "参数化内核生成",
+   "contract": "编译期（参数化内核）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "源码拼接与宏变体（collision_gpu/source.rs、render/kernel/mod.rs）；无工厂式参数化生成；缺 module=unique 式工厂",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-15（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：编译期（参数化内核）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-15（待批）"
+   }
+  },
+  {
+   "capability_id": "G.4",
+   "layer": "语言层",
+   "domain": "发射",
+   "level": "必",
+   "name": "标量参数类型：int、bool、float、u64、vec2、vec3、vec4、vec6",
+   "contract": "Launch 标量参数类型",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "ABI 标量槽按字节（SlotKind::Scalar），复合标量类型面窄；缺 vec6 等标量参数验证",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-11（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：Launch 标量参数类型",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-11（待批）"
+   }
+  },
+  {
+   "capability_id": "G.8",
+   "layer": "语言层",
+   "domain": "发射",
+   "level": "必",
+   "name": "两种形态：一线程一索引；线程循环覆盖多个索引",
+   "contract": "索引模式（一线程一索引/grid-stride）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "主线为一线程一索引；grid-stride 仅个别路径；缺两形态共存验证",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P2 书写面，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：索引模式（一线程一索引/grid-stride）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P2 书写面，未建卡）"
+   }
+  },
+  {
+   "capability_id": "H.2",
+   "layer": "语言层",
+   "domain": "并发",
+   "level": "必",
+   "name": "复合类型逐分量原子加减",
+   "contract": "原子语义（复合类型逐分量）",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无复合类型逐分量原子；缺 vec/spatial/mat 原子",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-24（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：原子语义（复合类型逐分量）",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-24（待批）"
+   }
+  },
+  {
+   "capability_id": "H.7",
+   "layer": "语言层",
+   "domain": "并发",
+   "level": "必",
+   "name": "数组元素+=与-=自动成为原子操作",
+   "contract": "原子语义（+= 自动原子）",
+   "status": "n/a",
+   "status_note": "当前手写 CUDA 架构下不适用（采用书写面后重评）",
+   "evidence_anchor": "C++ 无隐式原子语义；产品用显式 atomicAdd；若采用自建 DSL 须补",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（书写面后重评，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：原子语义（+= 自动原子）",
+    "cuda_backend": "n/a",
+    "test_or_evidence": "不适用（n/a）",
+    "pu_map": "backlog（书写面后重评，未建卡）"
+   }
+  },
+  {
+   "capability_id": "H.8",
+   "layer": "语言层",
+   "domain": "并发",
+   "level": "必",
+   "name": "数组元素*=与/=为普通读改写",
+   "contract": "原子语义（*=/= 普通读改写）",
+   "status": "n/a",
+   "status_note": "当前手写 CUDA 架构下不适用（采用书写面后重评）",
+   "evidence_anchor": "C++ 的 *=、/= 天然普通读改写",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（书写面后重评，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：原子语义（*=/= 普通读改写）",
+    "cuda_backend": "n/a",
+    "test_or_evidence": "不适用（n/a）",
+    "pu_map": "backlog（书写面后重评，未建卡）"
+   }
+  },
+  {
+   "capability_id": "B.4",
+   "layer": "库层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "原地清零与填值",
+   "contract": "库层（原地清零填值）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "有清零/填充路径；无库层统一算子；缺 B.4 接口",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-19（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（原地清零填值）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-19（待批）"
+   }
+  },
+  {
+   "capability_id": "B.7",
+   "layer": "库层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "零拷贝改形：同一数据换形状",
+   "contract": "库层（零拷贝改形）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "shape/strides 支持改形；无专用 API",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P1-a，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（零拷贝改形）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "backlog（P1-a，未建卡）"
+   }
+  },
+  {
+   "capability_id": "B.8",
+   "layer": "库层",
+   "domain": "缓冲",
+   "level": "必",
+   "name": "零拷贝重解释：同一数据换元素类型",
+   "contract": "库层（零拷贝重解释）",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "未见零拷贝重解释接口；缺 B.8；与 PU-11 类型表相关",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-11（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（零拷贝重解释）",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-11（待批）"
+   }
+  },
+  {
+   "capability_id": "C.6",
+   "layer": "库层",
+   "domain": "类型",
+   "level": "射",
+   "name": "64位句柄类型，可存入数组",
+   "contract": "库层（64 位句柄）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render 侧 mesh/BVH/texture 以 64 位句柄走 ABI",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（64 位句柄）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "F.4",
+   "layer": "库层",
+   "domain": "编译",
+   "level": "必",
+   "name": "每内核独立编译单元，按内容键缓存",
+   "contract": "库层（独立编译单元+内容缓存）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "launcher/artifact/cache.rs 内容键缓存",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（独立编译单元+内容缓存）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "I.4",
+   "layer": "库层",
+   "domain": "块内",
+   "level": "必",
+   "name": "一个世界对齐一个线程块",
+   "contract": "库层（一世界一块）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render/kernel/per_world.rs（一世界一块）",
+   "a1": {
+    "host_calls": 597,
+    "host_basis": "launch_submit=597",
+    "kernel_occurrences": 117,
+    "kernel_product": 106,
+    "kernel_basis": "__global__=117（产品 106）"
+   },
+   "owner": "PU-23（待批，维护）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（一世界一块）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-23（待批，维护）"
+   }
+  },
+  {
+   "capability_id": "I.5",
+   "layer": "库层",
+   "domain": "块内",
+   "level": "必",
+   "name": "块级数据算子19种",
+   "contract": "库层（块级算子 19）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "vendored tile.h 可用；产品路径未使用（src 内 tile_ 命中 7 处，均为注释/同名手写函数）；块级算子未进产品路径",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-17（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（块级算子 19）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-17（待批）"
+   }
+  },
+  {
+   "capability_id": "I.6",
+   "layer": "库层",
+   "domain": "块内",
+   "level": "必",
+   "name": "块内稠密线性代数5种",
+   "contract": "库层（块内线代 5）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "MathDx cusolverdx（launcher/mathdx.rs）+ 手写 tile cholesky（mass_solve/cuda.rs）；tile 路由被拒（MathDx_tile_factor_not_implemented）；块内线代仅在求解器窄路径",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-17（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（块内线代 5）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-17（待批）"
+   }
+  },
+  {
+   "capability_id": "J.1",
+   "layer": "库层",
+   "domain": "算法",
+   "level": "必",
+   "name": "包含式前缀和",
+   "contract": "库层（前缀和）",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无前缀和算子（cuda/scan.rs 为探针扫描，非 prefix sum）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-18a（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（前缀和）",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-18a（待批）"
+   }
+  },
+  {
+   "capability_id": "J.2",
+   "layer": "库层",
+   "domain": "算法",
+   "level": "必",
+   "name": "分段键值排序",
+   "contract": "库层（分段排序）",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无设备端分段排序",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-18b（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（分段排序）",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-18b（待批）"
+   }
+  },
+  {
+   "capability_id": "J.3",
+   "layer": "库层",
+   "domain": "算法",
+   "level": "必",
+   "name": "基数键值排序，缓冲须两倍长",
+   "contract": "库层（基数排序）",
+   "status": "none",
+   "status_note": "",
+   "evidence_anchor": "无设备端基数排序（src 内 radix 命中均为 from_str_radix）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-18b（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（基数排序）",
+    "cuda_backend": "absent",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-18b（待批）"
+   }
+  },
+  {
+   "capability_id": "J.4",
+   "layer": "库层",
+   "domain": "算法",
+   "level": "必",
+   "name": "类型转换拷贝",
+   "contract": "库层（类型转换拷贝）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render/kernel/cast.rs（类型转换拷贝）",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-19（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（类型转换拷贝）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "PU-19（待批）"
+   }
+  },
+  {
+   "capability_id": "K.4",
+   "layer": "库层",
+   "domain": "执行",
+   "level": "必",
+   "name": "探测K.2、K.3有无并自动降级",
+   "contract": "库层（探测与降级）",
+   "status": "part",
+   "status_note": "",
+   "evidence_anchor": "collision_gpu/product_entry.rs host fallback；无 K.2/K.3 探测（因二者未实现）；缺探测-降级通用层",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-22（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（探测与降级）",
+    "cuda_backend": "partial",
+    "test_or_evidence": "待补：单测/对照（L1）",
+    "pu_map": "PU-22（待批）"
+   }
+  },
+  {
+   "capability_id": "M.1",
+   "layer": "库层",
+   "domain": "查询",
+   "level": "射",
+   "name": "设备端BVH构建与重拟合",
+   "contract": "库层（BVH 构建/重拟合）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render/bvh/builder.rs、refit.rs",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P3-d，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（BVH 构建/重拟合）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "backlog（P3-d，未建卡）"
+   }
+  },
+  {
+   "capability_id": "M.2",
+   "layer": "库层",
+   "domain": "查询",
+   "level": "射",
+   "name": "BVH射线遍历，支持分组根",
+   "contract": "库层（BVH 遍历）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render/bvh/cuda/scene.cu",
+   "a1": {
+    "host_calls": 16,
+    "host_basis": "bvh_query=16",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P3-d，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（BVH 遍历）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "backlog（P3-d，未建卡）"
+   }
+  },
+  {
+   "capability_id": "M.3",
+   "layer": "库层",
+   "domain": "查询",
+   "level": "射",
+   "name": "三角网格射线查询：最近命中与任意命中",
+   "contract": "库层（网格射线）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render/bvh/cuda/mesh.cu",
+   "a1": {
+    "host_calls": 16,
+    "host_basis": "bvh_query=16",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "backlog（P3-d，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（网格射线）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "backlog（P3-d，未建卡）"
+   }
+  },
+  {
+   "capability_id": "M.4",
+   "layer": "库层",
+   "domain": "查询",
+   "level": "射",
+   "name": "二维纹理采样",
+   "contract": "库层（纹理采样）",
+   "status": "done",
+   "status_note": "",
+   "evidence_anchor": "render/texture/sample.cu（tex2D）",
+   "a1": {
+    "host_calls": 10,
+    "host_basis": "texture_query=10",
+    "kernel_occurrences": 1,
+    "kernel_product": 1,
+    "kernel_basis": "tex2D=1（产品 1）"
+   },
+   "owner": "backlog（P3-d，未建卡）",
+   "done_criteria": {
+    "contract": "A0 §3：库层（纹理采样）",
+    "cuda_backend": "present",
+    "test_or_evidence": "现有测试/证据（按 A0 §10 口径）",
+    "pu_map": "backlog（P3-d，未建卡）"
+   }
+  },
+  {
+   "capability_id": "D.10",
+   "layer": "待并入",
+   "domain": "语言",
+   "level": "退：改用`I.3`",
+   "name": "注入设备原生片段",
+   "contract": "并入 I.3（待并入）",
+   "status": "n/a",
+   "status_note": "并入 I.3（待并入）",
+   "evidence_anchor": "并入 I.3（文档口径）；两处上游用途均为块内同步",
+   "a1": {
+    "host_calls": 0,
+    "host_basis": "无直接宿主耦合点",
+    "kernel_occurrences": 0,
+    "kernel_product": 0,
+    "kernel_basis": "无直接内核耦合点"
+   },
+   "owner": "PU-14（待批）",
+   "done_criteria": {
+    "contract": "A0 §3：并入 I.3（待并入）",
+    "cuda_backend": "n/a",
+    "test_or_evidence": "不适用（n/a）",
+    "pu_map": "PU-14（待批）"
+   }
+  }
+ ]
+}
