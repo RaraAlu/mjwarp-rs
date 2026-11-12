@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-11-render-r06-flex-z2vec-diagnosis",
+  "title": {
+    "zh": "R06 flex z2vec 近平行负分支只读诊断证据（缺陷两行 / 上游真值 (1,0,0,0) / 注释与实现不符的陷阱 / 触发面窄；修复裁定 G-L2 后做）",
+    "en": "R06 flex z2vec near-parallel negative branch: read-only diagnosis evidence (two-line defect, upstream truth (1,0,0,0), comment-vs-implementation trap, narrow trigger; fix deferred to after G-L2)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "Chief 2026-11-11 裁定：z2vec 修复放 G-L2 收口后做，但诊断证据现在就固化。本卡把已完成的只读诊断落成证据：① 把 target/s3b-d8/ 的 probe_quat.log、check_z2vec_equivalence.py、check_z2vec.log 复制入库（行尾归一 LF，记录源 sha256）；② 固化 render_flex.cu 34-64 行只读摘录与代码身份锚点；③ README 写清缺陷定位（47-53 行）、上游真值 (1,0,0,0)、上游注释「180 度绕 x」与实现不符的陷阱、触发条件（f32 sqrt(x^2+y^2)<1e-15 且 z<0，现实=轴对齐竖直向下边）、影响路径（quat→mat→ray_capsule）、现有覆盖/未覆盖、CPU 断言与设备证据边界、建议时机=G-L2 后、决策要点（不重采参考、需新 PTX 基线、2 片 0 窗、设备实证需新场景=签名级不建议）；④ 写死后续修复卡最小清单。不改代码：src/tests/fixtures/scripts 零改动，不改判据/参考/spec，零 GPU、不采集、不开窗。",
+    "en": "Chief 2026-11-11: the z2vec fix waits until after the G-L2 closeout, but the diagnosis evidence is recorded now. Copy probe_quat.log, check_z2vec_equivalence.py and check_z2vec.log from target/s3b-d8/ with LF normalization and source sha256; store a read-only excerpt of render_flex.cu lines 34-64 plus the code identity anchor; document the defect location, upstream truth, the comment-vs-implementation trap, trigger, impact path, covered/uncovered boundary, CPU-vs-device evidence boundary, timing and decision points; write the minimal checklist for the later fix card. No code change, no criteria/reference/spec change, GPU-free, no capture, no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "证据入库：docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/ 含 README.md、receipt.json、manifest.txt、artifacts/{probe_quat.log,check_z2vec_equivalence.py,check_z2vec.log,render_flex-z2vec-excerpt.txt}；三个源文件从 target/s3b-d8/ 复制、行尾归一 LF、记录源 sha256/bytes；manifest 首行 # 加 base dir 行、逐文件 sha256+bytes、自核通过；UTF-8/LF/无 BOM。",
+    "README 内容：缺陷定位（render_flex.cu:47-53、产品 (1,0,0,1)、上游 (1,0,0,0)、矩阵差 2.0）、上游注释与实现不符的陷阱（不得照注释改成 180 度绕 x）、触发条件（f32 sqrt(x^2+y^2)<1e-15 且 unit.z<0，现实=轴对齐竖直向下边；scene-a-light 无 flex、scene-flex 非 ±z 对齐 → 当前零影响）、影响路径（quat→mat→ray_capsule）、现有覆盖/未覆盖、CPU 断言与设备证据边界（不宣称设备等价）、建议时机=G-L2 后（理由）、决策要点、后续修复卡最小清单。",
+    "代码零改动：unchanged src/、unchanged tests/、unchanged fixtures/、unchanged scripts/；不改判据/阈值/参考/spec；零 GPU、不采集、不开窗；四门禁 fmt/clippy/clippy-cuda/unit。",
+    "非声明：不宣称缺陷已修、不宣称设备端等价、不宣称任何渲染数值结论；target/ 是 gitignored 工作区，入库后以本目录为准。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/"
+    ],
+    "resources": [],
+    "priority": 45
+  },
+  "note": "按原有任务声明重建进行态。此登记不新增验收结论。",
+  "revision": {
+    "before": "f3b5bee0c13b183abb5d619863200d1998ebaff6",
+    "after": null
+  },
+  "created_at": "2026-11-10T16:20:00.000Z",
+  "updated_at": "2026-11-10T16:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r06-s3b-flex-z2vec/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-11-render-r06-flex-z2vec-diagnosis"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "设备端等价",
+        "缺陷已修复",
+        "上游等价"
+      ]
+    }
+  ]
+}
