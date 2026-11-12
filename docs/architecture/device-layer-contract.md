@@ -1,6 +1,6 @@
 # 设备层契约（A0，草案 v0.2）
 
-- 状态：草案 v0.2（2026-11-12 同步 P1-b S1 `e8ef68e89` 的实际签名与当日裁定措辞；L0 文档，未登记卡、未开窗、未改实现）。目标提交：`docs/architecture/device-layer-contract.md`。
+- 状态：草案 v0.2（2026-11-12 同步 P1-b S1 `e8ef68e89` 的实际签名与当日裁定措辞；同日晚补 P1-b S2 的 `BufferError::DeviceLost` 追认；L0 文档，未登记卡、未开窗、未改实现）。目标提交：`docs/architecture/device-layer-contract.md`。
 - 依据：`docs/implementation-plan.md` §并行计算单元能力定义（`efadf21c`，13 域 85 项，其中设备层 44 项）；映射与口径见 `target/impl-plan-review/`（工作材料，不入仓）。
 - 目的：把**设备通用**的内核执行层所需能力收敛成一份可实现的接口契约，使「接新设备只需重做设备层（44）」成为可执行目标，而不是口号。
 
@@ -70,8 +70,10 @@ pub trait Allocator {
 }
 // `DType`（P1-a 定稿，14 种）：标量 7 = f32/i32/u32/u64/i64/u8/bool；
 // 宿主缓冲可见复合 7 = Vec2/Vec3/Vec4/Vec6/Vec10/Mat33/Quat。
-// `BufferError`（P1-b 冻结 5 类）：`CapacityExceeded` / `OutOfRange` / `Unaligned` /
-// **`Unsupported(CapabilityId)`** / **`ForeignBuffer { backend }`**。
+// `BufferError`（P1-b 冻结 6 类）：`CapacityExceeded` / `OutOfRange` / `Unaligned` /
+// **`Unsupported(CapabilityId)`** / **`ForeignBuffer { backend }`** / **`DeviceLost(DeviceLost)`**。
+// 其中 `DeviceLost` 由 P1-b S2 追加（缓冲操作驱动级失败必须上报，符合 A.4 三分类不得吞；
+// 仅 `kernel_exec` 内使用、零外溢），Chief 2026-11-12 追认。
 
 // 3) 编译与发射（F/G 域）
 pub trait Module {
@@ -168,12 +170,14 @@ pub enum DeviceError {
 
 级别与备注取自 `docs/implementation-plan.md`（必/退/射；射=0 项在设备层）。
 
+> `BufferError` 是**缓冲面出口**（6 类）：容量 / 越界 / 对齐 / 能力缺失 / 外部缓冲 / **设备丢失**。最后一项由 P1-b S2 追加并经 Chief 2026-11-12 追认——缓冲操作遇到驱动级失败必须上报 `DeviceLost`，不得因「出口在缓冲面」而吞掉 A.4 的三分类。
+
 | 编号 | 能力 | 级别 | 契约位置 | 备注 |
 | --- | --- | --- | --- | --- |
 | `A.1` | 枚举并选择设备 | 必 | `Backend::devices()` | 枚举并选择设备；返回稳定 id + 名称 |
 | `A.2` | 能力查询：返回各“退”项有无与B、G、I域容量 | 必 | `Device::caps() -> DeviceCaps` | 退项有无 + B/G/I 容量；退路必须显式声明 |
 | `A.3` | 执行队列：同一队列按提交顺序执行 | 必 | `Queue::submit()` 语义 | 同一队列按提交顺序执行 |
-| `A.4` | 错误模型：区分编译失败、发射失败与设备丢失 | 必 | `DeviceError`（三分类 + `Unsupported`） | 编译失败 / 发射失败 / 设备丢失，不得合并；后端可声明不产生 `DeviceLost` |
+| `A.4` | 错误模型：区分编译失败、发射失败与设备丢失 | 必 | `DeviceError`（三分类 + `Unsupported`）；缓冲面 `BufferError::DeviceLost` | 编译失败 / 发射失败 / 设备丢失，不得合并；缓冲出口同样保留设备丢失；后端可声明不产生 `DeviceLost` |
 | `B.1` | 按元素类型与个数分配：未初始化、清零、填值 | 必 | `Buffer::alloc(dtype,len,Init)` | Init = Uninit | Zeroed | Fill(value) |
 | `B.2` | 生命期保持到最后一次使用完成 | 必 | `Buffer` 生命期（RAII） | 持有到最后一次使用完成（Drop/lease 维护） |
 | `B.3` | 缓冲内字节偏移采用64位 | 必 | `Buffer::addr() -> Address64` | 字节偏移一律 64 位；元素步长可 32 位 |
@@ -292,6 +296,7 @@ device_kernel! {
 | D2 | 第二后端先选 **CPU** 还是**第二 GPU** | **已裁（工作口径，仍暂定）**：先 CPU 验证抽象完整性；**用户签待** | CPU：0 GPU 窗；P4 只出可行性稿，真多线程块（`I.3`）归 P4' 另评 |
 | D3 | `F.1` 是否允许 AOT | **已裁（2026-11-12）**：允许——「源 → 可执行物（JIT 或 AOT 均可）」，见 §2 设计约束 5 | 第二后端不必假装运行时编译 |
 | D4 | `F.5` defines 是否必须运行期任意 | **已裁（2026-11-12）**：不必须——集合由后端声明、超集 → `Unsupported` | 见 §2 设计约束 6 |
+| D5 | `Diagnostics::elapsed` 签名无错误通道 | **待定（P1-d/P2 再定）** | 驱动错误/非有限值现被吞成 `ZERO`，计时错误不可观测；评估是否加 `Result<Duration, DeviceError>`，或约定 `record_event` 失败先行、`elapsed` 仅在成功事件间使用（QA P1-b 复核 O-2） |
 
 ## 8. 与现有证据的关系
 
