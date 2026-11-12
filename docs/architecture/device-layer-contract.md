@@ -254,3 +254,65 @@ device_kernel! {
 - 本文件是**契约草案**，不是验收证据；不改变任何已冻结证据、判据、容差、参考。
 - 落地顺序建议：先 B0 定义类 5 片（语言/能力语义）→ 书写面最小试点（PU-16 三个代表内核）→ 第二后端骨架（0 窗）→ 再谈冻结集。
 - 与流程：A0 属 L0（文档）；一旦进入书写面实现或冻结集重冻，按 L1/L2 升级。
+
+## 9. 消费方接口（物理层 / 交互层）
+
+**依赖方向**：消费方 → 内核执行层接口（traits）。执行层**不得**反向依赖 `physics/*`、`render/*`、`io/*`；跨层只传 opaque 句柄/描述符（`BufferHandle`、`KernelHandle`、`LaunchDesc`），需要回调（printf、host fallback）时由消费方注入 trait object，而不是执行层 `use` 消费方类型。
+
+### 9.1 物理层
+
+| 消费方 | 现有模块 | 最少 API 集（trait::method） | 数据搬运 | 库层算法 | 备注 |
+| --- | --- | --- | --- | --- | --- |
+| collision（宽/窄相、接触） | `physics/collision/**`、`runtime/collision_gpu/**` | `Allocator::alloc`、`Buffer::{upload,readback}`、`Module::compile`、`Queue::submit`、`Launch::{dims,blocks,block_width,alias,args}`、`Atomics::{add,cas,min,max}`、`DeviceError` | 模型/数据上传 + `nacon/nacc/efc/contact` 回读 | 无（mesh 射线不属碰撞路径） | 已有 host fallback（K.4 语义），契约需保留 `Unsupported` 路径 |
+| dynamics（RNEA/积分/平滑力/质量求解） | `physics/rne*`、`physics/integrator*`、`physics/smooth_force*`、`physics/mass_*` | `Buffer`（状态持久借出）、`Queue::{capture,replay}`（整 step 图）、`Atomics::add`（力累加）、`DeviceMath`（quat/spatial）、`Module::compile` | 状态 in/out 借用；每步少量控制回读 | `I.6` tile matmul / cholesky、`J.1` 前缀和、`J.2/J.3` 排序（当前缺失） | 图捕获是 step 级性能关键；`K.1` 必须可用 |
+| flex（柔体 hessian/边/面） | `physics/flex*`、`physics/resident*` | `Launch`、`ThreadScope::{tid,shared,barrier}`、`DeviceMath`、`Atomics` | 节点/边/面缓冲借出 + 校验回读 | `I.6` tile matmul（可选） | `I.2`/`I.3` 目前产品内核只用 `__syncthreads` |
+| mass matrix / multiply | `physics/mass_matrix/**` | `Buffer` 借出、`Launch`、`Queue::submit` | 矩阵/向量借出，能量/校验小回读 | `I.6` tile matmul / cholesky、`J.1` 前缀和 | 与 dynamics 共用 tile 路径 |
+
+### 9.2 交互层
+
+| 消费方 | 现有模块 | 最少 API 集 | 数据搬运 | 库层算法 | 备注 |
+| --- | --- | --- | --- | --- | --- |
+| io（模型/状态存取） | `io/**`、`model/**` | `Allocator::{alloc,borrow_external}`、`Buffer::{upload,readback}`、`DType` | 上传为主；状态回读 | 无 | 零拷贝借用（`B.11`）对模型常驻数组价值最大 |
+| render（megakernel/depth/seg/AA） | `render/kernel/**`、`render/context/**` | `Module::compile`（源拼接 + recipe）、`Launch`（2 维、块宽、alias 累加缓冲）、`Queue::{capture,replay}`（多帧）、`DeviceMath`、`ThreadScope::tid` | 逐帧相机/光照小上传；图像/深度回读 | `M.2` BVH 遍历、`M.4` 纹理采样、`M.1` 构建/重拟合 | 渲染 recipe 与物理 recipe 分离（fast-math 关闭一致） |
+| BVH / query（构建/重拟合/射线） | `render/bvh/**`、`physics/query*` | `Queue::submit`、`Launch`（1 维）、`Buffer` | 图元/节点上传；命中结果回读 | `M.1` 构建/重拟合、`M.2` 遍历、`M.3` 网格射线 | `M.1` 当前为"已实现"但需纳入库层 17 项验收 |
+
+### 9.3 消费方最小公共集
+
+任何消费方都至少需要：`Backend::devices`、`Device::caps`、`Allocator::alloc`、`Buffer::{upload,readback}`、`Module::compile`、`Queue::submit`、`Launch`、`Queue::wait_idle`、`DeviceError`。
+增量：碰撞 `Atomics`+alias；动力学 `capture/replay`+`DeviceMath`+库层 tile/scan/sort；渲染 `M.*`；io 仅 `borrow_external`。
+
+### 9.4 最小化原则
+
+- 消费方只拿**描述符**，不拿具体后端类型（`dyn Device` 或泛型参数），保证换后端不改消费方。
+- 同步点只允许出现在消费方显式请求处（`wait_idle`）；执行层不得在 `upload/readback/alloc` 内隐式同步。
+- 库层算法（BVH/扫描/排序/tile）以"函数 + 契约"形式暴露，不进消费方。
+
+## 10. 85 项「完成」定义
+
+**总口径**：85/85 全部满足四要素 = **契约接口** + **一个后端实现（CUDA 先行）** + **测试或证据** + **映射到 PU/能力编号**；「全部 85 项实现完成」是本阶段验收目标。当前实测见 §10.3。
+
+### 10.1 四要素细则
+
+| # | 要素 | 判据 |
+| --- | --- | --- |
+| ① | 契约接口 | 该能力在 §2/§3 有 trait 方法或书写面条目；无接口的能力（如 D.1 控制流）须有语言能力声明位 |
+| ② | 后端实现 | CUDA 后端有真实实现；「退」项必须实现退路并在 `DeviceCaps.fallbacks` 声明；缺能力返回 `Unsupported` 或走声明退路 |
+| ③ | 测试或证据 | 分级：设备层/语言层 `L1` = 单测 + mock backend + 定向测试；涉及判据数字/冻结/窗 = `L2`（窗证据）。每个「退」项至少 1 条退路测试 |
+| ④ | 映射 | `capability_id` → PU 编号（PU-01…PU-31 或 backlog 条目）；无 PU 的须显式记 backlog，不得悬空 |
+
+### 10.2 分层 done 判据
+
+| 层 | 项数 | done 判据 | 证据级别 |
+| --- | --- | --- | --- |
+| 设备层 | 44 | 每个 trait 方法有单测（mock backend）+ CUDA 适配 smoke；10 个「退」项各 1 条退路测试 | L1（不涉判据数字）；退路若影响数值 → L2 |
+| 语言层 | 23 | 书写面条目 + shim 单测 + 3 个代表内核试点（PU-16）；改冻结源形状 = L2 | L1 → 试点 L2 |
+| 库层 | 17 | 算法单测 + 与 CPU/解析参考对照（容差按数值契约）；BVH/纹理类含结构断言 | L1；判据数字 L2 |
+
+### 10.3 当前实测口径（2026-11-12）
+
+来源：`target/impl-plan-review/capability-mapping.json`（只读评审产物，工作材料）。**85 = 43 已实现 / 25 部分 / 14 缺失 / 2 不适用 / 1 待并入**；按层：设备 23/12/9、语言 12/8/1（+2 不适用）、库 8/5/4。
+
+- 「完成」判定 = 把 **25 部分 + 14 缺失** 逐项转成「已实现（四要素齐）」；**2 不适用**（`H.7`/`H.8` 隐式原子语义）保留但须注明"仅在当前手写 CUDA 架构下成立"，采用书写面后重评。
+- 9 个必级缺口（`H.2/H.3/H.5/H.6/J.1–J.3/B.8`）是首批硬骨头，归属见 `pu-registration-draft.md` §2。
+- **A1 清单**：以现状冻结集身份为基准（10 个 exe + 13 fixture + 2 参考，按仓内已 verified 冻结证据；A2 重冻后更新）。P1/P2 若**不改内核源形状**，A1 身份应保持不变；一旦变化即 L2 重冻。每个后端实现完成的证据必须包含该后端对应的身份记录。
+- 对外措辞：只写「契约 + 实现 + 测试齐备」，不写「缺口已清」「与上游等价」。
