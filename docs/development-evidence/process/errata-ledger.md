@@ -19,6 +19,10 @@
 | E-008 | 2026-11-12 | U7/U8 判据 addenda §3 O2 | `a2-slices.json` L55「见 criteria §1.3」应指 `README.md §1.3`（当时记录不改内容） | 观察 | OPEN | 文档统一批 |
 | E-009 | 2026-11-12 | 本流程落地（A0/L0 提交实践） | `normify` commit-msg 钩子无 L0 豁免：要求 `Normify-Task:` 且按卡 `schedule.files` 校验范围。**已用常驻卡解决**：L0 docs 提交统一引用 `2026-11-12-process-lite-standing-v2`（v1 因 `unchanged src/...` 检查与 P1 片冲突且运行中冻结无法收窄，已 abandon，提交 `93d9a033b`）；`5f9c1bb9`、`117d2299` 两次历史 L0 提交为一次性 `--no-verify`，保留不重写。长期可考虑工具白名单（`docs/**` 免任务或 `Normify-Task: L0`），需用户批 | 低 | DONE（常驻卡 v2） | 工具批（长期项） |
 | E-010 | 2026-11-12 | P0-b 登记（锁纪律） | P0-b 卡登记提交 `78038ca9f` 在 `repo-write-lock=owner=backend` 期间完成（锁检查滞后于提交）；此后零写入并已向 Chief/Backend 披露。改进：提交前第一步先跑锁检查，未 FREE 立即停 | 低 | OPEN（流程改进） | 流程批 |
+| E-011 | 2026-11-12 | QA L1 批量复核低项 L1（卡 `2026-11-12-l1-batch-p0b-p1a-check`） | P1-a 证据 README §1 表与 `artifacts.json::files[].lines` 的 10 个行数值均 +1（201/160/169/267/457/213/37/87/152/126 vs LF/ReadAllLines 实测 200/159/168/266/456/212/36/86/151/125；`max_file_lines` 457 vs 456），疑似 `Get-Content` 计数；判据（≤500）不受影响 | 低 | OPEN | P1-b 首批（Backend 顺手更正，Chief 定） |
+| E-012 | 2026-11-12 | QA L1 批量复核观察 O1（同上卡） | P0-b README 标题「85 行」指 85 条能力行，而 JSON 物理行 2,172；建议写「85 条（row_count=85）」避免与文件行数混读 | 观察 | OPEN | 下一批 |
+| E-013 | 2026-11-12 | QA L1 批量复核观察 O2（同上卡） | P0-b `level` 字段存在复合值（如「必；64位整数可退：双32位」），README 口径写「必/退/射」；属描述性复合值可接受，建议注明允许复合写法 | 观察 | OPEN | 下一批 |
+| E-014 | 2026-11-12 | QA L1 批量复核观察 O3（同上卡） | P1-a README §4 手动耗时（fmt 1.77 s / unit 88.34 s）与 `.normify/runs` 同门禁数据为两轮独立运行、并列呈现；建议加「两轮独立」避免误读为同一轮 | 观察 | OPEN | 下一批 |
 
 ## 维护
 
