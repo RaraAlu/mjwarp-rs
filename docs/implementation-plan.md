@@ -1116,6 +1116,7 @@ U-AST按语法树节点计数。
 复核材料为`target/impl-plan-review/merged-count-table.md`（`6572cdc6…`，8,159字节）。
 对账材料为`target/render-bvh/gl2-ptx-diff/pu-baseline-review/reconcile/reconcile.md`（`c21af22e…`，38,966字节）。
 二者是工作材料，不是仓内验收证据。
+105以`F.4`句为准，113为`B.6`候选。
 
 ## 数值验收方法
 
