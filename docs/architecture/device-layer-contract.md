@@ -56,6 +56,8 @@ pub trait Allocator {
     fn transient(&self, bytes: u64) -> Result<Buffer, DeviceError>;     // B.10 退：预分配
     fn borrow_external(&self, h: ExternalHandle) -> Result<Buffer, DeviceError>; // B.11 退：拷贝
 }
+// `DType`（P1-a 定稿，14 种）：标量 7 = f32/i32/u32/u64/i64/u8/bool；
+// 宿主缓冲可见复合 7 = Vec2/Vec3/Vec4/Vec6/Vec10/Mat33/Quat。
 
 // 3) 编译与发射（F/G 域）
 pub trait Module {
@@ -77,22 +79,29 @@ pub struct Launch {
 pub trait Queue {
     fn submit(&self, l: Launch) -> Result<Submission, DeviceError>;     // A.3/G.10
     fn wait_idle(&self) -> Result<(), DeviceError>;                     // L.1
-    fn capture(&self, f: impl FnOnce(&Queue)) -> Result<Graph, DeviceError>; // K.1
     fn replay(&self, g: &Graph) -> Result<(), DeviceError>;             // K.1
     fn capture_alloc(&self) -> Result<Buffer, DeviceError>;             // K.5 退：预分配
+}
+// K.1 的 capture 需要闭包，按 P1-a 定稿拆为独立 trait：仅单态化调用、不作 `dyn` 面，
+// `Queue` 保持对象安全。A0 定稿采纳该形态，不改回放进 `Queue`。
+pub trait QueueCapture {
+    fn capture<F>(&self, body: F) -> Result<Graph, DeviceError>
+    where
+        F: FnOnce(&dyn Queue);
 }
 
 // 4) 设备内原语（内核书写面经此落到具体设备）
 pub trait DeviceMath {          // E.1/E.2
     fn sqrt(x: f32) -> f32; fn sin(x: f32) -> f32; /* … 19 个 */
 }
-pub trait Atomics {             // H.1/H.3/H.4/H.5/H.6
-    fn add(p: *mut i32, v: i32) -> i32;
-    fn add_f32(p: *mut f32, v: f32) -> f32;      // 退：CAS 循环
-    fn sub(p: *mut i32, v: i32);
-    fn or(p: *mut u32, v: u32);
-    fn min(p: *mut i32, v: i32); fn max(p: *mut i32, v: i32);
-    fn cas(p: *mut i32, old: i32, new: i32) -> i32;
+pub trait Atomics {             // H.1/H.3/H.4/H.5/H.6（P1-a 定稿：用 Address64，不用裸指针）
+    fn add_i32(&self, target: Address64, value: i32) -> i32;
+    fn add_f32(&self, target: Address64, value: f32) -> f32;      // 退：CAS 循环
+    fn sub_i32(&self, target: Address64, value: i32) -> i32;
+    fn or_u32(&self, target: Address64, value: u32) -> u32;
+    fn min_i32(&self, target: Address64, value: i32) -> i32;
+    fn max_i32(&self, target: Address64, value: i32) -> i32;
+    fn cas_i32(&self, target: Address64, compare: i32, value: i32) -> i32;
 }
 pub trait ThreadScope {         // I.1/I.2/I.3
     fn tid(&self) -> Dim3; fn block_dim(&self) -> Dim3;
@@ -142,10 +151,10 @@ pub enum DeviceError {
 | `B.9` | 地址稳定：生命期内不搬移 | 必 | `Buffer::pin()` / 地址稳定契约 | 生命期内不搬移；pin 后可把地址交给外部 |
 | `B.10` | 临时分配不触发同步 | 退：预分配 | `Scratch::alloc_transient(bytes)` | 退：预分配；不得在分配时隐式同步 |
 | `B.11` | 把缓冲零拷贝借给外部框架 | 退：拷贝 | `Buffer::borrow_external(ExternalHandle)` | 退：拷贝；零拷贝借用需能力位 |
-| `C.1` | 标量7种：f32、i32、i64、u8、u32、u64、bool | 必；64位整数可退：双32位 | `DType`（标量类型集） | f32/i32/i64/u8/u32/u64/bool；64 位整数可退双 32 位 |
-| `D.1` | 控制流：动态上界循环、while、break、continue、提前返回 | 必 | `DeviceOps::control_flow()`（语言能力声明） | 动态上界循环/while/break/continue/提前返回 |
-| `D.2` | 设备函数，可互相调用 | 必 | `DeviceOps::device_fn()`（语言能力声明） | 设备函数可互相调用；单函数参数上限 |
-| `D.5` | 整数运算：取模、整除、位与、位或、异或、左移、右移 | 必 | `DeviceOps::int_ops()` | 取模/整除/位与或异或/左右移 |
+| `C.1` | 标量7种：f32、i32、i64、u8、u32、u64、bool | 必；64位整数可退：双32位 | `DType`（P1-a 定稿 14 种） | 标量 7 + 宿主缓冲可见复合 7（Vec2/3/4/6/10、Mat33、Quat）；64 位整数可退双 32 位 |
+| `D.1` | 控制流：动态上界循环、while、break、continue、提前返回 | 必 | `shim::device_flow`（设备侧 shim，P2） | 落点=设备侧 shim（P2），不塞宿主 trait |
+| `D.2` | 设备函数，可互相调用 | 必 | `shim::device_fn`（设备侧 shim，P2） | 落点=设备侧 shim（P2）；设备函数可互相调用、单函数参数上限 |
+| `D.5` | 整数运算：取模、整除、位与、位或、异或、左移、右移 | 必 | `shim::int_ops`（设备侧 shim，P2） | 落点=设备侧 shim（P2），不塞宿主 trait |
 | `E.1` | 标量13个：max、min、abs、clamp、sqrt、sign、pow、exp、log、floor、ceil、round、isnan | 必 | `DeviceMath`（标量 13） | max/min/abs/clamp/sqrt/sign/pow/exp/log/floor/ceil/round/isnan |
 | `E.2` | 三角6个：sin、cos、tan、asin、acos、atan2 | 必 | `DeviceMath`（三角 6） | sin/cos/tan/asin/acos/atan2；行为随 NumericPolicy |
 | `F.1` | 运行时把内核源编成设备可执行物 | 必 | `Kernel::compile(source, recipe)` | 运行时把内核源编成设备可执行物（NVRTC/预编译 PTX） |
@@ -157,7 +166,7 @@ pub enum DeviceError {
 | `G.5` | 同一缓冲可同时作输入与输出 | 必 | `Launch::alias(inout, out)` | 同缓冲可同时作输入与输出（显式声明） |
 | `G.6` | 按块发射：指定块数，每块多线程 | 必 | `Launch::blocks(u32)` | 按块发射：指定块数，每块多线程 |
 | `G.7` | 每次发射指定块宽 | 必 | `Launch::block_width(32|64|128|256)` | 每次发射指定块宽 |
-| `G.9` | 建议块宽查询与最小驻留块数提示 | 退：固定值 | `Launch::suggest_block_width() -> u32` | 退：固定值；最小驻留块数提示 |
+| `G.9` | 建议块宽查询与最小驻留块数提示 | 退：固定值 | `Launch::suggest_block_width() -> u32`（**P1-b 补**） | 退：固定值；最小驻留块数提示 |
 | `G.10` | 非阻塞提交，队列内有序 | 必 | `Queue::submit()`（非阻塞） | 提交不等待完成，队列内有序 |
 | `H.1` | 原子加，返回旧值 | 必；f32可退：比较交换循环 | `Atomics::add(ptr,val) -> old` | i32/f32；f32 退：比较交换循环 |
 | `H.3` | 原子减 | 必 | `Atomics::sub(ptr,val)` | i32/f32 |
@@ -165,7 +174,7 @@ pub enum DeviceError {
 | `H.5` | 原子极小与极大 | 必 | `Atomics::min/max(ptr,val)` | i32 |
 | `H.6` | 比较交换 | 必 | `Atomics::cas(ptr,old,new)` | i32；f32 回退基石 |
 | `I.1` | 取块内线程号与块宽 | 必 | `ThreadScope::tid() -> Dim3 / block_dim()` | 块内线程号与块宽 |
-| `I.2` | 块共享存储 | 必 | `ThreadScope::shared(bytes) -> SharedBuf` | 块共享存储；容量随模型而定 |
+| `I.2` | 块共享存储 | 必 | `ThreadScope::shared(bytes) -> SharedBuf`（**P1-b 补**） | 块共享存储；容量随模型而定 |
 | `I.3` | 块内同步栅栏 | 必 | `ThreadScope::barrier()` | 块内同步栅栏（显式） |
 | `K.1` | 录制一段发射序列并重放 | 退：逐次提交 | `Graph::capture(fn)` / `Graph::replay()` | 录制一段发射序列并重放 |
 | `K.2` | 设备端条件循环，条件为设备上一个i32 | 退：固定次数 | `ExecControl::loop_while_device(counter, body)` | 退：固定次数；设备端条件循环 |
@@ -205,6 +214,8 @@ pub enum DeviceError {
 ## 5. 内核书写面（语言层 23 项的 intent shim 草图）
 
 目标：同一份内核源，经 shim 翻译到不同设备。做法是「意图层 + 每后端一个 emitter」，不做通用 IR（第一版）。
+
+> **范围（2026-11-12 定稿）**：本节内容 **P1-a 不含**，属 **P2 交付**——`device_kernel!`、`DeviceType`、表达式层、`Math` 库（`E.3–E.7`）、复合类型原子（`H.2`）与索引模式（`G.8`）均以 P2 为准；P1-a 只提供设备层宿主面与内联原语（`DeviceMath` 标量 19 个、`Atomics` 标量 7 个、`ThreadScope`）。
 
 ```rust
 // 书写面（示意）：设备无关的内核意图
