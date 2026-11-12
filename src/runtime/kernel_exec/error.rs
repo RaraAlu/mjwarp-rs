@@ -200,6 +200,10 @@ pub enum BufferError {
         /// 目标后端标识（诊断用，固定小写短名）。
         backend: &'static str,
     },
+    /// 缓冲操作期间设备/驱动失败（D1 扩展：P1-b 实现时发现缓冲面缺设备错误通道）。
+    ///
+    /// 三分类不得吞掉：缓冲面出口同样必须保留设备丢失，由上层决定重建上下文。
+    DeviceLost(DeviceLost),
 }
 
 impl fmt::Display for BufferError {
@@ -229,6 +233,7 @@ impl fmt::Display for BufferError {
             Self::ForeignBuffer { backend } => {
                 write!(f, "foreign buffer (not owned by backend {backend})")
             }
+            Self::DeviceLost(error) => write!(f, "buffer operation failed: {error}"),
         }
     }
 }
@@ -295,5 +300,11 @@ mod tests {
             BufferError::Unsupported(CapabilityId("B.11")),
             BufferError::ForeignBuffer { backend: "cuda" }
         );
+        let lost = BufferError::DeviceLost(DeviceLost::new("xid 79"));
+        assert_eq!(
+            lost.to_string(),
+            "buffer operation failed: device lost: xid 79"
+        );
+        assert_ne!(lost, BufferError::ForeignBuffer { backend: "cuda" });
     }
 }

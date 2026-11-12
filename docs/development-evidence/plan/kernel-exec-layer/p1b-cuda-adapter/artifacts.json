@@ -1,0 +1,148 @@
+{
+  "task_id": "2026-11-12-g10-p5-kernel-exec-p1b",
+  "level": "L1",
+  "commit_s1": "e8ef68e89",
+  "revision_before": "e45b68e7dbaa553a55438a156dce3ee885e2fe73",
+  "kind": "cuda-host-adapter",
+  "inputs": {
+    "a0_contract": {
+      "commit": "d9c863d45",
+      "path": "docs/architecture/device-layer-contract.md",
+      "sha256": "41274302032330ef1a99d741cbcdd324078a2f1315d33311086fbcab63127370",
+      "bytes": 26274
+    },
+    "p1c_fallback_draft": {
+      "path": "target/impl-plan-review/p1c-fallback-definitions.md",
+      "sha256": "7b3cf6035d1e103e9b90b367250a6394c737c725eda3c492acbdae065e5be997",
+      "bytes": 12030
+    },
+    "a1_inventory": {
+      "path": "target/impl-plan-review/A1-cuda-coupling-inventory.md",
+      "sha256": "554267971fe2dc69a0359d6aabba40a7fc18083003132229cd39e9582fd4d3c6",
+      "bytes": 37413
+    },
+    "p1b_prep": {
+      "path": "target/impl-plan-review/p1b-cuda-adapter-prep.md",
+      "sha256": "4e06960a2c78828cefed947c080647161071e222eed005a2d28ee929a47c2349",
+      "bytes": 24277
+    }
+  },
+  "files": [
+    { "path": "src/runtime/kernel_exec/cuda/mod.rs", "lines": 251 },
+    { "path": "src/runtime/kernel_exec/cuda/buffer.rs", "lines": 500 },
+    { "path": "src/runtime/kernel_exec/cuda/queue.rs", "lines": 210 },
+    { "path": "src/runtime/kernel_exec/cuda/module.rs", "lines": 121 },
+    { "path": "src/runtime/kernel_exec/cuda/diagnostics.rs", "lines": 82 },
+    { "path": "src/runtime/kernel_exec/cuda/errors.rs", "lines": 91 },
+    { "path": "src/runtime/kernel_exec/cuda/tests.rs", "lines": 288 }
+  ],
+  "max_file_lines": 500,
+  "line_count_convention": "LF 计数（与 git show --stat 一致）",
+  "fallback_flags": [
+    { "name": "transient_alloc", "capability": "B.10", "level": "退", "p1b_value": true, "reason": "cudarc 分配不触发宿主等待；池化属 P1-c" },
+    { "name": "zero_copy_external", "capability": "B.11", "level": "退", "p1b_value": false, "reason": "外部句柄导入未接线（P3）；退路=拷贝，P1-c" },
+    { "name": "generic_device_fn", "capability": "D.4", "level": "退", "p1b_value": true, "reason": "CUDA C++ 模板原生（书写面 P2 使用）" },
+    { "name": "native_source_injection", "capability": "D.10", "level": "退", "p1b_value": true, "reason": "CUDA 原生内核即原生片段路径" },
+    { "name": "occupancy_hint", "capability": "G.9", "level": "退", "p1b_value": true, "reason": "CudaFunction::occupancy_max_potential_block_size 原生查询已接线" },
+    { "name": "graph_capture", "capability": "K.1", "level": "退", "p1b_value": false, "reason": "queue.capture/replay 未接线（P1-c；退路=逐次提交）" },
+    { "name": "device_loop", "capability": "K.2", "level": "退", "p1b_value": false, "reason": "未接线（P1-c；退路=固定次数）" },
+    { "name": "device_branch", "capability": "K.3", "level": "退", "p1b_value": false, "reason": "未接线（P1-c；退路=无条件执行）" },
+    { "name": "capture_alloc", "capability": "K.5", "level": "退", "p1b_value": false, "reason": "未接线（P1-c；退路=录制前预分配）" },
+    { "name": "kernel_printf", "capability": "L.3", "level": "退", "p1b_value": false, "reason": "printf 显式 no-op（P1-c 状态缓冲）" },
+    { "name": "int64", "capability": "C.1", "level": "必带退", "p1b_value": true, "reason": "CUDA i64 原生（不启用双 i32 退法）" },
+    { "name": "f32_atomic", "capability": "H.1", "level": "必带退", "p1b_value": true, "reason": "atomicAdd(float*) 原生（不启用 CAS 退法）" }
+  ],
+  "fallback_semantics": "true=该能力有原生实现（走原生路径）；false=走退路（与直觉相反，backend.rs 注释写死）。必带退：能力必级、退法常备，false 时分别走双 32 位表示/CAS 循环。",
+  "trait_impls": {
+    "Backend": "CudaBackend::{devices, open}（驱动库存在性预检 + catch_unwind + DeviceLost 分类）",
+    "Device": "CudaDevice::{caps, queue, allocator, module}；Caps 由驱动属性构造（max_threads/max_grid_x/shared_per_block/total_mem）",
+    "Allocator": "CudaAllocator::{alloc, transient}；borrow_external→BufferError::Unsupported(\"B.11\")",
+    "Buffer": "CudaBuffer::{addr, byte_len, copy_range, upload, readback, pin}；C.1 标量 7 种",
+    "Queue": "CudaQueue::{submit, wait_idle}；replay→Unsupported(\"K.1\")、capture_alloc→Unsupported(\"K.5\")",
+    "Module": "CudaModule::{compile, suggest_block_width}；Inline+entry 走 NVRTC，Named→Unsupported(\"F.1\")",
+    "Diagnostics": "CudaDiagnostics::{record_event, elapsed, printf}；printf 显式 no-op（L.3 未接线）"
+  },
+  "dtype_support": {
+    "scalar_7": ["U8", "F32", "I32", "U32", "I64", "U64", "Bool"],
+    "composite_7_unsupported": ["Vec2", "Vec3", "Vec4", "Vec6", "Vec10", "Mat33", "Quat"]
+  },
+  "unsupported_surface": [
+    "B.11 borrow_external（外部句柄导入，P3）",
+    "K.1 QueueCapture::capture / Queue::replay（P1-c）",
+    "K.5 Queue::capture_alloc（P1-c）",
+    "L.3 Diagnostics::printf（P1-c 状态缓冲）",
+    "DType 复合 7 种（P2/P3）",
+    "IndexSpace::D2/D3 发射（P2/P3）",
+    "Arg::Buffer.offset != 0（G.3 子集，P1-c）",
+    "Alias 声明 / 重复缓冲地址（G.5，P1-c）",
+    "纹理/数组描述符（M 域，P2/P3）",
+    "KernelSource::Named（P1-c/P3）",
+    "CompileOptions.defines 非空（P1-c）",
+    "I.2 ThreadScope::shared 的 CUDA 实现（P2 书写面；本片仅契约+mock）"
+  ],
+  "zero_behavior_change": {
+    "call_sites_rewired": false,
+    "existing_runtime_logic_changed": false,
+    "kernel_exec_external_references": ["src/runtime/mod.rs:7 pub mod kernel_exec;（P1-a 既有）"],
+    "src_diff_outside_kernel_exec": "empty（S2 提交前实测）",
+    "cu_or_cuda_consts_touched": false,
+    "recipe_ptx_abi_frozen_touched": false
+  },
+  "frozen_cu": {
+    "source": "docs/development-evidence/g10-p5-mesh-cap32-identity/refreeze-10-exe.json",
+    "source_sha256": "36195c24d942a389e7a5f26e97b9e4b2bd730e1a1ed63a241c60cdb567a65ed0",
+    "declared_files": 29,
+    "match": 29,
+    "mismatch": 0,
+    "log": "frozen-cu-digest.log",
+    "note": "combined 摘要拼接口径未文档化（历史 O1），本片只声明逐文件 sha256 全等"
+  },
+  "tests": {
+    "kernel_exec": {
+      "passed": 37,
+      "failed": 0,
+      "ignored_gpu": 3,
+      "log": "adapter-tests.log"
+    },
+    "full_unit": {
+      "passed": 1447,
+      "failed": 0,
+      "ignored": 405,
+      "targets": 146,
+      "log": "unit-summary.log",
+      "baseline_before": "1435 passed / 0 failed / 402 ignored"
+    },
+    "gpu_equivalence": "3 个 #[ignore] 测试已登记，本片未运行、不声明通过、不开窗"
+  },
+  "gates": {
+    "command": "normify gate 2026-11-12-g10-p5-kernel-exec-p1b",
+    "fmt_ms": 2013,
+    "clippy_ms": 5328,
+    "clippy_cuda_ms": 455,
+    "unit_ms": 101440,
+    "unit_detail": "1447 passed / 0 failed",
+    "runs_dir": ".normify/runs/2026-11-12-g10-p5-kernel-exec-p1b/",
+    "extra_self_check": "cargo clippy --locked --no-default-features --lib -- -D warnings 通过（cuda-probe cfg 门正确；--all-targets 的 no-default 构建在仓库既有 test target 上本就失败，与本片无关）"
+  },
+  "d1_extension": {
+    "variant": "BufferError::DeviceLost(DeviceLost)",
+    "reason": "P1-a BufferError 无设备错误通道；缓冲操作驱动失败若不保留设备丢失会违反 A.4 三分类不得吞掉",
+    "scope": "只被 kernel_exec 使用，零外溢",
+    "status": "需 Chief 追认；若不追认，回退方案=P1-c 将 Buffer 系列签名改回 DeviceError"
+  },
+  "commands": [
+    "cargo fmt --check",
+    "cargo clippy --all-targets --locked -- -D warnings",
+    "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+    "cargo test --locked --lib kernel_exec  # 37 passed / 3 ignored",
+    "cargo test --locked  # 1447 passed / 0 failed / 405 ignored",
+    "cargo test --locked --lib kernel_exec::cuda -- --ignored --test-threads=1  # GPU 等价，未运行"
+  ],
+  "boundaries": [
+    "P1-b 只交付契约冻结 + CUDA 宿主面适配层 + 零行为变化证据",
+    "不接现有调用点；旧 cudarc/NVRTC/launcher 路径保持原样（双轨，迁移属 P2）",
+    "不宣称任何能力已实现/已验收；不宣称跨设备等价、不宣称位级等价",
+    "GPU 等价测试未运行；未开 GPU 窗口",
+    "不触碰判据/容差/参考/ABI/冻结集；A0 措辞由 Arch 同步"
+  ]
+}

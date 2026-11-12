@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "30305c288702a8d7abcc178b16501f7103a74a6ab74bcddd3865aea45754e4fe"
+fingerprint = "000d086fa5e90a64a1698fa549b1f0e5e76032122c3c63e882db7f1e96ff6f72"
 
 [name]
 zh = "GPU运行时"
@@ -285,6 +285,24 @@ path = "src/runtime/kernel_exec/mock_tests.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/cuda/mod.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/buffer.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/diagnostics.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/errors.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/module.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/queue.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/cuda/tests.rs"
 +++
 
 ## P1局部实现
