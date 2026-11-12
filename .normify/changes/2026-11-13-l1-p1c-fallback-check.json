@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-13-l1-p1c-fallback-check",
+  "title": {
+    "zh": "L1 复核：P1-c 退路实现与 DeviceCaps.fallbacks 双路（`e8ec1f2f1`+`e8f07706c`）：**PASS（0 阻断 / 0 严重 / 0 一般 / 0 低 + 6 观察）**——src 改动只在 `src/runtime/kernel_exec/`、零 `.cu`/ABI/fixtures 改动、`kernel_exec` 仍只有 `pub mod` 一处；items.json 12 条与卡/代码一致（**10 now + 2 after_shim**，D.4/D.10 写「未实现」、明写不是 12/12）；4096 组合测试**真枚举**（mask 0..4096 × 12 能力，断言 trace 仅降级写）；FallbackTrace 仅退路写、原生不写；6 项产品接线（B.10/B.11/G.9/K.1/K.5/L.3）+ 4 项仅 `#[cfg(test)]` 选择冻结（K.2/K.3/C.1/H.1，证据已限定 P2 执行）；独立复跑 `kernel_exec` **51 passed/4 ignored/934 filtered** 与日志一致；unit **1461/0/406**；行数全 ≤500（max mock_backend 468）；4 个 `#[ignore]` 只登记未运行。观察：组合规则两层口径、K.1 重复留痕、B.11 阻塞 DtoD、B.10 池取走不归还/byte_len、H.1 同实现、4/10 接线强度",
+    "en": "L1 review of P1-c fallback implementation: PASS (0 blockers/major/low + 6 observations). Scope confined to src/runtime/kernel_exec, 12 flags = 10 now + 2 after_shim, 4096 masks x 12 capabilities truly enumerated with trace-only-on-fallback assertions, 6 items product-wired and 4 selection-only (cfg(test), disclosed as P2), kernel_exec 51/4 reproduced, unit 1461/0/406, all files <=500 lines, 4 GPU #[ignore] not run."
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 L1 流程复核 P1-c：必查范围/12 flag 表（10 now、2 after_shim，D.4/D.10 未实现）/4096 组合覆盖/FallbackTrace 留痕/10 项接线强度/unit/行数/冻结边界；抽样读 fallback 7 文件与 cuda 改动 6 文件、14 个新测试。观察进 errata，不返工。",
+    "en": "L1 review of P1-c: scope, 12-flag table (10 now, 2 after_shim), 4096-combination coverage, trace semantics, wiring strength, unit counts, line limits, frozen boundaries."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围 ✅**：S1+S2 的 src 改动只在 `src/runtime/kernel_exec/`；`git diff -- src ':(exclude)src/runtime/kernel_exec'` 空；零 `.cu`/`*.ptx`/abi/fixtures/scripts/Cargo 改动；非 src 仅 `.normify` + P1-c 证据 4 文件 + P1-b 证据文案修正；`kernel_exec` 仍只有 `src/runtime/mod.rs:7` 一处模块声明",
+    "**12 flag 表 ✅**：`items.json` 12 条、id 顺序与 A0 一致；`impl_scope` = **10 now + 2 after_shim**（D.4/D.10），D.4/D.10 `behavior` 写「未实现」，README §1/卡 acceptance 明写「不是 12/12」；代码 `FallbackCapability::ALL`(12) + `impl_scope()` 与单测 `registry_has_12_flags_with_10_now_and_2_after_shim` 一致；`cuda_fallbacks()` 值未在 P1-c 改动",
+    "**4096 组合 ✅**：`any_combination_of_12_flags_has_no_unsupported_path` 真枚举 `mask 0..(1<<12)`，逐 bit 写满 12 flag，对 12 能力各断言 `is_native` 与 `trace` 一致性（4096×12）；「不返回 Unsupported」在选择层结构性成立（`select_native` 无错误通道）",
+    "**FallbackTrace ✅**：`select_native` 仅 `!native` 时 record；生产 record 点只在退路实现（graph.rs 两处），原生路径不写；4096 组合与各双路测试均断言原生 `trace` 为空",
+    "**10 项接线（如实分级）✅**：产品接线 6 项（B.10 `transient`/B.11 `borrow_external`/G.9 `suggest_block_width`/K.1 `capture`+`replay`/K.5 `capture_alloc`/L.3 `printf`+状态缓冲）；K.2/K.3/C.1/H.1 的 CUDA 选择函数为 `#[cfg(test)]`，README §3/§6 已限定「只冻结选择、设备端执行 P2」",
+    "**测试/门禁 ✅**：独立复跑 `cargo test --locked --lib kernel_exec` = **51 passed / 0 failed / 4 ignored / 934 filtered**（cargo exit 0），与 `fallback-tests.log` 一致；全量 unit **1461/0/406**（`unit.json` 与 `unit-summary.log` 146 target 求和一致）；新增测试 14 个；4 个 `#[ignore]`（P1-b 3 + P1-c 1）只登记未运行、不声明通过",
+    "**行数/边界 ✅**：`git show e8f07706c:` + LF 复算 max = `mock_backend.rs` **468**（fallback/tests 453、cuda/buffer 454、cuda/mod 294、queue 294、cuda/tests 389、mod 44 等）全部 ≤500；29 `.cu` 冻结集/recipe/PTX/ABI 零改动；`gpu_used=false`；`policy_scan` 4 证据文件 0 命中",
+    "**结论：PASS（0 阻断 / 0 严重 / 0 一般 / 0 低 + 6 观察）。** 观察 O1=组合规则两层口径（选择层 vs 适配层 Unsupported）；O2=K.1 退路重复留痕（graph_mode+capture_sequential 记 2 条）；O3=B.11 退路用阻塞 `memcpy_dtod_sync`（证据只写无 wait_idle）；O4=B.10 CUDA 池只取不还、返回缓冲 byte_len 取池槽容量；O5=H.1 双路同一 CAS 实现（仅入口区分）；O6=4/10 项为 `#[cfg(test)]` 选择冻结——**Chief 已裁口径**：「10/12 = 选择层实现；6 项产品接线（B.10/B.11/G.9/K.1/K.5/L.3），4 项（K.2/K.3/C.1/H.1）选择函数仅测试态、设备端执行归 P2」；不返工，P1-c 证据措辞由 Backend 在 P2-b 首提交顺手改，**P2-b 范围扩为「D.4/D.10 + K.2/K.3/C.1/H.1 的设备端执行」**。O1–O5 进 errata 台账，无返工项"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-p1c-fallback-impl"
+    ],
+    "phase": "内核执行层",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np-gate/l1-p1c-fallback-check/"
+    ],
+    "resources": [],
+    "priority": 84
+  },
+  "note": "Chief 2026-11-13 00:16 派工（L1）。只读复核基线 `e8f07706c`；只读复核期间外部 claude/arch 持锁做其它文档，未写仓、未碰在途文件。零 GPU、零窗。观察进 errata 台账。不宣称 12/12 完成、D.4/D.10 已实现、任何能力已实现/已验收、缺口已清、与上游等价（over-32）、整族通过、NP01/NP02 通过；不作位级等价声明、不提供位级等价保证。",
+  "revision": {
+    "before": "fe17da170b30888c6dc31f7fcbcf843e2e93be21",
+    "after": null
+  },
+  "created_at": "2026-11-13T00:30:00.000Z",
+  "updated_at": "2026-11-12T16:22:03.977Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics/",
+        "src/render/",
+        "src/io/",
+        "src/model/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-13-l1-p1c-fallback-check"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/verdict",
+      "equals": "PASS"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/behavior/unit_tests/passed",
+      "equals": 1461
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/behavior/unit_tests/ignored",
+      "equals": 406
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/line_counts/max_file_lines_actual",
+      "equals": 468
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/flags/now",
+      "equals": 10
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/flags/after_shim",
+      "equals": 2
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/behavior/kernel_exec_tests_independent_rerun/passed",
+      "equals": 51
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np-gate/l1-p1c-fallback-check/receipt.json",
+      "pointer": "/checked/combination/enumerated",
+      "equals": 4096
+    }
+  ]
+}
