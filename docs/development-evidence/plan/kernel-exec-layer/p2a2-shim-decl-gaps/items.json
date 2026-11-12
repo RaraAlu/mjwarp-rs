@@ -1,0 +1,103 @@
+{
+  "task_id": "2026-11-13-p2a2-shim-decl-gaps",
+  "gpu_used": false,
+  "kind": "definition",
+  "items_count": 5,
+  "items": [
+    {
+      "capability_id": "D.1",
+      "gap_id": "G1",
+      "behavior": "shim 声明面支持设备侧控制流：`if/else if/else`、`while`（条件可含运行时值）、常量上界 `for`、`break`/`continue`、函数提前 `return`；不支持 `goto`/标签跳转。emitter 生成目标语言原生控制流结构，不引入跳转表或状态机改写；循环体不得含隐式同步（barrier 需显式 I.3）。",
+      "judgement": {
+        "kind": "结构断言 + 值级用例 + 负例",
+        "cases": [
+          "结构断言：生成源含 `if/else if/else`、`while`、`for`、早返回 4 类结构各 ≥1",
+          "值级用例：`while` 条件由设备 i32 计数控制（改计数 → 改轮数）；早返回路径可命中",
+          "值级用例：`break`/`continue` 各 1 例",
+          "负例：出现 `goto`/标签跳转 → 编译期拒绝（显式错误，不静默降级）"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 (D.1)；试点使用点：`build_rays.cu:136`（while）、`:48`/`:68`（if/else if/else）；`rne.cu:64`（早返回）；`mixed/solve/cuda.rs:43`/`:56`（for + if）",
+      "frozen_delta": "无：本卡只增补声明面与判据，不改 P2-a 的 25 条判据/编号、不改 P2-a 证据、不改内核源、不动冻结集（0 窗 0 GPU）",
+      "evidence": "items.json 本条；P2-b 生成源断言与值级用例（本片只冻结声明面与判据）"
+    },
+    {
+      "capability_id": "D.5",
+      "gap_id": "G2",
+      "behavior": "shim 整数语义写死：i32/u32 的 `+ - * / %`、位与/或/异或/取反、左右移、比较；**溢出按二进制补码回绕**（Rust 侧必须 `wrapping_*`，debug 构建不得 panic）；**移位量按位宽掩码**（u32/i32 取低 5 位、u64 取低 6 位）；**除零不得 panic/陷阱**，结果由后端决定、调用方不得依赖；u64/i64 偏移算术与 `(int)`/`(long)` 显式 cast 均支持，不做隐式升位宽。",
+      "judgement": {
+        "kind": "结构断言 + 值级用例 + 负例",
+        "cases": [
+          "值级用例：`i32::MAX + 1` 回绕为 `i32::MIN`，debug 构建不 panic",
+          "值级用例：移位量 32/64 时按位宽掩码（`x << 32` == `x << 0`）",
+          "值级用例：u64 偏移 `4 + (u64)w * (12*nb + nv)` 与 i32 版本对同一布局给出相同地址",
+          "负例：显式构造除零路径 → 不得 panic/陷阱（返回值不做数值断言）"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 (D.5)；试点使用点：`build_rays.cu:142-143`（`%`/`/`）、`:147`（`(long)` cast）；`rne.cu:62`（`%`/`/`）、`:65`（u64 偏移）；`mixed/solve/cuda.rs:40-41`（u64 偏移）",
+      "frozen_delta": "无：本卡只增补声明面与判据，不改 P2-a 的 25 条判据/编号、不改 P2-a 证据、不改内核源、不动冻结集（0 窗 0 GPU）",
+      "evidence": "items.json 本条；P2-b 生成源断言与值级用例（本片只冻结声明面与判据）"
+    },
+    {
+      "capability_id": "D.2",
+      "gap_id": "G3",
+      "behavior": "shim 声明面支持设备函数：`#[device_fn]` 标注、可互相调用（≥3 层嵌套）、参数按值/按视图传递、可返回标量或复合值；`__forceinline__` 只作为 emitter 的内联提示、不改变语义。**不支持递归**（递归/自调用在 P2-c 再评）；泛型设备函数见 G7（延后 P2-c）。",
+      "judgement": {
+        "kind": "结构断言 + 值级用例 + 负例",
+        "cases": [
+          "结构断言：生成源含被调设备函数定义 + 调用点（≥3 层调用链）",
+          "值级用例：3 层嵌套调用（外层→中层→内层）与内联展开后结果一致（同 policy）",
+          "值级用例：设备函数返回复合值（Vec3）在调用点逐分量正确",
+          "负例：递归/自调用 → 编译期拒绝（显式错误）"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 (D.2)；试点使用点：`build_rays.cu:26`/`:31`/`:45`（v3/normalize3/compute_ray 互调）；`mixed/solve/cuda.rs:7`/`:11`（mixed_schur/mixed_small_solve）",
+      "frozen_delta": "无：本卡只增补声明面与判据，不改 P2-a 的 25 条判据/编号、不改 P2-a 证据、不改内核源、不动冻结集（0 窗 0 GPU）",
+      "evidence": "items.json 本条；P2-b 生成源断言与值级用例（本片只冻结声明面与判据）"
+    },
+    {
+      "capability_id": "D.8/D.9",
+      "gap_id": "G4",
+      "behavior": "shim 声明面支持下标读写与视图偏移：`load(&view, idx)`/`store(&mut view, idx, v)` 按下标访问；`view + off`（或 `view.slice(off)`）返回**带偏移的视图句柄**，不暴露裸地址；多维视图按行主展平；`out + 6*index` 这类复合偏移表达为 `view.slice(6*index)`；越界在 debug 断言/显式错误；偏移宽度由 D.5 保证（i32 元素步长、u64 字节偏移）。指针/视图对外为 opaque 句柄（与 A0 §9「只传 opaque 句柄」一致）。",
+      "judgement": {
+        "kind": "结构断言 + 值级用例 + 负例",
+        "cases": [
+          "结构断言：生成源下标读写与偏移视图（slice）各 ≥1，且不出现宿主裸地址暴露",
+          "值级用例：同一缓冲不同偏移视图读写互不覆盖（偏移正确性）",
+          "值级用例：`out + 6*index` 形态的复合偏移与逐元素写入结果一致",
+          "负例：越界下标 → 显式错误（debug 断言/Err），不静默越界写"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 (D.8/D.9)；试点使用点：`build_rays.cu:131-134`/`:147`（`meta+4`、`offsets+ncam`、`out+6*(long)index`）；`rne.cu:63`/`:65`（`m+5`、u64 偏移）；`mixed/solve/cuda.rs:38-39`（`meta+4`、`flags+2*n`、`offsets+meta[0]+1`、`small=updates+3*offsets[meta[0]]`）",
+      "frozen_delta": "无：本卡只增补声明面与判据，不改 P2-a 的 25 条判据/编号、不改 P2-a 证据、不改内核源、不动冻结集（0 窗 0 GPU）",
+      "evidence": "items.json 本条；P2-b 生成源断言与值级用例（本片只冻结声明面与判据）"
+    },
+    {
+      "capability_id": "I.3",
+      "gap_id": "G6",
+      "behavior": "shim 声明面提供块内同步屏障 `barrier()`：块内所有线程到达后继续；与 I.1（`tid()`/`block_dim()`）配合使用；**只支持块内屏障**，网格级/设备级同步不支持（显式拒绝）；emitter 生成目标后端原生屏障（CUDA `__syncthreads`；CPU 单线程块下为顺序桩）。屏障前的块内共享写入在屏障后对同块线程可见。",
+      "judgement": {
+        "kind": "结构断言 + 值级用例 + 负例",
+        "cases": [
+          "结构断言：生成源含块内屏障调用（CUDA 目标为 `__syncthreads`）",
+          "值级用例：屏障前后块内共享区写入的可见性（K3 降级版两阶段求解）",
+          "值级用例：连续 2 次屏障之间的读写顺序稳定（两次运行一致）",
+          "负例：请求网格级/设备级同步 → 显式不支持（`Unsupported`），不静默降级为块内屏障"
+        ]
+      },
+      "upstream_anchor": "docs/implementation-plan.md §并行计算单元能力定义 (I.3)；A0 §2 `ThreadScope::barrier`（P1-b 已提供宿主 trait，本片补 shim 声明面）；试点使用点：`mixed/solve/cuda.rs:55`/`:61`/`:64`/`:70`（`__syncthreads` ×4）",
+      "frozen_delta": "无：本卡只增补声明面与判据，不改 P2-a 的 25 条判据/编号、不改 P2-a 证据、不改内核源、不动冻结集（0 窗 0 GPU）",
+      "evidence": "items.json 本条；P2-b 生成源断言与值级用例（本片只冻结声明面与判据）"
+    }
+  ],
+  "counts": {
+    "D.1": 1,
+    "D.5": 1,
+    "D.2": 1,
+    "D.8/D.9": 1,
+    "I.3": 1,
+    "total": 5
+  },
+  "related_card": "2026-11-13-p2a-shim-minimal-api",
+  "note": "P2-a 的 5 条声明面增补（G1/G2/G3/G4/G6），不改 P2-a 的 25 条判据/编号；0 窗 0 GPU。"
+}
