@@ -14,8 +14,9 @@ use super::buffer::{
 use super::device::{
     Atomics, Counter, DeviceMath, Diagnostics, Dim3, Event, ExecControl, SharedBuf, ThreadScope,
 };
-use super::error::{BufferError, CompileError, DeviceError, DeviceLost, LaunchError};
-use super::module::{BlockSuggestion, CompileOptions, Kernel, KernelSource, Module};
+use super::error::{BufferError, DeviceError, DeviceLost, LaunchError};
+pub(crate) use super::mock_module::MockModule;
+use super::module::Module;
 use super::queue::{Graph, Launch, Queue, QueueCapture, Submission};
 
 const MOCK_MAX_BUFFER_BYTES: u64 = 1024;
@@ -51,18 +52,25 @@ pub(crate) struct QueueState {
     pub(crate) idle: bool,
     pub(crate) replays: u32,
     pub(crate) captures: u32,
+    /// `wait_idle` 调用次数（"不隐式同步"断言用）。
+    pub(crate) waits: u32,
 }
 
 pub(crate) struct MockDevice {
-    caps: DeviceCaps,
+    pub(crate) caps: DeviceCaps,
     pub(crate) state: Rc<RefCell<QueueState>>,
 }
 
 impl MockDevice {
     pub(crate) fn new() -> Self {
+        Self::with_fallbacks(FallbackSet::all())
+    }
+
+    /// 指定退项能力表构造（P1-c 双路测试用）。
+    pub(crate) fn with_fallbacks(fallbacks: FallbackSet) -> Self {
         Self {
             caps: DeviceCaps {
-                fallbacks: FallbackSet::all(),
+                fallbacks,
                 max_index_dims: 3,
                 max_block_threads: 1024,
                 max_blocks: 4096,
@@ -94,7 +102,7 @@ impl Device for MockDevice {
     }
 
     fn module(&self) -> Box<dyn Module> {
-        Box::new(MockModule)
+        Box::new(MockModule::new(self.caps))
     }
 }
 
@@ -229,7 +237,9 @@ impl Queue for MockQueue {
     }
 
     fn wait_idle(&self) -> Result<(), DeviceError> {
-        self.state.borrow_mut().idle = true;
+        let mut state = self.state.borrow_mut();
+        state.idle = true;
+        state.waits += 1;
         Ok(())
     }
 
@@ -257,41 +267,6 @@ impl QueueCapture for MockQueue {
         drop(state);
         body(self);
         Ok(Graph(self.state.borrow().captures as u64))
-    }
-}
-
-pub(crate) struct MockModule;
-
-impl Module for MockModule {
-    fn compile(&self, src: KernelSource, opts: CompileOptions) -> Result<Kernel, DeviceError> {
-        match src {
-            KernelSource::Named("") => Err(DeviceError::Compile(CompileError::new(
-                "empty kernel source name",
-            ))),
-            KernelSource::Inline("") => Err(DeviceError::Compile(CompileError::new(
-                "empty inline kernel source",
-            ))),
-            KernelSource::Inline(_) => {
-                if opts.entry.is_none() {
-                    return Err(DeviceError::Compile(CompileError::new(
-                        "inline kernel source requires an entry name",
-                    )));
-                }
-                Ok(Kernel::from_handle(42))
-            }
-            KernelSource::Named(name) => {
-                let _ = name;
-                Ok(Kernel::from_handle(42))
-            }
-        }
-    }
-
-    fn suggest_block_width(
-        &self,
-        _kernel: &Kernel,
-        _work_items: u64,
-    ) -> Result<BlockSuggestion, DeviceError> {
-        Ok(BlockSuggestion::FALLBACK)
     }
 }
 

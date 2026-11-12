@@ -79,11 +79,18 @@ S2 追加（**D1 扩展，见 §7**）：`BufferError::DeviceLost`——缓冲�
 
 补充自证：`cargo clippy --locked --no-default-features --lib -- -D warnings` 通过（`cuda-probe` cfg 门正确；注：`--all-targets` 的 no-default 构建在仓库既有 test target 上本就失败，与本片无关，未作为卡门禁）。结果 JSON 在 `.normify/runs/2026-11-12-g10-p5-kernel-exec-p1b/`。
 
+> **两轮独立测量**：上表是**冷跑**一轮（首次全量编译，unit 101,440 ms）；提交的 `.normify/runs/*.json` 是收口前**热跑**复跑（缓存命中：fmt 1,979 ms / clippy 456 ms / clippy-cuda 455 ms / unit 16,845 ms）。两轮分开记录，不互相覆盖。
+> 另：`unit.json::log_sha256` 与 `unit-summary.log` 的 sha 不同是**关系而非矛盾**——前者是 gate 的原生产出日志，后者是本片过滤后的 `Running`/`test result:` 摘要。
+
 ## 7. 覆盖/未覆盖与披露
 
-- **显式 `Unsupported`（未接线，不静默降级）**：B.11 `borrow_external`（P3）；K.1 `capture`/`replay`、K.5 `capture_alloc`（P1-c）；L.3 `printf`（P1-c）；`DType` 复合 7 种（P2/P3）；`IndexSpace::D2/D3`、`Arg::Buffer.offset≠0`、别名声明、重复缓冲地址、纹理/数组描述符（P2/P3）；`KernelSource::Named`（P1-c/P3）；`CompileOptions.defines` 非空（P1-c）。
-- **D1 扩展（需 Chief 追认）**：`BufferError::DeviceLost` 为 S2 实现时新增——P1-a 的 `BufferError` 只有参数类变体，缓冲操作的驱动失败无处上报会违反"A.4 三分类不得吞掉"。只被 `kernel_exec` 使用，零外溢；若不追认，回退方案是 P1-c 把 `Buffer` 系列签名改回 `DeviceError`。
-- **语义备注**：`Init::Uninit` 用清零实现（内容"未定义"的合法取值，避免 `unsafe alloc`，且不引入隐式同步）；`upload/readback` 按小端位模式解释字节（宿主机侧允许一次暂存拷贝）；`submit` 的实参 ABI 匹配由调用方按 `CompileOptions`/入口约定保证（A0 §2 G.3 opaque 描述符取舍），unsafe 集中在 `cuda/queue.rs` 的 `launch` 一处并写安全前提。
+- **未接线不静默降级（三条口径）**：
+  1. **返回 `DeviceError::Unsupported` / `BufferError::Unsupported`**：B.11 `borrow_external`（外部句柄导入属 P3）；K.1 `Queue::replay`、K.5 `Queue::capture_alloc`；`DType` 复合 7 种（P2/P3）；`IndexSpace::D2/D3`、`Arg::Buffer.offset≠0`、别名声明、重复缓冲地址、纹理/数组描述符（P2/P3）；`KernelSource::Named`（P1-c/P3）；`CompileOptions.defines` 非空（P1-c）。
+  2. **签名无错误通道 → 显式 no-op**：L.3 `Diagnostics::printf`（`fn printf(&self, fmt, args)` 无返回值；P1-b 不分配、不打印、不等待，P1-c 落状态缓冲退路）。
+  3. **未实现该 trait**：K.1 的 `QueueCapture` 在 CUDA 适配层**未实现**（不是返回 Unsupported）；`Queue::replay` 单独返回 `Unsupported`。
+- **D1 扩展（已获 Chief 追认）**：`BufferError::DeviceLost` 为 S2 实现时新增——P1-a 的 `BufferError` 只有参数类变体，缓冲操作的驱动失败无处上报会违反"A.4 三分类不得吞掉"；只被 `kernel_exec` 使用、零外溢，A0 由 Arch 补一句（本片不改 A0）。
+- **语义备注**：`Init::Uninit` 用清零实现（内容"未定义"的合法取值，避免 `unsafe alloc`，且不引入隐式同步）；`upload/readback` 按小端位模式解释字节（宿主机侧允许一次暂存拷贝）；`submit` 的实参 ABI 匹配由调用方按 `CompileOptions`/入口约定保证（A0 §2 G.3 opaque 描述符取舍）。
+- **unsafe 实为 2 处**（均在 `src/runtime/kernel_exec/cuda/queue.rs`，各带安全前提注释）：`:33` `unsafe impl DeviceRepr for DevicePtrArg`（transparent u64 实参 ABI）；`:180` `unsafe { builder.launch(config) }`（内核发射）。
 
 ## 8. 复跑
 

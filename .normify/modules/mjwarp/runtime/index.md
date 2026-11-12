@@ -281,10 +281,33 @@ path = "src/runtime/kernel_exec/queue.rs"
 path = "src/runtime/kernel_exec/mock_backend.rs"
 
 [[source]]
+path = "src/runtime/kernel_exec/mock_module.rs"
+
+[[source]]
 path = "src/runtime/kernel_exec/mock_tests.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/cuda/mod.rs"
+[[source]]
+path = "src/runtime/kernel_exec/fallback/mod.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/fallback/buffers.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/fallback/control.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/fallback/graph.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/fallback/numeric.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/fallback/printf.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/fallback/tests.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/cuda/buffer.rs"

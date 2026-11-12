@@ -131,7 +131,7 @@ fn launch_and_capture_are_counted() {
 
 #[test]
 fn module_compile_returns_kernel_and_rejects_empty_source() {
-    let module = MockModule;
+    let module = MockModule::new(MockDevice::new().caps);
     let kernel = module
         .compile(
             KernelSource::Named("render_depth_seg"),
@@ -165,12 +165,20 @@ fn module_compile_returns_kernel_and_rejects_empty_source() {
 
 #[test]
 fn module_suggest_block_width_uses_frozen_fallback() {
-    let module = MockModule;
-    let suggestion = module
+    // 双路：occupancy_hint=false → 冻结退路 {256,1}；true → mock 原生桩 {512,2}。
+    let fallback =
+        MockModule::new(MockDevice::with_fallbacks(super::backend::FallbackSet::none()).caps);
+    let suggestion = fallback
         .suggest_block_width(&Kernel::from_handle(42), 4096)
         .unwrap();
     assert_eq!(suggestion.block_width, 256);
     assert_eq!(suggestion.min_blocks, 1);
+    let native = MockModule::new(MockDevice::new().caps);
+    let suggestion = native
+        .suggest_block_width(&Kernel::from_handle(42), 4096)
+        .unwrap();
+    assert_eq!(suggestion.block_width, 512);
+    assert_eq!(suggestion.min_blocks, 2);
 }
 
 #[test]
