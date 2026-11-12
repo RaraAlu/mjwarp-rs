@@ -1,0 +1,201 @@
+{
+  "task_id": "2026-11-12-g10-p5-kernel-exec-p1a",
+  "level": "L1",
+  "revision_before": "78038ca9fbb2226220800636465d973e300d088f",
+  "commit_s1": "a6649a809",
+  "kind": "device-trait-skeleton",
+  "files": [
+    {
+      "path": "src/runtime/kernel_exec/backend.rs",
+      "lines": 201
+    },
+    {
+      "path": "src/runtime/kernel_exec/buffer.rs",
+      "lines": 160
+    },
+    {
+      "path": "src/runtime/kernel_exec/device.rs",
+      "lines": 169
+    },
+    {
+      "path": "src/runtime/kernel_exec/error.rs",
+      "lines": 267
+    },
+    {
+      "path": "src/runtime/kernel_exec/mock_backend.rs",
+      "lines": 457
+    },
+    {
+      "path": "src/runtime/kernel_exec/mock_tests.rs",
+      "lines": 213
+    },
+    {
+      "path": "src/runtime/kernel_exec/mod.rs",
+      "lines": 37
+    },
+    {
+      "path": "src/runtime/kernel_exec/module.rs",
+      "lines": 87
+    },
+    {
+      "path": "src/runtime/kernel_exec/queue.rs",
+      "lines": 152
+    },
+    {
+      "path": "src/runtime/mod.rs",
+      "lines": 126,
+      "note": "仅增加一行 `pub mod kernel_exec;`（其余历史行不变）"
+    }
+  ],
+  "max_file_lines": 457,
+  "trait_groups": {
+    "backend": [
+      "Backend",
+      "Device",
+      "DeviceCaps",
+      "FallbackSet",
+      "FmaMode",
+      "NumericPolicy"
+    ],
+    "buffer": [
+      "Buffer",
+      "Allocator",
+      "DType",
+      "Init",
+      "Address64",
+      "ExternalHandle",
+      "Pinned"
+    ],
+    "queue": [
+      "Queue",
+      "QueueCapture",
+      "Launch",
+      "IndexSpace",
+      "Arg",
+      "Alias",
+      "Submission",
+      "Graph"
+    ],
+    "module": [
+      "Module",
+      "KernelSource",
+      "CompileOptions",
+      "Kernel"
+    ],
+    "device": [
+      "DeviceMath",
+      "Atomics",
+      "ThreadScope",
+      "ExecControl",
+      "Diagnostics"
+    ],
+    "error": [
+      "DeviceError(Compile/Launch/DeviceLost/Unsupported)",
+      "BufferError"
+    ]
+  },
+  "object_safety": {
+    "dyn_safe": [
+      "Backend",
+      "Device",
+      "Allocator",
+      "Buffer",
+      "Queue",
+      "Module",
+      "Diagnostics",
+      "ThreadScope",
+      "Atomics"
+    ],
+    "not_dyn_safe": [
+      "DeviceMath（静态方法，设备端单态化）",
+      "ExecControl（impl FnMut/FnOnce）",
+      "QueueCapture（泛型 capture）"
+    ]
+  },
+  "zero_behavior_change": {
+    "call_sites_rewired": false,
+    "existing_runtime_logic_changed": false,
+    "runtime_mod_changed_lines": 1,
+    "cu_or_cuda_consts_touched": false,
+    "recipe_pty_abi_frozen_touched": false,
+    "cudarc_types_in_signatures": false,
+    "unsafe_in_new_code": false
+  },
+  "dead_code_handling": {
+    "module_level_allow": false,
+    "method": "模块从 crate 根 pub 可见（mjwarp_rs::runtime::kernel_exec::*），未使用 #[allow(dead_code)]，未改 lint 配置"
+  },
+  "tests": {
+    "kernel_exec": {
+      "count": 25,
+      "passed": 25,
+      "failed": 0,
+      "names": [
+        "runtime::kernel_exec::backend::tests::fallback_set_all_and_minimal_caps",
+        "runtime::kernel_exec::backend::tests::frozen_numeric_policy_is_f32_fma_without_fast_math",
+        "runtime::kernel_exec::buffer::tests::dtype_sizes_are_explicit",
+        "runtime::kernel_exec::buffer::tests::range_check_is_explicit_on_overflow",
+        "runtime::kernel_exec::device::tests::dim3_constructors_are_explicit",
+        "runtime::kernel_exec::error::tests::buffer_errors_are_explicit",
+        "runtime::kernel_exec::error::tests::three_classes_are_not_merged",
+        "runtime::kernel_exec::error::tests::unsupported_is_explicit_and_not_one_of_three",
+        "runtime::kernel_exec::mock_tests::allocator_capacity_is_explicit",
+        "runtime::kernel_exec::mock_tests::backend_lists_and_opens_default_device",
+        "runtime::kernel_exec::mock_tests::buffer_upload_readback_roundtrip",
+        "runtime::kernel_exec::mock_tests::copy_range_is_explicit_and_works",
+        "runtime::kernel_exec::mock_tests::device_side_traits_are_usable_via_generic_bounds",
+        "runtime::kernel_exec::mock_tests::diagnostics_events_elapsed_and_printf",
+        "runtime::kernel_exec::mock_tests::launch_and_capture_are_counted",
+        "runtime::kernel_exec::mock_tests::launch_error_variants_are_distinct",
+        "runtime::kernel_exec::mock_tests::module_compile_returns_kernel_and_rejects_empty_source",
+        "runtime::kernel_exec::mock_tests::object_safe_handles_compile",
+        "runtime::kernel_exec::mock_tests::submit_is_not_implicitly_synchronous",
+        "runtime::kernel_exec::mock_tests::unknown_device_is_device_lost",
+        "runtime::kernel_exec::mock_tests::unsupported_capability_is_explicit_error",
+        "runtime::kernel_exec::module::tests::compile_options_default_to_frozen_policy_and_carry_defines",
+        "runtime::kernel_exec::module::tests::kernel_handle_is_opaque_but_roundtrips",
+        "runtime::kernel_exec::queue::tests::index_space_ranks_are_explicit",
+        "runtime::kernel_exec::queue::tests::launch_defaults_use_frozen_numeric_policy"
+      ]
+    },
+    "full_unit": {
+      "result_lines": 146,
+      "passed": 1435,
+      "failed": 0,
+      "ignored": 402
+    }
+  },
+  "gates_manual": {
+    "fmt": {
+      "seconds": 1.77,
+      "exit": 0
+    },
+    "clippy": {
+      "seconds": 0.45,
+      "exit": 0
+    },
+    "clippy-cuda": {
+      "seconds": 0.4,
+      "exit": 0
+    },
+    "unit": {
+      "seconds": 88.34,
+      "exit": 0,
+      "detail": "1435 passed / 0 failed / 402 ignored / 146 test targets"
+    }
+  },
+  "gate_evidence": ".normify/runs/2026-11-12-g10-p5-kernel-exec-p1a/*.json（normify gate 产物）",
+  "commands": [
+    "cargo fmt --check",
+    "cargo clippy --all-targets --locked -- -D warnings",
+    "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+    "cargo test --locked",
+    "cargo test --locked --lib kernel_exec  # 25 passed"
+  ],
+  "boundaries": [
+    "P1-a 只声明接口 + mock + 单测，不接任何现有调用点；P1-b 才做 CUDA 适配接线",
+    "不碰 .cu / *_CUDA / recipe / PTX / ABI / 冻结集；现有测试全过",
+    "mock 不是后端实现，不构成任何能力完成/验收结论",
+    "未运行 GPU 测试（本片 0 GPU）"
+  ]
+}

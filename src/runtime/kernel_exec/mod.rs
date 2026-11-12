@@ -29,3 +29,8 @@ pub use device::{
 pub use error::{BufferError, CompileError, DeviceError, DeviceLost, ErrorClass, LaunchError};
 pub use module::{CompileOptions, Kernel, KernelSource, Module};
 pub use queue::{Alias, Arg, Graph, IndexSpace, Launch, Queue, QueueCapture, Submission};
+
+#[cfg(test)]
+mod mock_backend;
+#[cfg(test)]
+mod mock_tests;

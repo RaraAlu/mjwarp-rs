@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "ef436d2c1127d22093ff295e2d64130c42d1cd2e8743dfe1423cd70d07ca22be"
+fingerprint = "30305c288702a8d7abcc178b16501f7103a74a6ab74bcddd3865aea45754e4fe"
 
 [name]
 zh = "GPU运行时"
@@ -276,6 +276,12 @@ path = "src/runtime/kernel_exec/module.rs"
 
 [[source]]
 path = "src/runtime/kernel_exec/queue.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/mock_backend.rs"
+
+[[source]]
+path = "src/runtime/kernel_exec/mock_tests.rs"
 +++
 
 ## P1局部实现
