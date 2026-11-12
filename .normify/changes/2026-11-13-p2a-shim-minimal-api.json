@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-13-p2a-shim-minimal-api",
+  "title": {
+    "zh": "P2-a 书写面最小 API 与语义冻结（H.7/H.8/G.8 + E.3–E.7 22 项；L1 定义片）",
+    "en": "P2-a minimal shim API and semantics (H.7/H.8/G.8 + 22 E.3-E.7 functions; L1 definition slice)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 P2 草案（p2-shim-minimal-api-draft.md）冻结语言层书写面的最小声明面与判据：①H.7/H.8 数组元素 `+=`/`-=` 必须原子、`*=`/`/=` 必须普通读改写；②G.8 两种索引模式（ThreadPerItem/GridStride）声明与发射期校验；③E.3–E.7 共 22 个向量/矩阵/四元数/空间/选择函数的签名与边界；共 25 条。只冻结声明面与判据，不实现 emitter、不改现有 .cu、不动冻结集、0 窗 0 GPU。P2-b（Backend）按本片判据实现 emitter 与生成源断言。",
+    "en": "Freeze the minimal shim declaration surface and judging criteria: H.7/H.8 array-element operator atomics, G.8 two index modes with launch-time validation, and 22 E.3-E.7 function signatures/edges - 25 entries total. Declaration surface and criteria only; emitter work and generated-source assertions belong to P2-b."
+  },
+  "modules": {},
+  "acceptance": [
+    "目录 docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/ 存在 items.json（25 条）与 README.md；UTF-8 / LF / 无 BOM；L1 不建 manifest。",
+    "items.json 25 条 = H.7、H.8、G.8 各 1 条 + E.3–E.7 共 22 条；每条含 capability_id / behavior / judgement / upstream_anchor / frozen_delta / evidence 六要素。",
+    "H.7/H.8 语义写死：arr[i] += v 必须生成原子加（复合类型逐分量，顺序 x,y,z / (ang,lin)）、arr[i] -= v 同理、arr[i] *= v 与 /= v 为普通读改写、`+=` 语句不产生返回值；判据含 4 个合成用例（原子形态命中 / vec3 逐分量 / `*=` 不命中 atom / `-=` 形态二选一写死）。",
+    "G.8 两种索引模式（ThreadPerItem / GridStride）的声明与生成规则各 1 条文本断言；ThreadPerItem 发射期校验 blocks*block_width >= n；默认 ThreadPerItem、不隐式切换。",
+    "E.3–E.7 22 个函数逐条签名 + 边界写死（normalize(0)→0 向量、奇异 determinant 不特判、非归一化 quat 不自动归一、spatial 分量序 (ang,lin)、where 不求值未选分支、pi/inf 冻结常量）。",
+    "写域与流程：git diff --name-only 仅 docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/** 与 .normify/**；src/、tests/、fixtures/、scripts/ 零改动；L1 两段式 ≤2 提交；门禁 fmt/clippy（单提交）+ clippy-cuda/unit（收口）；0 窗 0 GPU（gpu_used=false）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-12-g10-p5-kernel-exec-p1b",
+      "2026-11-12-p1c-fallback-impl"
+    ],
+    "phase": "P2-内核执行层",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "定义片（owner=Arch）：只冻结声明面/语义/判据；P2-b（Backend）据此实现 emitter 与生成源断言。依赖 P1-b/P1-c 均已 verified。依据 p2-shim-minimal-api-draft.md、A0 §5、P1-a/P1-b trait。本卡不实现、不改现有 .cu、不动冻结集、0 窗 0 GPU。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-12T16:22:00.000Z",
+  "updated_at": "2026-11-12T16:22:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/",
+        "scripts/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/items.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-13-p2a-shim-minimal-api"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/items.json",
+      "pointer": "/gpu_used",
+      "equals": false
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/items.json",
+      "pointer": "/kind",
+      "equals": "definition"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/plan/kernel-exec-layer/p2a-shim-minimal/items.json",
+      "pointer": "/items_count",
+      "equals": 25
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "已实现",
+        "已验收",
+        "与上游一致",
+        "等价通过",
+        "验收通过"
+      ]
+    }
+  ]
+}
