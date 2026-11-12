@@ -17,7 +17,7 @@
 | E-006 | 2026-11-12 | QA 追加复核 L4（提交 `27f81d7b1` 记录） | README 头部「累计 diff +33/-2」为陈旧值（实际 +37/-2） | 低 | OPEN | 下一批 |
 | E-007 | 2026-11-12 | U7/U8 判据 addenda §3 O1 | `UNC-1` 术语 partial/uncovered 混用；引用时按 `id`+`status`+`group` 合读（当时记录不改内容） | 观察 | OPEN | 文档统一批 |
 | E-008 | 2026-11-12 | U7/U8 判据 addenda §3 O2 | `a2-slices.json` L55「见 criteria §1.3」应指 `README.md §1.3`（当时记录不改内容） | 观察 | OPEN | 文档统一批 |
-| E-009 | 2026-11-12 | 本流程落地（A0/L0 提交实践） | `normify` commit-msg 钩子无 L0 豁免：要求 `Normify-Task:` 且按卡 `schedule.files` 校验范围（实测 `E commit/no-task`、`E commit/task-missing`、`E commit/scope`）。L0 docs 提交暂用 `--no-verify` 并在提交说明注明；待工具侧补 `docs/**` 路径白名单或 `Normify-Task: L0` 伪任务 | 低 | OPEN | 工具批 |
+| E-009 | 2026-11-12 | 本流程落地（A0/L0 提交实践） | `normify` commit-msg 钩子无 L0 豁免：要求 `Normify-Task:` 且按卡 `schedule.files` 校验范围。**已用常驻卡解决**：L0 docs 提交统一引用 `2026-11-12-process-lite-standing`；`5f9c1bb9`、`117d2299` 两次历史 L0 提交为一次性 `--no-verify`，保留不重写。长期可考虑工具白名单（`docs/**` 免任务或 `Normify-Task: L0`），需用户批 | 低 | DONE（常驻卡） | 工具批（长期项） |
 
 ## 维护
 

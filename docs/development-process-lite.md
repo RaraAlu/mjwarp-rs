@@ -16,7 +16,7 @@
 
 L0 提交说明必须写清「改了什么、为什么、影响面」；不需要卡、不需要证据目录。
 
-> **实现现状（2026-11-12）**：`normify` 的 commit-msg 钩子要求 `Normify-Task:` 尾部字段并校验任务范围，暂无 L0 豁免。L0 提交暂以 `git commit --no-verify` 执行，并在提交说明注明「L0：无卡/无门禁」；待工具侧（`slice.ps1`/`review.ps1` 配套）补 `docs/**` 路径白名单后恢复常规。该缺口记于 errata 台账 E-009。
+> **L0 提交引用**：L0 docs 提交统一引用常驻卡 **`2026-11-12-process-lite-standing`**（`schedule.files: ["docs/"]`，不建证据、不排期、不占窗口）作为 `Normify-Task` 尾部字段；**禁止 `--no-verify`**。历史两次一次性 `--no-verify` 提交（`5f9c1bb9`、`117d2299`）保留、不重写。长期工具白名单方案见 errata E-009（需用户批）。
 
 ## 2. 复核一次 + errata 台账
 
@@ -43,7 +43,7 @@ L0 提交说明必须写清「改了什么、为什么、影响面」；不需�
 
 | 级别 | 提交形态 |
 | --- | --- |
-| L0 | 1 个提交，显式 pathspec，只加本次文件 |
+| L0 | 1 个提交，显式 pathspec，只加本次文件；`Normify-Task` 引用常驻卡 `2026-11-12-process-lite-standing` |
 | L1 | 1 卡 = 登记提交（卡 JSON，proposed→start）+ 工作/收口提交（内容 + 证据），共 2 个 |
 | L2 | 沿用现有（登记 / 内容 / fix 等），两段式 |
 
